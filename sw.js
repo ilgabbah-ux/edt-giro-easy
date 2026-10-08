@@ -1,5 +1,5 @@
 // EDT Giro Easy · service worker: il gioco funziona anche offline dopo la prima apertura.
-const CACHE = 'giro-easy-v53';
+const CACHE = 'giro-easy-v54';
 const FILES = ['./', './index.html', './style.css', './game.js', './physics.js', './scene3d.js', './progress.js', './audio.js', './icons.js', './mudfx.js', './voci.js', './voci-piloti.js', './piloti.js', './classifica.js',
   './three.module.min.js', './three.core.min.js', './RoundedBoxGeometry.js', './anton.woff2', './barlow-condensed-latin-600-normal.woff2', './barlow-condensed-latin-700-normal.woff2',
   './barlow-condensed-latin-800-italic.woff2', './edt-logo-small.jpg', './edt-logo.png', './img/edt-shield.webp', './img/ice-scrofy.webp', './img/angelo-suuuka.webp', './img/san-miti.webp', './img/i-want-you.webp', './icon-v53-192.png', './icon-v53-512.png', './manifest.webmanifest'];
