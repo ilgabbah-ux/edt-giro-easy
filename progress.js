@@ -131,7 +131,7 @@ export const BIKES = [
   { id: 'mulo450', name: '450 Mulo', price: 520, level: 5, icon: '🐂', desc: 'Tanta coppia: vola in salita e sul veloce, ma è pesante da sterzare.', stats: { speed: .06, climb: .5, steer: -.1 }, look: { scale: 1.05, big: true } },
   { id: 'vintage', name: 'Vecchia gloria ’89', price: 700, level: 6, icon: '🏆', desc: 'Doppio ammortizzatore e faro tondo. Un po’ di tutto, con stile.', stats: { speed: .03, jump: .05, steer: .05, turbo: .1 }, look: { scale: 1, vintage: true } },
   // v46 · BO-anal Special Parts: le più care e le più forti di tutte.
-  { id: 'boanal', name: 'BO-anal Special', price: 1200, level: 6, icon: '💎', boanal: true, desc: 'BO-anal Special Parts: la più cara e la più forte. Veloce, salta, sterza e carica il turbo meglio di tutte.', stats: { speed: .09, jump: .1, steer: .14, turbo: .3, climb: .3, wheelie: 1 }, look: { scale: 1.02, twoStroke: true, boanal: true } },
+  { id: 'boanal', name: 'T7 BO-anal Special', price: 1200, level: 6, icon: '💎', boanal: true, desc: 'BO-anal Special Parts: la più cara e la più forte. Veloce, salta, sterza e carica il turbo meglio di tutte.', stats: { speed: .09, jump: .1, steer: .14, turbo: .3, climb: .3, wheelie: 1 }, look: { scale: 1.02, twoStroke: true, boanal: true } },
 ];
 export const PARTS = [
   { slot: 'rims', name: 'Cerchi', items: [

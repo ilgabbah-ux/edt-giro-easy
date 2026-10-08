@@ -958,10 +958,16 @@ body.isfull .installhelp { display: none; }
 .panel.panelmax .liveries, .panel.panelmax #liveries { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 body.panelopen { overflow: hidden; }
 /* v48 · telefono in orizzontale: la posizione va accanto al tempo, non sulla strada */
-@media (max-height: 500px) and (orientation: landscape) { .hudcenter { position: relative; } .posbox { position: absolute !important; left: calc(100% + 8px); top: 4px; transform: none; } }
+@media (max-height: 500px) and (orientation: landscape) { .posbox { position: absolute !important; top: 0; left: calc(50% + 56px); transform: none; } }
 
 /* v48 · classifica: punti o tempi migliori */
 .kindtabs { display: flex; gap: 6px; margin: 8px 0 2px; }
 .kindtabs button { flex: 1; background: #1e1f1c; border: 1px solid #393b35; color: var(--muted); padding: 8px 6px; font: 15px var(--display); letter-spacing: .5px; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
 .kindtabs button.active { background: var(--y); color: #241b12; border-color: var(--y); }
 .timeboard li b { color: #9fe3ff; }
+
+/* v49 · gas bloccato in salita */
+.gas.locked { background: #3ddc84 !important; color: #0b1a10 !important; box-shadow: 0 0 18px #3ddc8466; }
+@media (max-height: 500px) and (orientation: landscape) { .coach { position: absolute; top: 48px; left: 50%; transform: translateX(-50%); margin: 0; } .coach.show { animation-name: coachL; } }
+@keyframes coachL { 0% { opacity: 0; } 8%, 86% { opacity: .92; } 100% { opacity: 0; } }
+@media (max-width: 900px) and (orientation: portrait) { .coach { position: absolute; top: 200px; left: 50%; transform: translateX(-50%); margin: 0; max-width: 78vw; } .coach.show { animation-name: coachL; } }

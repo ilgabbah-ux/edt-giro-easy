@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=48';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=49';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -1597,6 +1597,7 @@ export function createWorld(canvas) {
     camLift += (Math.max(0, lift - 1.1) * .8 - camLift) * .12;
     camera.lookAt(bike.position.x * (portrait ? .4 : .16), lookY + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : .1), lookZ);
     camera.rotateZ(bike.rotation.z * .06);
+    if (s.ice) camera.rotateZ(-(s.drift || 0) * .045);   // v49 · la camera segue un filo la derapata
     sky.position.copy(camera.position);
     sun.target.position.set(bike.position.x, 0, -6);
     const L = PRESETS[presetIndex] || PRESETS[0];
