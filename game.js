@@ -1,11 +1,11 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=32';
-import { createWorld } from './scene3d.js?v=32';
-import * as A from './audio.js?v=32';
-import * as P from './progress.js?v=32';
-import { FOTO } from './piloti.js?v=32';
-import { createMud } from './mudfx.js?v=32';
-import { icon, iconize, iconizeEl } from './icons.js?v=32';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=33';
+import { createWorld } from './scene3d.js?v=33';
+import * as A from './audio.js?v=33';
+import * as P from './progress.js?v=33';
+import { FOTO } from './piloti.js?v=33';
+import { createMud } from './mudfx.js?v=33';
+import { icon, iconize, iconizeEl } from './icons.js?v=33';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -1151,14 +1151,35 @@ iconizeEl(document.querySelector('.howpanel'));
 // ---------- App installabile (Android, PC, iPhone) e funzionamento offline ----------
 if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.EDT_PUBLIC_URL) navigator.serviceWorker.register('sw.js').catch(() => {});
 let installEvt = null;
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('installapp').hidden = false; });
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+window.addEventListener('appinstalled', () => { installEvt = null; $('installapp').hidden = true; closeInstallHelp(); });
 const standalone = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
 const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-if (isIOS && !standalone && !window.EDT_PUBLIC_URL) $('installapp').hidden = false;
+const isAndroid = /Android/i.test(navigator.userAgent);
+// Il pulsante c'è sempre sul sito (non nella versione link Claude, dove installare non è possibile).
+$('installapp').hidden = standalone || !!window.EDT_PUBLIC_URL;
 $('installapp').innerHTML = icon('pin') + '<span>INSTALLA</span>';
+function closeInstallHelp() { $('installhelp')?.remove(); }
+function installHelp() {
+  closeInstallHelp();
+  const steps = isIOS
+    ? ['Apri questa pagina con <b>Safari</b>.', 'Tocca il pulsante <b>Condividi</b> (il quadrato con la freccia in su).', 'Scorri e scegli <b>Aggiungi alla schermata Home</b>, poi <b>Aggiungi</b>.']
+    : isAndroid
+      ? ['Apri questa pagina con <b>Chrome</b>.', 'Tocca il menu <b>⋮</b> in alto a destra.', 'Scegli <b>Installa app</b> (o <b>Aggiungi a schermata Home</b>) e conferma.']
+      : ['Usa <b>Chrome</b> o <b>Edge</b>.', 'Clicca l\'icona <b>Installa</b> a destra nella barra degli indirizzi (un monitor con la freccia), oppure menu <b>⋮</b> → <b>Trasmetti, salva e condividi</b> → <b>Installa pagina come app</b>.', 'Conferma con <b>Installa</b>.'];
+  const el = document.createElement('div');
+  el.id = 'installhelp'; el.className = 'installhelp';
+  el.innerHTML = `<div class="ihcard"><div class="eyebrow"><span class="ebar"></span>GIRO EASY COME UN'APP</div><h3>Installa il gioco</h3><ol>${steps.map(x => '<li>' + x + '</li>').join('')}</ol><p>Dopo lo trovi tra le app, si apre a schermo intero e funziona anche senza internet.</p><button class="primary" type="button" id="ihclose"><span>HO CAPITO</span></button></div>`;
+  document.body.appendChild(el);
+  el.onclick = e => { if (e.target === el) closeInstallHelp(); };
+  $('ihclose').onclick = closeInstallHelp;
+}
 $('installapp').onclick = async () => {
-  if (installEvt) { installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null; $('installapp').hidden = true; }
-  else if (isIOS) status('Su iPhone/iPad: tocca il pulsante Condividi di Safari e poi "Aggiungi alla schermata Home". Il gioco si apre a schermo intero come un’app.');
+  if (installEvt) {
+    try { installEvt.prompt(); const r = await installEvt.userChoice; installEvt = null; if (r?.outcome === 'accepted') { $('installapp').hidden = true; return; } }
+    catch { installEvt = null; }
+  }
+  installHelp();
 };
 $('sound').innerHTML = icon('speaker'); $('fullscreen').innerHTML = icon('expand'); $('pause').innerHTML = icon('pause');
 $('sharelink').innerHTML = icon('share') + '<span>CONDIVIDI NEL GRUPPO</span>';

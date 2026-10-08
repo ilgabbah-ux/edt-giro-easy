@@ -775,3 +775,26 @@ footer { font: 600 14px var(--ui); letter-spacing: .5px; border-top: 1px solid #
 /* v32: piloti con la loro voce */
 .rideroption .voiced { position: absolute; top: 4px; left: 6px; color: var(--y); display: grid; place-items: center; }
 .rideroption .voiced .ic { width: 13px; height: 13px; }
+
+/* v33: niente sforamenti in larghezza su telefoni stretti e dentro le cornici */
+html, body { max-width: 100%; overflow-x: hidden; }
+main { grid-template-columns: minmax(0, 1fr) 340px; }
+.game { width: 100%; max-width: 100%; }
+@media (max-width: 1100px) and (min-width: 901px) { main { grid-template-columns: minmax(0, 1fr) 290px; } }
+@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } .shell { max-width: 100vw; } }
+@media (max-width: 370px) {
+  .ctrl { min-width: 42px; }
+  .wheelie { font-size: 12px; padding: 0 7px; }
+  .jump { font-size: 16px; padding: 0 10px; }
+  .boost { font-size: 11px; padding: 0 6px; }
+  .scorebox b { font-size: 24px; }
+  .icon { width: 38px; }
+}
+/* Istruzioni per installare */
+.installhelp { position: fixed; inset: 0; z-index: 100; background: #000b; display: grid; place-items: center; padding: 16px; }
+.ihcard { width: min(440px, 100%); background: linear-gradient(180deg, #1d1e17, #111210); border-left: 6px solid var(--y); padding: 20px 22px; clip-path: var(--cut); color: var(--cream); }
+.ihcard h3 { font: italic 800 30px/1 var(--ui); text-transform: uppercase; margin: 10px 0 12px; }
+.ihcard ol { margin: 0 0 12px; padding-left: 22px; font: 600 17px/1.4 var(--ui); }
+.ihcard li { margin-bottom: 6px; }
+.ihcard b { color: var(--y); }
+.ihcard p { font: 600 15px/1.35 var(--ui); color: #d8cfbd; margin: 0 0 14px; }
