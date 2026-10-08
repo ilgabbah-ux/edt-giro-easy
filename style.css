@@ -842,3 +842,9 @@ body.isfull .installhelp { display: none; }
 .gtabs { flex-wrap: wrap; margin-top: 10px; }
 .gtabs button { flex: 1 0 64px; }
 .gsub { color: var(--muted); font-size: 13px; margin: 4px 0 8px; }
+
+/* v38: musica */
+.audiorow { display: flex; gap: 8px; flex-wrap: wrap; }
+.audiorow .voicetest { flex: 1 1 140px; }
+.tracktune { margin: 6px 0 0; font: italic 700 12px var(--ui); color: var(--muted); letter-spacing: .4px; }
+#musictoggle { margin-top: 8px; }

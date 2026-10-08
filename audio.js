@@ -2,8 +2,8 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=37';
-import { VOCI_PILOTI } from './voci-piloti.js?v=37';
+import { VOCI } from './voci.js?v=38';
+import { VOCI_PILOTI } from './voci-piloti.js?v=38';
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -256,39 +256,228 @@ export const sfx = {
   wheelie() { tone(140, .5, 'sawtooth', .1, 0, 420); },
 };
 
-// ---------- Motore ----------
-// Due oscillatori a dente di sega con filtro: il regime segue velocità, gas e turbo.
+// ---------- Motore (v38) ----------
+// Monocilindrico da enduro 4T: un ciclo di scoppi registrato in un buffer (scoppio + risonanza dello scarico
+// + rumore), suonato in loop con playbackRate = regime. Sopra: aspirazione/catena, distorsione dello scarico,
+// marce con cambiata (taglio di gas e calo di giri), "bap-bap" in rilascio e fuori giri in volo.
+const FIRE_HZ = 25;          // frequenza di scoppio del buffer a playbackRate 1 (≈3000 giri/min)
+let engineBuf = null;
+function makeEngineBuffer() {
+  const sr = ctx.sampleRate, cycles = 12, per = Math.round(sr / FIRE_HZ), n = per * cycles;
+  const b = ctx.createBuffer(1, n, sr), d = b.getChannelData(0);
+  let lp = 0;
+  for (let c = 0; c < cycles; c++) {
+    const amp = .82 + Math.random() * .3, ph = Math.random() * .4, res = 95 + Math.random() * 18;
+    for (let i = 0; i < per; i++) {
+      const t = i / sr, k = c * per + i;
+      // scoppio: impulso rapido che decade + risonanza della marmitta + "cra" di rumore filtrato
+      const env = Math.exp(-t * 55), env2 = Math.exp(-t * 140);
+      const thump = Math.sin(2 * Math.PI * (FIRE_HZ * 1.6) * t + ph) * env;
+      const ring = Math.sin(2 * Math.PI * res * t) * env * .55 + Math.sin(2 * Math.PI * res * 2.03 * t) * env2 * .25;
+      lp += ((Math.random() * 2 - 1) - lp) * .18;
+      d[k] = (thump * 1.1 + ring + lp * env * 1.6 + lp * .05) * amp;
+    }
+  }
+  // giunture morbide tra ultimo e primo ciclo
+  for (let i = 0; i < 64; i++) { const a = i / 64; d[n - 64 + i] = d[n - 64 + i] * (1 - a) + d[i] * a; }
+  return b;
+}
+function shaperCurve(k = 6) {
+  const c = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
+  return c;
+}
+const GEARS = [0, .42, .72, 1.02, 1.34, 1.7, 9];   // soglie di velocità per marcia (1ª…6ª)
 export function engineStart() {
   if (!enabled || !ensure() || engine) return;
+  if (!engineBuf) engineBuf = makeEngineBuffer();
   const t = ctx.currentTime;
-  const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), lfo = ctx.createOscillator();
-  o1.type = 'sawtooth'; o2.type = 'square';
-  const lfoGain = ctx.createGain(); lfoGain.gain.value = 6;
-  lfo.frequency.value = 23; lfo.connect(lfoGain); lfoGain.connect(o1.frequency); lfoGain.connect(o2.frequency);
-  const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 700; filter.Q.value = 4;
-  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(.075, t + .3);
-  const g2 = ctx.createGain(); g2.gain.value = .45;
-  o1.connect(filter); o2.connect(g2); g2.connect(filter); filter.connect(g); g.connect(duckBus);
-  o1.start(); o2.start(); lfo.start();
-  engine = { o1, o2, lfo, filter, g, rpm: 0 };
+  const src = ctx.createBufferSource(); src.buffer = engineBuf; src.loop = true; src.playbackRate.value = .5;
+  const drive = ctx.createGain(); drive.gain.value = 1.4;
+  const shaper = ctx.createWaveShaper(); shaper.curve = shaperCurve(4); shaper.oversample = '2x';
+  const body = ctx.createBiquadFilter(); body.type = 'lowpass'; body.frequency.value = 900; body.Q.value = 1.2;
+  const bark = ctx.createBiquadFilter(); bark.type = 'peaking'; bark.frequency.value = 180; bark.gain.value = 5; bark.Q.value = 1.4;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 38;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(.2, t + .35);
+  src.connect(drive); drive.connect(shaper); shaper.connect(bark); bark.connect(body); body.connect(hp); hp.connect(g); g.connect(duckBus);
+  // aspirazione + catena: rumore filtrato che sale con i giri
+  const nz = ctx.createBufferSource(); nz.buffer = noiseBuffer; nz.loop = true;
+  const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1400; nf.Q.value = .9;
+  const ng = ctx.createGain(); ng.gain.value = .0;
+  nz.connect(nf); nf.connect(ng); ng.connect(g);
+  src.start(); nz.start();
+  engine = { src, drive, body, bark, g, nf, ng, nz, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
   engineUpdate(.2, false, false, false);
 }
 export function engineUpdate(speed, gas, turbo, airborne) {
   if (!engine || !ctx) return;
-  const target = Math.min(1.6, speed * (gas ? 1.12 : 1) * (turbo ? 1.25 : 1) + (airborne ? .35 : 0));
-  engine.rpm += (target - engine.rpm) * .12;
-  const f = 48 + engine.rpm * 62;
-  const t = ctx.currentTime;
-  engine.o1.frequency.setTargetAtTime(f, t, .05);
-  engine.o2.frequency.setTargetAtTime(f * .5, t, .05);
-  engine.lfo.frequency.setTargetAtTime(14 + engine.rpm * 22, t, .1);
-  engine.filter.frequency.setTargetAtTime(420 + engine.rpm * 900 + (turbo ? 700 : 0), t, .06);
+  const e = engine, t = ctx.currentTime;
+  // marcia in base alla velocità; cambiata = breve taglio e giri che scendono
+  let gear = 1; while (gear < 6 && speed > GEARS[gear]) gear++;
+  if (gear !== e.gear) {
+    const up = gear > e.gear; e.gear = gear;
+    if (up) { e.shiftT = .16; e.rpm *= .62; }
+  }
+  e.shiftT = Math.max(0, e.shiftT - 1 / 60);
+  const lo = GEARS[gear - 1], hi = Math.min(GEARS[gear], 2.2);
+  const frac = Math.max(0, Math.min(1, (speed - lo) / Math.max(.2, hi - lo)));
+  let target = .55 + frac * 1.9 + (gas ? .25 : 0) + (turbo ? .35 : 0);
+  if (airborne) target = 2.9;                       // in aria la ruota gira libera: fuori giri
+  if (speed < .05) target = .5;                     // minimo
+  e.rpm += (target - e.rpm) * (airborne ? .08 : .14);
+  const load = e.shiftT > 0 ? .35 : (gas || turbo ? 1 : .72) * (airborne ? .6 : 1);
+  e.src.playbackRate.setTargetAtTime(e.rpm, t, .04);
+  e.body.frequency.setTargetAtTime(500 + e.rpm * 900 * load + (turbo ? 900 : 0), t, .05);
+  e.bark.frequency.setTargetAtTime(110 + e.rpm * 70, t, .08);
+  e.drive.gain.setTargetAtTime(.9 + load * 1.8, t, .05);
+  e.g.gain.setTargetAtTime((.11 + load * .1) * (e.shiftT > 0 ? .55 : 1), t, .04);
+  e.nf.frequency.setTargetAtTime(900 + e.rpm * 1300, t, .1);
+  e.ng.gain.setTargetAtTime(.012 + e.rpm * .018 + (turbo ? .03 : 0), t, .1);
+  // rilascio del gas a giri alti: scoppiettii allo scarico
+  e.popT -= 1 / 60;
+  if (e.lastGas && !gas && e.rpm > 1.4 && e.popT <= 0) { e.popT = .8; for (let i = 0; i < 3; i++) noise(.035, 400 + Math.random() * 300, 2, .16, 'bandpass', .05 + i * (.06 + Math.random() * .05)); }
+  e.lastGas = gas;
 }
 export function engineStop() {
   if (!engine || !ctx) return;
   const e = engine; engine = null;
   const t = ctx.currentTime;
+  e.src.playbackRate.setTargetAtTime(.35, t, .25);
   e.g.gain.cancelScheduledValues(t);
-  e.g.gain.setTargetAtTime(0.0001, t, .12);
-  setTimeout(() => { try { e.o1.stop(); e.o2.stop(); e.lfo.stop(); } catch {} }, 700);
+  e.g.gain.setTargetAtTime(0.0001, t + .1, .18);
+  setTimeout(() => { try { e.src.stop(); e.nz.stop(); } catch {} }, 1200);
 }
+
+// ---------- Musica (v38) ----------
+// Una colonna sonora diversa per ogni percorso, generata dal vivo: batteria, basso, chitarra distorta e
+// un riff. Si abbassa quando parlano le voci; si spegne col pulsante dell'audio o con MUSICA nella pausa.
+const NOTE = m => 440 * Math.pow(2, (m - 69) / 12);
+// Ogni stile: bpm, tonalità (MIDI della tonica), giro di accordi [semitoni, 'm'|'M'], ritmi su 16 sedicesimi.
+// k cassa · s rullante · h charleston (o = aperto) · b basso (x tonica, o ottava, 5 quinta) · g chitarra
+// (x stoppata, X accordo lungo) · l riff (cifre = nota dell'accordo 0..4, - = tieni).
+export const STYLES = [
+  { name: 'Giro easy · rock della domenica', bpm: 126, root: 40, prog: [[0, 'M'], [5, 'M'], [7, 'M'], [5, 'M']],
+    k: 'x.....x.x.......', s: '....x.......x...', h: 'x.x.x.x.x.x.x.x.', b: 'x.x.x.x.x.x.x.o.', g: 'X.......X...x.x.', l: '0...2...4.3.2...', swing: 0 },
+  { name: 'Dopo migliora · punk da sterrato', bpm: 168, root: 45, prog: [[0, 'M'], [0, 'M'], [5, 'M'], [7, 'M']],
+    k: 'x.x...x.x.x...x.', s: '....x.......x...', h: 'x.x.x.x.x.x.x.x.', b: 'xxxxxxxxxxxxxxxx', g: 'xxxxxxxxxxxxxxxx', l: '', swing: 0 },
+  { name: 'Il taglio di Angelo · rock scuro', bpm: 138, root: 40, prog: [[0, 'm'], [0, 'm'], [3, 'M'], [-2, 'M']],
+    k: 'x..x..x...x..x..', s: '....x.......x...', h: 'x.x.x.x.x.x.x.x.', b: 'x..x..x...x..x..', g: 'x..x..x...X.....', l: '0.0.3.0.2.0.1...', swing: 0 },
+  { name: 'Sfida del giorno · funk del rifugio', bpm: 112, root: 43, prog: [[0, 'm'], [5, 'M'], [0, 'm'], [7, 'm']],
+    k: 'x.....x...x.....', s: '....x..x.x..x...', h: 'xxoxxxoxxxoxxxox', b: 'x..o..x.x.5..o..', g: '..x...x...x.x...', l: '4.3.2...0...2.3.', swing: .12 },
+  { name: 'Il muro dell’Assietta · epica in salita', bpm: 92, root: 38, prog: [[0, 'm'], [-4, 'M'], [-2, 'M'], [0, 'm']],
+    k: 'x.x.....x.x.x...', s: '........x.......', h: 'x...x...x...x...', b: 'x---------------', g: 'X---------------', l: '0---2---4---3-2-', swing: 0 },
+  { name: 'Il pantano · blues paludoso', bpm: 96, root: 40, prog: [[0, 'M'], [5, 'M'], [0, 'M'], [7, 'M']],
+    k: 'x.....x.x.....x.', s: '....x.......x...', h: 'x.xx.xx.xx.xx.x.', b: 'x.x.o.x.5.x.o.x.', g: 'x.x.x.x.x.x.x.x.', l: '..3.2.0...0.2...', swing: .22 },
+  { name: 'Mulattiera infinita · polka alpina', bpm: 150, root: 43, prog: [[0, 'M'], [7, 'M'], [7, 'M'], [0, 'M']],
+    k: 'x...x...x...x...', s: '..x...x...x...x.', h: '................', b: 'x...5...x...5...', g: '..x...x...x...x.', l: '0.1.2.3.4.3.2.1.', swing: 0 },
+  { name: 'Giro a caso · synth da notturna', bpm: 116, root: 45, prog: [[0, 'm'], [-4, 'M'], [-7, 'M'], [-2, 'M']],
+    k: 'x...x...x...x...', s: '....x.......x...', h: '..o...o...o...o.', b: 'xoxoxoxoxoxoxoxo', g: 'X.......X.......', l: '0.2.4.2.3.2.4.2.', swing: 0 },
+  { name: 'Il giro della morte · metal', bpm: 184, root: 38, prog: [[0, 'm'], [1, 'M'], [0, 'm'], [-2, 'M']],
+    k: 'xxxxxxxxxxxxxxxx', s: '....x.......x...', h: 'x...x...x...x...', b: 'xxxxxxxxxxxxxxxx', g: 'xxx.xxx.xx.xX---', l: '', swing: 0 },
+];
+let musicBus = null, gtrIn = null, music = null, musicOn = true;
+try { musicOn = localStorage.getItem('edt-music') !== '0'; } catch {}
+export const isMusicOn = () => musicOn;
+export function setMusic(v) {
+  musicOn = v; try { localStorage.setItem('edt-music', v ? '1' : '0'); } catch {}
+  if (musicBus) musicBus.gain.setTargetAtTime(v ? MUSIC_VOL : 0, ctx.currentTime, .1);
+}
+const MUSIC_VOL = .34;
+function musicGraph() {
+  if (musicBus) return;
+  musicBus = ctx.createGain(); musicBus.gain.value = musicOn ? MUSIC_VOL : 0;
+  musicBus.connect(duckBus);
+  gtrIn = ctx.createGain(); gtrIn.gain.value = 2.2;
+  const sh = ctx.createWaveShaper(); sh.curve = shaperCurve(9); sh.oversample = '4x';
+  const cab = ctx.createBiquadFilter(); cab.type = 'lowpass'; cab.frequency.value = 3200; cab.Q.value = .8;
+  const mid = ctx.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 800; mid.gain.value = -5;
+  const out = ctx.createGain(); out.gain.value = .16;
+  gtrIn.connect(sh); sh.connect(mid); mid.connect(cab); cab.connect(out); out.connect(musicBus);
+}
+function chordTones(root, q) { return [0, q === 'm' ? 3 : 4, 7, 12, q === 'm' ? 15 : 16].map(x => root + x); }
+function mKick(t, v = 1) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + .12);
+  g.gain.setValueAtTime(.9 * v, t); g.gain.exponentialRampToValueAtTime(.001, t + .28);
+  o.connect(g); g.connect(musicBus); o.start(t); o.stop(t + .3);
+}
+function mNoise(t, dur, f, type, vol, q = 1) {
+  const s = ctx.createBufferSource(); s.buffer = noiseBuffer;
+  const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+  s.connect(fl); fl.connect(g); g.connect(musicBus); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+}
+function mSnare(t) { mNoise(t, .16, 1900, 'bandpass', .5, .7); const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(160, t + .08); g.gain.setValueAtTime(.35, t); g.gain.exponentialRampToValueAtTime(.001, t + .1); o.connect(g); g.connect(musicBus); o.start(t); o.stop(t + .12); }
+function mHat(t, open) { mNoise(t, open ? .22 : .045, 8000, 'highpass', open ? .16 : .12); }
+function mBass(t, midi, dur) {
+  const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  o.type = 'sawtooth'; o.frequency.value = NOTE(midi);
+  f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(220, t + dur); f.Q.value = 3;
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.42, t + .008); g.gain.setTargetAtTime(.0001, t + dur * .85, .03);
+  o.connect(f); f.connect(g); g.connect(musicBus); o.start(t); o.stop(t + dur + .15);
+}
+function mGtr(t, root, dur, muted) {
+  // power chord: tonica + quinta + ottava, due oscillatori leggermente stonati per corda
+  for (const iv of [0, 7, 12]) for (const det of [-6, 7]) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.value = NOTE(root + 12 + iv); o.detune.value = det;
+    const len = muted ? Math.min(dur, .09) : dur;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.12, t + .006);
+    g.gain.setTargetAtTime(.0001, t + len * .8, muted ? .02 : .08);
+    o.connect(g); g.connect(gtrIn); o.start(t); o.stop(t + len + .3);
+  }
+}
+function mLead(t, midi, dur, wave) {
+  const o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+  o.type = wave; o.frequency.value = NOTE(midi);
+  const v = ctx.createOscillator(), vg = ctx.createGain(); v.frequency.value = 5.5; vg.gain.value = 4; v.connect(vg); vg.connect(o.detune);
+  f.type = 'lowpass'; f.frequency.value = 2600;
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.09, t + .01); g.gain.setTargetAtTime(.0001, t + dur * .85, .05);
+  o.connect(f); f.connect(g); g.connect(musicBus); o.start(t); v.start(t); o.stop(t + dur + .3); v.stop(t + dur + .3);
+}
+function holdLen(str, i, step) { let n = 1; while (str[i + n] === '-') n++; return n * step; }
+// legato: la nota dura fino alla successiva della stessa riga (massimo `max` sedicesimi)
+function untilNext(str, i, step, max = 4) { let n = 1; while (n < max && i + n < 16 && (str[i + n] === '.' || str[i + n] === '-')) n++; return n * step; }
+function scheduleStep(m, i, t) {
+  const st = m.style, step = m.step, bar = Math.floor(m.n / 16) % st.prog.length;
+  const [off, q] = st.prog[bar], root = st.root + off + (m.transpose || 0), tones = chordTones(root, q);
+  const fill = m.n % 64 >= 60;                         // ogni 4 battute un piccolo stacco di rullante
+  const intense = m.intensity;
+  if (st.k[i] === 'x' && !(fill && i > 12)) mKick(t, .9);
+  if (st.s[i] === 'x' || (fill && i >= 12)) mSnare(t);
+  if (intense > .3 || st.h.trim()) { if (st.h[i] === 'x') mHat(t, false); else if (st.h[i] === 'o') mHat(t, true); }
+  const bc = st.b[i];
+  if (bc && bc !== '.' && bc !== '-') mBass(t, root - 12 + (bc === 'o' ? 12 : bc === '5' ? 7 : 0), untilNext(st.b, i, step, 4) * .95);
+  const gc = st.g[i];
+  if (gc === 'x' || gc === 'X') mGtr(t, root, gc === 'X' ? untilNext(st.g, i, step, 16) : step, gc === 'x');
+  const lc = st.l[i];
+  if (lc && /\d/.test(lc) && (intense > .45 || m.n % 32 >= 16)) mLead(t, tones[Number(lc)] + 12, untilNext(st.l, i, step, 4) * .9, st === STYLES[7] ? 'square' : 'triangle');
+  if (m.n % 64 === 0 && m.n > 0) mNoise(t, 1.2, 6000, 'highpass', .12);   // piatto a inizio frase
+}
+export function musicStart(styleId = 0, opts = {}) {
+  if (!ensure()) return;
+  musicGraph();
+  musicStop(true);
+  const style = STYLES[styleId % STYLES.length];
+  const m = { style, n: 0, step: 60 / style.bpm / 4, next: ctx.currentTime + .08, transpose: opts.transpose || 0, intensity: .5, timer: 0 };
+  m.timer = setInterval(() => {
+    if (!ctx || music !== m) return;
+    while (m.next < ctx.currentTime + .14) {
+      const i = m.n % 16, sw = (i % 2 === 1) ? style.swing * m.step * 2 : 0;
+      scheduleStep(m, i, m.next + sw);
+      m.next += m.step; m.n++;
+    }
+  }, 30);
+  music = m;
+  musicBus.gain.cancelScheduledValues(ctx.currentTime);
+  musicBus.gain.setTargetAtTime(musicOn ? MUSIC_VOL : 0, ctx.currentTime, .2);
+}
+export function musicIntensity(x) { if (music) music.intensity = Math.max(0, Math.min(1, x)); }
+export function musicStop(now = false) {
+  if (!music) return;
+  const m = music; music = null;
+  if (now) { clearInterval(m.timer); return; }
+  musicBus.gain.setTargetAtTime(0, ctx.currentTime, .35);
+  setTimeout(() => { clearInterval(m.timer); if (!music && musicBus) musicBus.gain.value = musicOn ? MUSIC_VOL : 0; }, 1500);
+}
+export const musicPlaying = () => !!music;

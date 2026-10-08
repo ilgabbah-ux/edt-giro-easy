@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=37';
-import { createWorld } from './scene3d.js?v=37';
-import * as A from './audio.js?v=37';
-import * as P from './progress.js?v=37';
-import { FOTO } from './piloti.js?v=37';
-import { createMud } from './mudfx.js?v=37';
-import { icon, iconize, iconizeEl } from './icons.js?v=37';
-import * as C from './classifica.js?v=37';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=38';
+import { createWorld } from './scene3d.js?v=38';
+import * as A from './audio.js?v=38';
+import * as P from './progress.js?v=38';
+import { FOTO } from './piloti.js?v=38';
+import { createMud } from './mudfx.js?v=38';
+import { icon, iconize, iconizeEl } from './icons.js?v=38';
+import * as C from './classifica.js?v=38';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -293,7 +293,14 @@ function start() {
   $('pause').innerHTML = icon('pause'); $('pause').setAttribute('aria-label', 'Pausa');
   setDisabled(true);
   A.engineStart();
+  startMusic();
   hud();
+}
+// v38 · una colonna sonora per percorso; la Sfida del giorno cambia tonalità ogni giorno, Giro a caso ogni giro.
+function startMusic() {
+  const md = P.MODES[mode];
+  const transpose = md.random === 'daily' ? (P.todayKey() % 5) - 2 : md.random === 'run' ? Math.floor(Math.random() * 5) - 2 : 0;
+  A.musicStart(mode, { transpose });
 }
 function go() {
   state = 'playing';
@@ -306,7 +313,7 @@ function go() {
 
 function finish(win, reason = '') {
   state = 'ended';
-  A.engineStop(); A.stopVoice();
+  A.engineStop(); A.stopVoice(); A.musicStop();
   setDisabled(false);
   const timeBonus = win ? Math.round((timeLimit - elapsed) * 100) : 0;
   if (win) score += lives * 250 + timeBonus;
@@ -340,21 +347,23 @@ function finish(win, reason = '') {
 
 function pause() {
   if (state === 'playing' || state === 'countdown') {
-    gas = false; A.stopVoice(); A.engineStop();
+    gas = false; A.stopVoice(); A.engineStop(); A.musicStop();
     state = 'paused';
     $('overlay').classList.remove('hidden');
     $('card').innerHTML = `<div class="eyebrow">SOSTA TECNICA</div><h1>ASPETTIAMO<br><em>IL GRUPPO.</em></h1>
       <p>Nessuno resta indietro.</p>
       <button class="primary" id="resume"><span>RIPARTIAMO</span>${icon('chevrons')}</button><br>
+      <button class="secondary" id="musictoggle" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
       <button class="secondary" id="quit">ABBANDONA IL GIRO</button>`;
     $('resume').onclick = pause;
+    $('musictoggle').onclick = () => { A.setMusic(!A.isMusicOn()); $('musictoggle').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'); };
     $('quit').onclick = () => { state = 'ready'; setDisabled(false); renderReady(); };
     $('pause').innerHTML = icon('play'); $('pause').setAttribute('aria-label', 'Riprendi');
     hud();
   } else if (state === 'paused') {
     if (touchDevice) goFull();
     state = countdown > 0 ? 'countdown' : 'playing';
-    A.engineStart();
+    A.engineStart(); startMusic();
     $('overlay').classList.add('hidden');
     $('pause').innerHTML = icon('pause'); $('pause').setAttribute('aria-label', 'Pausa');
     hud();
@@ -751,6 +760,7 @@ function update(dt) {
   toastTime -= dt;
   if (toastTime < 0) $('banner').classList.remove('show');
   A.engineUpdate(speed * (1 + elapsed / 200), gas, turbo > 0, jump > 0);
+  A.musicIntensity(turbo > 0 ? 1 : .35 + (multiplier() - 1) * .15);
 
   spawn -= dt * speed;
   if (spawn <= 0) {
@@ -961,11 +971,16 @@ function renderReady() {
         <span class="ps">PS${m.id + 1}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.name}</b><small>${open ? m.desc : '🔒 Si sblocca al livello ' + m.unlock}</small>${m.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(m.layout || layoutFor(m.id))}<span class="limit">⏱ ${m.limit} s</span></button>`; }).join('')}
     </div>
     <div class="missions"><div class="mhead">${icon('flag')} MISSIONI</div><ul>${missionsHTML()}</ul></div>
-    <button class="secondary voicetest" id="testvoci" type="button">🔊 PROVA VOCI</button>
+    <div class="audiorow"><button class="secondary voicetest" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="secondary voicetest" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button></div>
+    <p class="tracktune">🎵 ${A.STYLES[mode].name}</p>
     <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">Scorri per sterzare · tocca per saltare</span></p>`;
   iconizeEl($('card'));
   $('start').onclick = start;
   $('openshop').onclick = () => renderShop(renderReady);
+  $('musicmenu').onclick = () => {
+    A.unlock(); A.setMusic(!A.isMusicOn()); $('musicmenu').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO');
+    if (A.isMusicOn()) { startMusic(); setTimeout(() => { if (state === 'ready') A.musicStop(); }, 6000); } else A.musicStop();
+  };
   if ($('opengroup')) {
     $('opengroup').onclick = () => renderGroup(renderReady, mode);
     C.load().then(d => { const top = d.boards?.[mode]?.[0]; if ($('grouplead')) $('grouplead').textContent = top ? `1° ${top.n} · ${top.s.toLocaleString('it-IT')}` : 'nessuno ancora: vai!'; }).catch(() => {});
@@ -1317,6 +1332,6 @@ if (/debug/.test(location.hash)) {
 }
 
 // Aggancio per i test automatici (non usato dal gioco).
-window.__edt = { get state() { return state; }, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
+window.__edt = { get state() { return state; }, setMode(v) { mode = v; }, audio: A, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, erika, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
