@@ -17,7 +17,7 @@
 <meta name="description" content="Il gioco arcade EDT. Schiva gli ostacoli, salta i tronchi, completa le missioni e sopravvivi al taglio di Angelo.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23ffcf16'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='Arial' font-weight='900' font-size='34' fill='%23e3301c'%3EE%3C/text%3E%3C/svg%3E">
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=49">
+<link rel="stylesheet" href="style.css?v=50">
 </head>
 <body>
 <div class="shell">
@@ -27,7 +27,7 @@
       <div><strong>ENDURO DRINKING TEAM</strong><small>Sterrare humanum est · dal 2017</small></div>
     </div>
     <div class="shareheader">
-      <span class="edition" id="edition">GIRO EASY · V49</span>
+      <span class="edition" id="edition">GIRO EASY · V50</span>
       <button id="installapp" class="sharebutton install" type="button" hidden>INSTALLA</button>
       <button id="sharelink" class="sharebutton" type="button">CONDIVIDI NEL GRUPPO</button>
     </div>
@@ -37,7 +37,7 @@
 
   <main>
     <section id="game" class="game" aria-label="Gioco Giro Easy">
-      <canvas id="canvas" aria-label="Percorso enduro tridimensionale a tre corsie. Usa le frecce per sterzare e spazio per saltare."></canvas>
+      <canvas id="canvas" aria-label="Percorso enduro tridimensionale con guida libera. Tieni le frecce per sterzare e spazio per saltare."></canvas>
       <div class="speedlines" aria-hidden="true"></div>
       <div class="vignette" aria-hidden="true"></div>
 
@@ -140,7 +140,8 @@
           <div><i>🏍</i><span><b>Compagni di giro</b>: tre piloti EDT corrono con te. Superali (+250) e arriva primo al rifugio (+500). Se ti passano… <b>“Suuuka!”</b></span></div>
           <div><i>✂️</i><span><b>Il taglio delle 16.00</b>: al bivio col cartello giallo passa sotto l’arco. Salti un pezzo di giro, superi chi ti sta davanti e Angelo è fiero di te.</span></div>
           <div><i>🌧</i><span><b>Meteo</b>: a metà giro può arrivare pioggia (fango sullo schermo e moto che scivola), nebbia o il tramonto.</span></div>
-          <div><i>🖱</i><span><b>Da PC col mouse</b>: muovi il mouse a destra e sinistra per cambiare corsia, clic per saltare, tasto destro tenuto per il GAS in salita (in piano impenna), rotellina per il turbo.</span></div>
+          <div><i>🏍</i><span><b>Guida libera</b>: la moto va dove la porti, niente corsie fisse. Telefono: tieni il dito a sinistra o a destra per sterzare, oppure trascinalo e la moto lo segue; un tocco breve a lato = uno spostamento secco. Tastiera e frecce a schermo: tieni premuto per sterzare, tocco breve = uno spostamento. Si passa anche tra due ostacoli vicini, se sei preciso.</span></div>
+          <div><i>🖱</i><span><b>Da PC col mouse</b>: la moto va dove punti il mouse, clic per saltare, tasto destro tenuto per il GAS in salita (in piano impenna), rotellina per il turbo.</span></div>
           <div><i>🎮</i><span><b>Joypad</b> (PC, Android, iPad): stick per sterzare, A salta, B impenna, RT gas, X turbo, Start pausa.</span></div>
           <div><i>⛰</i><span>In salita tieni <b>GAS / W</b>. In discesa: <b>campa giù!</b></span></div>
           <div><i>⏱</i><span><b>Tempo massimo</b>: arriva al rifugio prima che scada. Il segno rosso sulla barra è il cronometro. Ogni secondo avanzato vale 100 punti.</span></div>
@@ -156,6 +157,6 @@
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="game.js?v=49"></script>
+<script type="module" src="game.js?v=50"></script>
 </body>
 </html>

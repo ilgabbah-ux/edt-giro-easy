@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=49';
-import { createWorld } from './scene3d.js?v=49';
-import * as A from './audio.js?v=49';
-import * as P from './progress.js?v=49';
-import { FOTO } from './piloti.js?v=49';
-import { createMud } from './mudfx.js?v=49';
-import { icon, iconize, iconizeEl } from './icons.js?v=49';
-import * as C from './classifica.js?v=49';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=50';
+import { createWorld } from './scene3d.js?v=50';
+import * as A from './audio.js?v=50';
+import * as P from './progress.js?v=50';
+import { FOTO } from './piloti.js?v=50';
+import { createMud } from './mudfx.js?v=50';
+import { icon, iconize, iconizeEl } from './icons.js?v=50';
+import * as C from './classifica.js?v=50';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -117,6 +117,12 @@ let bs = {}; // v44 · caratteristiche della moto scelta in officina
 let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v48 · fantasma del primo nella classifica del gruppo
 let gGhost = null, gGhostPassed = false;
+// v50 · guida libera: la moto va dove la porti (niente più corsie fisse).
+// steer = -1..1 (frecce, pulsanti, dito tenuto a lato, joypad) · aimPx = punto dove andare (mouse, dito trascinato).
+let keyAt = { l: 0, r: 0 }, btnAt = { l: 0, r: 0 };
+const TAP_MS = 190;   // tocco breve = una corsia intera (come prima); tenuto = sterzo libero
+let keyL = false, keyR = false, btnL = false, btnR = false, zoneSteer = 0, padSteer = 0, aimPx = null, lastSteerDir = 0, edgeT = 0, lastEdgeMsg = -9;
+const steerNow = () => Math.max(-1, Math.min(1, (keyR ? 1 : 0) - (keyL ? 1 : 0) + (btnR ? 1 : 0) - (btnL ? 1 : 0) + zoneSteer + padSteer));
 let throttleSlip = 0, overT = 0, wasSweet = false, gasLock = false, gasDownAt = 0, noClimbT = 0;
 let ice = false, drift = 0, driftT = 0, driftSum = 0, driftPend = 0, driftChain = 0, driftGap = 9, driftScore = 0, driftBest = 0, driftCount = 0, snowT = 0, bendNow = 0, lastWall = -9;
 // v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
@@ -310,6 +316,7 @@ function resetRun() {
   bs = P.currentStats();
   ice = !!P.MODES[mode].ice;
   slalomN = 0; lastFord = lastAnimal = -9; setupGroupGhost();
+  keyL = keyR = btnL = btnR = false; zoneSteer = padSteer = 0; aimPx = null; lastSteerDir = 0; edgeT = 0;
   throttleSlip = overT = noClimbT = 0; wasSweet = gasLock = false;
   drift = driftT = driftSum = driftPend = driftChain = driftScore = driftBest = driftCount = snowT = bendNow = 0; driftGap = 9; lastWall = -9;
   setupRace();
@@ -412,15 +419,36 @@ function pause() {
 // ---------- Comandi ----------
 function move(d) {
   if (state !== 'playing') return;
-  const before = lane;
-  lane = Math.max(0, Math.min(2, lane + d));
-  if (lane === before) return;
-  A.sfx.lane(lane);
-  if (jump > 0 && scrubbed < (has('scrub') ? 2 : 1) && curLift() > .6) {
-    scrubbed++; whip = d; run.scrubs++;
+  const from = aimPx ?? Math.round(px);
+  aimPx = Math.max(0, Math.min(2, Math.round(from) + d));
+}
+// Scrub: sterzare in volo (cambio di direzione mentre sei in aria).
+function scrubCheck(dir) {
+  if (dir && dir !== lastSteerDir && jump > 0 && scrubbed < (has('scrub') ? 2 : 1) && curLift() > .6) {
+    scrubbed++; whip = dir; run.scrubs++;
     A.sfx.scrub();
     reward(has('scrub') ? 180 : 60, 'SCRUB!', 'trick', false);
   }
+  lastSteerDir = dir;
+}
+// Sterzo libero: velocità laterale verso quella voluta, con accelerazione (più lenta su sassi e fango).
+function steerStep(dt, route) {
+  const st = steerNow();
+  if (st) aimPx = null;
+  const maxLat = 4.1 * (1 + (bs.steer || 0)) * (1 + up.tyres * .05) * (touchDevice ? 1.08 : 1) * (1 - route.rough * .18) * (1 - weather.rain * .12) * (has('mule') && route.rough > .4 ? 1.3 : 1);
+  const want = st ? st * maxLat : aimPx !== null ? Math.max(-maxLat, Math.min(maxLat, (aimPx - px) * 7.5)) : 0;
+  const acc = (17 - route.rough * 4) * (wet > 0 ? .6 : 1) * (1 + (bs.steer || 0) * .5);
+  vx += (want - vx) * Math.min(1, dt * acc);
+  px += vx * dt;
+  if (aimPx !== null && Math.abs(aimPx - px) < .02 && Math.abs(vx) < .15) { px += (aimPx - px) * .5; }
+  const dir = st || (aimPx !== null && Math.abs(aimPx - px) > .25 ? Math.sign(aimPx - px) : 0);
+  scrubCheck(dir);
+  // bordi della pista: la fettuccia ti tiene dentro e rallenta un attimo
+  if (px < -.45 || px > 2.45) {
+    px = Math.max(-.45, Math.min(2.45, px)); vx = 0; edgeT = .35;
+    if (elapsed - lastEdgeMsg > 3) { lastEdgeMsg = elapsed; pop('FETTUCCIA!', 'small'); }
+  }
+  edgeT = Math.max(0, edgeT - dt);
 }
 function takeoff() {
   const sup = grappa > 0;
@@ -469,11 +497,17 @@ for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) $('gas').
   if (tap && !ice && state === 'playing') { gasLock = !gasLock; noClimbT = 0; if (gasLock) toast('🔒 GAS BLOCCATO: TOCCA ANCORA PER MOLLARE', 'green'); }
   gas = gasLock;
 });
-window.addEventListener('keyup', e => { if (e.key.toLowerCase() === 'w') gas = false; if (['s', 'S', 'ArrowDown'].includes(e.key)) stopWheelieInput(); });
-window.addEventListener('blur', () => { gas = false; if (state === 'playing') pause(); });
+window.addEventListener('keyup', e => {
+  if (['ArrowLeft', 'a', 'A'].includes(e.key) && keyL) { keyL = false; if (performance.now() - keyAt.l < TAP_MS) move(-1); }
+  if (['ArrowRight', 'd', 'D'].includes(e.key) && keyR) { keyR = false; if (performance.now() - keyAt.r < TAP_MS) move(1); } if (e.key.toLowerCase() === 'w') gas = false; if (['s', 'S', 'ArrowDown'].includes(e.key)) stopWheelieInput(); });
+window.addEventListener('blur', () => { gas = false; keyL = keyR = btnL = btnR = false; zoneSteer = 0; if (state === 'playing') pause(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && (state === 'playing' || state === 'countdown')) pause(); });
-$('left').onpointerdown = e => { e.preventDefault(); move(-1); };
-$('right').onpointerdown = e => { e.preventDefault(); move(1); };
+$('left').onpointerdown = e => { e.preventDefault(); btnL = true; btnAt.l = performance.now(); try { $('left').setPointerCapture(e.pointerId); } catch {} };
+$('right').onpointerdown = e => { e.preventDefault(); btnR = true; btnAt.r = performance.now(); try { $('right').setPointerCapture(e.pointerId); } catch {} };
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+  $('left').addEventListener(ev, () => { if (btnL && performance.now() - btnAt.l < TAP_MS) move(-1); btnL = false; });
+  $('right').addEventListener(ev, () => { if (btnR && performance.now() - btnAt.r < TAP_MS) move(1); btnR = false; });
+}
 $('jump').onpointerdown = e => { e.preventDefault(); hop(); };
 $('boost').onpointerdown = e => { e.preventDefault(); boost(); };
 $('wheelie').onpointerdown = e => { e.preventDefault(); $('wheelie').setPointerCapture(e.pointerId); startWheelie(); };
@@ -559,8 +593,8 @@ window.addEventListener('keydown', e => {
     if (k === 'Enter' && document.activeElement && document.activeElement.tagName === 'BUTTON' && state !== 'playing') return;
     e.preventDefault();
     if (e.repeat) return;
-    if (['ArrowLeft', 'a', 'A'].includes(k)) move(-1);
-    if (['ArrowRight', 'd', 'D'].includes(k)) move(1);
+    if (['ArrowLeft', 'a', 'A'].includes(k)) { keyL = true; keyAt.l = performance.now(); }
+    if (['ArrowRight', 'd', 'D'].includes(k)) { keyR = true; keyAt.r = performance.now(); }
     if ([' ', 'ArrowUp', 'Enter'].includes(k)) { if (state === 'ready' || state === 'ended') start(); else hop(); }
     if (k.toLowerCase() === 'p') pause();
     if (k === 'Shift' || k.toLowerCase() === 'b') boost();
@@ -572,19 +606,15 @@ let touch = null;
 // Muovi il mouse a destra/sinistra = corsia · clic sinistro = salto · tasto destro tenuto = GAS in salita
 // (impennata in piano) · rotellina o clic centrale = turbo.
 let mouseOn = false, rightHeld = false, lastWheel = 0;
-function mouseLane(x) {
+// Mouse: la moto va dove punti (centro dello schermo = centro pista).
+function mouseAim(x) {
   const r = canvas.getBoundingClientRect(), u = (x - r.left) / r.width;
-  // Isteresi: per cambiare corsia bisogna superare bene il confine.
-  const edges = [.36, .64], m = .03;
-  if (lane === 0) return u > edges[0] + m ? (u > edges[1] + m ? 2 : 1) : 0;
-  if (lane === 2) return u < edges[1] - m ? (u < edges[0] - m ? 0 : 1) : 2;
-  return u < edges[0] - m ? 0 : u > edges[1] + m ? 2 : 1;
+  return Math.max(-.4, Math.min(2.4, 1 + (u - .5) * 4.4));
 }
-function steerTo(target) { let n = 0; while (lane !== target && n++ < 2 && state === 'playing') { const before = lane; move(Math.sign(target - lane)); if (lane === before) break; } }
 canvas.addEventListener('pointermove', e => {
   if (e.pointerType !== 'mouse' || state !== 'playing') return;
   if (!mouseOn) { mouseOn = true; $('game').classList.add('mouseon'); }
-  steerTo(mouseLane(e.clientX));
+  aimPx = mouseAim(e.clientX);
 });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 // v35 · tenendo premuto su telefono non deve aprirsi il menu di Chrome (Scarica/Stampa/Condividi).
@@ -616,19 +646,21 @@ canvas.addEventListener('pointerdown', e => {
   // (anche più corsie di fila, senza staccare il dito); scorri in su = salto immediato; tocco al centro = salto.
   if (state !== 'playing') return;
   const r = canvas.getBoundingClientRect(), u = (e.clientX - r.left) / r.width;
-  touch = { x: e.clientX, y: e.clientY, ax: e.clientX, ay: e.clientY, t: performance.now(), id: e.pointerId, zone: u < .36 ? -1 : u > .64 ? 1 : 0, drag: false, jumped: false };
-  if (touch.zone) move(touch.zone);
+  // v50 · guida libera: tieni il dito a sinistra/destra = sterzi finché tieni; trascina = la moto segue il dito
+  touch = { x: e.clientX, y: e.clientY, ax: e.clientX, ay: e.clientY, t: performance.now(), id: e.pointerId, zone: u < .36 ? -1 : u > .64 ? 1 : 0, drag: false, jumped: false, startPx: px };
+  zoneSteer = touch.zone;
   try { canvas.setPointerCapture(e.pointerId); } catch {}
 });
-canvas.addEventListener('pointercancel', () => { touch = null; });
-const STEP_PX = () => Math.max(26, Math.min(44, canvas.getBoundingClientRect().width * .085));
+canvas.addEventListener('pointercancel', () => { touch = null; zoneSteer = 0; });
 canvas.addEventListener('pointermove', e => {
   if (e.pointerType === 'mouse' || !touch || e.pointerId !== touch.id || state !== 'playing') return;
-  const dx = e.clientX - touch.ax, dy = e.clientY - touch.ay, step = STEP_PX();
-  // passo laterale: ogni "step" pixel una corsia, poi si riparte da lì (sensibile e ripetibile)
-  if (Math.abs(dx) >= step && Math.abs(dx) > Math.abs(dy) * .8) {
-    touch.drag = true; move(Math.sign(dx)); touch.ax += Math.sign(dx) * step; touch.ay = e.clientY;
-    if (navigator.vibrate) try { navigator.vibrate(8); } catch {}
+  const dx = e.clientX - touch.x, dy = e.clientY - touch.ay;
+  // trascinando: la moto segue il dito (circa 1 corsia ogni 2,7 cm di schermo... in proporzione alla larghezza)
+  if (touch.drag || (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(e.clientY - touch.y) * .8)) {
+    if (!touch.drag) { touch.drag = true; touch.startPx = px; touch.x = e.clientX; }
+    zoneSteer = 0;
+    const lanePx = Math.max(60, canvas.getBoundingClientRect().width * .2);
+    aimPx = Math.max(-.4, Math.min(2.4, touch.startPx + (e.clientX - touch.x) / lanePx));
   }
   // scatto in su: salto subito, senza aspettare che il dito si stacchi
   if (!touch.jumped && e.clientY - touch.ay < -38 && Math.abs(e.clientY - touch.ay) > Math.abs(e.clientX - touch.ax) * 1.2) { touch.jumped = true; touch.drag = true; hop(); }
@@ -636,7 +668,9 @@ canvas.addEventListener('pointermove', e => {
 canvas.addEventListener('pointerup', e => {
   if (e.pointerType === 'mouse') { if (e.button === 2) rightUp(); return; }
   if (!touch || e.pointerId !== touch.id) return;
+  zoneSteer = 0;
   const dx = e.clientX - touch.x, dy = e.clientY - touch.y, quick = performance.now() - touch.t < 600;
+  if (!touch.drag && touch.zone && performance.now() - touch.t < TAP_MS + 30) move(touch.zone);   // tocco breve a lato = una corsia
   if (!touch.drag) {
     if (dy > 40 && Math.abs(dy) > Math.abs(dx)) { startWheelie(); setTimeout(stopWheelieInput, 1400); } // in giù: impennata
     else if (!touch.zone && quick && Math.abs(dx) < 18 && Math.abs(dy) < 18) hop();       // tocco al centro: salto
@@ -656,8 +690,7 @@ function pollPad() {
     const now = { left: b(14) || ax < -.55, right: b(15) || ax > .55, a: b(0), b: b(1), x: b(2) || b(5), rt: b(7) || b(6), start: b(9) };
     const prev = padPrev[pad.index] || {};
     const pressed = k => now[k] && !prev[k];
-    if (pressed('left')) move(-1);
-    if (pressed('right')) move(1);
+    padSteer = Math.abs(ax) > .18 ? Math.max(-1, Math.min(1, (Math.abs(ax) - .18) / .62 * Math.sign(ax))) : b(14) ? -1 : b(15) ? 1 : 0;   // v50 · stick analogico
     if (pressed('a')) { if (state === 'ready' || state === 'ended') start(); else hop(); }
     if (pressed('b')) startWheelie();
     if (!now.b && prev.b) stopWheelieInput();
@@ -849,7 +882,7 @@ function setupRace() {
   if (ice) {
     // sul ghiaccio niente pioggia: al massimo nebbia o il sole che cala dietro al lago
     weatherPlan = [{ kind: rng() < .5 ? 'fog' : 'dusk', from: at, to: at + 18 }];
-    const targets = [21000, 17000, 13200];   // v49 · ≈ 11.700 · 8.800 · 6.000 punti a fine gara (gas dosato bene ≈ 15-17.000)
+    const targets = [17000, 13600, 10500];   // v50 · guida libera: ≈ 9.000 · 6.800 · 4.800 punti a fine gara
     rivals.forEach((r, i) => { r.drift = 0; r.dTarget = targets[i] * (.92 + rng() * .16); r.driftAhead = false; r.slip = 3 + rng() * 6; });
   }
   weather = { rain: 0, fog: 0, dusk: 0 }; weatherSaid = '';
@@ -960,10 +993,14 @@ function iceStep(dt, kBase) {
   drift += (target - drift) * Math.min(1, dt * (5 + grip * 4));
   // la moto scivola verso l'esterno solo se esageri con l'angolo: una derapata pulita tiene la corsia
   const over = Math.max(0, Math.abs(drift) - (.55 + grip * .1));
-  const k = kBase * (.55 + grip * .25), c = 2 * Math.sqrt(k) * (.45 + grip * .2);
-  const push = (Math.sign(drift) * over * 42 * (1 - grip * .35) + bendNow * 3) * Math.min(1.2, speedNow);
-  vx += ((lane - px) * k - vx * c + push) * dt;
+  // v50 · guida libera sul ghiaccio: sterzi con poca aderenza, la moto arriva in ritardo e scivola
+  const st = steerNow(); if (st) aimPx = null;
+  const maxLat = 3.5 * (1 + (bs.steer || 0) * .5);
+  const want = st ? st * maxLat : aimPx !== null ? Math.max(-maxLat, Math.min(maxLat, (aimPx - px) * 5.5)) : 0;
+  const push = (Math.sign(drift) * over * 30 * (1 - grip * .35) + bendNow * 2) * Math.min(1.2, speedNow);
+  vx += ((want - vx) * (3.6 + grip * 2.2) + push) * dt;
   px += vx * dt;
+  scrubCheck(st || (aimPx !== null && Math.abs(aimPx - px) > .25 ? Math.sign(aimPx - px) : 0));
   // muro di neve ai bordi: si rimbalza, si rallenta e la derapata va persa
   if (px < -.42 || px > 2.42) {
     px = Math.max(-.42, Math.min(2.42, px)); vx = -vx * .25; snowT = .7; throttleSlip *= .3;
@@ -1063,13 +1100,13 @@ function doContinue() {
 }
 // Primo giro in assoluto: consigli grandi al centro, uno alla volta.
 const COACH = () => touchDevice ? [
-  [0.6, '👆 TOCCA A SINISTRA O A DESTRA<br>(o trascina il dito) per cambiare corsia'],
+  [0.6, '👆 TIENI IL DITO A SINISTRA O A DESTRA<br>(o trascinalo): la moto va dove vuoi'],
   [4.8, '🍺 SEGUI LE BIRRE:<br>indicano la linea libera'],
   [9.2, '🪵 OSTACOLO? SCORRI IN SU<br>o tocca al centro per saltare'],
   [14, '⚡ TURBO PIENO? premi TURBO<br>e spacca tutto'],
   [19, '⛰ SALITA? UN TOCCO SU GAS<br>e resta bloccato fino in cima'],
 ] : [
-  [0.6, '⬅ ➡ FRECCE o MOUSE<br>per cambiare corsia'],
+  [0.6, '⬅ ➡ TIENI LE FRECCE o muovi il MOUSE<br>per sterzare'],
   [4.8, '🍺 SEGUI LE BIRRE:<br>indicano la linea libera'],
   [9.2, '🪵 OSTACOLO? SPAZIO o CLIC<br>per saltare'],
   [14, '⚡ TURBO PIENO? premi B<br>o la rotellina'],
@@ -1131,7 +1168,7 @@ function update(dt) {
   jumpBuffer = Math.max(0, jumpBuffer - dt);
 
   const route = routeAt(course, roadTime * 19.5);
-  const speed = paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (snowT > 0 ? .62 : 1);
+  const speed = paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1);
   // Discesa: "Campa giù!"
   if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); }
   if (route.down < .15) downAnnounced = false;
@@ -1172,10 +1209,8 @@ function update(dt) {
   // Spostamento laterale a molla: la moto accelera, piega e si raddrizza in modo naturale.
   const kLat = (118 - route.rough * 32) * (touchDevice ? 1.35 : 1) * (1 - weather.rain * .18) * (1 + up.tyres * .08) * (1 + (bs.steer || 0)) * (has('mule') && route.rough > .4 ? 1.35 : 1), cLat = 2 * Math.sqrt(kLat) * .9;
   if (ice) iceStep(dt, kLat);
-  else {
-    vx += ((lane - px) * kLat - vx * cLat) * dt;
-    px += vx * dt;
-  }
+  else steerStep(dt, route);
+  { const nl = Math.max(0, Math.min(2, Math.round(px))); if (nl !== lane) { lane = nl; A.sfx.lane(lane); } }
   const wasAirborne = jump > 0;
   jump = Math.max(0, jump - dt);
   if (wasAirborne && jump === 0) {
@@ -1267,7 +1302,7 @@ function update(dt) {
         fxKind = 'splash'; fxSerial++; A.sfx.water(); A.say('acqua'); flash('blue');
         toast('💧 ACQUA?! ORECCHIE DA CONIGLIO!', 'blue');
       } else if (gap < .42) { o.collected = true; reward(80, lift > .5 ? 'ACQUA SALTATA!' : 'ACQUA SPACCATA!', 'near', false); }
-    } else if (gap < .37) {   // v49 · ostacoli un filo più tolleranti
+    } else if (gap < (ice ? .33 : .37)) {   // v49 · ostacoli un filo più tolleranti (sul ghiaccio ancora di più)
       if (turbo > 0 || grappa > 0) { o.collected = true; reward(50, grappa > 0 ? 'GRAPPA POWER!' : 'GAS A MARTELLO!', 'smash', false); shake = Math.max(shake, .35); }
       else if (clearsObstacle(o.type, lift)) {
         run.jumps++;
@@ -1668,7 +1703,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 49;
+const GAME_VERSION = 50;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
