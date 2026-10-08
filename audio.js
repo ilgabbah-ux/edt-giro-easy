@@ -2,7 +2,7 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=29';
+import { VOCI } from './voci.js?v=31';
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',

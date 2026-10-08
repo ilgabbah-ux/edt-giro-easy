@@ -675,3 +675,99 @@ footer { font: 600 14px var(--ui); letter-spacing: .5px; border-top: 1px solid #
   .controls .boost { position: absolute; left: 0; bottom: 62px; height: 42px; min-width: 128px; flex: none; }
   .tracklabel { bottom: auto; top: 96px; left: 12px; }
 }
+
+/* v30: scritte ai lati, strada libera */
+.banner { display: none !important; }
+.feed { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin-top: 4px; max-width: min(300px, 40vw); }
+.msg { display: inline-flex; align-items: center; gap: 7px; background: linear-gradient(90deg, #0b0c09e6, #0b0c09b0); color: #fff; border-left: 4px solid var(--y); padding: 5px 16px 5px 10px; clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); font: italic 800 15px/1.15 var(--ui); letter-spacing: .8px; text-transform: uppercase; animation: msgin .28s cubic-bezier(.2, 1.4, .4, 1) both; transition: opacity .3s, transform .3s; }
+.msg .ic { color: var(--y); width: 16px; height: 16px; }
+.msg.red { border-left-color: var(--r); } .msg.red .ic { color: #ff6b4f; }
+.msg.green { border-left-color: var(--green); } .msg.green .ic { color: var(--green); }
+.msg.blue { border-left-color: var(--blue); } .msg.blue .ic { color: var(--blue); }
+.msg.wine { border-left-color: #c2185b; } .msg.pink { border-left-color: var(--pink); }
+.msg.gold { border-left-color: var(--y); color: var(--y2); }
+.msg.out { opacity: 0; transform: translateX(-20px); }
+@keyframes msgin { from { opacity: 0; transform: translateX(-30px); } }
+.pops { position: absolute; inset: auto 16px auto auto; top: 150px; width: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; overflow: visible; z-index: 2; pointer-events: none; }
+.pop { position: static; transform: none; top: auto; font: italic 800 19px/1.1 var(--ui) !important; color: var(--y); text-shadow: 0 2px 0 #000, 0 0 10px #000c; -webkit-text-stroke: 0; white-space: nowrap; animation: popfeed 1.25s ease-out forwards; }
+.pop.white { color: #fff; font-size: 21px !important; }
+.pop.blue { color: #8fe0ff; } .pop.small { color: #ddd; font-size: 15px !important; }
+@keyframes popfeed { 0% { opacity: 0; transform: translateX(26px) scale(.9); } 15% { opacity: 1; transform: translateX(0) scale(1.06); } 25% { transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+.bigcall { top: 21%; font-size: clamp(30px, 6vw, 64px); -webkit-text-stroke: 2px #1a1208; text-shadow: 0 4px 0 #e3301c, 0 8px 18px rgba(0,0,0,.5); }
+.bigcall.show { animation-duration: 1.35s; }
+.gas { left: auto; right: 16px; transform: none; bottom: 96px; animation: none; }
+.gas:not(.held) { box-shadow: 0 0 0 0 #ffd40088; animation: gaspulse 1s ease-out infinite; }
+@keyframes gaspulse { 0% { box-shadow: 0 0 0 0 #ffd400aa; } 100% { box-shadow: 0 0 0 16px #ffd40000; } }
+.erika { left: 2%; bottom: 96px; }
+.erika img { width: clamp(90px, 13vw, 150px); }
+.erika .bubble { font-size: clamp(16px, 2vw, 24px); }
+@media (max-width: 900px) {
+  .pops { top: 186px; right: 8px; }
+  .pop { font-size: 15px !important; } .pop.white { font-size: 16px !important; }
+  .msg { font-size: 12px; padding: 4px 12px 4px 8px; }
+  .feed { max-width: 58vw; }
+  .gas { right: 10px; bottom: 150px; }
+  .erika { bottom: 150px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .pops { top: 70px; }
+  .gas { bottom: 70px; right: 14px; }
+}
+
+/* =====================================================================
+   v31 · SCHERMO ORDINATO
+   In alto: punteggio/combo (sx) · tempo (centro) · moto/icone (dx).
+   Ai lati: messaggi (sx) e punti (dx). Centro: solo strada.
+   In basso: cruscotto (km/h + barra del percorso) e sotto i comandi.
+   ===================================================================== */
+.tracklabel { display: none; }
+.dash { position: absolute; left: 16px; right: 16px; bottom: 88px; z-index: 2; display: flex; align-items: flex-end; gap: 10px; pointer-events: none; transition: opacity .3s; }
+.game.menu .dash { opacity: 0; visibility: hidden; }
+.dash .speedo { flex: none; align-self: flex-end; height: 34px; align-items: center; padding: 0 18px 0 10px; }
+.dash .speedo b { font-size: 24px; }
+.trackbox { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.trackbox .tl { align-self: flex-start; font: italic 800 13px/1 var(--ui); letter-spacing: 2.5px; color: #fff; text-transform: uppercase; background: #0b0c09b8; padding: 4px 16px 4px 10px; clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.dash .trackbar { width: 100%; margin: 0; padding-right: 26px; }
+.dash .seg { height: 14px; font-size: 9px; line-height: 14px; }
+.dash .trackmarker { top: -6px; height: 26px; }
+.dash .ghostmarker { top: -20px; }
+.hudcenter { gap: 0; }
+.pops { top: 128px; right: 16px; }
+.gas { right: 16px; bottom: 140px; }
+.erika { bottom: 140px; }
+@media (max-width: 900px) {
+  /* Comandi su una riga sola: più spazio per la strada */
+  .controls { bottom: 10px; left: 8px; right: 8px; gap: 5px; }
+  .ctrl { min-width: 48px; height: 56px; }
+  .steer { gap: 5px; }
+  .steer .ctrl { font-size: 28px; }
+  .rightctrl { flex-direction: row; gap: 5px; align-items: stretch; }
+  .wheelie { height: 56px; width: auto; font-size: 13px; padding: 0 10px; letter-spacing: .5px; }
+  .jump { font-size: 18px; padding: 0 14px; }
+  .boost { flex: 1; min-width: 0; max-width: 110px; font-size: 12px; padding: 0 8px; }
+  .dash { left: 8px; right: 8px; bottom: 74px; gap: 6px; }
+  .dash .speedo { height: 30px; padding: 0 12px 0 8px; }
+  .dash .speedo b { font-size: 19px; } .dash .speedo small { font-size: 10px; }
+  .trackbox .tl { font-size: 11px; letter-spacing: 1.5px; padding: 3px 12px 3px 8px; }
+  .dash .seg { font-size: 7px; letter-spacing: .3px; height: 12px; line-height: 12px; }
+  .pops { top: 112px; right: 8px; }
+  .gas { right: 8px; bottom: 124px; min-height: 46px; padding: 6px 20px; font-size: 18px; }
+  .erika { bottom: 124px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .controls .boost { position: static; height: auto; min-width: 0; flex: 1; max-width: 140px; }
+  .controls { bottom: 8px; }
+  .ctrl, .wheelie { height: 48px; }
+  .dash { bottom: 62px; }
+  .pops { top: 64px; }
+  .gas { bottom: 104px; }
+  .erika { bottom: 104px; }
+}
+/* Telefono in orizzontale: il cruscotto sta nella riga dei comandi, tra sterzo e salto. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .dash { left: 128px; right: 236px; bottom: 8px; height: 48px; align-items: center; }
+  .dash .speedo { display: none; }
+  .trackbox .tl { font-size: 10px; padding: 2px 10px 2px 6px; }
+  .controls .boost { position: absolute; right: 0; bottom: 56px; height: 40px; width: 140px; max-width: none; flex: none; }
+  .gas { bottom: 104px; }
+}

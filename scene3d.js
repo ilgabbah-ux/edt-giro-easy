@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=29';
+import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=31';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -768,6 +768,7 @@ export function createWorld(canvas) {
   const logCap = mat('#cda66c'), puddleRim = mat('#66503b', .9), puddleWater = mat('#5c949a', .08, .45), ripple = mat('#bdddd9', .22);
   const helmetShell = mat('#3ee28f', .3, .2), visorMat = mat('#1b2328', .2, .4), peakMat = mat('#ffffff', .4), magnetRed = mat('#e8263c', .35), magnetTip = mat('#dfe6ea', .25, .8);
 
+  const rampDirt = mat('#7b5a38', .95), rampWood = mat('#b98a52', .8), rampLip = new T.MeshStandardMaterial({ color: '#ffd400', roughness: .6, emissive: '#3a2f00', emissiveIntensity: .25 });
   const obstacleMap = new Map(), pools = {};
   function hazardRing(g, r) { const ring = mesh(new T.RingGeometry(r, r + .08, 28), ringMat, g); ring.rotation.x = -Math.PI / 2; ring.position.y = .015; ring.castShadow = false; }
   function makeObstacle(type) {
@@ -866,6 +867,15 @@ export function createWorld(canvas) {
       rod([.55, .68, 0], [.53, .58, 0], .02, goatDark, g);
       rod([-.4, .68, 0], [-.48, .78, 0], .025, goatWhite, g);
       hazardRing(g, .6);
+    } else if (type === 'ramp') {
+      // Rampa di terra battuta con tavole e bordo giallo-nero: si prende in pieno per volare.
+      const sh = new T.Shape(); sh.moveTo(1.0, 0); sh.lineTo(-.55, .62); sh.lineTo(-.75, .62); sh.lineTo(-.75, 0); sh.closePath();
+      const geo = new T.ExtrudeGeometry(sh, { depth: 1.5, bevelEnabled: false }); geo.rotateY(-Math.PI / 2); geo.translate(.75, 0, 0);
+      mesh(geo, rampDirt, g);
+      for (let i = 0; i < 5; i++) { const k = i / 4, pl = box(1.52, .035, .2, rampWood, g, 0, .03 + k * .56, .82 - k * 1.34); pl.rotation.x = -Math.atan2(.62, 1.55); }
+      box(1.56, .1, .12, rampLip, g, 0, .64, -.6);
+      for (const sx of [-1, 1]) rod([sx * .8, .0, -.66], [sx * .8, 1.05, -.66], .035, black, g);
+      const fl = box(.32, .2, .02, rampLip, g, -.66, .95, -.66); fl.castShadow = false;
     } else if (type === 'rollRock') {
       const inner = new T.Group(); inner.position.y = .55; g.add(inner); g.userData.roller = inner;
       const r = mesh(detailedRockGeometry, detailedStone, inner); r.position.y = -.55; r.scale.setScalar(.9);
@@ -906,6 +916,17 @@ export function createWorld(canvas) {
   const markers = new T.InstancedMesh(new T.BoxGeometry(.10, 1.1, .10), white, 36);
   const pennants = new T.InstancedMesh(new T.BoxGeometry(.38, .28, .035), plastic, 36);
   scene.add(markers, pennants);
+  // Fettuccia bianco-rossa tra i paletti e frecce gialle del percorso, come in una vera gara di enduro.
+  const tapeCanvas = document.createElement('canvas'); tapeCanvas.width = 128; tapeCanvas.height = 8;
+  { const c = tapeCanvas.getContext('2d'); for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#f2f2ee' : '#e3261c'; c.fillRect(i * 16, 0, 16, 8); } }
+  const tapeTex = new T.CanvasTexture(tapeCanvas); tapeTex.colorSpace = T.SRGBColorSpace; tapeTex.wrapS = T.RepeatWrapping; tapeTex.repeat.set(2, 1);
+  const tapeGeo = new T.PlaneGeometry(1, .07); tapeGeo.translate(.5, 0, 0);
+  const tapes = new T.InstancedMesh(tapeGeo, new T.MeshBasicMaterial({ map: tapeTex, side: T.DoubleSide }), 144); tapes.frustumCulled = false; scene.add(tapes);
+  const arrowCanvas = document.createElement('canvas'); arrowCanvas.width = arrowCanvas.height = 128;
+  { const c = arrowCanvas.getContext('2d'); c.fillStyle = '#ffd400'; c.fillRect(0, 0, 128, 128); c.strokeStyle = '#111'; c.lineWidth = 8; c.strokeRect(4, 4, 120, 120);
+    c.fillStyle = '#111'; c.beginPath(); c.moveTo(22, 52); c.lineTo(70, 52); c.lineTo(70, 28); c.lineTo(110, 64); c.lineTo(70, 100); c.lineTo(70, 76); c.lineTo(22, 76); c.closePath(); c.fill(); }
+  const arrowTex = new T.CanvasTexture(arrowCanvas); arrowTex.colorSpace = T.SRGBColorSpace;
+  const arrows = new T.InstancedMesh(new T.PlaneGeometry(.55, .55), new T.MeshBasicMaterial({ map: arrowTex, side: T.DoubleSide }), 18); arrows.frustumCulled = false; scene.add(arrows);
 
   const finish = new T.Group(); scene.add(finish);
   for (const s of [-1, 1]) box(.2, 4.2, .2, bark, finish, s * 4.4, 2.1, 0);
@@ -957,7 +978,7 @@ export function createWorld(canvas) {
     }
   }
 
-  let camX = 0, lastRender = performance.now(), wasAir = false, shakeX = 0, shakeY = 0;
+  let camLift = 0, camX = 0, lastRender = performance.now(), wasAir = false, shakeX = 0, shakeY = 0;
 
   function resize() {
     const r = canvas.getBoundingClientRect();
@@ -1029,7 +1050,7 @@ export function createWorld(canvas) {
   }
 
   function render(s) {
-    const now = performance.now(), fdt = s.dt || Math.min(.05, (now - lastRender) / 1000); lastRender = now;
+    const now = performance.now(), fdt = Math.min(.05, s.dt || (now - lastRender) / 1000); lastRender = now;
     adaptQuality();
     applyPreset(s.preset ?? 0);
     applyLivery(s.livery);
@@ -1206,6 +1227,26 @@ export function createWorld(canvas) {
       dummy.position.set(x - side * .12, y + .95, z); dummy.rotation.y = side * .2 + Math.sin(now / 300 + i) * .15; dummy.updateMatrix(); pennants.setMatrixAt(i, dummy.matrix);
     }
     markers.instanceMatrix.needsUpdate = pennants.instanceMatrix.needsUpdate = true;
+    let tn = 0, an = 0;
+    for (let i = 0; i < 36; i++) {
+      const z = wrapZ(i * 5.1, t), side = i % 2 ? 1 : -1, x = center(z, t) + side * 5.0 * trail.width, y = height(z, t);
+      for (let j = 0; j < 4; j++) {
+        // quattro campate fino al paletto successivo dello stesso lato, con un filo di "pancia"
+        const z1 = z - j * 2.55, z2 = z1 - 2.55, sag = k => .86 - Math.sin(k / 4 * Math.PI) * .12;
+        const x1 = center(z1, t) + side * 5.0 * trail.width, y1 = height(z1, t) + sag(j);
+        const x2 = center(z2, t) + side * 5.0 * trail.width, y2 = height(z2, t) + sag(j + 1);
+        const dx = x2 - x1, dy = y2 - y1, dzz = z2 - z1, len = Math.hypot(dx, dy, dzz);
+        dummy.position.set(x1, y1, z1); dummy.scale.set(len, 1, 1);
+        dummy.rotation.set(0, Math.atan2(-dzz, dx), Math.asin(dy / len), 'YZX'); dummy.updateMatrix(); tapes.setMatrixAt(tn++, dummy.matrix);
+        dummy.rotation.order = 'XYZ';
+      }
+      if (i % 4 === 1 && an < 18) {
+        const turn = Math.sign(center(z - 14, t) - center(z - 6, t)) || 1;
+        dummy.position.set(x + side * .02, y + 1.25, z + .06); dummy.rotation.set(0, 0, 0); dummy.scale.set(turn, 1, 1); dummy.updateMatrix(); arrows.setMatrixAt(an++, dummy.matrix);
+      }
+    }
+    tapes.count = tn; arrows.count = an;
+    tapes.instanceMatrix.needsUpdate = arrows.instanceMatrix.needsUpdate = true;
 
     aura.visible = boostAmount > 0 || (s.grappa || 0) > 0; aura.scale.setScalar(1 + Math.sin(now / 60) * .08);
     auraMaterial.color.set(boostAmount > 0 ? '#ffd438' : '#4fb8ff');
@@ -1241,12 +1282,15 @@ export function createWorld(canvas) {
     // In verticale (telefono) la telecamera arretra e sale: tre corsie visibili e moto sopra i comandi.
     const portrait = camera.aspect < .8;
     const baseFov = portrait ? 68 : 53;
-    const targetFov = baseFov + trail.climb * 10 + (boostAmount > 0 ? 9 : 0);
+    const targetFov = baseFov + trail.climb * 10 + (boostAmount > 0 ? 9 : 0) + trail.down * 6;
     if (Math.abs(camera.fov - targetFov) > .01) { camera.fov += (targetFov - camera.fov) * .07; camera.updateProjectionMatrix(); }
     camX += (bike.position.x * (portrait ? .55 : .30) - camX) * .06;
-    const camY = portrait ? 5.6 : 4.35, camZ = portrait ? 10.2 : 7.9, lookY = portrait ? .2 : 1.3, lookZ = portrait ? -9 : -10;
-    camera.position.set(camX + .55 * trail.rough + shakeX, camY + airborne * .3 + trail.climb * .2 + shakeY, camZ + trail.climb * 1.3 - boostAmount * .15);
-    camera.lookAt(bike.position.x * (portrait ? .4 : .16), lookY + Math.max(0, trail.grade) * 2.2 + Math.min(0, trail.grade) * 2.4 + trail.climb * 1.5, lookZ);
+    // Schermi bassi (telefono in orizzontale): moto più in alto, sopra i comandi.
+    const short = !portrait && canvas.clientHeight < 520;
+    const camY = portrait ? 5.9 : short ? 5.0 : 4.6, camZ = portrait ? 10.2 : 7.9, lookY = portrait ? -.6 : short ? -1.5 : .3, lookZ = portrait ? -9 : -10;
+    camera.position.set(camX + .55 * trail.rough + shakeX, camY + airborne * .3 + trail.climb * (portrait ? .2 : 1.2) + shakeY, camZ + trail.climb * 1.3 - boostAmount * .15);
+    camLift += (Math.max(0, lift - 1.1) * .8 - camLift) * .12;
+    camera.lookAt(bike.position.x * (portrait ? .4 : .16), lookY + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : .1), lookZ);
     camera.rotateZ(bike.rotation.z * .06);
     sky.position.copy(camera.position);
     sun.target.position.set(bike.position.x, 0, -6);

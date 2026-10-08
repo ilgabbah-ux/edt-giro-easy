@@ -1,16 +1,16 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=29';
-import { createWorld } from './scene3d.js?v=29';
-import * as A from './audio.js?v=29';
-import * as P from './progress.js?v=29';
-import { FOTO } from './piloti.js?v=29';
-import { createMud } from './mudfx.js?v=29';
-import { icon, iconize, iconizeEl } from './icons.js?v=29';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=31';
+import { createWorld } from './scene3d.js?v=31';
+import * as A from './audio.js?v=31';
+import * as P from './progress.js?v=31';
+import { FOTO } from './piloti.js?v=31';
+import { createMud } from './mudfx.js?v=31';
+import { icon, iconize, iconizeEl } from './icons.js?v=31';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
-try { world = createWorld(canvas); } catch (e) { worldError = e; console.error('3D non disponibile', e); }
+try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); }
 
 // ---------- Piloti (abbinamenti foto conservati dalla v14) ----------
 const RIDERS = ['Il Gabbah', 'Angelo', 'Miti', 'Claudio', 'Max', 'Purcello', 'Ciprian', 'Costa', 'Linus', 'Mirco', 'Luigi', 'Renard', 'Paletta', 'Andrea', 'Brizio', 'Sergio', 'Albo', 'Alex'];
@@ -105,7 +105,7 @@ const comboMax = () => 4.5 + up.grit * .5 + (has('steady') ? 2 : 0);
 function breakCombo() { if (has('steady')) { combo = Math.floor(combo / 2); comboTime = combo ? comboMax() : 0; } else combo = comboTime = 0; }
 const earsOn = () => earsPermanent || earsT > 0;
 
-const newRun = () => ({ caps: 0, airCaps: 0, jumps: 0, perfect: 0, scrubs: 0, near: 0, maxMult: 1, turbos: 0, splashes: 0, hits: 0, magnets: 0, helmets: 0, grappas: 0, waters: 0, wheelies: 0, wheelieMax: 0, errors: 0, score: 0 });
+const newRun = () => ({ caps: 0, airCaps: 0, jumps: 0, perfect: 0, scrubs: 0, near: 0, maxMult: 1, turbos: 0, splashes: 0, hits: 0, magnets: 0, helmets: 0, grappas: 0, waters: 0, wheelies: 0, wheelieMax: 0, errors: 0, score: 0, ramps: 0, cleanSectors: 0 });
 
 // ---------- Audio e incitamenti ----------
 A.setEnabled(profile.sound !== false);
@@ -126,10 +126,19 @@ function cheer(text, force = false, withVoice = false) {
 }
 
 // ---------- Messaggi a schermo ----------
+// I messaggi scorrono in una colonna a sinistra, sotto il punteggio: la strada al centro resta libera.
+let lastToast = '', lastToastAt = 0;
 function toast(t, kind = '') {
-  const b = $('banner');
-  b.innerHTML = iconize(t); b.className = 'banner ' + kind;
-  void b.offsetWidth; b.classList.add('show');
+  const now = performance.now();
+  if (t === lastToast && now - lastToastAt < 1500) return;
+  lastToast = t; lastToastAt = now;
+  const feed = $('feed');
+  while (feed.childElementCount >= 3) feed.firstElementChild.remove();
+  const el = document.createElement('div');
+  el.className = 'msg ' + kind;
+  el.innerHTML = iconize(t);
+  feed.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 350); }, 2600);
   toastTime = 2.2;
 }
 // Scritta enorme al centro (Campa giù!): ha un suo livello, non viene coperta dagli altri messaggi.
@@ -139,13 +148,12 @@ function bigCall(text) {
 }
 function pop(text, kind = 'gold') {
   const layer = $('pops');
-  if (layer.childElementCount > 5) layer.firstElementChild.remove();
+  while (layer.childElementCount > 3) layer.firstElementChild.remove();
   const el = document.createElement('div');
   el.className = 'pop ' + kind;
   el.innerHTML = iconize(text);
-  el.style.left = (50 + (Math.random() - .5) * 18) + '%';
-  el.addEventListener('animationend', () => el.remove());
   layer.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
 }
 function flash(kind) {
   const g = $('game');
@@ -157,7 +165,7 @@ function flash(kind) {
 // ---------- HUD ----------
 let shownScore = -1, shownLives = -1;
 function multiplier() { return Math.min(4, 1 + Math.floor(combo / 3)); }
-let lastPU = '';
+let lastPU = '', segErrors = 0;
 function hud() {
   const s = Math.floor(score);
   if (s !== shownScore) {
@@ -246,7 +254,7 @@ function resetRun() {
   combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
   lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
   ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
-  grappa = waterT = earsT = errors = wheelieT = wheelieCD = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9;
+  grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
   for (const k of Object.keys(up)) up[k] = P.upgradeLevel(k);
   maxLives = 3 + (up.helmet >= 2 ? 1 : 0) + (up.helmet >= 4 ? 1 : 0) + (has('lion') ? 1 : 0);
@@ -545,6 +553,20 @@ function spawnWave() {
     return;
   }
 
+  // Rampa: sulla linea buona, con una fila di birre al volo. Le altre corsie sono chiuse.
+  if (section !== 3 && wave > 3 && wave - lastBigLog > 2 && rng() < .13) {
+    lastBigLog = wave;
+    const l = prevSafe;
+    add(l, .08, 'ramp');
+    for (let k = 1; k <= 5; k++) {
+      const dz = k * .055, dt = dz / zSpeed, ph = Math.min(1, dt / 1.45);
+      add(l, .08 - dz, 'coin', { air: true, lift: Math.max(.6, Math.sin(ph * Math.PI) * 3.0 + .1) });
+    }
+    for (let o = 0; o < 3; o++) if (o !== l) add(o, -.06, obs());
+    wave++;
+    return;
+  }
+
   // Tronco di traverso: si passa solo saltando, con birre al volo come premio.
   if ((section === 0 || section === 2) && wave > 2 && wave - lastBigLog > 3 && rng() < .2 + diff * .04) {
     lastBigLog = wave;
@@ -652,6 +674,9 @@ function update(dt) {
   if (route.seg !== routePhase) {
     const prevSeg = layoutSegments()[routePhase];
     if (routePhase >= 0) flash('gold');
+    // Controllo orario: settore senza errori = +2 secondi sul tempo massimo.
+    if (prevSeg && errors === segErrors && state === 'playing') { timeLimit += 2; run.cleanSectors = (run.cleanSectors || 0) + 1; A.sfx.mission(); toast('⏱ SETTORE PULITO +2 s', 'green'); }
+    segErrors = errors;
     routePhase = route.seg;
     const cur = layoutSegments()[route.seg];
     const hints = ['SOTTOBOSCO! OCCHIO AI TRONCHI', 'POZZANGHERE! SCHIVA O SALTA', 'SALITONE HARD! TIENI GAS', 'MULATTIERA HARD! SEGUI LE BIRRE'];
@@ -705,6 +730,16 @@ function update(dt) {
     if (o.hit || o.z < .91) continue;
     o.hit = true;
     const gap = o.type === 'bigLog' ? 0 : Math.abs(px - o.l);
+    if (o.type === 'ramp') {
+      // Rampa di terra: se ci passi sopra a terra, decolli con un salto lunghissimo.
+      if (gap < .5 && jump <= 0 && crash <= 0) {
+        if (wheelie) endWheelie(false);
+        jumpDur = 1.45 * (1 + up.susp * .03); jumpH = 3.0 * (1 + up.susp * .05); jump = jumpDur; scrubbed = 0;
+        A.sfx.jump(); run.ramps = (run.ramps || 0) + 1; shake = Math.max(shake, .3);
+        reward(120, 'RAMPA!', 'trick');
+      }
+      continue;
+    }
     if (o.type === 'coin') {
       const val = magnet > 0 ? (has('sommelier') ? 3 : 2) : 1;
       if (o.air) {
@@ -1138,7 +1173,6 @@ if (/debug/.test(location.hash)) {
 }
 
 // Aggancio per i test automatici (non usato dal gioco).
-window.__world = world;
 window.__edt = { get state() { return state; }, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, erika, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };

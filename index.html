@@ -17,7 +17,7 @@
 <meta name="description" content="Il gioco arcade EDT. Schiva gli ostacoli, salta i tronchi, completa le missioni e sopravvivi al taglio di Angelo.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23ffcf16'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='Arial' font-weight='900' font-size='34' fill='%23e3301c'%3EE%3C/text%3E%3C/svg%3E">
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="stylesheet" href="style.css?v=31">
 </head>
 <body>
 <div class="shell">
@@ -27,7 +27,7 @@
       <div><strong>ENDURO DRINKING TEAM</strong><small>Sterrare humanum est · dal 2017</small></div>
     </div>
     <div class="shareheader">
-      <span class="edition">GIRO EASY · V29</span>
+      <span class="edition">GIRO EASY · V31</span>
       <button id="installapp" class="sharebutton install" type="button" hidden>INSTALLA</button>
       <button id="sharelink" class="sharebutton" type="button">CONDIVIDI NEL GRUPPO</button>
     </div>
@@ -45,15 +45,11 @@
         <div class="hudleft">
           <div class="scorebox" id="scorebox"><small>PUNTI EDT</small><b id="score">00000</b></div>
           <div class="combobox idle" id="combobox"><b id="multiplier">×1</b><span id="combocount">COMBO</span><i><u id="combotimer"></u></i></div>
-          <div class="speedo"><b id="kmh">0</b><small>KM/H</small></div>
           <div id="powerups" class="powerups"></div>
+          <div id="feed" class="feed" aria-live="polite"></div>
         </div>
         <div class="hudcenter">
           <div class="timerbox" id="timerbox"><b id="timer">70</b><small>TEMPO MASSIMO</small></div>
-          <div class="trackbar" id="trackbar" aria-hidden="true">
-            <span class="seg s0" style="flex:12">SOTTOBOSCO</span><span class="seg s1" style="flex:14">POZZANGHERE</span><span class="seg s2" style="flex:17">SALITONE</span><span class="seg s3" style="flex:17">MULATTIERA</span>
-            <i id="ghostmarker" class="ghostmarker" hidden></i><i id="pacemarker" class="pacemarker" title="Tempo massimo"></i><i id="trackmarker" class="trackmarker"></i>
-          </div>
         </div>
         <div class="hudright">
           <div class="lives" id="lives" aria-label="3 moto rimaste"></div>
@@ -70,7 +66,16 @@
       <div id="bigcall" class="bigcall" aria-live="assertive"></div>
       <div id="erika" class="erika" role="status"><img alt="Erika"><div class="bubble">GIACU MI AMMAZZA!</div></div>
       <div id="countdown" class="countdown" aria-live="assertive"></div>
-      <div class="tracklabel"><span id="tracklabel">SOTTOBOSCO</span></div>
+      <div class="dash" aria-hidden="true">
+        <div class="speedo"><b id="kmh">0</b><small>KM/H</small></div>
+        <div class="trackbox">
+          <span id="tracklabel" class="tl">SOTTOBOSCO</span>
+            <div class="trackbar" id="trackbar" aria-hidden="true">
+            <span class="seg s0" style="flex:12">SOTTOBOSCO</span><span class="seg s1" style="flex:14">POZZANGHERE</span><span class="seg s2" style="flex:17">SALITONE</span><span class="seg s3" style="flex:17">MULATTIERA</span>
+            <i id="ghostmarker" class="ghostmarker" hidden></i><i id="pacemarker" class="pacemarker" title="Tempo massimo"></i><i id="trackmarker" class="trackmarker"></i>
+          </div>
+        </div>
+      </div>
 
       <button id="gas" class="gas" type="button" aria-label="Tieni premuto per dare gas in salita" aria-pressed="false" hidden>TIENI GAS</button>
       <div class="controls">
@@ -122,6 +127,7 @@
           <div><i>🤠</i><span><b>Impennata</b>: tieni premuto IMPENNA (S / ↓). Più dura, più punti, fino a 3 secondi. Passa sopra radici e pozze.</span></div>
           <div><i>🪨</i><span>Ogni sezione ha i suoi ostacoli: ceppi, balle di fieno, ometti di pietra, capre e frane. <b>Salto perfetto</b> = punti ×1,5; in volo sterza per uno <b>scrub</b>.</span></div>
           <div><i>🪵</i><span>Tronco preso in pieno? Arriva <b>Erika</b>: «Giacu mi ammazza!». Nelle <b>pozzanghere</b> il fango schizza sullo schermo e non vedi più niente per qualche secondo.</span></div>
+          <div><i>⏱</i><span><b>Settore pulito</b>: se finisci un tratto senza errori il controllo orario ti regala <b>+2 secondi</b>. Le <b>rampe</b> gialle ti fanno volare: prendi le birre in aria.</span></div>
           <div><i>🖱</i><span><b>Da PC col mouse</b>: muovi il mouse a destra e sinistra per cambiare corsia, clic per saltare, tasto destro tenuto per il GAS in salita (in piano impenna), rotellina per il turbo.</span></div>
           <div><i>🎮</i><span><b>Joypad</b> (PC, Android, iPad): stick per sterzare, A salta, B impenna, RT gas, X turbo, Start pausa.</span></div>
           <div><i>⛰</i><span>In salita tieni <b>GAS / W</b>. In discesa: <b>campa giù!</b></span></div>
@@ -138,6 +144,6 @@
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="game.js?v=29"></script>
+<script type="module" src="game.js?v=31"></script>
 </body>
 </html>
