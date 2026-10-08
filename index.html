@@ -17,7 +17,7 @@
 <meta name="description" content="Il gioco arcade EDT. Schiva gli ostacoli, salta i tronchi, completa le missioni e sopravvivi al taglio di Angelo.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23ffcf16'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='Arial' font-weight='900' font-size='34' fill='%23e3301c'%3EE%3C/text%3E%3C/svg%3E">
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=36">
+<link rel="stylesheet" href="style.css?v=37">
 </head>
 <body>
 <div class="shell">
@@ -109,11 +109,12 @@
         <p class="note">Sali di livello con punti e missioni per sbloccare nuove livree.</p>
       </section>
       <section class="panel">
-        <p class="label">03 / CLASSIFICA DEL BAR</p>
-        <h2>Chi comanda su questo telefono</h2>
+        <p class="label">03 / CLASSIFICA</p>
+        <div id="boardsrc" class="boardsrc"><button type="button" data-src="group" class="active">🏆 GRUPPO</button><button type="button" data-src="local">📱 QUESTO TELEFONO</button></div>
+        <h2 id="boardtitle">Chi comanda nel gruppo</h2>
         <div id="boardtabs" class="boardtabs"></div>
         <ol id="board" class="board"></ol>
-        <p class="note">Classifica salvata solo su questo dispositivo: passate il telefono al prossimo.</p>
+        <p class="note" id="boardnote">Classifica di tutto l'EDT: un record a testa, migliori 10 per percorso.</p>
       </section>
       <section class="panel howpanel">
         <p class="label">COME SI SOPRAVVIVE</p>
@@ -144,6 +145,6 @@
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="game.js?v=36"></script>
+<script type="module" src="game.js?v=37"></script>
 </body>
 </html>

@@ -818,3 +818,27 @@ body.isfull .installhelp { display: none; }
 .game img { -webkit-user-drag: none; pointer-events: none; }
 .ctrl, .gas, .controls, .controls * { touch-action: none; }
 .game input, .game textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+
+/* v37: classifica del gruppo online */
+.shopbtn.groupbtn { background: #1d2a1d; border-color: var(--green, #3ee28f); color: #9ff0c4; }
+.boardsrc { display: flex; gap: 6px; margin: 2px 0 8px; }
+.boardsrc[hidden] { display: none; }
+.boardsrc button { flex: 1; background: #1e1f1c; border: 1px solid #393b35; color: var(--muted); border-radius: 8px; padding: 7px 4px; font: 13px var(--display); letter-spacing: .5px; }
+.boardsrc button.active { border-color: var(--y); color: var(--y); background: #3b3521; }
+.board li .who small { display: block; font: 600 10px var(--ui); color: var(--muted); letter-spacing: .3px; }
+.board li.me { outline: 1px solid var(--y); background: #ffcf161a; }
+.board li .noav { width: 26px; height: 26px; border-radius: 50%; background: #2b2c28; display: block; }
+.groupres { margin: 12px 0 4px; padding: 12px 14px; background: #10110ecc; border: 1px solid #ffcf1655; border-radius: 12px; text-align: left; }
+.groupres .ghead { font: 15px var(--display); letter-spacing: 1.5px; color: var(--y); margin-bottom: 6px; }
+.groupres p { margin: 4px 0 8px; font-size: 14px; }
+.groupres .gpos .big { font: 26px var(--display); color: var(--y); }
+.groupres .gwait, .gwait { color: var(--muted); font-style: italic; }
+.nickrow { display: flex; gap: 8px; }
+.nickrow input { flex: 1; min-width: 0; background: #1e1f1c; color: #fff; border: 1px solid #55574f; border-radius: 10px; padding: 10px 12px; font: 600 16px var(--ui); }
+.nickrow .primary { padding: 10px 18px; }
+.gboard { margin: 6px 0 8px; }
+.grow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; font: 600 12px var(--ui); padding: 4px; }
+.gtabs { flex-wrap: wrap; margin-top: 10px; }
+.gtabs button { flex: 1 0 64px; }
+.gsub { color: var(--muted); font-size: 13px; margin: 4px 0 8px; }

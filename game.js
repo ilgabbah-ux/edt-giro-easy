@@ -1,11 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=36';
-import { createWorld } from './scene3d.js?v=36';
-import * as A from './audio.js?v=36';
-import * as P from './progress.js?v=36';
-import { FOTO } from './piloti.js?v=36';
-import { createMud } from './mudfx.js?v=36';
-import { icon, iconize, iconizeEl } from './icons.js?v=36';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=37';
+import { createWorld } from './scene3d.js?v=37';
+import * as A from './audio.js?v=37';
+import * as P from './progress.js?v=37';
+import { FOTO } from './piloti.js?v=37';
+import { createMud } from './mudfx.js?v=37';
+import { icon, iconize, iconizeEl } from './icons.js?v=37';
+import * as C from './classifica.js?v=37';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -952,7 +953,7 @@ function renderReady() {
     <button class="pilotchip" id="pilotchip" type="button"><span class="platenum">${String(RIDERS.indexOf(profile.rider) + 1).padStart(2, '0')}</span>${avatarHTML(profile.rider)}<span><small>PILOTA · CAMBIA</small><b>${profile.rider}</b><em class="skillline">${SKILLS[profile.rider]?.icon || ''} ${SKILLS[profile.rider]?.name || ''}: ${SKILLS[profile.rider]?.desc || ''}</em></span></button>
     ${levelBar(info)}
     <div class="record">${icon('trophy')} ${best ? `RECORD ${md.id === 3 ? 'DI OGGI' : 'SU QUESTO PERCORSO'}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD ANCORA: È IL MOMENTO.'}</div>
-    <div class="startrow"><button class="primary big" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>PS${md.id + 1} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</small></span>${icon('chevrons')}</button><button class="shopbtn" id="openshop" type="button"><span class="sbt">🔧 OFFICINA</span><small>${P.profile.beers} 🍺 in cassa</small></button></div>
+    <div class="startrow"><button class="primary big" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>PS${md.id + 1} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</small></span>${icon('chevrons')}</button><button class="shopbtn" id="openshop" type="button"><span class="sbt">🔧 OFFICINA</span><small>${P.profile.beers} 🍺 in cassa</small></button>${C.enabled() ? '<button class="shopbtn groupbtn" id="opengroup" type="button"><span class="sbt">🏆 CLASSIFICA</span><small id="grouplead">del gruppo</small></button>' : ''}</div>
     ${P.pendingBoosts().length ? `<div class="boostline">🎁 Pronto per questo giro: ${P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ')}</div>` : ''}
     <div class="mhead tracks">${icon('flag')} SCEGLI IL PERCORSO</div>
     <div class="modes" role="radiogroup" aria-label="Percorso">
@@ -965,6 +966,10 @@ function renderReady() {
   iconizeEl($('card'));
   $('start').onclick = start;
   $('openshop').onclick = () => renderShop(renderReady);
+  if ($('opengroup')) {
+    $('opengroup').onclick = () => renderGroup(renderReady, mode);
+    C.load().then(d => { const top = d.boards?.[mode]?.[0]; if ($('grouplead')) $('grouplead').textContent = top ? `1° ${top.n} · ${top.s.toLocaleString('it-IT')}` : 'nessuno ancora: vai!'; }).catch(() => {});
+  }
   $('testvoci').onclick = () => {
     const names = { vai: 'Vai Ciccio!', success: 'Così si fa!', gas: 'Dai gas!', yeehaw: 'Yee-haw!', campa: 'Campa giù!', fine: 'Fatto' };
     $('testvoci').disabled = true;
@@ -996,7 +1001,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
     <p class="resulttext">${profile.rider} ${win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
-      ${res.position ? `<br><b>${res.position}° nella Classifica del bar</b>` : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1) + 's — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
+      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1) + 's — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
       <div><b>${run.jumps}</b><small>SALTI</small></div>
@@ -1013,6 +1018,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${levelBar(res.after)}
     ${res.after.level > res.before.level ? P.MODES.filter(m => m.unlock > res.before.level && m.unlock <= res.after.level).map(m => `<div class="unlock track"><i class="ic-holder">🏁</i><span>NUOVO PERCORSO SBLOCCATO: <b>${m.name}</b></span></div>`).join('') : ''}
     ${res.unlocked.map(l => `<div class="unlock"><i style="--a:${l.plastic};--b:${l.accent}"></i><span>NUOVA LIVREA SBLOCCATA: <b>${l.name}</b> · sceglila nel garage</span></div>`).join('')}
+    ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}
     <div class="actions">
       <button class="primary big" id="again"><span>UN ALTRO GIRO</span>${icon('chevrons')}</button>
       <button class="secondary hot" id="shareScore">SFIDA IL GRUPPO</button>
@@ -1024,6 +1030,9 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   $('menu').onclick = renderReady;
   $('shopres').onclick = () => renderShop(renderReady);
   $('shareScore').onclick = () => shareScore(win, res);
+  const bindResult = () => { $('again').onclick = start; $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
+  resultSnapshot = { html: $('card').innerHTML, bind: bindResult };
+  if ($('groupres')) groupResult({ score, mode, rider: profile.rider, time: win ? elapsed : 0, win });
   // Conteggio animato del punteggio
   const target = score, t0 = performance.now();
   const tick = now => {
@@ -1034,6 +1043,73 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   };
   requestAnimationFrame(tick);
   if (win || res.isRecord) confetti();
+}
+
+// ---------- Classifica del gruppo (online) ----------
+const MODE_LABEL = m => m === 3 ? 'SFIDA ' + P.todayLabel() : P.MODES[m].short;
+function groupListHTML(list, me = '') {
+  if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
+  const mine = C.cleanNick(me).toLowerCase();
+  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.w ? '🏁 ' + (e.t ? e.t + 's' : '') : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
+}
+// Riquadro nel risultato: invia il punteggio col nome salvato, oppure chiede il nome la prima volta.
+let lastGroupRun = null;
+function groupResult(runInfo) {
+  lastGroupRun = runInfo;
+  const box = $('groupres'); if (!box) return;
+  const nick = C.getNick();
+  if (!nick) {
+    box.innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO</div>
+      <p>Metti il tuo nome: il punteggio va nella classifica di tutto l'EDT.</p>
+      <form class="nickrow" id="nickform"><input id="nickin" maxlength="16" autocomplete="nickname" placeholder="Il tuo nome" value="${C.cleanNick(profile.rider)}"><button class="primary" type="submit"><span>INVIA</span></button></form>`;
+    $('nickform').onsubmit = e => { e.preventDefault(); const n = C.cleanNick($('nickin').value); if (!n) return; C.setNick(n); groupResult(runInfo); };
+    return;
+  }
+  const show = d => {
+    if (!$('groupres')) return;
+    const pos = C.positionOf(d, runInfo.mode, nick), list = d.boards?.[runInfo.mode] || [];
+    const best = list.find(e => e.n.toLowerCase() === nick.toLowerCase());
+    $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div>
+      <p class="gpos">${pos ? `<b>${nick}</b> è <b class="big">${pos}°</b>${best && best.s > runInfo.score ? ` (record ${best.s.toLocaleString('it-IT')})` : ''}` : `<b>${nick}</b>: fuori dai primi 10. Dopo migliora!`}</p>
+      <ol class="board gboard">${groupListHTML(list.slice(0, 5), nick)}</ol>
+      <div class="grow"><button class="secondary" type="button" id="gall">TUTTA LA CLASSIFICA</button><button class="linkbtn" type="button" id="gnick">non sei ${nick}?</button></div>`;
+    $('gall').onclick = () => renderGroup(() => renderResultAgain(), runInfo.mode);
+    $('gnick').onclick = () => { C.setNick(''); groupResult({ ...runInfo, sent: null }); };
+  };
+  if (runInfo.sent && runInfo.sentAs === nick) { show(runInfo.sent); return; }
+  box.innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div><p class="gwait">Invio il punteggio di <b>${nick}</b>…</p>`;
+  const { sent, sentAs, ...payload } = runInfo;
+  C.submit({ ...payload, name: nick, v: '37' }).then(d => {
+    runInfo.sent = d; runInfo.sentAs = nick; lastGroupRun = runInfo;
+    show(d); renderSide();
+  }).catch(() => {
+    if (!$('groupres')) return;
+    $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO</div><p>Niente rete o classifica non raggiungibile: punteggio non inviato.</p><button class="secondary" type="button" id="gretry">RIPROVA</button>`;
+    $('gretry').onclick = () => groupResult(runInfo);
+  });
+}
+let resultSnapshot = null;
+function renderResultAgain() { if (resultSnapshot) { state = 'ended'; setMenu(true); $('overlay').classList.remove('hidden'); $('card').innerHTML = resultSnapshot.html; resultSnapshot.bind(); } else renderReady(); }
+// Schermata con tutte le classifiche del gruppo, un percorso per scheda.
+function renderGroup(back, m = mode) {
+  if (state !== 'ended') state = 'ready';
+  setMenu(true); $('overlay').classList.remove('hidden');
+  const nick = C.getNick();
+  const draw = (d, err) => {
+    $('card').innerHTML = `<div class="eyebrow">ENDURO DRINKING TEAM · TUTTI I TELEFONI</div>
+      <h1 class="shoptitle">CLASSIFICA<br><em>DEL GRUPPO.</em></h1>
+      <div class="boardtabs gtabs">${P.MODES.map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
+      <p class="gsub">PS${m + 1} · ${m === 3 ? 'Sfida del ' + P.todayLabel() + ' (si azzera ogni giorno)' : P.MODES[m].name} · migliori 10, un record a testa</p>
+      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard">${groupListHTML(d.boards?.[m], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}
+      <p class="note">${nick ? `In classifica come <b>${nick}</b>.` : 'Il tuo nome lo scegli alla fine del primo giro.'}</p>
+      <div class="actions"><button class="primary" id="gback"><span>INDIETRO</span></button><button class="secondary" id="greload">AGGIORNA</button></div>`;
+    iconizeEl($('card'));
+    document.querySelectorAll('[data-gmode]').forEach(b => b.onclick = () => { m = Number(b.dataset.gmode); draw(C.cached()); });
+    $('gback').onclick = back;
+    $('greload').onclick = () => { draw(null); C.load(true).then(x => draw(x)).catch(() => draw(null, true)); };
+  };
+  draw(C.cached());
+  C.load().then(d => draw(d)).catch(() => { if (!C.cached()) draw(null, true); });
 }
 
 function confetti() {
@@ -1054,7 +1130,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-let boardMode = null;
+let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
   $('ridergrid').innerHTML = RIDERS.map((name, i) => `<button type="button" class="rideroption" data-rider="${name}" aria-pressed="${name === profile.rider}" aria-label="Scegli ${name}">
     ${avatarHTML(name)}<span class="name">${name.replace('Il ', '')}</span><span class="skill" title="${SKILLS[name]?.desc || ''}">${SKILLS[name]?.icon || ''} ${SKILLS[name]?.name || ''}</span><span class="num">#${String(i + 1).padStart(2, '0')}</span>${RIDER_VOICE[name] ? '<i class="voiced" title="Parla con la sua voce">' + icon('speaker') + '</i>' : ''}</button>`).join('');
@@ -1084,10 +1160,21 @@ function renderSide() {
   const bm = boardMode ?? mode;
   $('boardtabs').innerHTML = P.MODES.filter(m => P.isUnlocked(m) || m.id === bm).map(m => `<button type="button" class="${m.id === bm ? 'active' : ''}" data-board="${m.id}">${m.id === 3 ? 'OGGI' : m.short}</button>`).join('');
   document.querySelectorAll('[data-board]').forEach(b => b.onclick = () => { boardMode = Number(b.dataset.board); renderSide(); });
-  const list = P.boardFor(bm);
-  $('board').innerHTML = list.length
-    ? list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''}"><span class="pos">${i + 1}</span>${avatarHTML(e.name, 'tiny')}<span class="who">${e.name}</span><span class="when">${e.date}</span><b>${e.score.toLocaleString('it-IT')}</b></li>`).join('')
-    : `<li class="empty">Ancora nessun giro qui. Passa il telefono e iniziate la sfida.</li>`;
+  const group = boardSrc === 'group' && C.enabled();
+  document.querySelectorAll('[data-src]').forEach(b => { b.classList.toggle('active', b.dataset.src === (group ? 'group' : 'local')); b.onclick = () => { boardSrc = b.dataset.src; renderSide(); }; });
+  $('boardsrc').hidden = !C.enabled();
+  $('boardtitle').textContent = group ? 'Chi comanda nel gruppo' : 'Chi comanda su questo telefono';
+  $('boardnote').textContent = group ? 'Classifica di tutto l’EDT: un record a testa, migliori 10 per percorso.' : 'Classifica salvata solo su questo dispositivo: passate il telefono al prossimo.';
+  if (group) {
+    const d = C.cached();
+    $('board').innerHTML = d ? groupListHTML(d.boards?.[bm], C.getNick()) : '<li class="empty">Carico la classifica del gruppo…</li>';
+    if (!d || sideLoadedAt < Date.now() - 60000) { sideLoadedAt = Date.now(); C.load().then(() => renderSide()).catch(() => { if (!C.cached()) $('board').innerHTML = '<li class="empty">Classifica del gruppo non raggiungibile.</li>'; }); }
+  } else {
+    const list = P.boardFor(bm);
+    $('board').innerHTML = list.length
+      ? list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''}"><span class="pos">${i + 1}</span>${avatarHTML(e.name, 'tiny')}<span class="who">${e.name}</span><span class="when">${e.date}</span><b>${e.score.toLocaleString('it-IT')}</b></li>`).join('')
+      : `<li class="empty">Ancora nessun giro qui. Passa il telefono e iniziate la sfida.</li>`;
+  }
   iconizeEl($('liveries'));
 }
 
