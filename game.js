@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=41';
-import { createWorld } from './scene3d.js?v=41';
-import * as A from './audio.js?v=41';
-import * as P from './progress.js?v=41';
-import { FOTO } from './piloti.js?v=41';
-import { createMud } from './mudfx.js?v=41';
-import { icon, iconize, iconizeEl } from './icons.js?v=41';
-import * as C from './classifica.js?v=41';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=42';
+import { createWorld } from './scene3d.js?v=42';
+import * as A from './audio.js?v=42';
+import * as P from './progress.js?v=42';
+import { FOTO } from './piloti.js?v=42';
+import { createMud } from './mudfx.js?v=42';
+import { icon, iconize, iconizeEl } from './icons.js?v=42';
+import * as C from './classifica.js?v=42';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -545,15 +545,30 @@ canvas.addEventListener('pointerdown', e => {
     else if (e.button === 1) boost();
     return;
   }
-  touch = { x: e.clientX, y: e.clientY, t: performance.now() }; canvas.setPointerCapture(e.pointerId);
+  // v42 · Touch: tocca a sinistra/destra = cambi corsia subito; tieni il dito e trascina = la moto segue il dito;
+  // tocca al centro o scorri in su = salto; scorri in giù = impennata.
+  if (state !== 'playing') return;
+  const r = canvas.getBoundingClientRect(), u = (e.clientX - r.left) / r.width;
+  touch = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId, zone: u < .36 ? -1 : u > .64 ? 1 : 0, drag: false };
+  if (touch.zone) move(touch.zone);
+  try { canvas.setPointerCapture(e.pointerId); } catch {}
+});
+canvas.addEventListener('pointercancel', () => { touch = null; });
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse' || !touch || e.pointerId !== touch.id || state !== 'playing') return;
+  const dx = e.clientX - touch.x, dy = e.clientY - touch.y;
+  if (!touch.drag && Math.abs(dx) > 22 && Math.abs(dx) > Math.abs(dy) * 1.2) touch.drag = true;
+  if (touch.drag) steerTo(mouseLane(e.clientX));
 });
 canvas.addEventListener('pointerup', e => {
   if (e.pointerType === 'mouse') { if (e.button === 2) rightUp(); return; }
-  if (!touch) return;
-  const dx = e.clientX - touch.x, dy = e.clientY - touch.y;
-  if (Math.abs(dx) > 25 && Math.abs(dx) > Math.abs(dy)) move(Math.sign(dx));
-  else if (dy > 30) { startWheelie(); setTimeout(stopWheelieInput, 1400); } // scorri in giù: impennata breve
-  else if (dy < -20 || (Math.abs(dx) < 12 && Math.abs(dy) < 12)) hop();
+  if (!touch || e.pointerId !== touch.id) return;
+  const dx = e.clientX - touch.x, dy = e.clientY - touch.y, quick = performance.now() - touch.t < 600;
+  if (!touch.drag) {
+    if (dy < -35 && Math.abs(dy) > Math.abs(dx)) hop();                                   // scorri in su: salto
+    else if (dy > 40 && Math.abs(dy) > Math.abs(dx)) { startWheelie(); setTimeout(stopWheelieInput, 1400); } // in giù: impennata
+    else if (!touch.zone && quick && Math.abs(dx) < 15 && Math.abs(dy) < 15) hop();       // tocco al centro: salto
+  }
   touch = null;
 });
 
@@ -1080,7 +1095,7 @@ function renderReady() {
     <div class="missions"><div class="mhead">${icon('flag')} MISSIONI</div><ul>${missionsHTML()}</ul></div>
     <div class="audiorow"><button class="secondary voicetest" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="secondary voicetest" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button></div>
     <p class="tracktune">🎵 ${A.STYLES[mode].name}</p>
-    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">Scorri per sterzare · tocca per saltare</span></p>`;
+    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">👆 Tocca a sinistra o a destra per cambiare corsia (o trascina il dito: la moto lo segue) · tocca al centro o scorri in su per saltare</span></p>`;
   iconizeEl($('card'));
   $('start').onclick = start;
   $('openshop').onclick = () => renderShop(renderReady);
@@ -1252,7 +1267,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 41;
+const GAME_VERSION = 42;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
