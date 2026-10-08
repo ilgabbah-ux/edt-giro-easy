@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=52';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=53';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -589,15 +589,52 @@ export function createWorld(canvas) {
   const front = new T.Group(); front.position.set(0, 0, STEER_Z); chassis.add(front);
   const F = (x, y, z) => [x, y, z - STEER_Z];
   const wheels = [];
+  // v53 · ruote vere: copertone a sezione squadrata (tornito), tasselli sfalsati su tre file, cerchio a canale, mozzo e raggi incrociati
+  const tyreGeo = (() => {
+    const pts = [], R = .475, r0 = .30, w = .125;
+    // profilo (raggio, larghezza) del copertone: spalla arrotondata, battistrada piatto
+    const prof = [[r0, -w * .62], [r0 + .03, -w * .9], [R - .06, -w], [R - .02, -w * .92], [R, -w * .6], [R + .004, 0], [R, w * .6], [R - .02, w * .92], [R - .06, w], [r0 + .03, w * .9], [r0, w * .62]];
+    for (const [rr, xx] of prof) pts.push(new T.Vector2(rr, xx));
+    const g = new T.LatheGeometry(pts, 40); g.rotateZ(Math.PI / 2); return g;
+  })();
+  const rimGeo = (() => {
+    const pts = [[.262, -.07], [.30, -.075], [.305, -.062], [.27, -.05], [.262, 0], [.27, .05], [.305, .062], [.30, .075], [.262, .07]].map(([a, b]) => new T.Vector2(a, b));
+    const g = new T.LatheGeometry(pts, 40); g.rotateZ(Math.PI / 2); return g;
+  })();
+  const knobGeo = new RoundedBoxGeometry(.07, .05, .075, 1, .014);
+  const hubMat = mat('#2c3236', .35, .6);
   function wheel(parent, x, y, z) {
     const root = new T.Group(); root.position.set(x, y, z); parent.add(root);
-    const torus = mesh(new T.TorusGeometry(.36, .115, 12, 32), rubber, root); torus.rotation.y = Math.PI / 2;
-    const rim = mesh(new T.TorusGeometry(.235, .035, 8, 32), rimMat, root); rim.rotation.y = Math.PI / 2;
-    rod([-.10, 0, 0], [.10, 0, 0], .075, alloy, root);
-    for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; rod([0, 0, 0], [0, Math.cos(a) * .29, Math.sin(a) * .29], .009, alloy, root); }
-    for (let i = 0; i < 22; i++) { const a = i * Math.PI * 2 / 22; for (const side of [-1, 1]) { const lug = box(.09, .06, .095, treadMat, root, side * .07, Math.cos(a) * .465, Math.sin(a) * .465); lug.rotation.x = a; } }
+    mesh(tyreGeo, rubber, root);
+    mesh(rimGeo, rimMat, root);
+    rod([-.105, 0, 0], [.105, 0, 0], .062, hubMat, root);
+    for (const side of [-1, 1]) { const fl = mesh(new T.CylinderGeometry(.085, .085, .018, 20), alloy, root); fl.rotation.z = Math.PI / 2; fl.position.x = side * .075; }
+    for (let i = 0; i < 18; i++) {
+      const a = i * Math.PI * 2 / 18, side = i % 2 ? 1 : -1, b = a + side * .28;
+      rod([side * .075, Math.cos(a) * .075, Math.sin(a) * .075], [side * .035, Math.cos(b) * .27, Math.sin(b) * .27], .0065, alloy, root);
+    }
+    for (let i = 0; i < 26; i++) {
+      const a = i * Math.PI * 2 / 26;
+      const rows = i % 2 ? [-.075, .075] : [0];
+      for (const off of rows) { const k = mesh(knobGeo, treadMat, root); k.position.set(off, Math.cos(a) * .487, Math.sin(a) * .487); k.rotation.x = a; }
+      for (const side of [-1, 1]) { const k = mesh(knobGeo, treadMat, root); k.scale.set(.7, .8, .8); k.position.set(side * .118, Math.cos(a + .12) * .455, Math.sin(a + .12) * .455); k.rotation.set(a + .12, 0, side * .5); }
+    }
     wheels.push(root); return root;
   }
+  // Pezzi sagomati: un profilo laterale (z, y) estruso lungo x e smussato, centrato su x.
+  function sideShape(path, depth, m, p, x = 0, bevel = .018) {
+    const s = new T.Shape(); path(s);
+    const g = new T.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3, curveSegments: 14 });
+    g.translate(0, 0, -depth / 2); g.rotateY(-Math.PI / 2);
+    const o = mesh(g, m, p); o.position.x = x; return o;
+  }
+  // Profilo frontale (x, y) estruso lungo z: tabella portanumero, piastre.
+  function frontShape(path, depth, m, p, bevel = .012) {
+    const s = new T.Shape(); path(s);
+    const g = new T.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 12 });
+    g.translate(0, 0, -depth / 2); return mesh(g, m, p);
+  }
+  const tube = (pts, r, m, p, seg = 32) => mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(v => new T.Vector3(...v))), seg, r, 10), m, p);
   const rearWheel = wheel(pitch, 0, .47, .82); rearWheel.name = 'wheelR';
   const frontWheel = wheel(front, 0, .47, -.86 - STEER_Z); frontWheel.name = 'wheelF';
   // v46 · chiodi sulle gomme (Ice Scrophy): si vedono solo se montati in officina
@@ -612,33 +649,68 @@ export function createWorld(canvas) {
     }
     inst.visible = false; w.add(inst); return inst;
   });
-  // Telaio, forcellone, mono, motore, serbatoio, sella
-  rod([-.13, .48, .82], [-.13, .72, -.2], .035, alloy, chassis); rod([.13, .48, .82], [.13, .72, -.2], .035, alloy, chassis);
-  rod([0, .64, .2], [0, 1.12, .46], .055, gold, chassis);
-  for (let i = 0; i < 7; i++) { const coil = mesh(new T.TorusGeometry(.071, .014, 5, 10), spring, chassis); coil.position.set(0, .77 + i * .041, .25 + i * .018); coil.rotation.x = Math.PI / 2; }
+  // v53 · Telaio, forcellone, mono, motore, serbatoio, sella: pezzi sagomati e smussati, non più blocchetti
+  const frameMat = mat('#22272b', .38, .55), engMat = mat('#3b4146', .42, .55), forkMat = mat('#1d2124', .3, .6);
+  const ZF = z => z - STEER_Z; // z del mondo → z locale dello sterzo
   for (const side of [-1, 1]) {
-    rod(F(side * .14, .62, -.81), F(side * .14, 1.28, -.59), .032, gold, front);
-    rod(F(side * .14, .48, -.86), F(side * .14, .87, -.73), .045, alloy, front);
-    rod([side * .18, .67, .16], [side * .15, 1.16, -.40], .035, plastic, chassis);
-    rod([side * .18, .67, .16], [side * .14, 1.0, .53], .035, plastic, chassis);
+    tube([[side * .045, 1.2, -.56], [side * .11, 1.12, -.36], [side * .135, .99, -.06], [side * .135, .83, .14], [side * .12, .67, .2]], .03, frameMat, chassis);
+    tube([[side * .04, 1.1, -.6], [side * .075, .82, -.54], [side * .1, .53, -.4], [side * .11, .46, -.08], [side * .12, .56, .17]], .024, frameMat, chassis);
+    tube([[side * .125, .94, .1], [side * .125, 1.1, .5], [side * .1, 1.18, .86]], .019, frameMat, chassis, 16);
+    // forcellone rastremato
+    sideShape(s => { s.moveTo(.13, .74); s.lineTo(.84, .52); s.quadraticCurveTo(.91, .47, .84, .42); s.lineTo(.15, .6); s.quadraticCurveTo(.07, .67, .13, .74); }, .035, alloy, chassis, side * .14, .012);
+    // radiatori con griglia
+    box(.06, .3, .27, black, chassis, side * .17, 1.0, -.38);
+    for (let i = 0; i < 6; i++) box(.07, .012, .25, alloy, chassis, side * .175, .88 + i * .045, -.38);
+    // convogliatori del radiatore (portano la grafica laterale)
+    sideShape(s => { s.moveTo(-.66, 1.25); s.quadraticCurveTo(-.48, 1.32, -.24, 1.28); s.lineTo(-.06, 1.2); s.quadraticCurveTo(.02, 1.15, -.05, 1.1); s.lineTo(-.24, 1.0); s.quadraticCurveTo(-.42, .86, -.57, .85); s.quadraticCurveTo(-.71, .87, -.71, 1.02); s.quadraticCurveTo(-.71, 1.19, -.66, 1.25); }, .03, plastic, chassis, side * .255, .014);
+    // fianchetti posteriori
+    sideShape(s => { s.moveTo(.02, 1.21); s.lineTo(.7, 1.23); s.quadraticCurveTo(.78, 1.21, .71, 1.13); s.lineTo(.27, .9); s.quadraticCurveTo(.13, .84, .07, .93); s.lineTo(.0, 1.1); s.quadraticCurveTo(-.01, 1.19, .02, 1.21); }, .03, white, chassis, side * .2, .014);
+    // pedane
+    rod([side * .1, .62, .13], [side * .29, .63, .13], .024, alloy, chassis);
   }
-  ball(.22, .26, .24, alloy, chassis, 0, .73, -.1);
-  for (let i = 0; i < 5; i++) box(.40, .018, .32, black, chassis, 0, .69 + i * .055, -.1);
-  ball(.24, .25, .34, plastic, chassis, 0, 1.12, -.29);
-  const seat = box(.26, .10, .82, seatMat, chassis, 0, 1.24, .22); seat.rotation.x = -.08;
-  const tail = box(.29, .055, .66, plastic, chassis, 0, 1.22, .85); tail.rotation.x = .13;
+  rod([0, 1.04, -.635], [0, 1.31, -.565], .052, frameMat, chassis); // canotto di sterzo
+  // monoammortizzatore: stelo, molla e serbatoio
+  { const a = new T.Vector3(0, .62, .3), b = new T.Vector3(0, 1.08, .06), d = b.clone().sub(a).normalize();
+    rod(a.toArray(), b.toArray(), .03, gold, chassis);
+    for (let i = 0; i < 9; i++) { const c = mesh(new T.TorusGeometry(.068, .013, 6, 14), spring, chassis); c.position.copy(a).lerp(b, .22 + i * .065); c.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), d); }
+    rod([0, 1.0, .1], [0, 1.08, -.06], .045, black, chassis); }
+  // motore: carter sagomato, coperchi, cilindro alettato inclinato
+  sideShape(s => { s.moveTo(-.36, .53); s.lineTo(.1, .5); s.quadraticCurveTo(.2, .52, .2, .63); s.lineTo(.18, .79); s.quadraticCurveTo(.12, .87, 0, .85); s.lineTo(-.3, .81); s.quadraticCurveTo(-.43, .72, -.36, .53); }, .22, engMat, chassis, 0, .03);
+  { const c = mesh(new T.CylinderGeometry(.13, .14, .05, 28), alloy, chassis); c.rotation.z = Math.PI / 2; c.position.set(.15, .67, -.1); }
+  { const c = mesh(new T.CylinderGeometry(.1, .11, .05, 24), alloy, chassis); c.rotation.z = Math.PI / 2; c.position.set(-.15, .65, -.14); }
+  { const base = new T.Vector3(0, .8, -.2), ax = new T.Vector3(0, Math.cos(.38), -Math.sin(.38));
+    const cyl = box(.19, .3, .19, engMat, chassis, ...base.clone().addScaledVector(ax, .15).toArray()); cyl.rotation.x = -.38;
+    for (let i = 0; i < 6; i++) { const f = box(.25, .014, .23, alloy, chassis, ...base.clone().addScaledVector(ax, .04 + i * .045).toArray()); f.rotation.x = -.38; }
+    const hc = box(.21, .07, .2, black, chassis, ...base.clone().addScaledVector(ax, .33).toArray()); hc.rotation.x = -.38; }
+  // paramotore
+  sideShape(s => { s.moveTo(-.44, .58); s.quadraticCurveTo(-.4, .42, -.2, .42); s.lineTo(.12, .44); s.lineTo(.15, .52); s.lineTo(-.36, .6); s.lineTo(-.44, .58); }, .27, alloy, chassis, 0, .012);
+  // serbatoio e sella lunga piatta da enduro
+  sideShape(s => { s.moveTo(-.63, 1.17); s.quadraticCurveTo(-.56, 1.3, -.38, 1.31); s.quadraticCurveTo(-.14, 1.31, -.03, 1.23); s.lineTo(-.06, 1.05); s.quadraticCurveTo(-.3, .99, -.56, 1.03); s.lineTo(-.63, 1.17); }, .16, plastic, chassis, 0, .055);
+  sideShape(s => { s.moveTo(-.42, 1.26); s.quadraticCurveTo(-.3, 1.35, -.06, 1.32); s.lineTo(.56, 1.33); s.quadraticCurveTo(.72, 1.34, .77, 1.28); s.lineTo(.74, 1.21); s.lineTo(-.2, 1.21); s.quadraticCurveTo(-.36, 1.21, -.42, 1.26); }, .2, seatMat, chassis, 0, .035);
+  // parafango posteriore a coda alta
+  sideShape(s => { s.moveTo(.5, 1.25); s.lineTo(.95, 1.27); s.quadraticCurveTo(1.17, 1.3, 1.31, 1.37); s.lineTo(1.31, 1.33); s.quadraticCurveTo(1.16, 1.23, .95, 1.19); s.lineTo(.5, 1.17); s.lineTo(.5, 1.25); }, .25, plastic, chassis, 0, .018);
   const brakeLightMat = new T.MeshStandardMaterial({ color: '#fc441f', roughness: .3, emissive: '#ff2a00', emissiveIntensity: .3 });
-  box(.17, .06, .035, brakeLightMat, chassis, 0, 1.17, 1.13);
-  const fender = box(.25, .06, .85, plastic, front, ...F(0, 1.02, -.92)); fender.rotation.x = -.05;
-  for (const side of [-1, 1]) { const panel = box(.055, .29, .43, white, chassis, side * .24, 1.04, .43); panel.rotation.x = .12; box(.06, .22, .28, plastic, chassis, side * .26, 1.12, -.33); }
-  rod([.25, .95, .25], [.31, 1.16, .87], .075, pipeMat, chassis); rod([.31, 1.16, .86], [.31, 1.18, .96], .058, black, chassis);
-  rod(F(0, 1.27, -.61), F(0, 1.48, -.55), .04, alloy, front); rod(F(-.48, 1.47, -.55), F(.48, 1.47, -.55), .027, alloy, front);
-  for (const side of [-1, 1]) { rod(F(side * .34, 1.47, -.55), F(side * .48, 1.47, -.55), .04, black, front); ball(.14, .06, .09, plastic, front, ...F(side * .48, 1.49, -.61)); }
-  const numberPlate = box(.26, .30, .055, white, front, ...F(0, 1.37, -.68)); numberPlate.rotation.x = -.18;
-  box(.32, .045, .42, alloy, chassis, 0, .48, -.1);
-  for (const side of [-1, 1]) { box(.07, .27, .29, black, chassis, side * .21, 1.01, -.35); for (let i = 0; i < 5; i++) box(.08, .016, .26, alloy, chassis, side * .22, .91 + i * .046, -.35); }
-  const rearDisc = mesh(new T.TorusGeometry(.15, .023, 6, 20), alloy, rearWheel); rearDisc.rotation.y = Math.PI / 2; rearDisc.position.x = .115;
-  const frontDisc = mesh(new T.TorusGeometry(.17, .02, 6, 22), alloy, frontWheel); frontDisc.rotation.y = Math.PI / 2; frontDisc.position.x = -.115;
+  box(.15, .05, .04, brakeLightMat, chassis, 0, 1.19, 1.16);
+  // scarico 4 tempi: collettore curvo e silenziatore
+  tube([[.05, .97, -.4], [.12, .8, -.47], [.21, .71, -.3], [.25, .78, 0], [.28, .95, .3], [.29, 1.04, .45]], .033, alloy, chassis, 40);
+  rod([.29, 1.04, .43], [.31, 1.17, 1.06], .075, pipeMat, chassis); rod([.31, 1.17, 1.05], [.315, 1.18, 1.13], .052, black, chassis);
+  // forcella a steli rovesciati, piastre, parafango, tabella e manubrio
+  for (const side of [-1, 1]) {
+    const zAt = y => ZF(-.86 + (y - .48) * .3375);
+    rod([side * .14, .86, zAt(.86)], [side * .14, 1.36, zAt(1.36)], .05, forkMat, front);
+    rod([side * .14, .49, zAt(.49)], [side * .14, .9, zAt(.9)], .036, gold, front);
+    box(.07, .12, .1, alloy, front, side * .14, .5, zAt(.5));
+  }
+  for (const [y, w] of [[1.17, .42], [1.33, .4]]) { const c = box(w, .05, .13, alloy, front, 0, y, ZF(-.86 + (y - .48) * .3375) + .02); c.rotation.x = .32; }
+  sideShape(s => { s.moveTo(ZF(-1.3), 1.03); s.quadraticCurveTo(ZF(-1.0), 1.09, ZF(-.64), 1.04); s.lineTo(ZF(-.52), .99); s.lineTo(ZF(-.56), .96); s.quadraticCurveTo(ZF(-.95), 1.03, ZF(-1.3), .985); s.lineTo(ZF(-1.3), 1.03); }, .18, plastic, front, 0, .016);
+  { const np = frontShape(s => { s.moveTo(-.15, .13); s.quadraticCurveTo(0, .21, .15, .13); s.lineTo(.11, -.15); s.quadraticCurveTo(0, -.2, -.11, -.15); s.lineTo(-.15, .13); }, .02, white, front); np.position.set(...F(0, 1.37, -.70)); np.rotation.x = .3; }
+  rod(F(0, 1.34, -.56), F(0, 1.46, -.55), .035, alloy, front);
+  tube([F(-.48, 1.5, -.5), F(-.3, 1.475, -.55), F(0, 1.465, -.565), F(.3, 1.475, -.55), F(.48, 1.5, -.5)], .022, alloy, front, 24);
+  box(.17, .05, .06, accent, front, ...F(0, 1.49, -.565));
+  for (const side of [-1, 1]) rod(F(side * .36, 1.485, -.535), F(side * .5, 1.5, -.5), .036, black, front);
+  const rearDisc = mesh(new T.CylinderGeometry(.15, .15, .01, 30), alloy, rearWheel); rearDisc.rotation.z = Math.PI / 2; rearDisc.position.x = .1;
+  const frontDisc = mesh(new T.CylinderGeometry(.17, .17, .01, 30), alloy, frontWheel); frontDisc.rotation.z = Math.PI / 2; frontDisc.position.x = -.1;
+  box(.04, .1, .08, black, front, -.13, .62, ZF(-.76));
 
   // Fiamma di scarico del turbo.
   const flameMat = new T.MeshBasicMaterial({ color: '#ffb12b', transparent: true, opacity: .9, blending: T.AdditiveBlending, depthWrite: false });
@@ -650,46 +722,51 @@ export function createWorld(canvas) {
   // Pilota: gambe sulle pedane (fisse), busto che si alza, braccia e cosce che si adattano.
   const rider = new T.Group(); chassis.add(rider);
   const upper = new T.Group(); rider.add(upper);
-  ball(.23, .17, .21, pantsMat, upper, 0, 1.39, .27);
+  ball(.21, .16, .21, pantsMat, upper, 0, 1.4, .27);
   const body = new T.Group(); body.position.set(0, 1.42, .25); upper.add(body);
   const B = (x, y, z) => [x, y - 1.42, z - .25];
-  const jersey = ball(.28, .36, .18, jerseyMat, body, ...B(0, 1.77, .18)); jersey.rotation.x = -.23;
+  // v53 · busto a capsula, spalle con paraspalle, collare e casco da cross con mentoniera, maschera e frontino
+  const jersey = mesh(new T.CapsuleGeometry(.19, .24, 8, 18), jerseyMat, body); jersey.position.set(...B(0, 1.76, .19)); jersey.scale.set(1.32, 1, .82); jersey.rotation.x = -.26;
   const anchor = (parent, x, y, z) => { const o = new T.Object3D(); o.position.set(x, y, z); parent.add(o); return o; };
   const joints = [];
+  const strapMat = mat('#313b39', .75), bootTrim = mat('#b6b7a8', .5), lensMat = new T.MeshStandardMaterial({ color: '#2a8fc4', roughness: .08, metalness: .7, emissive: '#0b3550', emissiveIntensity: .4 });
   for (const side of [-1, 1]) {
-    ball(.10, .32, .17, black, body, ...B(side * .24, 1.75, .19));
-    rod([side * .35, 1.12, .07], [side * .31, .83, .22], .09, white, rider);
-    box(.14, .10, .30, black, rider, side * .31, .78, .11);
+    ball(.12, .07, .13, black, body, ...B(side * .2, 1.97, .15));
+    // stivali: gambale e piede sagomati
+    rod([side * .34, 1.1, .08], [side * .31, .86, .2], .085, white, rider);
+    sideShape(s => { s.moveTo(-.04, .74); s.lineTo(.26, .74); s.quadraticCurveTo(.29, .8, .26, .88); s.lineTo(.12, .9); s.quadraticCurveTo(-.02, .86, -.04, .74); }, .11, black, rider, side * .31, .02);
     joints.push({
       side,
       hip: anchor(upper, side * .16, 1.43, .27), knee: anchor(rider, side * .35, 1.12, .07),
       shoulder: anchor(body, ...B(side * .23, 1.97, .09)), grip: anchor(front, ...F(side * .43, 1.49, -.53)),
     });
   }
+  { const nb = mesh(new T.TorusGeometry(.13, .04, 8, 20), black, body); nb.position.set(...B(0, 2.03, .13)); nb.rotation.x = Math.PI / 2 - .3; }
   const head = new T.Group(); head.position.set(...B(0, 2.17, .035)); body.add(head);
-  ball(.225, .245, .24, helmetMat, head, 0, 0, 0);
-  ball(.235, .10, .12, black, head, 0, -.01, -.17);
-  box(.40, .025, .29, accent, head, 0, .16, -.16);
-  ball(.17, .14, .20, accent, head, 0, .15, .015);
-  box(.20, .12, .15, helmetMat, head, 0, -.15, -.20);
-  for (const side of [-1, 1]) box(.025, .085, .24, black, head, side * .216, 0, .03);
-  const strapMat = mat('#313b39', .75), bootTrim = mat('#b6b7a8', .5);
+  ball(.215, .235, .25, helmetMat, head, 0, .01, .01);
+  sideShape(s => { s.moveTo(-.06, -.21); s.quadraticCurveTo(-.3, -.21, -.33, -.09); s.lineTo(-.29, -.03); s.quadraticCurveTo(-.18, -.09, -.04, -.05); s.lineTo(-.06, -.21); }, .2, helmetMat, head, 0, .03);
+  box(.05, .05, .05, accent, head, 0, -.1, -.33);
+  sideShape(s => { s.moveTo(-.12, .17); s.lineTo(-.37, .1); s.quadraticCurveTo(-.4, .075, -.36, .07); s.lineTo(-.16, .1); s.lineTo(-.12, .17); }, .22, accent, head, 0, .014);
+  ball(.11, .05, .2, accent, head, 0, .2, .03);
+  { const st = mesh(new T.TorusGeometry(.226, .02, 6, 30), strapMat, head); st.rotation.x = Math.PI / 2; st.position.y = .02; }
+  box(.31, .1, .07, black, head, 0, .02, -.215);
+  box(.25, .07, .03, lensMat, head, 0, .02, -.25);
   for (const side of [-1, 1]) {
     rod(B(side * .20, 2.00, .30), B(side * .21, 1.58, .32), .025, strapMat, body);
     rod(B(side * .12, 2.06, .19), B(side * .20, 2.00, .30), .029, strapMat, body);
     box(.12, .05, .025, accent, body, ...B(side * .19, 1.64, .35));
-    for (let i = 0; i < 3; i++) box(.15, .026, .025, bootTrim, rider, side * .31, .87 + i * .068, .30);
-    ball(.11, .10, .12, accent, rider, side * .35, 1.14, .03);
+    for (let i = 0; i < 3; i++) box(.15, .026, .03, bootTrim, rider, side * .31, .9 + i * .06, .22 - i * .03);
+    ball(.1, .11, .1, accent, rider, side * .35, 1.14, .03);
   }
   // Arti dinamici: cilindri unitari orientati ogni fotogramma tra due giunti.
   const unitCyl = r => new T.CylinderGeometry(r, r, 1, 12);
   const limbs = [];
   for (const j of joints) {
     j.thigh = mesh(unitCyl(.105), pantsMat, rider); j.thigh.userData.keep = true;
-    j.upperArm = mesh(unitCyl(.085), jerseyMat, rider); j.upperArm.userData.keep = true;
-    j.forearm = mesh(unitCyl(.075), black, rider); j.forearm.userData.keep = true;
+    j.upperArm = mesh(new T.CylinderGeometry(.078, .09, 1, 12), jerseyMat, rider); j.upperArm.userData.keep = true;
+    j.forearm = mesh(new T.CylinderGeometry(.06, .075, 1, 12), jerseyMat, rider); j.forearm.userData.keep = true;
     j.glove = ball(.08, .08, .075, black, rider); j.glove.userData.keep = true;
-    j.elbowBall = ball(.08, .08, .08, jerseyMat, rider); j.elbowBall.userData.keep = true;
+    j.elbowBall = ball(.085, .085, .085, black, rider); j.elbowBall.userData.keep = true;
     limbs.push(j);
   }
   const _a = new T.Vector3(), _b = new T.Vector3(), _e = new T.Vector3(), _up = new T.Vector3(0, 1, 0), _d = new T.Vector3();
@@ -716,7 +793,7 @@ export function createWorld(canvas) {
   }
   for (let i = 0; i < 14; i++) { const z = .13 + i * .051; box(.028, .022, .047, alloy, chassis, -.18, .49, z); }
   const sprocket = mesh(new T.TorusGeometry(.18, .028, 8, 28), alloy, rearWheel); sprocket.rotation.y = Math.PI / 2; sprocket.position.x = -.13;
-  for (const side of [-1, 1]) { const stripe = box(.028, .012, .47, accent, chassis, side * .09, 1.263, .79); stripe.rotation.x = .13; box(.052, .13, .055, spring, front, ...F(side * .145, .57, -.85)); }
+  for (const side of [-1, 1]) { const stripe = box(.028, .012, .4, accent, chassis, side * .07, 1.285, .8); stripe.rotation.x = .04; box(.052, .13, .055, spring, front, ...F(side * .145, .57, -.85)); }
 
   // Nome e numero sulla schiena della maglia.
   const textCanvas = document.createElement('canvas'); textCanvas.width = 256; textCanvas.height = 128;
