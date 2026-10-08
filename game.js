@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=40';
-import { createWorld } from './scene3d.js?v=40';
-import * as A from './audio.js?v=40';
-import * as P from './progress.js?v=40';
-import { FOTO } from './piloti.js?v=40';
-import { createMud } from './mudfx.js?v=40';
-import { icon, iconize, iconizeEl } from './icons.js?v=40';
-import * as C from './classifica.js?v=40';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=41';
+import { createWorld } from './scene3d.js?v=41';
+import * as A from './audio.js?v=41';
+import * as P from './progress.js?v=41';
+import { FOTO } from './piloti.js?v=41';
+import { createMud } from './mudfx.js?v=41';
+import { icon, iconize, iconizeEl } from './icons.js?v=41';
+import * as C from './classifica.js?v=41';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -108,6 +108,9 @@ const courseLength = diff => 60 * (1 + diff * .35) + 16; // distanza del percors
 let grappa = 0, waterT = 0, earsT = 0, earsPermanent = false, errors = 0;
 let wheelie = false, wheelieHeld = false, wheelieT = 0, wheelieCD = 0, lastYee = -10, downAnnounced = false, lastSpecial = -9;
 let jumpDur = JUMP_DURATION, jumpH = JUMP_HEIGHT;
+// v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
+let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos = '';
+let weather = { rain: 0, fog: 0, dusk: 0 }, weatherPlan = [], weatherSaid = '', lastRainMud = 0;
 const curLift = () => jumpHeight(jump, jumpDur, jumpH);
 // Potenziamenti dell'officina (letti a inizio giro) e premi del rifugio.
 let up = { engine: 0, susp: 0, tank: 0, tyres: 0, helmet: 0, nose: 0, balance: 0, grit: 0 }, maxLives = 3, startBoosts = [];
@@ -189,6 +192,9 @@ function hud() {
     $('lives').innerHTML = Array.from({ length: Math.max(3, maxLives) }, (_, i) => `<i class="helmet ${i < lives ? '' : 'lost'}"></i>`).join('');
     $('lives').setAttribute('aria-label', lives + ' moto rimaste');
   }
+  const live = state === 'playing' || state === 'countdown' || state === 'paused';
+  $('posbox').hidden = !live || !rivals.length;
+  if (live && rivals.length) { const p = racePos() + '°'; if (p !== shownPos) { shownPos = p; $('pos').textContent = p; $('posof').textContent = 'DI ' + (rivals.length + 1); $('posbox').classList.remove('bump'); void $('posbox').offsetWidth; $('posbox').classList.add('bump'); } }
   const m = multiplier();
   $('multiplier').textContent = '×' + m;
   $('combocount').textContent = combo ? combo + ' IN SERIE' : 'COMBO';
@@ -279,12 +285,14 @@ function resetRun() {
   run = newRun(); announced = new Set(); shownScore = -1; shownLives = -1; mudFx.clear();
   rng = mode === 3 ? makeRng(P.todayKey()) : makeRng((Date.now() ^ (Math.random() * 1e9)) >>> 0);
   applyLayout(true);
+  setupRace();
 }
 function start() {
   if (!world) return;
   if (touchDevice) goFull();
   if (!fsOK && isIOS && !standalone && !iosHinted) { iosHinted = true; setTimeout(() => toast('SCHERMO INTERO: CONDIVIDI → AGGIUNGI A HOME'), 4200); }
   A.unlock(); A.stopVoice(); A.preloadExtras(); if (riderVoice()) A.preloadRider(riderVoice());
+  A.preloadRivals(Object.values(RIDER_VOICE));
   resetRun();
   state = 'countdown'; countdown = 3.2; countStep = 4;
   $('overlay').classList.add('hidden');
@@ -326,6 +334,8 @@ function finish(win, reason = '') {
     try { localStorage.setItem(GHOST_KEY, JSON.stringify(ghosts)); } catch {}
     run.ghostRecord = true;
   }
+  run.position = rivals.length ? racePos() : 0;
+  if (win && run.position === 1) score += 500;
   score = Math.floor(score);
   run.score = score;
   const finished = win ? 1 : 0;
@@ -673,6 +683,97 @@ function spawnWave() {
   wave++;
 }
 
+// ---------- v41 · Avversari, scorciatoie, meteo ----------
+const RIVAL_LIVERIES = [
+  { plastic: '#ff6a13', accent: '#1d2b52', jersey: '#ff7a1f', pants: '#1d2b52', helmet: '#ff7a1f' },
+  { plastic: '#1d5fd1', accent: '#f2f2ee', jersey: '#1d5fd1', pants: '#f2f2ee', helmet: '#f2f2ee' },
+  { plastic: '#2f9e44', accent: '#efe9d4', jersey: '#2f9e44', pants: '#202a20', helmet: '#efe9d4' },
+  { plastic: '#d01f2a', accent: '#f4f4f0', jersey: '#f4f4f0', pants: '#d01f2a', helmet: '#d01f2a' },
+  { plastic: '#f2f2ee', accent: '#6c2bd9', jersey: '#6c2bd9', pants: '#1c1c1c', helmet: '#f2f2ee' },
+];
+function setupRace() {
+  // Tre compagni di giro: uno parte dietro (e ti passerà con un bel "Suuuka!"), due davanti.
+  const others = RIDERS.filter(r => r !== profile.rider).sort(() => rng() - .5).slice(0, 3);
+  const starts = [-7, 26, 58], skills = [1.05, .97, .93];
+  rivals = others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
+  lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
+  // Meteo: un cambio a metà giro (pioggia, nebbia o tramonto), diverso a ogni gara; la Sfida del giorno è uguale per tutti.
+  const kinds = ['rain', 'fog', 'dusk'], k = kinds[Math.floor(rng() * 3)];
+  const at = 14 + rng() * 14;
+  weatherPlan = [{ kind: k, from: at, to: at + 16 + rng() * 8 }];
+  if (mode === 5) weatherPlan.push({ kind: 'rain', from: 6, to: 22 });        // il pantano: piove sempre un po'
+  if (mode === 2 || mode === 8) weatherPlan.push({ kind: 'dusk', from: 30, to: 999 }); // Angelo e Morte: arriva il buio
+  weather = { rain: 0, fog: 0, dusk: 0 }; weatherSaid = '';
+}
+function rivalSay(r) {
+  if (elapsed - lastSuka < 3.5) return;
+  lastSuka = elapsed;
+  const key = RIDER_VOICE[r.name];
+  A.sayRival(key ? key + '_suka' : 'suka');
+}
+function updateRivals(dt, travelStep, route, diff) {
+  const base = (1 + diff * .35 + elapsed / 100) * 19.5;
+  for (const r of rivals) {
+    // ritmo del compagno: segue la pendenza come te (sempre col gas aperto), con un "elastico" per restare in gara
+    const rr = routeAt(course, (roadTime * 19.5) + r.gap);
+    let pace = paceFor(rr, true, 0, 0) * r.skill * (1 - rr.rough * .06);
+    if (r.gap > 70) pace *= .86; else if (r.gap < -30) pace *= 1.18;
+    if (elapsed < 2.5) pace *= .9 + elapsed * .04;
+    const prev = r.gap;
+    r.gap += (dt * base * pace) - travelStep;
+    // cambi di corsia: mai addosso al giocatore quando lo affianca
+    r.laneT -= dt;
+    if (r.laneT <= 0) { r.laneT = 2.5 + rng() * 4; r.lane = Math.floor(rng() * 3); }
+    if (Math.abs(r.gap) < 4 && r.lane === lane) r.lane = lane === 1 ? (rng() < .5 ? 0 : 2) : 1;
+    const before = r.lx; r.lx += (r.lane - r.lx) * Math.min(1, dt * 2.6); r.lean = (r.lx - before) / Math.max(dt, .001);
+    // sorpassi
+    if (prev < 0 && r.gap >= 0) { // ti passa lui
+      pop(r.name.toUpperCase() + ': SUUUKA!', 'white'); rivalSay(r);
+    } else if (prev > 0 && r.gap <= 0) { // lo passi tu
+      score += 250; run.passes = (run.passes || 0) + 1; pop('SORPASSO SU ' + r.name.toUpperCase() + ' +250', 'gold'); A.sfx.near();
+    }
+  }
+}
+function racePos() { return 1 + rivals.filter(r => r.gap > 0).length; }
+// Scorciatoia: bivio su una corsia laterale con il cartello del "taglio".
+function spawnShortcut() {
+  const l = rng() < .5 ? 0 : 2;
+  objects.push({ l, z: -.05, type: 'shortcut', hit: false });
+  toast('BIVIO! TAGLIO DI ANGELO A ' + (l === 0 ? 'SINISTRA' : 'DESTRA'), 'gold');
+}
+function takeShortcut() {
+  shortcutsDone++;
+  const jumpWorld = courseLength(P.MODES[mode].difficulty) * 19.5 * .07;   // salta il 7% del giro
+  roadTime += jumpWorld / 19.5;
+  for (const r of rivals) r.gap -= jumpWorld;
+  objects = objects.filter(o => o.z > .95);   // il taglio è pulito: niente ostacoli subito dopo
+  spawn = 1.2;
+  score += 400; run.shortcuts = (run.shortcuts || 0) + 1;
+  flash('gold'); shake = Math.max(shake, .5);
+  bigCall('IL TAGLIO!');
+  angelo();
+  A.sayRival('angelo_taglio');
+}
+let angeloTimer = 0;
+function angelo() {
+  const el = $('angelo'); if (!el) return;
+  const img = el.querySelector('img');
+  if (!img.src && FOTO['angelo-face']) img.src = FOTO['angelo-face'];
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  clearTimeout(angeloTimer); angeloTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+const WEATHER_MSG = { rain: '🌧 ARRIVA LA PIOGGIA! FANGO OVUNQUE', fog: '🌫 NEBBIA IN QUOTA! OCCHI APERTI', dusk: '🌇 SI FA SERA… ACCENDI IL CERVELLO' };
+function updateWeather(dt) {
+  const target = { rain: 0, fog: 0, dusk: 0 };
+  for (const w of weatherPlan) if (elapsed >= w.from && elapsed < w.to) {
+    target[w.kind] = Math.max(target[w.kind], w.kind === 'dusk' ? Math.min(1, (elapsed - w.from) / 20) : 1);
+    if (weatherSaid !== w.kind + w.from) { weatherSaid = w.kind + w.from; toast(WEATHER_MSG[w.kind], w.kind === 'rain' ? 'blue' : 'gold'); }
+  }
+  for (const k of ['rain', 'fog', 'dusk']) weather[k] += (target[k] - weather[k]) * Math.min(1, dt * .5);
+  // sotto la pioggia ogni tanto arriva uno schizzo sull'obiettivo
+  if (weather.rain > .5 && elapsed - lastRainMud > 5 + Math.random() * 4) { lastRainMud = elapsed; mud(.22); }
+}
+
 // ---------- Ciclo di gioco ----------
 function update(dt) {
   if (state === 'countdown') {
@@ -735,6 +836,9 @@ function update(dt) {
   roadTime += travelStep / 19.5;
   course = Math.min(GAME_LENGTH, roadTime / courseLength(diff) * GAME_LENGTH);
   kmh = Math.round(travelStep / dt / 19.5 * 31);
+  updateRivals(dt, travelStep, route, diff);
+  updateWeather(dt);
+  if (shortcutsDone < 2 && elapsed > nextShortcut && course > 12 && course < GAME_LENGTH * .8 && route.id !== 3) { nextShortcut = elapsed + 18 + rng() * 10; spawnShortcut(); }
   while (elapsed >= ghostNextSplit) { ghostSplits.push(course); ghostNextSplit += .5; }
   const gc = ghostCourse(elapsed);
   if (gc !== null && !ghostPassed && elapsed > 3 && course > gc + .4) { ghostPassed = true; pop('👻 SUPERATO IL FANTASMA!', 'white'); }
@@ -744,7 +848,7 @@ function update(dt) {
   if (comboTime === 0) combo = 0;
 
   // Spostamento laterale a molla: la moto accelera, piega e si raddrizza in modo naturale.
-  const kLat = (118 - route.rough * 32) * (1 + up.tyres * .08) * (has('mule') && route.rough > .4 ? 1.35 : 1), cLat = 2 * Math.sqrt(kLat) * .9;
+  const kLat = (118 - route.rough * 32) * (1 - weather.rain * .18) * (1 + up.tyres * .08) * (has('mule') && route.rough > .4 ? 1.35 : 1), cLat = 2 * Math.sqrt(kLat) * .9;
   vx += ((lane - px) * kLat - vx * cLat) * dt;
   px += vx * dt;
   const wasAirborne = jump > 0;
@@ -777,6 +881,7 @@ function update(dt) {
     if (o.hit || o.z < .91) continue;
     o.hit = true;
     const gap = o.type === 'bigLog' ? 0 : Math.abs(px - o.l);
+    if (o.type === 'shortcut') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeShortcut(); return; } continue; }
     if (o.type === 'ramp') {
       // Rampa di terra: se ci passi sopra a terra, decolli con un salto lunghissimo.
       if (gap < .5 && jump <= 0 && crash <= 0) {
@@ -898,6 +1003,7 @@ function drawState() {
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
     riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
     livery: P.currentLivery(), preset: P.MODES[mode].sky,
+    rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended') ? rivals : [], weather,
   });
 }
 function draw() { world?.render(drawState()); }
@@ -1017,7 +1123,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
     <p class="resulttext">${profile.rider} ${win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
-      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1) + 's — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
+      ${run.position ? `<br>🏁 <b>${run.position}° su ${rivals.length + 1}</b> nel gruppo${run.position === 1 && win ? ' · primo al rifugio +500' : ''}${run.shortcuts ? ' · ' + run.shortcuts + (run.shortcuts > 1 ? ' tagli' : ' taglio') + ' di Angelo' : ''}` : ''}      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1) + 's — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
       <div><b>${run.jumps}</b><small>SALTI</small></div>
@@ -1146,7 +1252,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 40;
+const GAME_VERSION = 41;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
@@ -1345,6 +1451,6 @@ if (/debug/.test(location.hash)) {
 }
 
 // Aggancio per i test automatici (non usato dal gioco).
-window.__edt = { get state() { return state; }, setMode(v) { mode = v; }, audio: A, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
+window.__edt = { get state() { return state; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, erika, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };

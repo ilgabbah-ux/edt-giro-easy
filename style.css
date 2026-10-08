@@ -848,3 +848,27 @@ body.isfull .installhelp { display: none; }
 .audiorow .voicetest { flex: 1 1 140px; }
 .tracktune { margin: 6px 0 0; font: italic 700 12px var(--ui); color: var(--muted); letter-spacing: .4px; }
 #musictoggle { margin-top: 8px; }
+
+/* v41: posizione in gara, Angelo sul taglio */
+.hudcenter { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.posbox { display: flex; align-items: baseline; gap: 6px; background: #121311d6; border: 1px solid #ffffff26; border-left: 4px solid var(--y); padding: 2px 12px 3px; clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.posbox[hidden] { display: none; }
+.posbox b { font: 26px/1 var(--display); color: var(--y); }
+.posbox small { font: italic 800 11px var(--ui); letter-spacing: 1.5px; color: var(--cream); }
+.posbox.bump { animation: posbump .45s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes posbump { 0% { transform: scale(1.5); } 100% { transform: scale(1); } }
+@media (max-width: 900px) {
+  .posbox { position: absolute; top: 68px; left: 50%; transform: translateX(-50%); }
+  .posbox.bump { animation: none; }
+}
+@media (max-height: 500px) and (orientation: landscape) { .posbox { position: static; transform: none; } }
+.erika.angelo { left: auto; right: 3%; flex-direction: row-reverse; }
+.erika.angelo .bubble { margin: 0 -14px 52% 0; transform: rotate(4deg); box-shadow: -6px 6px 0 var(--y); }
+.erika.angelo .bubble::before { left: auto; right: -16px; border-right: 10px solid transparent; border-left: 18px solid #111; }
+.erika.angelo .bubble::after { left: auto; right: -9px; border-right: 7px solid transparent; border-left: 12px solid #fff; }
+.erika.angelo.show .bubble { animation: bubble2 2.8s ease-out forwards; }
+@keyframes bubble2 { 0%, 12% { opacity: 0; transform: rotate(4deg) scale(.3); } 22% { opacity: 1; transform: rotate(4deg) scale(1.12); } 30%, 100% { opacity: 1; transform: rotate(4deg) scale(1); } }
+@media (max-width: 900px) { .erika.angelo { right: 2%; } .erika.angelo .bubble { font-size: 17px; white-space: normal; max-width: 150px; } }
+.erika.angelo { bottom: 210px; }
+@media (max-width: 900px) { .erika.angelo { bottom: 200px; } .erika.angelo img { width: 120px; } .erika.angelo .bubble { margin: 0 -10px 40% 0; } }
+@media (max-height: 500px) and (orientation: landscape) { .erika.angelo { bottom: 80px; } }

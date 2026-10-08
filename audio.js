@@ -2,8 +2,8 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=40';
-import { VOCI_PILOTI } from './voci-piloti.js?v=40';
+import { VOCI } from './voci.js?v=41';
+import { VOCI_PILOTI } from './voci-piloti.js?v=41';
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -228,6 +228,20 @@ export async function sayRider(key) {
   playVoice(buf);
   return true;
 }
+// v41 · battute degli avversari ("Suuuka!") e di Angelo sul taglio: non interrompono una voce già in corso
+// e, se manca la clip del pilota, usano quella generica.
+export async function sayRival(key) {
+  if (!enabled || !ensure()) return false;
+  const k = VOCI_PILOTI[key] ? key : key.endsWith('_suka') && VOCI_PILOTI.suka ? 'suka' : null;
+  if (!k) { if (key.includes('suka')) { tone(320, .5, 'sawtooth', .1, 0, 180); } return false; }
+  if (voiceBusy()) return false;
+  if (ctx.state !== 'running') { try { const a = new Audio('data:audio/mpeg;base64,' + VOCI_PILOTI[k]); a.play().catch(() => {}); } catch {} return true; }
+  const buf = await decodeRider(k);
+  if (!buf || !enabled) return false;
+  playVoice(buf);
+  return true;
+}
+export function preloadRivals(names) { if (ensure()) { for (const n of names) decodeRider(n + '_suka'); decodeRider('suka'); decodeRider('angelo_taglio'); } }
 export function preloadExtras() { if (ctx) for (const k of Object.keys(EXTRA)) loadExtra(k); }
 
 export const sfx = {

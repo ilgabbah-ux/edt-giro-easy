@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=40';
+import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=41';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -560,8 +560,8 @@ export function createWorld(canvas) {
     for (let i = 0; i < 22; i++) { const a = i * Math.PI * 2 / 22; for (const side of [-1, 1]) { const lug = box(.09, .06, .095, treadMat, root, side * .07, Math.cos(a) * .465, Math.sin(a) * .465); lug.rotation.x = a; } }
     wheels.push(root); return root;
   }
-  const rearWheel = wheel(pitch, 0, .47, .82);
-  const frontWheel = wheel(front, 0, .47, -.86 - STEER_Z);
+  const rearWheel = wheel(pitch, 0, .47, .82); rearWheel.name = 'wheelR';
+  const frontWheel = wheel(front, 0, .47, -.86 - STEER_Z); frontWheel.name = 'wheelF';
   // Telaio, forcellone, mono, motore, serbatoio, sella
   rod([-.13, .48, .82], [-.13, .72, -.2], .035, alloy, chassis); rod([.13, .48, .82], [.13, .72, -.2], .035, alloy, chassis);
   rod([0, .64, .2], [0, 1.12, .46], .055, gold, chassis);
@@ -593,9 +593,9 @@ export function createWorld(canvas) {
   // Fiamma di scarico del turbo.
   const flameMat = new T.MeshBasicMaterial({ color: '#ffb12b', transparent: true, opacity: .9, blending: T.AdditiveBlending, depthWrite: false });
   const flame = new T.Mesh(new T.ConeGeometry(.09, .55, 10, 1, true), flameMat);
-  flame.rotation.x = -Math.PI / 2; flame.position.set(.31, 1.18, 1.22); flame.userData.keep = true; chassis.add(flame);
+  flame.rotation.x = -Math.PI / 2; flame.position.set(.31, 1.18, 1.22); flame.userData.keep = true; flame.name = 'fx'; chassis.add(flame);
   const flameCore = new T.Mesh(new T.ConeGeometry(.05, .32, 8, 1, true), new T.MeshBasicMaterial({ color: '#fff4c4', transparent: true, blending: T.AdditiveBlending, depthWrite: false }));
-  flameCore.rotation.x = -Math.PI / 2; flameCore.position.set(.31, 1.18, 1.1); flameCore.userData.keep = true; chassis.add(flameCore);
+  flameCore.rotation.x = -Math.PI / 2; flameCore.position.set(.31, 1.18, 1.1); flameCore.userData.keep = true; flameCore.name = 'fx'; chassis.add(flameCore);
 
   // Pilota: gambe sulle pedane (fisse), busto che si alza, braccia e cosce che si adattano.
   const rider = new T.Group(); chassis.add(rider);
@@ -673,11 +673,11 @@ export function createWorld(canvas) {
   const textCtx = textCanvas.getContext('2d');
   const decalTexture = new T.CanvasTexture(textCanvas); decalTexture.colorSpace = T.SRGBColorSpace;
   const decal = mesh(new T.PlaneGeometry(.37, .185), new T.MeshStandardMaterial({ map: decalTexture, roughness: 1 }), body);
-  decal.position.set(...B(0, 1.80, .356)); decal.rotation.x = .2; decal.userData.keep = true;
+  decal.position.set(...B(0, 1.80, .356)); decal.rotation.x = .2; decal.userData.keep = true; decal.name = 'decal';
   for (const g of [...wheels, chassis, front, rider, upper, body, head]) mergeGroup(g);
 
   // Orecchie da coniglio sul casco (troppi errori o acqua bevuta).
-  const ears = new T.Group(); ears.position.set(0, .16, .06); head.add(ears); ears.visible = false;
+  const ears = new T.Group(); ears.name = 'fx'; ears.position.set(0, .16, .06); head.add(ears); ears.visible = false;
   const earMat = mat('#f6f2ea', .75), earInner = mat('#f3a6c4', .6);
   const earPivots = [];
   for (const side of [-1, 1]) {
@@ -793,6 +793,19 @@ export function createWorld(canvas) {
         for (const s of [-1, 1]) rod([s * .55, .55, 0], [s * .55, .8, 0], .03, black, g);
         g.userData.sign = sign;
       }
+    } else if (type === 'shortcut') {
+      // Bivio del "taglio": arco di legno sulla corsia con il cartello giallo, frecce e nastro.
+      const c = document.createElement('canvas'); c.width = 512; c.height = 160; const x = c.getContext('2d');
+      x.fillStyle = '#ffcf16'; x.fillRect(0, 0, 512, 160); x.strokeStyle = '#111'; x.lineWidth = 12; x.strokeRect(6, 6, 500, 148);
+      x.fillStyle = '#111'; x.font = '900 70px Arial'; x.textAlign = 'center'; x.fillText('TAGLIO', 256, 82);
+      x.font = '900 34px Arial'; x.fillText('DELLE 16.00 ▲', 256, 132);
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+      for (const sd of [-1, 1]) { box(.16, 3.1, .16, rampWood, g, sd * 1.05, 1.55, 0); }
+      box(2.4, .14, .18, rampWood, g, 0, 3.05, 0);
+      const sign = mesh(new T.PlaneGeometry(1.9, .6), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); sign.position.set(0, 2.62, .1); sign.castShadow = false;
+      const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffd400', transparent: true, opacity: .55, blending: T.AdditiveBlending, depthWrite: false }));
+      glow.scale.set(3.2, 1.6, 1); glow.position.set(0, 2.62, .2); g.add(glow);
+      for (const sd of [-1, 1]) { const arrow = mesh(new T.ConeGeometry(.18, .4, 4), rampLip, g); arrow.rotation.x = -Math.PI / 2; arrow.position.set(sd * .6, .25, -.5); }
     } else if (type === 'root') {
       for (let i = 0; i < 3; i++) { const r = mesh(new T.CylinderGeometry(.08, .13, 1.7, 12), bark, g); r.rotation.z = Math.PI / 2; r.rotation.y = (i - 1) * .17; r.position.set(0, .12 + i * .06, (i - 1) * .23); }
     } else if (type === 'step') {
@@ -886,7 +899,7 @@ export function createWorld(canvas) {
   }
 
   // ---------- Particelle: terra dalla ruota, schizzi, scintille ----------
-  const PARTS = 70;
+  const PARTS = 150;
   const partMat = new T.MeshStandardMaterial({ color: '#8b6f4a', roughness: 1 });
   const parts = new T.InstancedMesh(new T.IcosahedronGeometry(.07, 0), partMat, PARTS);
   parts.castShadow = false; scene.add(parts);
@@ -908,9 +921,9 @@ export function createWorld(canvas) {
   let lastEvent = 0, eventAt = -100, eventX = 0, eventY = 1.1;
 
   const auraMaterial = new T.MeshBasicMaterial({ color: '#ffd438', transparent: true, opacity: .58, depthWrite: false, blending: T.AdditiveBlending });
-  const aura = mesh(new T.TorusGeometry(.85, .032, 6, 36), auraMaterial, bike); aura.rotation.x = Math.PI / 2; aura.position.y = .07; aura.castShadow = aura.receiveShadow = false;
+  const aura = mesh(new T.TorusGeometry(.85, .032, 6, 36), auraMaterial, bike); aura.name = 'fx'; aura.rotation.x = Math.PI / 2; aura.position.y = .07; aura.castShadow = aura.receiveShadow = false;
   const magnetAura = mesh(new T.TorusGeometry(1.25, .025, 6, 40), new T.MeshBasicMaterial({ color: '#d4145a', transparent: true, opacity: .5, depthWrite: false, blending: T.AdditiveBlending }), bike);
-  magnetAura.rotation.x = Math.PI / 2; magnetAura.position.y = .1; magnetAura.castShadow = magnetAura.receiveShadow = false;
+  magnetAura.name = 'fx'; magnetAura.rotation.x = Math.PI / 2; magnetAura.position.y = .1; magnetAura.castShadow = magnetAura.receiveShadow = false;
 
   // ---------- Paletti, arrivo e rifugio ----------
   const markers = new T.InstancedMesh(new T.BoxGeometry(.10, 1.1, .10), white, 36);
@@ -948,6 +961,61 @@ export function createWorld(canvas) {
   box(2, .12, .5, bark, hut, -.2, .55, -2.6);
   mergeGroup(hut); mergeGroup(finish);
 
+  // ---------- v41 · Avversari EDT: copie della moto con livrea, numero e nome propri ----------
+  const rivalModels = new Map();
+  const rivalMats = ['plastic', 'accent', 'jersey', 'pants', 'helmet'];
+  function makeRival(r) {
+    const g = bike.clone(true);
+    const m = { plastic: mat(r.livery.plastic, .35), accent: mat(r.livery.accent, .5), jersey: mat(r.livery.jersey, .6), pants: mat(r.livery.pants, .8), helmet: mat(r.livery.helmet, .35) };
+    const swap = { [plastic.uuid]: m.plastic, [accent.uuid]: m.accent, [jerseyMat.uuid]: m.jersey, [pantsMat.uuid]: m.pants, [helmetMat.uuid]: m.helmet };
+    // nome e numero sulla schiena
+    const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d');
+    x.fillStyle = r.livery.jersey; x.fillRect(0, 0, 256, 128);
+    const col = new T.Color(r.livery.jersey), lum = col.r * .3 + col.g * .59 + col.b * .11;
+    x.fillStyle = lum > .45 ? '#172127' : '#f7f3e6'; x.textAlign = 'center';
+    x.font = '900 62px Arial'; x.fillText(String(r.number).padStart(2, '0'), 128, 62);
+    x.font = '900 25px Arial'; x.fillText(r.name.toUpperCase(), 128, 106, 240);
+    const dt = new T.CanvasTexture(c); dt.colorSpace = T.SRGBColorSpace;
+    g.traverse(o => {
+      if (o.name === 'fx') o.visible = false;
+      if (o.isMesh && o.name === 'decal') o.material = new T.MeshStandardMaterial({ map: dt, roughness: 1 });
+      else if (o.isMesh && swap[o.material.uuid]) o.material = swap[o.material.uuid];
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; }
+    });
+    // targhetta col nome sopra il pilota
+    const tc2 = document.createElement('canvas'); tc2.width = 256; tc2.height = 64; const y = tc2.getContext('2d');
+    y.fillStyle = 'rgba(12,13,11,.82)'; y.beginPath(); y.roundRect(4, 6, 248, 52, 14); y.fill();
+    y.fillStyle = r.livery.plastic; y.fillRect(4, 6, 12, 52);
+    y.fillStyle = '#fff'; y.font = 'italic 900 34px Arial'; y.textAlign = 'center'; y.fillText(r.name.toUpperCase(), 134, 45, 220);
+    const tag = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(tc2), depthWrite: false, transparent: true }));
+    tag.material.map.colorSpace = T.SRGBColorSpace; tag.scale.set(1.5, .375, 1); tag.position.set(0, 3.0, 0); tag.renderOrder = 5; g.add(tag);
+    const model = { g, pitch: g.children[0], wheels: [], tag, phase: Math.random() * 10 };
+    g.traverse(o => { if (o.name === 'wheelR' || o.name === 'wheelF') model.wheels.push(o); });
+    scene.add(g);
+    return model;
+  }
+  function renderRivals(list, t, now, live) {
+    const seen = new Set();
+    for (const r of list || []) {
+      seen.add(r.name);
+      let m = rivalModels.get(r.name);
+      if (!m) { m = makeRival(r); rivalModels.set(r.name, m); }
+      const z = -r.gap;
+      m.g.visible = z < 11 && z > -175;
+      if (!m.g.visible) continue;
+      const lx = (r.lx - 1) * spacing();
+      m.g.position.set(center(z, t) + lx, height(z, t) + Math.abs(Math.sin(now / 90 + m.phase)) * .02, z);
+      m.g.rotation.set(0, -(r.lean || 0) * .05, Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));
+      m.pitch.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 160 + m.phase) * .015;
+      m.pitch.position.y = 0;
+      for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475;
+      m.tag.visible = z > -60;
+      // terra dalla ruota dietro
+      if (live && Math.random() < .5) emit(m.g.position.x + (Math.random() - .5) * .3, height(z, t) + .25, z + 1.1, (Math.random() - .5) * 1.5, 2 + Math.random() * 2.2, 4 + Math.random() * 3, .6 + Math.random() * .6);
+    }
+    for (const [name, m] of rivalModels) if (!seen.has(name)) { scene.remove(m.g); rivalModels.delete(name); }
+  }
+
   // ---------- Atmosfera ----------
   let presetIndex = -1;
   function applyPreset(i) {
@@ -963,6 +1031,22 @@ export function createWorld(canvas) {
     paintRidges(p);
   }
   applyPreset(0);
+  // v41 · meteo che cambia durante il giro: pioggia (buio e grigio), nebbia (visibilità corta), tramonto (luce arancio).
+  const _c1 = new T.Color(), _c2 = new T.Color(), DUSK = { top: new T.Color('#1f2452'), hor: new T.Color('#ff8a4a'), sun: new T.Color('#ff7a3a'), fog: new T.Color('#b97a62') }, GREY = new T.Color('#9aa3a8');
+  function applyWeather(w) {
+    const p = PRESETS[presetIndex] || PRESETS[0];
+    const rain = w?.rain || 0, fog = w?.fog || 0, dusk = w?.dusk || 0;
+    skyUniforms.uTop.value.set(p.top).lerp(DUSK.top, dusk * .8).lerp(GREY, rain * .55);
+    skyUniforms.uHorizon.value.set(p.horizon).lerp(DUSK.hor, dusk * .7).lerp(GREY, Math.max(rain * .5, fog * .6));
+    skyUniforms.uSun.value.set(p.sunColor).lerp(DUSK.sun, dusk);
+    skyUniforms.uClouds.value = Math.min(1, p.clouds + rain * .5 + fog * .2);
+    scene.fog.color.set(p.fog).lerp(DUSK.fog, dusk * .6).lerp(GREY, Math.max(rain * .55, fog * .75));
+    scene.fog.near *= 1 - fog * .75 - rain * .25; scene.fog.far *= 1 - fog * .62 - rain * .2;
+    sun.color.set(p.light).lerp(DUSK.sun, dusk * .7);
+    sun.intensity = p.lightI * (1 - rain * .5 - fog * .3 - dusk * .35);
+    hemi.intensity = p.hemiI * (1 - rain * .2 - dusk * .3);
+    renderer.toneMappingExposure = p.exposure * (1 - dusk * .12 - rain * .05);
+  }
 
   // ---------- Qualità adattiva: se il telefono fatica, alleggerisce ----------
   let frameAvg = 16, frames = 0, quality = 0, lastNow = performance.now();
@@ -1007,7 +1091,7 @@ export function createWorld(canvas) {
   const moteMat = new T.PointsMaterial({ color: '#fff3c4', size: .09, transparent: true, opacity: 0, depthWrite: false });
   const motes = new T.Points(moteGeo, moteMat); motes.frustumCulled = false; scene.add(motes);
   const md = Array.from({ length: MOTES }, () => ({ x: (Math.random() - .5) * 22, y: .3 + Math.random() * 5, z: -Math.random() * 34 + 4, ph: Math.random() * 6 }));
-  let ambLastT = null;
+  let ambLastT = null, weatherNow = { rain: 0, fog: 0, dusk: 0 };
   function ambient(dt, t, W, live) {
     const move = ambLastT === null ? 0 : Math.max(0, Math.min(3, t - ambLastT)); ambLastT = t;
     const now = performance.now() / 1000;
@@ -1024,7 +1108,7 @@ export function createWorld(canvas) {
       });
       fallLeaves.instanceMatrix.needsUpdate = true;
     }
-    rainMat.opacity = Math.min(.7, W[1] * .75);
+    rainMat.opacity = Math.min(.8, Math.max(W[1] * .75, weatherNow.rain * .8));
     rain.visible = rainMat.opacity > .02;
     if (rain.visible) {
       rd.forEach((d, i) => {
@@ -1062,6 +1146,8 @@ export function createWorld(canvas) {
     const boostAmount = live ? (s.turbo || 0) : 0;
     trail = routeAt(s.elapsed || 0, t);
     terrain(t); instances(t); muleScenery(t); vergeDetails(t);
+    weatherNow = s.weather || weatherNow;
+    applyWeather(s.weather);
     ambient(fdt, t, trail.w, live);
 
     // Moto e pilota: molle-smorzatori per sospensioni, beccheggio e postura.
@@ -1125,7 +1211,7 @@ export function createWorld(canvas) {
     head.rotation.y = dyn.steer * .9;
     head.rotation.x = -(body.rotation.x + grade + dyn.pitch) * .55;
     dyn.brake = Math.max(0, (dyn.brake || 0) - fdt * 2.5);
-    brakeLightMat.emissiveIntensity = .3 + dyn.brake * 2.2;
+    brakeLightMat.emissiveIntensity = Math.max(.3 + dyn.brake * 2.2, (weatherNow.dusk || 0) * 1.6 + (weatherNow.fog || 0) * 1.2);
     const spin = t / .475;
     frontWheel.rotation.x = -spin;
     rearWheel.rotation.x = -spin - (boostAmount > 2.2 ? (now / 40) : 0);
@@ -1139,6 +1225,7 @@ export function createWorld(canvas) {
       pv.rotation.x = .1 + (s.water > 0 ? .35 + Math.sin(now / 160) * .1 : 0) + dyn.pitchV * .015 + (s.jump > 0 ? -.2 : 0);
     }
     updateLimbs();
+    renderRivals(s.rivals, t, now, s.state === 'playing');
 
     flame.visible = flameCore.visible = boostAmount > 0 || (s.grappa || 0) > 0;
     flameMat.color.set(boostAmount > 0 ? '#ffb12b' : '#3fa9ff');
@@ -1169,11 +1256,12 @@ export function createWorld(canvas) {
     const muddy = trail.wet > .3 || s.wet > 0;
     partMat.color.set(muddy ? '#5b4630' : trail.rough > .5 ? '#8f8f88' : '#9b7f56');
     if (onGround) {
-      emitAcc += fdt * (26 + (s.gas ? 18 : 0) + boostAmount * 10) * (s.speed || 1);
+      emitAcc += fdt * (30 + (s.gas ? 34 : 0) + boostAmount * 14) * (s.speed || 1) * (muddy ? 1.3 : 1);
       while (emitAcc > 1) {
         emitAcc--;
         const side = (Math.random() - .5) * .3;
-        emit(bike.position.x + side, .25, 1.15, side * 4 + (Math.random() - .5) * 1.4, 2.4 + Math.random() * 2.6, 5 + Math.random() * 4, .7 + Math.random() * .8);
+        const roost = s.gas || boostAmount > 0 ? 1.35 : 1;
+        emit(bike.position.x + side, .25, 1.15, side * 4 + (Math.random() - .5) * 1.6, (2.4 + Math.random() * 2.8) * roost, (5 + Math.random() * 4) * roost, (.7 + Math.random() * .9) * (muddy ? 1.25 : 1));
       }
     }
     if (wasAir && s.jump <= 0 && s.state === 'playing') {
