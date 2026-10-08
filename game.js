@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=38';
-import { createWorld } from './scene3d.js?v=38';
-import * as A from './audio.js?v=38';
-import * as P from './progress.js?v=38';
-import { FOTO } from './piloti.js?v=38';
-import { createMud } from './mudfx.js?v=38';
-import { icon, iconize, iconizeEl } from './icons.js?v=38';
-import * as C from './classifica.js?v=38';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=39';
+import { createWorld } from './scene3d.js?v=39';
+import * as A from './audio.js?v=39';
+import * as P from './progress.js?v=39';
+import { FOTO } from './piloti.js?v=39';
+import { createMud } from './mudfx.js?v=39';
+import { icon, iconize, iconizeEl } from './icons.js?v=39';
+import * as C from './classifica.js?v=39';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -443,6 +443,7 @@ $('sound').onclick = () => {
 function syncSound() {
   const on = A.isEnabled();
   $('sound').classList.toggle('off', !on);
+  $('sound').innerHTML = icon(on ? 'speaker' : 'mute');
   $('sound').setAttribute('aria-pressed', String(on));
   $('sound').setAttribute('aria-label', on ? 'Disattiva audio e incitamenti' : 'Attiva audio e incitamenti');
   $('sound').title = on ? 'Audio attivo' : 'Audio disattivato';
@@ -973,7 +974,8 @@ function renderReady() {
     <div class="missions"><div class="mhead">${icon('flag')} MISSIONI</div><ul>${missionsHTML()}</ul></div>
     <div class="audiorow"><button class="secondary voicetest" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="secondary voicetest" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button></div>
     <p class="tracktune">🎵 ${A.STYLES[mode].name}</p>
-    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">Scorri per sterzare · tocca per saltare</span></p>`;
+    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">Scorri per sterzare · tocca per saltare</span></p>
+    <p class="version">Giro Easy v${GAME_VERSION}</p>`;
   iconizeEl($('card'));
   $('start').onclick = start;
   $('openshop').onclick = () => renderShop(renderReady);
@@ -1094,7 +1096,7 @@ function groupResult(runInfo) {
   if (runInfo.sent && runInfo.sentAs === nick) { show(runInfo.sent); return; }
   box.innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div><p class="gwait">Invio il punteggio di <b>${nick}</b>…</p>`;
   const { sent, sentAs, ...payload } = runInfo;
-  C.submit({ ...payload, name: nick, v: '37' }).then(d => {
+  C.submit({ ...payload, name: nick, v: String(GAME_VERSION) }).then(d => {
     runInfo.sent = d; runInfo.sentAs = nick; lastGroupRun = runInfo;
     show(d); renderSide();
   }).catch(() => {
@@ -1145,6 +1147,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
+const GAME_VERSION = 39;
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
   $('ridergrid').innerHTML = RIDERS.map((name, i) => `<button type="button" class="rideroption" data-rider="${name}" aria-pressed="${name === profile.rider}" aria-label="Scegli ${name}">
@@ -1276,7 +1279,17 @@ async function shareScore(win, res) {
 P.ensureMissions();
 iconizeEl(document.querySelector('.howpanel'));
 // ---------- App installabile (Android, PC, iPhone) e funzionamento offline ----------
-if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.EDT_PUBLIC_URL) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.EDT_PUBLIC_URL) {
+  const hadSW = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => {});
+  // v39 · quando arriva una versione nuova del gioco, la pagina si ricarica da sola (solo se non stai correndo).
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadSW || reloaded) return;
+    const go = () => { if (reloaded) return; if (state === 'ready' || state === 'ended') { reloaded = true; location.reload(); } else setTimeout(go, 2000); };
+    go();
+  });
+}
 let installEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
 window.addEventListener('appinstalled', () => { installEvt = null; $('installapp').hidden = true; closeInstallHelp(); });
@@ -1308,7 +1321,7 @@ $('installapp').onclick = async () => {
   }
   installHelp();
 };
-$('sound').innerHTML = icon('speaker'); $('fullscreen').innerHTML = icon('expand'); $('pause').innerHTML = icon('pause');
+syncSound(); $('fullscreen').innerHTML = icon('expand'); $('pause').innerHTML = icon('pause');
 $('sharelink').innerHTML = icon('share') + '<span>CONDIVIDI NEL GRUPPO</span>';
 renderSide();
 renderReady();

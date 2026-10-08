@@ -1,5 +1,5 @@
 // EDT Giro Easy · service worker: il gioco funziona anche offline dopo la prima apertura.
-const CACHE = 'giro-easy-v38';
+const CACHE = 'giro-easy-v39';
 const FILES = ['./', './index.html', './style.css', './game.js', './physics.js', './scene3d.js', './progress.js', './audio.js', './icons.js', './mudfx.js', './voci.js', './voci-piloti.js', './piloti.js', './classifica.js',
   './three.module.min.js', './three.core.min.js', './RoundedBoxGeometry.js', './anton.woff2', './barlow-condensed-latin-600-normal.woff2', './barlow-condensed-latin-700-normal.woff2',
   './barlow-condensed-latin-800-italic.woff2', './edt-logo-small.jpg', './edt-logo.png', './icon-192.png', './icon-512.png', './manifest.webmanifest'];
@@ -8,6 +8,7 @@ self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Pr
 // Rete prima (così gli aggiornamenti arrivano subito), cache se offline.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return; // la classifica online non passa dalla cache
-  e.respondWith(fetch(e.request).then(r => { const copy = r.clone(); if (r.ok) caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
+  // cache: 'no-cache' = chiede sempre al server se c'è una versione nuova (GitHub tiene le pagine 10 minuti)
+  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then(r => { const copy = r.clone(); if (r.ok) caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
     .catch(() => caches.match(e.request, { ignoreSearch: true })));
 });
