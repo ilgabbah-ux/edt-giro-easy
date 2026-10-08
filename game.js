@@ -1,11 +1,11 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=33';
-import { createWorld } from './scene3d.js?v=33';
-import * as A from './audio.js?v=33';
-import * as P from './progress.js?v=33';
-import { FOTO } from './piloti.js?v=33';
-import { createMud } from './mudfx.js?v=33';
-import { icon, iconize, iconizeEl } from './icons.js?v=33';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=34';
+import { createWorld } from './scene3d.js?v=34';
+import * as A from './audio.js?v=34';
+import * as P from './progress.js?v=34';
+import { FOTO } from './piloti.js?v=34';
+import { createMud } from './mudfx.js?v=34';
+import { icon, iconize, iconizeEl } from './icons.js?v=34';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -281,6 +281,8 @@ function resetRun() {
 }
 function start() {
   if (!world) return;
+  if (touchDevice) goFull();
+  if (!fsOK && isIOS && !standalone && !iosHinted) { iosHinted = true; setTimeout(() => toast('SCHERMO INTERO: CONDIVIDI → AGGIUNGI A HOME'), 4200); }
   A.unlock(); A.stopVoice(); A.preloadExtras(); if (riderVoice()) A.preloadRider(riderVoice());
   resetRun();
   state = 'countdown'; countdown = 3.2; countStep = 4;
@@ -349,6 +351,7 @@ function pause() {
     $('pause').innerHTML = icon('play'); $('pause').setAttribute('aria-label', 'Riprendi');
     hud();
   } else if (state === 'paused') {
+    if (touchDevice) goFull();
     state = countdown > 0 ? 'countdown' : 'playing';
     A.engineStart();
     $('overlay').classList.add('hidden');
@@ -435,14 +438,29 @@ function syncSound() {
   $('sound').title = on ? 'Audio attivo' : 'Audio disattivato';
 }
 syncSound();
+// v34 · Schermo intero: su telefono e tablet parte da solo quando si accende la moto.
 const fsTarget = $('game');
-if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) $('fullscreen').hidden = true;
-$('fullscreen').onclick = () => {
-  const el = document.fullscreenElement || document.webkitFullscreenElement;
-  if (el) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-  else (fsTarget.requestFullscreen || fsTarget.webkitRequestFullscreen).call(fsTarget).catch?.(() => {});
-};
-document.addEventListener('fullscreenchange', () => setTimeout(() => world?.resize(), 60));
+let iosHinted = false;
+const fsOK = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+const touchDevice = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+const inFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function goFull() {
+  if (!fsOK || inFull()) return;
+  try {
+    const r = (fsTarget.requestFullscreen || fsTarget.webkitRequestFullscreen).call(fsTarget, { navigationUI: 'hide' });
+    r?.catch?.(() => {});
+  } catch {}
+}
+function exitFull() { if (inFull()) try { (document.exitFullscreen || document.webkitExitFullscreen).call(document)?.catch?.(() => {}); } catch {} }
+if (!fsOK) $('fullscreen').hidden = true;
+$('fullscreen').onclick = () => { if (inFull()) exitFull(); else goFull(); };
+function onFsChange() {
+  document.body.classList.toggle('isfull', inFull());
+  setTimeout(() => world?.resize(), 60); setTimeout(() => world?.resize(), 400);
+  if (!inFull() && state === 'playing' && touchDevice) pause();
+}
+document.addEventListener('fullscreenchange', onFsChange);
+document.addEventListener('webkitfullscreenchange', onFsChange);
 
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
@@ -1165,11 +1183,11 @@ function installHelp() {
   const steps = isIOS
     ? ['Apri questa pagina con <b>Safari</b>.', 'Tocca il pulsante <b>Condividi</b> (il quadrato con la freccia in su).', 'Scorri e scegli <b>Aggiungi alla schermata Home</b>, poi <b>Aggiungi</b>.']
     : isAndroid
-      ? ['Apri questa pagina con <b>Chrome</b>.', 'Tocca il menu <b>⋮</b> in alto a destra.', 'Scegli <b>Installa app</b> (o <b>Aggiungi a schermata Home</b>) e conferma.']
+      ? ['Apri questa pagina con <b>Chrome</b>.', 'Tocca il menu <b>⋮</b> in alto a destra.', 'Scegli <b>Aggiungi a schermata Home</b> → <b>Installa</b> (o <b>Crea scorciatoia</b>) e conferma.', 'Se la notifica resta ferma su <b>«Installazione in corso…»</b>, chiudila e scegli <b>Crea scorciatoia</b>: funziona uguale.']
       : ['Usa <b>Chrome</b> o <b>Edge</b>.', 'Clicca l\'icona <b>Installa</b> a destra nella barra degli indirizzi (un monitor con la freccia), oppure menu <b>⋮</b> → <b>Trasmetti, salva e condividi</b> → <b>Installa pagina come app</b>.', 'Conferma con <b>Installa</b>.'];
   const el = document.createElement('div');
   el.id = 'installhelp'; el.className = 'installhelp';
-  el.innerHTML = `<div class="ihcard"><div class="eyebrow"><span class="ebar"></span>GIRO EASY COME UN'APP</div><h3>Installa il gioco</h3><ol>${steps.map(x => '<li>' + x + '</li>').join('')}</ol><p>Dopo lo trovi tra le app, si apre a schermo intero e funziona anche senza internet.</p><button class="primary" type="button" id="ihclose"><span>HO CAPITO</span></button></div>`;
+  el.innerHTML = `<div class="ihcard"><div class="eyebrow"><span class="ebar"></span>GIRO EASY COME UN'APP</div><h3>Installa il gioco</h3><ol>${steps.map(x => '<li>' + x + '</li>').join('')}</ol><p>Dopo lo trovi tra le app e si apre a schermo intero. Non serve installare per giocare: premi <b>ACCENDI LA MOTO</b> e il gioco va da solo a tutto schermo.</p><button class="primary" type="button" id="ihclose"><span>HO CAPITO</span></button></div>`;
   document.body.appendChild(el);
   el.onclick = e => { if (e.target === el) closeInstallHelp(); };
   $('ihclose').onclick = closeInstallHelp;

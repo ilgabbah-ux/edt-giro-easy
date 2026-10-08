@@ -798,3 +798,17 @@ main { grid-template-columns: minmax(0, 1fr) 340px; }
 .ihcard li { margin-bottom: 6px; }
 .ihcard b { color: var(--y); }
 .ihcard p { font: 600 15px/1.35 var(--ui); color: #d8cfbd; margin: 0 0 14px; }
+
+/* ===== v34 · schermo intero su telefono ===== */
+.game:fullscreen { width: 100vw; height: 100vh; height: 100dvh; max-width: none; margin: 0; }
+.game:-webkit-full-screen { width: 100vw; height: 100vh; max-width: none; margin: 0; }
+body.isfull .installhelp { display: none; }
+/* v34: in orizzontale lo sterzo ha larghezza fissa, così la barra del percorso non ci finisce sotto */
+@media (max-height: 500px) and (orientation: landscape) {
+  .controls { left: 8px; right: 8px; }
+  .steer { gap: 6px; }
+  .steer .ctrl { min-width: 0; width: 54px; flex: none; }
+  .rightctrl .wheelie { width: 104px; padding: 0 6px; font-size: 14px; }
+  .rightctrl .jump { width: 118px; padding: 0 8px; }
+  .dash { left: 130px; right: 244px; }
+}
