@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=54';
-import { createWorld } from './scene3d.js?v=54';
-import * as A from './audio.js?v=54';
-import * as P from './progress.js?v=54';
-import { FOTO } from './piloti.js?v=54';
-import { createMud } from './mudfx.js?v=54';
-import { icon, iconize, iconizeEl } from './icons.js?v=54';
-import * as C from './classifica.js?v=54';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=55';
+import { createWorld } from './scene3d.js?v=55';
+import * as A from './audio.js?v=55';
+import * as P from './progress.js?v=55';
+import { FOTO } from './piloti.js?v=55';
+import { createMud } from './mudfx.js?v=55';
+import { icon, iconize, iconizeEl } from './icons.js?v=55';
+import * as C from './classifica.js?v=55';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -21,9 +21,9 @@ try { preview = world?.makePreview?.(document.getElementById('bikepreview')); } 
     for (const ev of ['pointerup', 'pointercancel']) pv.addEventListener(ev, () => px0 = null); } }
 
 // ---------- Piloti (abbinamenti foto conservati dalla v14) ----------
-const RIDERS = ['Il Gabbah', 'Angelo', 'Miti', 'Claudio', 'Max', 'Purcello', 'Ciprian', 'Costa', 'Linus', 'Mirco', 'Luigi', 'Renard', 'Paletta', 'Andrea', 'Brizio', 'Sergio', 'Albo', 'Alex', 'Albertone', 'Erika', 'Maggie'];
+const RIDERS = ['Il Gabbah', 'Angelo', 'Miti', 'Claudio', 'Max', 'Purcello', 'Ciprian', 'Costa', 'Linus', 'Mirco', 'Luigi', 'Renard', 'Paletta', 'Andrea', 'Brizio', 'Sergio', 'Albo', 'Alex', 'Albertone', 'Erika', 'Maggie', 'Guccio'];
 const PHOTOS = { 'Il Gabbah': 'gabbah', 'Angelo': 'angelo', 'Linus': 'linus', 'Costa': 'costa', 'Purcello': 'purcello', 'Renard': 'renard', 'Miti': 'miti', 'Mirco': 'mirco', 'Max': 'max', 'Paletta': 'paletta',
-  'Claudio': 'claudio', 'Ciprian': 'ciprian', 'Luigi': 'luigi', 'Andrea': 'andrea', 'Brizio': 'brizio', 'Sergio': 'sergio', 'Albo': 'albo', 'Alex': 'alex', 'Erika': 'erika-face', 'Albertone': 'albertone', 'Maggie': 'maggie' };
+  'Claudio': 'claudio', 'Ciprian': 'ciprian', 'Luigi': 'luigi', 'Andrea': 'andrea', 'Brizio': 'brizio', 'Sergio': 'sergio', 'Albo': 'albo', 'Alex': 'alex', 'Erika': 'erika-face', 'Albertone': 'albertone', 'Maggie': 'maggie', 'Guccio': 'guccio' };
 // Piloti con la loro voce (battute registrate su ElevenLabs): partenza, botta, arrivo.
 const RIDER_VOICE = { 'Il Gabbah': 'gabbah', 'Angelo': 'angelo', 'Miti': 'miti', 'Costa': 'costa', 'Linus': 'linus', 'Purcello': 'purcello', 'Mirco': 'mirco', 'Renard': 'renard' };
 const riderVoice = () => RIDER_VOICE[profile.rider];
@@ -58,6 +58,7 @@ const SKILLS = {
   'Albertone': { id: 'tank', icon: '🐻', name: 'Carrarmato', desc: 'Le botte lo fermano la metà del tempo e la protezione dopo un urto dura 1 s in più.' },
   'Erika': { id: 'angel', icon: '💘', name: 'Ci pensa Giacu', desc: 'La prima botta di ogni giro non le costa la moto: arriva Giacu e la rimette in sella.' },
   'Maggie': { id: 'sprint', icon: '💨', name: 'Sprint finale', desc: 'Nell’ultimo quarto di giro va il 10% più forte e fa punti doppi.' },
+  'Guccio': { id: 'blessed', icon: '⛪', name: 'Benedetto da San Braulio', desc: 'La grappa dura il 50% in più e gli ricarica metà turbo.' },
   'Albo': { id: 'dry', icon: '🚱', name: 'Acqua? Mai', desc: 'Immune alla bottiglia d’acqua: la spacca e fa punti.' },
 };
 let skill = '';
@@ -1312,8 +1313,9 @@ function update(dt) {
           A.sfx.wine(); flash('wine'); run.magnets++; magnet = (7 + up.nose) * (has('sommelier') ? 2 : 1);
           toast('🍷 VINO ROSSO! BIRRE ATTIRATE E DOPPIE', 'wine');
         } else {
-          A.sfx.grappa(); flash('gold'); run.grappas++; grappa = has('grappino') ? 12 : 6; shake = .4;
-          toast('🔥 GRAPPA! SUPER SALTO E INVINCIBILE', 'gold');
+          A.sfx.grappa(); flash('gold'); run.grappas++; grappa = has('grappino') ? 12 : has('blessed') ? 9 : 6; shake = .4;
+          if (has('blessed')) charge = Math.min(100, charge + 50);
+          toast('🔥 GRAPPA! SUPER SALTO E INVINCIBILE', 'gold'); braulio();
         }
       }
     } else if (o.type === 'water') {
@@ -1385,6 +1387,13 @@ function update(dt) {
 const mudFx = createMud($('game'));
 // Tronco preso in pieno: spunta Erika.
 let erikaTimer = 0;
+// v55 · San Braulio benedice ogni grappa (al massimo una volta ogni 12 s)
+let braulioTimer = 0, braulioAt = -99;
+function braulio() {
+  const el = $('braulio'); if (!el || elapsed - braulioAt < 12) return; braulioAt = elapsed;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  clearTimeout(braulioTimer); braulioTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
 function erika() {
   const el = $('erika'); if (!el) return;
   const img = el.querySelector('img');
@@ -1747,7 +1756,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 54;
+const GAME_VERSION = 55;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {

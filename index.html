@@ -17,7 +17,7 @@
 <meta name="description" content="Il gioco arcade EDT. Schiva gli ostacoli, salta i tronchi, completa le missioni e sopravvivi al taglio di Angelo.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23ffcf16'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='Arial' font-weight='900' font-size='34' fill='%23e3301c'%3EE%3C/text%3E%3C/svg%3E">
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=54">
+<link rel="stylesheet" href="style.css?v=55">
 </head>
 <body>
 <div class="shell">
@@ -27,7 +27,7 @@
       <div><strong>ENDURO DRINKING TEAM</strong><small>Sterrare humanum est · dal 2017</small></div>
     </div>
     <div class="shareheader">
-      <span class="edition" id="edition">GIRO EASY · V54</span>
+      <span class="edition" id="edition">GIRO EASY · V55</span>
       <button id="installapp" class="sharebutton install" type="button" hidden>INSTALLA</button>
       <button id="sharelink" class="sharebutton" type="button">CONDIVIDI NEL GRUPPO</button>
     </div>
@@ -69,6 +69,7 @@
       <div id="bigcall" class="bigcall" aria-live="assertive"></div>
       <div id="erika" class="erika" role="status"><img alt="Erika"><div class="bubble">GIACU MI AMMAZZA!</div></div>
       <div id="angelo" class="erika angelo" role="status"><img alt="Angelo"><div class="bubble">IL TAGLIO DELLE 16.00!</div></div>
+      <div id="braulio" class="erika braulio" role="status"><img src="img/san-braulio.webp" alt="San Braulio" width="378" height="520"><div class="bubble">UN BRAULIO E VIA!</div></div>
       <div id="suuka" class="suuka" aria-hidden="true"><img src="img/angelo-suuuka.webp" alt="" width="582" height="640"></div>
       <div id="countdown" class="countdown" aria-live="assertive"></div>
       <div class="dash" aria-hidden="true">
@@ -132,7 +133,7 @@
       <section class="panel howpanel" data-hub="regole">
         <p class="label">COME SI SOPRAVVIVE</p>
         <h2>Le regole del giro</h2>
-          <details class="howgroup" open><summary><i>🍺</i>Birre, bonus e potenziamenti<em>6</em></summary><div class="how"><div><i>🍺</i><span><b>Birre</b> in fila: combo fino a ×4. Indicano sempre la linea libera. Sopra i tronchi di traverso prendile <b>al volo</b>.</span></div><div><i>🍷</i><span><b>Vino rosso</b>: per 7 secondi le birre vengono da te e valgono doppio.</span></div><div><i>🔥</i><span><b>Grappa</b>: per 6 secondi super salto e invincibile.</span></div><div><i>⚡</i><span>Turbo carico (B): 3 secondi invincibile e punti doppi. Casco verde: +1 moto.</span></div><div><i>🤠</i><span><b>Impennata</b>: tieni premuto IMPENNA (S / ↓). Più dura, più punti, fino a 3 secondi. Passa sopra radici e pozze.</span></div><div><i>⏱</i><span><b>Settore pulito</b>: se finisci un tratto senza errori il controllo orario ti regala <b>+1 secondo</b>. Le <b>rampe</b> gialle ti fanno volare: prendi le birre in aria.</span></div></div></details>
+          <details class="howgroup" open><summary><i>🍺</i>Birre, bonus e potenziamenti<em>6</em></summary><div class="how"><div><i>🍺</i><span><b>Birre</b> in fila: combo fino a ×4. Indicano sempre la linea libera. Sopra i tronchi di traverso prendile <b>al volo</b>.</span></div><div><i>🍷</i><span><b>Vino rosso</b>: per 7 secondi le birre vengono da te e valgono doppio.</span></div><div><i>🔥</i><span><b>Grappa</b>: per 6 secondi super salto e invincibile, con la benedizione di <b>San Braulio</b>.</span></div><div><i>⚡</i><span>Turbo carico (B): 3 secondi invincibile e punti doppi. Casco verde: +1 moto.</span></div><div><i>🤠</i><span><b>Impennata</b>: tieni premuto IMPENNA (S / ↓). Più dura, più punti, fino a 3 secondi. Passa sopra radici e pozze.</span></div><div><i>⏱</i><span><b>Settore pulito</b>: se finisci un tratto senza errori il controllo orario ti regala <b>+1 secondo</b>. Le <b>rampe</b> gialle ti fanno volare: prendi le birre in aria.</span></div></div></details>
           <details class="howgroup"><summary><i>🪨</i>Ostacoli e pericoli<em>6</em></summary><div class="how"><div><i>💧</i><span><b>Bottiglia d'acqua</b>: evitala o saltala! Se la prendi rallenti, perdi la combo e ti spuntano le orecchie da coniglio.</span></div><div><i>🐰</i><span>Al 3° errore (urti, pozzanghere, acqua) o quando resta l'ultima moto: orecchie da coniglio fino al rifugio.</span></div><div><i>🪨</i><span>Ogni sezione ha i suoi ostacoli: ceppi, balle di fieno, ometti di pietra, capre e frane. <b>Salto perfetto</b> = punti ×1,5; in volo sterza per uno <b>scrub</b>.</span></div><div><i>🪵</i><span>Tronco preso in pieno? Arriva <b>Erika</b>: «Giacu mi ammazza!». Nelle <b>pozzanghere</b> il fango schizza sullo schermo e non vedi più niente per qualche secondo.</span></div><div><i>🌧</i><span><b>Meteo</b>: a metà giro può arrivare pioggia (fango sullo schermo e moto che scivola), nebbia o il tramonto.</span></div><div><i>⛰</i><span>In salita tieni <b>GAS / W</b>. In discesa: <b>campa giù!</b></span></div></div></details>
           <details class="howgroup"><summary><i>🏁</i>Gara, officina e tagli<em>7</em></summary><div class="how"><div><i>⏱</i><span><b>Tempo massimo</b>: arriva al rifugio prima che scada. Il segno rosso sulla barra è il cronometro. Ogni secondo avanzato vale 100 punti.</span></div><div><i>🏍</i><span><b>Compagni di giro</b>: tre piloti EDT corrono con te. Superali (+250) e arriva primo al rifugio (+500). Se ti passano… <b>“Suuuka!”</b></span></div><div><i>✂️</i><span><b>Il taglio delle 16.00</b>: al bivio col cartello giallo passa sotto l’arco. Salti un pezzo di giro, superi chi ti sta davanti e Angelo è fiero di te.</span></div><div><i>⛑</i><span><b>Seconda possibilità</b>: se perdi tutte le moto, una volta per giro <b>San Miti</b> ti rimette in sella per 25 🍺.</span></div><div><i>🔧</i><span><b>Officina</b>: le birre raccolte restano in cassa. Compri <b>moto nuove</b> (125 e 300 due tempi, Trial, 450, Vecchia gloria), <b>accessori</b> e potenziamenti. Chi arriva al rifugio vince un <b>premio</b> per il giro dopo.</span></div><div><i>💎</i><span><b>BO-anal Special Parts</b>: moto e accessori top di gamma in officina. I più cari, i più forti.</span></div><div><i>❄</i><span><b>Ice Scrofy</b>: pista di ghiaccio con le gomme chiodate. Tieni <b>GAS in curva</b> per derapare: vince chi fa più punti di traverso. In officina i chiodi: AliExpress, Puntine da disegno, Gusta Grip, Ice Fury.</span></div></div></details>
           <details class="howgroup"><summary><i>🎮</i>Comandi<em>4</em></summary><div class="how"><div><i>📱</i><span><b>Telefono</b>: tieni il dito a sinistra o a destra per sterzare, oppure trascinalo e la moto lo segue; un tocco breve a lato = uno spostamento secco. Si passa anche tra due ostacoli vicini, se sei preciso.</span></div><div><i>🖱</i><span><b>PC col mouse</b>: la moto va dove punti il mouse, clic per saltare, tasto destro tenuto per il GAS in salita (in piano impenna), rotellina per il turbo.</span></div><div><i>⌨</i><span><b>Tastiera</b>: ← → / A D sterza · SPAZIO salta · S / ↓ impenna · B / SHIFT turbo · W gas · P pausa.</span></div><div><i>🎮</i><span><b>Joypad</b> (PC, Android, iPad): stick per sterzare, A salta, B impenna, RT gas, X turbo, Start pausa.</span></div></div></details>
@@ -146,6 +147,6 @@
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="game.js?v=54"></script>
+<script type="module" src="game.js?v=55"></script>
 </body>
 </html>
