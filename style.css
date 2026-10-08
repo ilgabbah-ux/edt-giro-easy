@@ -771,3 +771,7 @@ footer { font: 600 14px var(--ui); letter-spacing: .5px; border-top: 1px solid #
   .controls .boost { position: absolute; right: 0; bottom: 56px; height: 40px; width: 140px; max-width: none; flex: none; }
   .gas { bottom: 104px; }
 }
+
+/* v32: piloti con la loro voce */
+.rideroption .voiced { position: absolute; top: 4px; left: 6px; color: var(--y); display: grid; place-items: center; }
+.rideroption .voiced .ic { width: 13px; height: 13px; }

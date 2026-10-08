@@ -2,7 +2,8 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=31';
+import { VOCI } from './voci.js?v=32';
+import { VOCI_PILOTI } from './voci-piloti.js?v=32';
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -201,6 +202,31 @@ export async function testVoices(onStep) {
     if (b) { playVoice(b); await new Promise(r => setTimeout(r, b.duration * 1000 + 350)); }
   }
   onStep?.('fine', true, ctx.state);
+}
+// ---------- Battute dei piloti (voci registrate su ElevenLabs) ----------
+// Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
+const riderBuf = new Map();
+export const hasRiderVoice = key => !!VOCI_PILOTI[key];
+function decodeRider(key) {
+  if (riderBuf.has(key)) return riderBuf.get(key);
+  if (!ctx || !VOCI_PILOTI[key]) return Promise.resolve(null);
+  const p = (async () => {
+    const bin = atob(VOCI_PILOTI[key]), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    try { return await ctx.decodeAudioData(bytes.buffer); } catch { return null; }
+  })();
+  riderBuf.set(key, p);
+  return p;
+}
+export function preloadRider(id) { if (ensure()) for (const k of ['start', 'hit', 'win']) decodeRider(id + '_' + k); }
+export async function sayRider(key) {
+  if (!enabled || !ensure() || !VOCI_PILOTI[key]) return false;
+  dbg('pilota ' + key);
+  if (ctx.state !== 'running') { try { const a = new Audio('data:audio/mpeg;base64,' + VOCI_PILOTI[key]); a.play().catch(() => {}); } catch {} return true; }
+  const buf = await decodeRider(key);
+  if (!buf || !enabled) return false;
+  playVoice(buf);
+  return true;
 }
 export function preloadExtras() { if (ctx) for (const k of Object.keys(EXTRA)) loadExtra(k); }
 

@@ -1,11 +1,11 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=31';
-import { createWorld } from './scene3d.js?v=31';
-import * as A from './audio.js?v=31';
-import * as P from './progress.js?v=31';
-import { FOTO } from './piloti.js?v=31';
-import { createMud } from './mudfx.js?v=31';
-import { icon, iconize, iconizeEl } from './icons.js?v=31';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=32';
+import { createWorld } from './scene3d.js?v=32';
+import * as A from './audio.js?v=32';
+import * as P from './progress.js?v=32';
+import { FOTO } from './piloti.js?v=32';
+import { createMud } from './mudfx.js?v=32';
+import { icon, iconize, iconizeEl } from './icons.js?v=32';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -16,6 +16,16 @@ try { world = createWorld(canvas); window.__world = world; } catch (e) { worldEr
 const RIDERS = ['Il Gabbah', 'Angelo', 'Miti', 'Claudio', 'Max', 'Purcello', 'Ciprian', 'Costa', 'Linus', 'Mirco', 'Luigi', 'Renard', 'Paletta', 'Andrea', 'Brizio', 'Sergio', 'Albo', 'Alex'];
 const PHOTOS = { 'Il Gabbah': 'gabbah', 'Angelo': 'angelo', 'Linus': 'linus', 'Costa': 'costa', 'Purcello': 'purcello', 'Renard': 'renard', 'Miti': 'miti', 'Mirco': 'mirco', 'Max': 'max', 'Paletta': 'paletta',
   'Claudio': 'claudio', 'Ciprian': 'ciprian', 'Luigi': 'luigi', 'Andrea': 'andrea', 'Brizio': 'brizio', 'Sergio': 'sergio', 'Albo': 'albo', 'Alex': 'alex' };
+// Piloti con la loro voce (battute registrate su ElevenLabs): partenza, botta, arrivo.
+const RIDER_VOICE = { 'Il Gabbah': 'gabbah', 'Angelo': 'angelo', 'Miti': 'miti', 'Costa': 'costa', 'Linus': 'linus', 'Purcello': 'purcello', 'Mirco': 'mirco', 'Renard': 'renard' };
+const riderVoice = () => RIDER_VOICE[profile.rider];
+let lastRiderHit = -99;
+function riderLine(kind) {
+  const rv = riderVoice(); if (!rv) return false;
+  lastVoice = performance.now() / 1000;
+  A.sayRider(rv + '_' + kind);
+  return true;
+}
 // Abilità speciale di ogni pilota: cambia davvero il modo di giocare.
 const SKILLS = {
   'Il Gabbah': { id: 'steady', icon: '🎯', name: 'Costanza', desc: 'La combo dura 2 s in più e un errore la dimezza invece di azzerarla.' },
@@ -254,7 +264,7 @@ function resetRun() {
   combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
   lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
   ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
-  grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9;
+  grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9; lastRiderHit = -99;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
   for (const k of Object.keys(up)) up[k] = P.upgradeLevel(k);
   maxLives = 3 + (up.helmet >= 2 ? 1 : 0) + (up.helmet >= 4 ? 1 : 0) + (has('lion') ? 1 : 0);
@@ -271,7 +281,7 @@ function resetRun() {
 }
 function start() {
   if (!world) return;
-  A.unlock(); A.stopVoice(); A.preloadExtras();
+  A.unlock(); A.stopVoice(); A.preloadExtras(); if (riderVoice()) A.preloadRider(riderVoice());
   resetRun();
   state = 'countdown'; countdown = 3.2; countStep = 4;
   $('overlay').classList.add('hidden');
@@ -287,7 +297,7 @@ function go() {
   $('countdown').className = 'countdown go';
   $('countdown').textContent = 'VIA!';
   setTimeout(() => { if (state !== 'countdown') $('countdown').className = 'countdown'; }, 700);
-  toast('VAI CICCIO!'); voice('Vai Ciccio!', true);
+  toast('VAI CICCIO!'); if (!riderLine('start')) voice('Vai Ciccio!', true);
   if (startBoosts.length) setTimeout(() => toast('🎁 ' + startBoosts.join(' · '), 'green'), 1500);
 }
 
@@ -320,7 +330,7 @@ function finish(win, reason = '') {
   hud();
   $('banner').classList.remove('show');
   renderResult(win, res, reason, timeBonus);
-  if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => voice('Sììì, così si fa!', true), 900); }
+  if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => { if (!riderLine('win')) voice('Sììì, così si fa!', true); }, 900); }
   else A.sfx.lose();
   renderSide();
 }
@@ -668,7 +678,7 @@ function update(dt) {
   const route = routeAt(course, roadTime * 19.5);
   const speed = paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1);
   // Discesa: "Campa giù!"
-  if (route.down > .45 && !downAnnounced) { downAnnounced = true; A.say('campa'); bigCall('CAMPA GIÙ!'); }
+  if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); }
   if (route.down < .15) downAnnounced = false;
   speedNow = speed;
   if (route.seg !== routePhase) {
@@ -788,6 +798,7 @@ function update(dt) {
         fxKind = 'splash'; fxSerial++; A.sfx.splash(); flash('blue');
         toast('PLOF! FANGO FINO AL CASCO', 'blue');
       } else if (invincible <= 0) {
+        if (elapsed - lastRiderHit > 5) { lastRiderHit = elapsed; riderLine('hit'); }
         lives--; run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0); breakCombo(); charge = Math.max(0, charge - 20); mistake();
         fxKind = 'hit'; fxSerial++; shake = 1; A.sfx.hit(); flash('hit');
         crash = 1; stun = .9; slowmo = .35; slowScale = .4; jump = 0;
@@ -1021,10 +1032,10 @@ function confetti() {
 let boardMode = null;
 function renderSide() {
   $('ridergrid').innerHTML = RIDERS.map((name, i) => `<button type="button" class="rideroption" data-rider="${name}" aria-pressed="${name === profile.rider}" aria-label="Scegli ${name}">
-    ${avatarHTML(name)}<span class="name">${name.replace('Il ', '')}</span><span class="skill" title="${SKILLS[name]?.desc || ''}">${SKILLS[name]?.icon || ''} ${SKILLS[name]?.name || ''}</span><span class="num">#${String(i + 1).padStart(2, '0')}</span></button>`).join('');
+    ${avatarHTML(name)}<span class="name">${name.replace('Il ', '')}</span><span class="skill" title="${SKILLS[name]?.desc || ''}">${SKILLS[name]?.icon || ''} ${SKILLS[name]?.name || ''}</span><span class="num">#${String(i + 1).padStart(2, '0')}</span>${RIDER_VOICE[name] ? '<i class="voiced" title="Parla con la sua voce">' + icon('speaker') + '</i>' : ''}</button>`).join('');
   document.querySelectorAll('[data-rider]').forEach(b => b.onclick = () => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;
-    profile.rider = b.dataset.rider; P.save(); A.sfx.click();
+    profile.rider = b.dataset.rider; P.save(); A.unlock(); if (riderVoice()) { A.preloadRider(riderVoice()); riderLine('start'); } else A.sfx.click();
     renderSide(); if (state === 'ready') renderReady();
     if (window.matchMedia('(max-width: 900px)').matches) $('game').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
