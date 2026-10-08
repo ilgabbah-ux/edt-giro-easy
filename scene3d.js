@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=51';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=52';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -798,10 +798,71 @@ export function createWorld(canvas) {
     decalTexture.needsUpdate = true;
   }
   let liveryKey = '';
+  // v52 · fantasie delle livree (mucca, leopardo, mimetica, fiori, bolle, scacchi, righe, schizzi) disegnate su canvas
+  const patternCache = new Map();
+  function patternTex(kind, base, ink) {
+    const key = kind + base + ink; if (patternCache.has(key)) return patternCache.get(key);
+    const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+    let seed = 7; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    x.fillStyle = base; x.fillRect(0, 0, 256, 256); x.fillStyle = ink; x.strokeStyle = ink;
+    const blob = (cx, cy, rad, n = 9) => { x.beginPath(); for (let i = 0; i <= n; i++) { const a = i / n * Math.PI * 2, rr = rad * (.65 + r() * .5); const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.closePath(); x.fill(); };
+    if (kind === 'mucca') for (let i = 0; i < 7; i++) blob(r() * 256, r() * 256, 26 + r() * 30, 11);
+    else if (kind === 'bolle') { x.globalAlpha = .55; for (let i = 0; i < 70; i++) { x.beginPath(); x.arc(r() * 256, r() * 256, 2 + r() * 9, 0, Math.PI * 2); x.lineWidth = 2; x.stroke(); } x.globalAlpha = .9; x.fillRect(0, 0, 256, 34); }
+    else if (kind === 'righe') { x.lineWidth = 22; for (let i = -256; i < 512; i += 56) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 256, 256); x.stroke(); } }
+    else if (kind === 'leopardo') for (let i = 0; i < 34; i++) { const cx = r() * 256, cy = r() * 256, rad = 9 + r() * 8; x.lineWidth = 5; x.beginPath(); x.arc(cx, cy, rad, r() * 2, r() * 2 + 4.6); x.stroke(); x.globalAlpha = .35; blob(cx, cy, rad * .6, 7); x.globalAlpha = 1; }
+    else if (kind === 'camo') { const tones = [ink, '#7d8a52', '#3d2f1e']; for (let i = 0; i < 40; i++) { x.fillStyle = tones[i % 3]; blob(r() * 256, r() * 256, 14 + r() * 26, 10); } }
+    else if (kind === 'fiori') for (let i = 0; i < 26; i++) { const cx = r() * 256, cy = r() * 256, rad = 6 + r() * 5; x.fillStyle = ink; for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; x.beginPath(); x.arc(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad, rad * .6, 0, Math.PI * 2); x.fill(); } x.fillStyle = '#f2c230'; x.beginPath(); x.arc(cx, cy, rad * .45, 0, Math.PI * 2); x.fill(); }
+    else if (kind === 'schizzi') for (let i = 0; i < 22; i++) { const cx = r() * 256, cy = r() * 256; blob(cx, cy, 6 + r() * 16, 13); for (let k = 0; k < 5; k++) { x.beginPath(); x.arc(cx + (r() - .5) * 50, cy + (r() - .5) * 50, 1.5 + r() * 3, 0, Math.PI * 2); x.fill(); } }
+    else if (kind === 'scacchi') for (let i = 0; i < 8; i++) for (let k = 0; k < 8; k++) if ((i + k) % 2) x.fillRect(i * 32, k * 32, 32, 32);
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(2, 2); t.anisotropy = 4;
+    patternCache.set(key, t); return t;
+  }
+  function setMap(m, tex, color) { const had = !!m.map; m.map = tex || null; m.color.set(tex ? '#ffffff' : color); if (had !== !!tex) m.needsUpdate = true; }
   function applyLivery(l) {
     if (!l || l.id === liveryKey) return; liveryKey = l.id;
-    plastic.color.set(l.plastic); accent.color.set(l.accent); jerseyMat.color.set(l.jersey); pantsMat.color.set(l.pants); helmetMat.color.set(l.helmet);
+    setMap(plastic, l.pattern ? patternTex(l.pattern, l.plastic, l.ink || '#111') : null, l.plastic);
+    setMap(jerseyMat, l.pattern && l.jerseyPattern ? patternTex(l.pattern, l.jersey, l.ink || '#111') : null, l.jersey);
+    accent.color.set(l.accent); pantsMat.color.set(l.pants); helmetMat.color.set(l.helmet);
     decalKey = '';
+  }
+  // v52 · anteprima della moto nel garage: una piccola scena a parte che gira su sé stessa con livrea e accessori scelti
+  function makePreview(cv) {
+    if (!cv) return null;
+    let r2;
+    try { r2 = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); } catch { return null; }
+    r2.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); r2.outputColorSpace = T.SRGBColorSpace; r2.toneMapping = T.ACESFilmicToneMapping; r2.toneMappingExposure = 1.15;
+    const sc = new T.Scene();
+    sc.add(new T.HemisphereLight('#ffffff', '#4a4038', 2.3));
+    const dl = new T.DirectionalLight('#fff4e0', 3); dl.position.set(3, 6, 4); sc.add(dl);
+    const rim = new T.DirectionalLight('#9fd0ff', 1.4); rim.position.set(-4, 3, -3); sc.add(rim);
+    const cam = new T.PerspectiveCamera(30, 1, .1, 60);
+    const holder = new T.Group(); sc.add(holder);
+    const floor = new T.Mesh(new T.CircleGeometry(1.9, 48), new T.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: .35, depthWrite: false })); floor.rotation.x = -Math.PI / 2; floor.position.y = .01; sc.add(floor);
+    let key = '', model = null, ang = .7, vis = true, raf = 0, last = 0;
+    const hideMats = new Set([flameMat, flameCore.material, magnetAura.material, auraMaterial]);
+    function rebuild() {
+      if (model) holder.remove(model);
+      model = bike.clone(true); model.position.set(0, 0, 0); model.rotation.set(0, 0, 0); model.scale.copy(bike.scale); model.visible = true;
+      model.traverse(o => { if (o.name === 'fx' || (o.material && hideMats.has(o.material))) o.visible = false; });
+      holder.add(model);
+    }
+    function tick(t) {
+      raf = 0; if (!vis || document.hidden) return;
+      if (t - last > 30) {
+        last = t;
+        const k = customKey + '|' + liveryKey + '|' + decalKey; if (k !== key) { key = k; rebuild(); }
+        const w = cv.clientWidth, h = cv.clientHeight;
+        if (w && h && (cv.width !== Math.round(w * r2.getPixelRatio()) || cv.height !== Math.round(h * r2.getPixelRatio()))) { r2.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+        const d = cam.aspect < 1.2 ? 6.6 : 5.6; cam.position.set(Math.sin(.6) * d, 2.3, Math.cos(.6) * d); cam.lookAt(0, 1.05, 0);
+        ang += .018; holder.rotation.y = ang;
+        r2.render(sc, cam);
+      }
+      raf = requestAnimationFrame(tick);
+    }
+    if ('IntersectionObserver' in window) new IntersectionObserver(es => { vis = es[0].isIntersecting; if (vis && !raf) raf = requestAnimationFrame(tick); }).observe(cv);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && vis && !raf) raf = requestAnimationFrame(tick); });
+    raf = requestAnimationFrame(tick);
+    return { refresh() { key = ''; }, spin(v) { ang += v; } };
   }
 
   // ---------- Ostacoli, tappi e power-up ----------
@@ -1607,5 +1668,5 @@ export function createWorld(canvas) {
   }
 
   resize();
-  return { resize, render, renderer, scene, camera, bike, presets: PRESETS };
+  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview };
 }

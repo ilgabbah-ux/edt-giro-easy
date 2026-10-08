@@ -38,15 +38,18 @@ export const MODES = [
 ];
 export const isUnlocked = (m, level = levelInfo().level) => level >= (m.unlock || 1);
 
+// v52 · livree goliardiche: colori + fantasia (pattern) su plastiche e maglia. icon = simbolo nella scheda del garage.
 export const LIVERIES = [
-  { id: 'edt', name: 'EDT Classica', level: 1, plastic: '#e93825', accent: '#fcd326', jersey: '#fcd326', pants: '#243138', helmet: '#eee8d8' },
-  { id: 'arancio', name: 'Arancio Mattone', level: 2, plastic: '#ff6a13', accent: '#1d2b52', jersey: '#ff7a1f', pants: '#1d2b52', helmet: '#ff7a1f' },
-  { id: 'svezia', name: 'Bianco Svezia', level: 3, plastic: '#f2f2ee', accent: '#1d5fd1', jersey: '#1d5fd1', pants: '#f2f2ee', helmet: '#f2f2ee' },
-  { id: 'italia', name: 'Rosso Italia', level: 4, plastic: '#d01f2a', accent: '#f4f4f0', jersey: '#f4f4f0', pants: '#d01f2a', helmet: '#d01f2a' },
-  { id: 'notte', name: 'Blu Notte', level: 5, plastic: '#1c2f86', accent: '#36d2ff', jersey: '#14204f', pants: '#0d132c', helmet: '#36d2ff' },
-  { id: 'bosco', name: 'Verde Bosco', level: 6, plastic: '#2f9e44', accent: '#efe9d4', jersey: '#2f9e44', pants: '#202a20', helmet: '#efe9d4' },
-  { id: 'fango', name: 'Fango Totale', level: 7, plastic: '#6f4e2f', accent: '#a07a4c', jersey: '#7b5a39', pants: '#4b3420', helmet: '#8a6a45' },
-  { id: 'oro', name: 'Oro Leggenda', level: 9, plastic: '#d9a826', accent: '#111111', jersey: '#141414', pants: '#141414', helmet: '#e7b934' },
+  { id: 'edt', name: 'EDT Classica', icon: '🏁', level: 1, plastic: '#e93825', accent: '#fcd326', jersey: '#fcd326', pants: '#243138', helmet: '#eee8d8' },
+  { id: 'birra', name: 'Bionda alla Spina', icon: '🍺', level: 1, plastic: '#f2b31b', accent: '#ffffff', jersey: '#f7c234', pants: '#5a3a12', helmet: '#fff8e6', pattern: 'bolle', ink: '#fff6d0' },
+  { id: 'mucca', name: 'Mucca Pezzata', icon: '🐄', level: 2, plastic: '#f6f4ee', accent: '#ff8fb3', jersey: '#f6f4ee', pants: '#1a1a1a', helmet: '#f6f4ee', pattern: 'mucca', ink: '#141414', jerseyPattern: true },
+  { id: 'vino', name: 'Vino della Casa', icon: '🍷', level: 3, plastic: '#7a1030', accent: '#e8c76a', jersey: '#8c1838', pants: '#2b0a14', helmet: '#e8c76a', pattern: 'righe', ink: '#a8203f' },
+  { id: 'leopardo', name: 'Leopardo da Balera', icon: '🐆', level: 4, plastic: '#e8a838', accent: '#ff3fa4', jersey: '#ff3fa4', pants: '#121212', helmet: '#e8a838', pattern: 'leopardo', ink: '#2a1a0a', jerseyPattern: false },
+  { id: 'camo', name: 'Mimetica da Bracconiere', icon: '🌲', level: 5, plastic: '#5d6b3a', accent: '#ff7a00', jersey: '#4f5d33', pants: '#3a3a28', helmet: '#ff7a00', pattern: 'camo', ink: '#2f3820', jerseyPattern: true },
+  { id: 'nonna', name: 'Pantofola della Nonna', icon: '👵', level: 6, plastic: '#f3b6c8', accent: '#8a5a3a', jersey: '#f7d6df', pants: '#8a5a3a', helmet: '#f3b6c8', pattern: 'fiori', ink: '#ffffff', jerseyPattern: true },
+  { id: 'fango', name: 'Fango d’Annata', icon: '💩', level: 7, plastic: '#7b5a39', accent: '#c9a26a', jersey: '#8a6a45', pants: '#4b3420', helmet: '#a07a4c', pattern: 'schizzi', ink: '#4a3220', jerseyPattern: true },
+  { id: 'scacchi', name: 'Bandiera a Scacchi', icon: '🏴', level: 8, plastic: '#f4f4f0', accent: '#e93825', jersey: '#141414', pants: '#141414', helmet: '#f4f4f0', pattern: 'scacchi', ink: '#141414' },
+  { id: 'oro', name: 'Oro Leggenda', icon: '🏆', level: 9, plastic: '#d9a826', accent: '#111111', jersey: '#141414', pants: '#141414', helmet: '#e7b934', pattern: 'righe', ink: '#f6d46a' },
 ];
 
 export const GRADES = ['Ruote pulite', 'Turista del sentiero', 'Sterratore', 'Fangoso', 'Manico', 'Capo-gita', 'Re della mulattiera', 'Domatore di salitoni', 'Leggenda EDT'];

@@ -1,17 +1,24 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=51';
-import { createWorld } from './scene3d.js?v=51';
-import * as A from './audio.js?v=51';
-import * as P from './progress.js?v=51';
-import { FOTO } from './piloti.js?v=51';
-import { createMud } from './mudfx.js?v=51';
-import { icon, iconize, iconizeEl } from './icons.js?v=51';
-import * as C from './classifica.js?v=51';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=52';
+import { createWorld } from './scene3d.js?v=52';
+import * as A from './audio.js?v=52';
+import * as P from './progress.js?v=52';
+import { FOTO } from './piloti.js?v=52';
+import { createMud } from './mudfx.js?v=52';
+import { icon, iconize, iconizeEl } from './icons.js?v=52';
+import * as C from './classifica.js?v=52';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); }
+// v52 · moto in anteprima nel garage (gira da sola, si può trascinare per girarla)
+let preview = null;
+try { preview = world?.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
+{ const pv = document.getElementById('bikepreview'); let px0 = null;
+  if (pv) { pv.addEventListener('pointerdown', e => { px0 = e.clientX; try { pv.setPointerCapture(e.pointerId); } catch {} });
+    pv.addEventListener('pointermove', e => { if (px0 === null) return; preview?.spin((e.clientX - px0) * .012); px0 = e.clientX; });
+    for (const ev of ['pointerup', 'pointercancel']) pv.addEventListener(ev, () => px0 = null); } }
 
 // ---------- Piloti (abbinamenti foto conservati dalla v14) ----------
 const RIDERS = ['Il Gabbah', 'Angelo', 'Miti', 'Claudio', 'Max', 'Purcello', 'Ciprian', 'Costa', 'Linus', 'Mirco', 'Luigi', 'Renard', 'Paletta', 'Andrea', 'Brizio', 'Sergio', 'Albo', 'Alex', 'Albertone', 'Erika'];
@@ -870,7 +877,7 @@ function setupRace() {
   const others = RIDERS.filter(r => r !== profile.rider).sort(() => rng() - .5).slice(0, 3);
   const starts = [-7, 26, 58], skills = [1.09, 1.04, .99];   // v48 · un filo più forti (salite più dure anche per loro)
   rivals = others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
-  coachStep = 0; coachOn = ice ? !P.profile.iceTutorial49 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
+  coachStep = 0; coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
   lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
   // Meteo: un cambio a metà giro (pioggia, nebbia o tramonto), diverso a ogni gara; la Sfida del giorno è uguale per tutti.
   const kinds = ['rain', 'fog', 'dusk'], k = kinds[Math.floor(rng() * 3)];
@@ -983,38 +990,37 @@ function endDrift(ok) {
 const driftMult = () => 1 + Math.min(8, driftChain) * .15;
 // v49 · derapata vera: il GAS si dosa. Tenendolo premuto la ruota dietro slitta sempre di più (angolo che cresce),
 // lasciandolo l'angolo torna giù. Zona verde = punti pieni; troppo traverso → la moto scivola fuori e alla fine TESTACODA.
-function iceStep(dt, kBase) {
+// v52 · derapata come sul ghiaccio vero: il GAS fa uscire il posteriore (muso verso l'interno della curva),
+// lo STERZO gira il muso; per tenere la linea si dosa il gas e si controsterza. drift = angolo del muso rispetto alla pista.
+function iceStep(dt) {
   const grip = Math.min(.8, bs.grip || 0);
-  bendNow = iceBend(roadTime * 19.5);
-  const dir = Math.abs(bendNow) > .12 ? Math.sign(bendNow) : (Math.sign(drift) || 1);
-  if (gas && jump <= 0 && crash <= 0) throttleSlip = Math.min(.8, throttleSlip + dt * (.62 + (bs.drift || 0) * .25));
-  else throttleSlip = Math.max(0, throttleSlip - dt * (1.25 + grip * .9));
-  const target = Math.max(-.95, Math.min(.95, vx * .16 + bendNow * .22 + dir * throttleSlip * (.55 + .45 * Math.abs(bendNow))));
-  drift += (target - drift) * Math.min(1, dt * (5 + grip * 4));
-  // la moto scivola verso l'esterno solo se esageri con l'angolo: una derapata pulita tiene la corsia
-  const over = Math.max(0, Math.abs(drift) - (.55 + grip * .1));
-  // v50 · guida libera sul ghiaccio: sterzi con poca aderenza, la moto arriva in ritardo e scivola
-  const st = steerNow(); if (st) aimPx = null;
-  const maxLat = 3.5 * (1 + (bs.steer || 0) * .5);
-  const want = st ? st * maxLat : aimPx !== null ? Math.max(-maxLat, Math.min(maxLat, (aimPx - px) * 5.5)) : 0;
-  const push = (Math.sign(drift) * over * 30 * (1 - grip * .35) + bendNow * 2) * Math.min(1.2, speedNow);
-  vx += ((want - vx) * (3.6 + grip * 2.2) + push) * dt;
+  bendNow = iceBend(roadTime * 19.5);   // + = la curva spinge verso destra
+  if (gas && jump <= 0 && crash <= 0) throttleSlip = Math.min(1, throttleSlip + dt * (.9 + (bs.drift || 0) * .3));
+  else throttleSlip = Math.max(0, throttleSlip - dt * (1.6 + grip * .8));
+  let st = steerNow(); if (st) aimPx = null;
+  else if (aimPx !== null) st = Math.max(-1, Math.min(1, (aimPx - px) * 1.3 - vx * .3));
+  const yawT = Math.max(-1.1, Math.min(1.1, st * (.32 + .55 * throttleSlip) - bendNow * (.18 + .5 * throttleSlip)));
+  drift += (yawT - drift) * Math.min(1, dt * (2.6 + grip * 2 + (gas ? 0 : 1.5)));
+  // la traiettoria segue il muso ma la curva spinge fuori; i chiodi danno aderenza (la moto risponde prima)
+  const lat = 4.2 * Math.min(1.2, speedNow);
+  const vxT = (drift + bendNow * .45) * lat;
+  vx += (vxT - vx) * Math.min(1, dt * (2.1 + grip * 2.2));
   px += vx * dt;
-  scrubCheck(st || (aimPx !== null && Math.abs(aimPx - px) > .25 ? Math.sign(aimPx - px) : 0));
+  scrubCheck(Math.abs(st) > .3 ? Math.sign(st) : 0);
   // muro di neve ai bordi: si rimbalza, si rallenta e la derapata va persa
   if (px < -.42 || px > 2.42) {
     px = Math.max(-.42, Math.min(2.42, px)); vx = -vx * .25; snowT = .7; throttleSlip *= .3;
     if (elapsed - lastWall > .8) { lastWall = elapsed; endDrift(false); fxKind = 'snow'; fxSerial++; shake = Math.max(shake, .45); A.sfx.splash(); toast('❄ NEL MURO DI NEVE!', 'blue'); mistake(); if (navigator.vibrate) try { navigator.vibrate(40); } catch {} }
   }
   // testacoda: troppo di traverso troppo a lungo
-  if (Math.abs(drift) > .8 + grip * .06 && jump <= 0) overT += dt; else overT = Math.max(0, overT - dt * 2);
+  if (Math.abs(drift) > .88 + grip * .06 && jump <= 0) overT += dt; else overT = Math.max(0, overT - dt * 2);
   if (overT > .45) {
     overT = 0; endDrift(false); throttleSlip = 0; drift *= .2; stun = .6; snowT = .4; shake = Math.max(shake, .6);
     fxKind = 'snow'; fxSerial++; A.sfx.hit(); toast('🌀 TESTACODA! MOLLA UN PO’ IL GAS', 'red'); mistake();
     if (navigator.vibrate) try { navigator.vibrate([30, 40, 30]); } catch {}
   }
   const q = Math.abs(drift), sweet = q >= .3 && q <= .62;
-  const active = jump <= 0 && crash <= 0 && snowT <= 0 && q > .2 && speedNow > .45;
+  const active = jump <= 0 && crash <= 0 && snowT <= 0 && q > .2 && throttleSlip > .2 && speedNow > .45;   // senza gas non è derapata
   if (active) {
     if (driftT === 0) A.sfx.scrub();
     driftT += dt; driftSum += q * dt;
@@ -1114,8 +1120,8 @@ const COACH = () => touchDevice ? [
 let coachStep = 0, coachOn = false;
 const ICE_COACH = () => [
   [0.8, '❄ SUL GHIACCIO LA MOTO SCIVOLA: CAMBIA CORSIA IN ANTICIPO'],
-  [5, touchDevice ? '🔥 TIENI GAS = TRAVERSO · MOLLA = TI RADDRIZZI' : '🔥 TIENI W = TRAVERSO · MOLLA = TI RADDRIZZI'],
-  [10, '🎯 TIENI L’AGO NEL VERDE: DERAPATA PULITA, PUNTI PIENI'],
+  [5, touchDevice ? '🔥 GAS IN CURVA: IL POSTERIORE ESCE · CONTROSTERZA PER TENERE LA LINEA' : '🔥 W IN CURVA: IL POSTERIORE ESCE · CONTROSTERZA CON LE FRECCE'],
+  [10, '🎯 GAS + STERZO: TIENI L’AGO NEL VERDE E LA MOTO IN PISTA'],
   [15, '🌀 TROPPO GAS = SCIVOLI FUORI E FAI TESTACODA'],
   [20, '🚩 PASSA LE PORTE BLU DI TRAVERSO PER IL BONUS'],
 ];
@@ -1125,7 +1131,7 @@ function coachUpdate() {
   if (coachStep < list.length && elapsed >= list[coachStep][0]) {
     const el = $('coach'); el.innerHTML = list[coachStep][1].replace('<br>', ' '); el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
     coachStep++;
-    if (coachStep >= list.length) { coachOn = false; if (ice) P.profile.iceTutorial49 = true; else P.profile.tutorialDone = true; P.save(); }
+    if (coachStep >= list.length) { coachOn = false; if (ice) P.profile.iceTutorial52 = true; else P.profile.tutorialDone = true; P.save(); }
   }
 }
 
@@ -1208,7 +1214,7 @@ function update(dt) {
 
   // Spostamento laterale a molla: la moto accelera, piega e si raddrizza in modo naturale.
   const kLat = (118 - route.rough * 32) * (touchDevice ? 1.35 : 1) * (1 - weather.rain * .18) * (1 + up.tyres * .08) * (1 + (bs.steer || 0)) * (has('mule') && route.rough > .4 ? 1.35 : 1), cLat = 2 * Math.sqrt(kLat) * .9;
-  if (ice) iceStep(dt, kLat);
+  if (ice) iceStep(dt);
   else steerStep(dt, route);
   { const nl = Math.max(0, Math.min(2, Math.round(px))); if (nl !== lane) { lane = nl; A.sfx.lane(lane); } }
   const wasAirborne = jump > 0;
@@ -1703,7 +1709,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 51;
+const GAME_VERSION = 52;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
@@ -1725,7 +1731,7 @@ function renderSide() {
   $('liveries').innerHTML = P.LIVERIES.map(l => {
     const locked = l.level > info.level;
     return `<button type="button" class="livery ${l.id === current.id ? 'active' : ''}" data-livery="${l.id}" ${locked ? 'aria-disabled="true"' : ''} title="${locked ? 'Si sblocca al livello ' + l.level : l.name}">
-      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}"></i><span>${locked ? '🔒 LIV ' + l.level : l.name}</span></button>`;
+      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}"><b class="lvicon">${l.icon || ''}</b></i><span>${locked ? '🔒 LIV ' + l.level : l.name}</span></button>`;
   }).join('');
   document.querySelectorAll('[data-livery]').forEach(b => b.onclick = () => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -1753,6 +1759,7 @@ function renderSide() {
       : `<li class="empty">Ancora nessun giro qui. Passa il telefono e iniziate la sfida.</li>`;
   }
   iconizeEl($('liveries'));
+  if ($('previewname')) $('previewname').textContent = current.name + ' · ' + P.currentBike().name;
 }
 
 // ---------- Condivisione ----------
@@ -1904,6 +1911,6 @@ if (/debug/.test(location.hash)) {
 }
 
 // Aggancio per i test automatici (non usato dal gioco).
-window.__edt = { get state() { return state; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
+window.__edt = { get state() { return state; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, erika, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
