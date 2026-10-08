@@ -873,3 +873,30 @@ body.isfull .installhelp { display: none; }
 @media (max-width: 900px) { .erika.angelo { bottom: 200px; } .erika.angelo img { width: 120px; } .erika.angelo .bubble { margin: 0 -10px 40% 0; } }
 @media (max-height: 500px) and (orientation: landscape) { .erika.angelo { bottom: 80px; } }
 .homebtn { width: 100%; margin: 4px 0 10px; font-size: 14px; }
+
+/* v44: officina con moto e accessori */
+.shoptabs { display: flex; gap: 6px; margin: 8px 0 4px; flex-wrap: wrap; }
+.shoptabs button { flex: 1 1 120px; background: #1e1f1c; border: 1px solid #393b35; color: var(--muted); padding: 9px 6px; font: 15px var(--display); letter-spacing: .5px; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.shoptabs button.active { border-color: var(--y); color: #241b12; background: var(--y); }
+.bikecard .ut small { margin-bottom: 4px; }
+.bstats { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; margin-top: 4px; }
+.bstats .bs { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 6px; min-width: 0; }
+.bstats .bs small { font: 800 9px var(--ui) !important; letter-spacing: 1px; color: var(--muted); margin: 0 !important; }
+.bstats .bar { display: block; height: 6px; background: #2b2c28; width: 100%; }
+.bstats .fill { display: block; height: 100%; background: #b4ad9f; }
+.bstats .fill.up { background: var(--green); } .bstats .fill.down { background: #e3301c; }
+.bstats .bnote { grid-column: 1 / -1; font: italic 700 10px var(--ui); color: var(--y); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: flex; align-items: center; gap: 6px; background: #1d1e1b; border: 1px solid #3a3c34; color: #fff; padding: 6px 10px; border-radius: 10px; font: 600 13px var(--ui); }
+.chip i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #fff6; display: block; }
+.chip small { color: var(--y); font: 800 11px var(--ui); }
+.chip.on { border-color: var(--y); background: #3b3521; }
+.chip:disabled { opacity: .45; }
+.shopside.bikeside { margin-top: 6px; background: #1d2a1d; border-color: var(--green); color: #c9f5dc; }
+.shopside.bikeside b { color: #fff; }
+.wallet .insella { display: block; font: italic 800 13px var(--ui); color: var(--cream); letter-spacing: .5px; margin-top: 2px; }
+.chip .chipstat { display: block; font: italic 700 10px var(--ui); color: var(--green); letter-spacing: .2px; }
+.chip span { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.wallet .totstat { display: block; font: 700 12px var(--ui); color: var(--green); margin-top: 2px; }
+.wallet { flex-wrap: wrap; }
+.wallet .insella, .wallet .totstat { flex: 1 0 100%; }

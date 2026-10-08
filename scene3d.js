@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=43';
+import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=44';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -74,6 +74,9 @@ export function createWorld(canvas) {
     spring = mat('#e93825', .35), white = mat('#eee8d8', .42), gold = mat('#bc983f', .25, .65);
   // Materiali della livrea (cambiano colore in base alla scelta nel garage).
   const plastic = mat('#e93825', .35), accent = mat('#fcd326', .5), jerseyMat = mat('#fcd326', .6), pantsMat = mat('#243138', .8), helmetMat = mat('#eee8d8', .35);
+  // v44 · accessori dell'officina: materiali propri così si possono ricolorare/mostrare a parte
+  const rimMat = mat('#a3b7bb', .3, .7), pipeMat = mat('#a3b7bb', .3, .7), seatMat = mat('#243138', .85), guardMat = mat('#1b1b1b', .5);
+  const lampMat = new T.MeshStandardMaterial({ color: '#fffbe8', roughness: .2, emissive: '#fff4c8', emissiveIntensity: 1.2 }), vintageMat = mat('#c9a43a', .3, .7);
 
   function mesh(g, m, parent = scene) { const x = new T.Mesh(g, m); x.castShadow = true; x.receiveShadow = true; parent.add(x); return x; }
   function box(w, h, d, m, p, x = 0, y = 0, z = 0) { const o = mesh(new RoundedBoxGeometry(w, h, d, 2, Math.min(w, h, d) * .24), m, p); o.position.set(x, y, z); return o; }
@@ -554,7 +557,7 @@ export function createWorld(canvas) {
   function wheel(parent, x, y, z) {
     const root = new T.Group(); root.position.set(x, y, z); parent.add(root);
     const torus = mesh(new T.TorusGeometry(.36, .115, 12, 32), rubber, root); torus.rotation.y = Math.PI / 2;
-    const rim = mesh(new T.TorusGeometry(.29, .024, 8, 32), alloy, root); rim.rotation.y = Math.PI / 2;
+    const rim = mesh(new T.TorusGeometry(.235, .035, 8, 32), rimMat, root); rim.rotation.y = Math.PI / 2;
     rod([-.10, 0, 0], [.10, 0, 0], .075, alloy, root);
     for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; rod([0, 0, 0], [0, Math.cos(a) * .29, Math.sin(a) * .29], .009, alloy, root); }
     for (let i = 0; i < 22; i++) { const a = i * Math.PI * 2 / 22; for (const side of [-1, 1]) { const lug = box(.09, .06, .095, treadMat, root, side * .07, Math.cos(a) * .465, Math.sin(a) * .465); lug.rotation.x = a; } }
@@ -575,13 +578,13 @@ export function createWorld(canvas) {
   ball(.22, .26, .24, alloy, chassis, 0, .73, -.1);
   for (let i = 0; i < 5; i++) box(.40, .018, .32, black, chassis, 0, .69 + i * .055, -.1);
   ball(.24, .25, .34, plastic, chassis, 0, 1.12, -.29);
-  const seat = box(.26, .10, .82, black, chassis, 0, 1.24, .22); seat.rotation.x = -.08;
+  const seat = box(.26, .10, .82, seatMat, chassis, 0, 1.24, .22); seat.rotation.x = -.08;
   const tail = box(.29, .055, .66, plastic, chassis, 0, 1.22, .85); tail.rotation.x = .13;
   const brakeLightMat = new T.MeshStandardMaterial({ color: '#fc441f', roughness: .3, emissive: '#ff2a00', emissiveIntensity: .3 });
   box(.17, .06, .035, brakeLightMat, chassis, 0, 1.17, 1.13);
   const fender = box(.25, .06, .85, plastic, front, ...F(0, 1.02, -.92)); fender.rotation.x = -.05;
   for (const side of [-1, 1]) { const panel = box(.055, .29, .43, white, chassis, side * .24, 1.04, .43); panel.rotation.x = .12; box(.06, .22, .28, plastic, chassis, side * .26, 1.12, -.33); }
-  rod([.25, .95, .25], [.31, 1.16, .87], .075, alloy, chassis); rod([.31, 1.16, .86], [.31, 1.18, .96], .058, black, chassis);
+  rod([.25, .95, .25], [.31, 1.16, .87], .075, pipeMat, chassis); rod([.31, 1.16, .86], [.31, 1.18, .96], .058, black, chassis);
   rod(F(0, 1.27, -.61), F(0, 1.48, -.55), .04, alloy, front); rod(F(-.48, 1.47, -.55), F(.48, 1.47, -.55), .027, alloy, front);
   for (const side of [-1, 1]) { rod(F(side * .34, 1.47, -.55), F(side * .48, 1.47, -.55), .04, black, front); ball(.14, .06, .09, plastic, front, ...F(side * .48, 1.49, -.61)); }
   const numberPlate = box(.26, .30, .055, white, front, ...F(0, 1.37, -.68)); numberPlate.rotation.x = -.18;
@@ -674,7 +677,48 @@ export function createWorld(canvas) {
   const decalTexture = new T.CanvasTexture(textCanvas); decalTexture.colorSpace = T.SRGBColorSpace;
   const decal = mesh(new T.PlaneGeometry(.37, .185), new T.MeshStandardMaterial({ map: decalTexture, roughness: 1 }), body);
   decal.position.set(...B(0, 1.80, .356)); decal.rotation.x = .2; decal.userData.keep = true; decal.name = 'decal';
+  // v44 · pezzi opzionali: paramani, faro, espansione del 2 tempi, doppio ammortizzatore vintage, grafiche
+  for (const side of [-1, 1]) { const hg = box(.06, .13, .24, guardMat, front, ...F(side * .52, 1.5, -.66)); hg.rotation.y = side * .35; hg.rotation.z = side * -.2; }
+  box(.17, .11, .06, lampMat, front, ...F(0, 1.30, -.72));
+  const lampGlow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#fff2c0', transparent: true, opacity: .8, blending: T.AdditiveBlending, depthWrite: false }));
+  lampGlow.scale.set(.9, .6, 1); lampGlow.position.set(...F(0, 1.30, -.78)); lampGlow.userData.keep = true; lampGlow.name = 'fxlamp'; front.add(lampGlow);
+  const chamberMat = new T.MeshStandardMaterial({ color: '#a3b7bb', roughness: .3, metalness: .7 });
+  { const curve = new T.CatmullRomCurve3([new T.Vector3(.1, .86, -.42), new T.Vector3(.16, .58, -.36), new T.Vector3(.22, .56, -.05), new T.Vector3(.27, .7, .25), new T.Vector3(.29, .92, .42)]);
+    const tube = mesh(new T.TubeGeometry(curve, 24, .07, 8), chamberMat, chassis); tube.castShadow = true; }
+  for (const side of [-1, 1]) { rod([side * .17, .62, .8], [side * .17, 1.16, .6], .045, vintageMat, chassis); for (let i = 0; i < 5; i++) { const c = mesh(new T.TorusGeometry(.06, .012, 4, 10), vintageMat, chassis); c.position.set(side * .17, .72 + i * .08, .76 - i * .03); c.rotation.x = Math.PI / 2 - .35; } }
+  const decalCanvas = document.createElement('canvas'); decalCanvas.width = 256; decalCanvas.height = 128;
+  const sideDecalTex = new T.CanvasTexture(decalCanvas); sideDecalTex.colorSpace = T.SRGBColorSpace;
+  const sideDecalMat = new T.MeshStandardMaterial({ map: sideDecalTex, transparent: true, roughness: .5 });
+  for (const side of [-1, 1]) { const pl = mesh(new T.PlaneGeometry(.38, .26), sideDecalMat, chassis); pl.position.set(side * .296, 1.1, -.36); pl.rotation.y = side * Math.PI / 2; pl.castShadow = false; pl.userData.keep = true; pl.name = 'sidedecal'; }
   for (const g of [...wheels, chassis, front, rider, upper, body, head]) mergeGroup(g);
+  const meshesWith = m => { const out = []; bike.traverse(o => { if (o.isMesh && o.material === m) out.push(o); }); return out; };
+  let customKey = '';
+  function paintSideDecal(kind, a, b) {
+    const x = decalCanvas.getContext('2d'); x.clearRect(0, 0, 256, 128);
+    if (kind === 'stripes') { x.fillStyle = a; x.fillRect(0, 34, 256, 22); x.fillStyle = b; x.fillRect(0, 62, 256, 10); x.fillStyle = a; x.fillRect(0, 78, 256, 6); }
+    else if (kind === 'flames') { x.fillStyle = '#ff6a13'; for (let i = 0; i < 6; i++) { x.beginPath(); x.moveTo(0, 30 + i * 12); x.quadraticCurveTo(120 + i * 18, 10 + i * 14, 250 - i * 22, 40 + i * 10); x.quadraticCurveTo(140, 70 + i * 6, 0, 60 + i * 12); x.fill(); } x.fillStyle = '#ffd400'; for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(0, 50 + i * 12); x.quadraticCurveTo(100 + i * 12, 40 + i * 12, 180 - i * 20, 60 + i * 8); x.quadraticCurveTo(100, 80, 0, 74 + i * 10); x.fill(); } }
+    else if (kind === 'edt') { x.fillStyle = b; x.font = 'italic 900 78px Arial'; x.textAlign = 'center'; x.lineWidth = 8; x.strokeStyle = '#111'; x.strokeText('EDT', 128, 96); x.fillText('EDT', 128, 96); }
+    sideDecalTex.needsUpdate = true;
+  }
+  function applyCustom(look = {}, parts = {}, livery = {}) {
+    const key = JSON.stringify([look, parts.rims?.id, parts.pipe?.id, parts.guards?.id, parts.seat?.id, parts.decal?.id, parts.light?.id, livery.id]);
+    if (key === customKey) return; customKey = key;
+    rimMat.color.set(parts.rims?.color || '#a3b7bb'); rimMat.metalness = parts.rims?.id === 'black' ? .3 : .7;
+    pipeMat.color.set(parts.pipe?.color || '#a3b7bb'); chamberMat.color.copy(pipeMat.color); pipeMat.metalness = chamberMat.metalness = parts.pipe?.id === 'carbon' ? .2 : .75; pipeMat.roughness = chamberMat.roughness = parts.pipe?.id === 'chrome' ? .08 : .3;
+    seatMat.color.set(parts.seat?.color || '#243138');
+    if (parts.guards?.color) guardMat.color.set(parts.guards.color);
+    for (const m of meshesWith(guardMat)) m.visible = !!parts.guards?.color;
+    const lamp = parts.light?.id === 'led' || !!look.vintage;
+    for (const m of meshesWith(lampMat)) m.visible = lamp;
+    lampGlow.visible = lamp;
+    for (const m of meshesWith(chamberMat)) m.visible = !!look.twoStroke;
+    for (const m of meshesWith(vintageMat)) m.visible = !!look.vintage;
+    for (const m of meshesWith(seatMat)) m.visible = !look.trial;
+    const dk = parts.decal?.id || 'none';
+    bike.traverse(o => { if (o.name === 'sidedecal') o.visible = dk !== 'none'; });
+    if (dk !== 'none') paintSideDecal(dk, livery.accent || '#fcd326', livery.helmet || '#ffffff');
+    bike.scale.setScalar(look.scale || 1);
+  }
 
   // Orecchie da coniglio sul casco (troppi errori o acqua bevuta).
   const ears = new T.Group(); ears.name = 'fx'; ears.position.set(0, .16, .06); head.add(ears); ears.visible = false;
@@ -1069,9 +1113,9 @@ export function createWorld(canvas) {
   applyPreset(0);
   // v41 · meteo che cambia durante il giro: pioggia (buio e grigio), nebbia (visibilità corta), tramonto (luce arancio).
   const _c1 = new T.Color(), _c2 = new T.Color(), DUSK = { top: new T.Color('#1f2452'), hor: new T.Color('#ff8a4a'), sun: new T.Color('#ff7a3a'), fog: new T.Color('#b97a62') }, GREY = new T.Color('#9aa3a8');
-  function applyWeather(w) {
+  function applyWeather(w, sight = 0) {
     const p = PRESETS[presetIndex] || PRESETS[0];
-    const rain = w?.rain || 0, fog = w?.fog || 0, dusk = w?.dusk || 0;
+    const rain = w?.rain || 0, fog = (w?.fog || 0) * (1 - sight * .45), dusk = w?.dusk || 0;
     skyUniforms.uTop.value.set(p.top).lerp(DUSK.top, dusk * .8).lerp(GREY, rain * .55);
     skyUniforms.uHorizon.value.set(p.horizon).lerp(DUSK.hor, dusk * .7).lerp(GREY, Math.max(rain * .5, fog * .6));
     skyUniforms.uSun.value.set(p.sunColor).lerp(DUSK.sun, dusk);
@@ -1174,6 +1218,7 @@ export function createWorld(canvas) {
     adaptQuality();
     applyPreset(s.preset ?? 0);
     applyLivery(s.livery);
+    applyCustom(s.bikeLook, s.parts, s.livery);
     paintDecal(s.riderName || 'EDT', s.riderNumber || 1, s.livery?.jersey || '#fcd326');
     skyUniforms.uTime.value = now / 1000;
 
@@ -1183,7 +1228,7 @@ export function createWorld(canvas) {
     trail = routeAt(s.elapsed || 0, t);
     terrain(t); instances(t); muleScenery(t); vergeDetails(t);
     weatherNow = s.weather || weatherNow;
-    applyWeather(s.weather);
+    applyWeather(s.weather, s.sight || 0);
     ambient(fdt, t, trail.w, live);
 
     // Moto e pilota: molle-smorzatori per sospensioni, beccheggio e postura.
@@ -1262,6 +1307,7 @@ export function createWorld(canvas) {
     }
     updateLimbs();
     renderRivals(s.rivals, t, now, s.state === 'playing');
+    lampGlow.material.opacity = .45 + (weatherNow.dusk || 0) * .5 + (weatherNow.fog || 0) * .4;
 
     flame.visible = flameCore.visible = boostAmount > 0 || (s.grappa || 0) > 0;
     flameMat.color.set(boostAmount > 0 ? '#ffb12b' : '#3fa9ff');

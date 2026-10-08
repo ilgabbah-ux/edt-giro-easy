@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=43';
-import { createWorld } from './scene3d.js?v=43';
-import * as A from './audio.js?v=43';
-import * as P from './progress.js?v=43';
-import { FOTO } from './piloti.js?v=43';
-import { createMud } from './mudfx.js?v=43';
-import { icon, iconize, iconizeEl } from './icons.js?v=43';
-import * as C from './classifica.js?v=43';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=44';
+import { createWorld } from './scene3d.js?v=44';
+import * as A from './audio.js?v=44';
+import * as P from './progress.js?v=44';
+import { FOTO } from './piloti.js?v=44';
+import { createMud } from './mudfx.js?v=44';
+import { icon, iconize, iconizeEl } from './icons.js?v=44';
+import * as C from './classifica.js?v=44';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -108,6 +108,7 @@ const courseLength = diff => 60 * (1 + diff * .35) + 16; // distanza del percors
 let grappa = 0, waterT = 0, earsT = 0, earsPermanent = false, errors = 0;
 let wheelie = false, wheelieHeld = false, wheelieT = 0, wheelieCD = 0, lastYee = -10, downAnnounced = false, lastSpecial = -9;
 let jumpDur = JUMP_DURATION, jumpH = JUMP_HEIGHT;
+let bs = {}; // v44 · caratteristiche della moto scelta in officina
 // v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
 let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos = '';
 let weather = { rain: 0, fog: 0, dusk: 0 }, weatherPlan = [], weatherSaid = '', lastRainMud = 0;
@@ -115,7 +116,7 @@ const curLift = () => jumpHeight(jump, jumpDur, jumpH);
 // Potenziamenti dell'officina (letti a inizio giro) e premi del rifugio.
 let up = { engine: 0, susp: 0, tank: 0, tyres: 0, helmet: 0, nose: 0, balance: 0, grit: 0 }, maxLives = 3, startBoosts = [];
 const turboMax = () => 3 + up.tank * .4;
-const comboMax = () => 4.5 + up.grit * .5 + (has('steady') ? 2 : 0);
+const comboMax = () => 4.5 + up.grit * .5 + (has('steady') ? 2 : 0) + (bs.combo || 0);
 function breakCombo() { if (has('steady')) { combo = Math.floor(combo / 2); comboTime = combo ? comboMax() : 0; } else combo = comboTime = 0; }
 const earsOn = () => earsPermanent || earsT > 0;
 
@@ -244,9 +245,9 @@ function reward(points, label, kind = 'coin', chain = true) {
   if (chain) { combo++; comboTime = comboMax(); }
   const m = multiplier();
   if (run) run.maxMult = Math.max(run.maxMult, m);
-  const earned = Math.round(points * m * (turbo > 0 ? 2 : 1));
+  const earned = Math.round(points * m * (turbo > 0 ? 2 : 1) * (1 + (bs.points || 0)));
   score += earned;
-  if (turbo <= 0) charge = Math.min(100, charge + ({ jump: 20, perfect: 26, trick: 10, near: 8, smash: 0 }[kind] ?? 6) * (1 + up.tank * .1) * (has('turbo') ? 1.4 : 1));
+  if (turbo <= 0) charge = Math.min(100, charge + ({ jump: 20, perfect: 26, trick: 10, near: 8, smash: 0 }[kind] ?? 6) * (1 + up.tank * .1) * (has('turbo') ? 1.4 : 1) * (1 + (bs.turbo || 0)));
   fxKind = kind; fxSerial++;
   pop(label + ' +' + earned, kind === 'jump' || kind === 'perfect' ? 'white' : kind === 'trick' ? 'blue' : kind === 'near' ? 'small' : 'gold');
   if (kind === 'perfect') cheer('SÌÌÌ, COSÌ SI FA!', false, true);
@@ -286,6 +287,7 @@ function resetRun() {
   rng = mode === 3 ? makeRng(P.todayKey()) : makeRng((Date.now() ^ (Math.random() * 1e9)) >>> 0);
   applyLayout(true);
   setupRace();
+  bs = P.currentStats();
 }
 function start() {
   if (!world) return;
@@ -395,7 +397,7 @@ function move(d) {
 }
 function takeoff() {
   const sup = grappa > 0;
-  jumpDur = (sup ? SUPER_JUMP.duration : JUMP_DURATION) * (1 + up.susp * .03); jumpH = (sup ? SUPER_JUMP.height : JUMP_HEIGHT) * (1 + up.susp * .05) * (has('spring') ? 1.15 : 1); if (has('spring')) jumpDur *= 1.1;
+  jumpDur = (sup ? SUPER_JUMP.duration : JUMP_DURATION) * (1 + up.susp * .03); jumpH = (sup ? SUPER_JUMP.height : JUMP_HEIGHT) * (1 + up.susp * .05) * (has('spring') ? 1.15 : 1) * (1 + (bs.jump || 0)); if (has('spring')) jumpDur *= 1.1;
   jump = jumpDur; scrubbed = 0; A.sfx.jump();
   if (wheelie) endWheelie(false);
 }
@@ -546,29 +548,34 @@ canvas.addEventListener('pointerdown', e => {
     else if (e.button === 1) boost();
     return;
   }
-  // v42 · Touch: tocca a sinistra/destra = cambi corsia subito; tieni il dito e trascina = la moto segue il dito;
-  // tocca al centro o scorri in su = salto; scorri in giù = impennata.
+  // v44 · Touch più sensibile: tocca a sinistra/destra = corsia subito; trascina il dito = una corsia ogni ~1 cm
+  // (anche più corsie di fila, senza staccare il dito); scorri in su = salto immediato; tocco al centro = salto.
   if (state !== 'playing') return;
   const r = canvas.getBoundingClientRect(), u = (e.clientX - r.left) / r.width;
-  touch = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId, zone: u < .36 ? -1 : u > .64 ? 1 : 0, drag: false };
+  touch = { x: e.clientX, y: e.clientY, ax: e.clientX, ay: e.clientY, t: performance.now(), id: e.pointerId, zone: u < .36 ? -1 : u > .64 ? 1 : 0, drag: false, jumped: false };
   if (touch.zone) move(touch.zone);
   try { canvas.setPointerCapture(e.pointerId); } catch {}
 });
 canvas.addEventListener('pointercancel', () => { touch = null; });
+const STEP_PX = () => Math.max(26, Math.min(44, canvas.getBoundingClientRect().width * .085));
 canvas.addEventListener('pointermove', e => {
   if (e.pointerType === 'mouse' || !touch || e.pointerId !== touch.id || state !== 'playing') return;
-  const dx = e.clientX - touch.x, dy = e.clientY - touch.y;
-  if (!touch.drag && Math.abs(dx) > 22 && Math.abs(dx) > Math.abs(dy) * 1.2) touch.drag = true;
-  if (touch.drag) steerTo(mouseLane(e.clientX));
+  const dx = e.clientX - touch.ax, dy = e.clientY - touch.ay, step = STEP_PX();
+  // passo laterale: ogni "step" pixel una corsia, poi si riparte da lì (sensibile e ripetibile)
+  if (Math.abs(dx) >= step && Math.abs(dx) > Math.abs(dy) * .8) {
+    touch.drag = true; move(Math.sign(dx)); touch.ax += Math.sign(dx) * step; touch.ay = e.clientY;
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch {}
+  }
+  // scatto in su: salto subito, senza aspettare che il dito si stacchi
+  if (!touch.jumped && e.clientY - touch.ay < -38 && Math.abs(e.clientY - touch.ay) > Math.abs(e.clientX - touch.ax) * 1.2) { touch.jumped = true; touch.drag = true; hop(); }
 });
 canvas.addEventListener('pointerup', e => {
   if (e.pointerType === 'mouse') { if (e.button === 2) rightUp(); return; }
   if (!touch || e.pointerId !== touch.id) return;
   const dx = e.clientX - touch.x, dy = e.clientY - touch.y, quick = performance.now() - touch.t < 600;
   if (!touch.drag) {
-    if (dy < -35 && Math.abs(dy) > Math.abs(dx)) hop();                                   // scorri in su: salto
-    else if (dy > 40 && Math.abs(dy) > Math.abs(dx)) { startWheelie(); setTimeout(stopWheelieInput, 1400); } // in giù: impennata
-    else if (!touch.zone && quick && Math.abs(dx) < 15 && Math.abs(dy) < 15) hop();       // tocco al centro: salto
+    if (dy > 40 && Math.abs(dy) > Math.abs(dx)) { startWheelie(); setTimeout(stopWheelieInput, 1400); } // in giù: impennata
+    else if (!touch.zone && quick && Math.abs(dx) < 18 && Math.abs(dy) < 18) hop();       // tocco al centro: salto
   }
   touch = null;
 });
@@ -821,7 +828,7 @@ function update(dt) {
     else {
       wheelieT += dt; score += dt * 60 * multiplier() * (1 + up.balance * .15) * (has('wheelie') ? 2 : 1);
       if (turbo <= 0) charge = Math.min(100, charge + dt * 9);
-      if (wheelieT >= 3.2 + up.balance * .5 + (has('wheelie') ? 2.8 : 0)) endWheelie(true);
+      if (wheelieT >= 3.2 + up.balance * .5 + (has('wheelie') ? 2.8 : 0) + (bs.wheelie || 0)) endWheelie(true);
     }
   }
   shake = Math.max(0, shake - dt * 2.4);
@@ -848,7 +855,7 @@ function update(dt) {
   }
   score += dt * 12 * (turbo > 0 ? 2 : 1) * (has('downhill') && route.down > .4 ? 2 : 1);
   // In mulattiera non si va più veloci: è stretta, sassosa e con ondate più dure.
-  const travelStep = dt * (1 + diff * .35 + elapsed / 100) * speed * 19.5 * (1 - route.rough * .06) * (1 + up.engine * .025);
+  const travelStep = dt * (1 + diff * .35 + elapsed / 100) * speed * 19.5 * (1 - route.rough * .06) * (1 + up.engine * .025) * (1 + (bs.speed || 0)) * (1 + (bs.climb || 0) * Math.max(0, route.grade));
   roadTime += travelStep / 19.5;
   course = Math.min(GAME_LENGTH, roadTime / courseLength(diff) * GAME_LENGTH);
   kmh = Math.round(travelStep / dt / 19.5 * 31);
@@ -864,7 +871,7 @@ function update(dt) {
   if (comboTime === 0) combo = 0;
 
   // Spostamento laterale a molla: la moto accelera, piega e si raddrizza in modo naturale.
-  const kLat = (118 - route.rough * 32) * (1 - weather.rain * .18) * (1 + up.tyres * .08) * (has('mule') && route.rough > .4 ? 1.35 : 1), cLat = 2 * Math.sqrt(kLat) * .9;
+  const kLat = (118 - route.rough * 32) * (touchDevice ? 1.35 : 1) * (1 - weather.rain * .18) * (1 + up.tyres * .08) * (1 + (bs.steer || 0)) * (has('mule') && route.rough > .4 ? 1.35 : 1), cLat = 2 * Math.sqrt(kLat) * .9;
   vx += ((lane - px) * kLat - vx * cLat) * dt;
   px += vx * dt;
   const wasAirborne = jump > 0;
@@ -902,7 +909,7 @@ function update(dt) {
       // Rampa di terra: se ci passi sopra a terra, decolli con un salto lunghissimo.
       if (gap < .5 && jump <= 0 && crash <= 0) {
         if (wheelie) endWheelie(false);
-        jumpDur = 1.45 * (1 + up.susp * .03); jumpH = 3.0 * (1 + up.susp * .05); jump = jumpDur; scrubbed = 0;
+        jumpDur = 1.45 * (1 + up.susp * .03); jumpH = 3.0 * (1 + up.susp * .05) * (1 + (bs.jump || 0)); jump = jumpDur; scrubbed = 0;
         A.sfx.jump(); run.ramps = (run.ramps || 0) + 1; shake = Math.max(shake, .3);
         reward(120, 'RAMPA!', 'trick');
       }
@@ -957,9 +964,9 @@ function update(dt) {
         toast('PLOF! FANGO FINO AL CASCO', 'blue');
       } else if (invincible <= 0) {
         if (elapsed - lastRiderHit > 5) { lastRiderHit = elapsed; riderLine('hit'); }
-        lives--; run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0); breakCombo(); charge = Math.max(0, charge - 20); mistake();
+        lives--; run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0) + (bs.protect || 0); breakCombo(); charge = Math.max(0, charge - 20); mistake();
         fxKind = 'hit'; fxSerial++; shake = 1; A.sfx.hit(); flash('hit');
-        crash = 1; stun = .9; slowmo = .35; slowScale = .4; jump = 0;
+        crash = 1; stun = .9 * (bs.protect ? .7 : 1); slowmo = .35; slowScale = .4; jump = 0;
         if (wheelie) endWheelie(false);
         const lines = { rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.' };
         if (o.type === 'log' || o.type === 'bigLog') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
@@ -1018,7 +1025,7 @@ function drawState() {
     courseScale: GAME_LENGTH / (courseLength(P.MODES[mode].difficulty) * 19.5), objects, invincible, roadTime, wheelPhase, turbo, combo, fxKind, fxSerial,
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
     riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
-    livery: P.currentLivery(), preset: P.MODES[mode].sky,
+    livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, parts: P.currentParts(), sight: bs.sight || 0,
     rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended') ? rivals : [], weather,
   });
 }
@@ -1049,9 +1056,16 @@ function missionsHTML(runStats = null) {
 function setMenu(on) { $('game').classList.toggle('menu', on); }
 
 // ---------- Officina: si spendono le birre per potenziare moto e pilota ----------
-function renderShop(back) {
+let shopTab = 'upg';
+function statBars(st) {
+  const rows = [['VELOCITÀ', st.speed || 0, .08], ['SALTO', st.jump || 0, .18], ['STERZO', st.steer || 0, .2], ['TURBO', st.turbo || 0, .25]];
+  return `<div class="bstats">${rows.map(([n, v, max]) => `<span class="bs"><small>${n}</small><span class="bar"><span class="fill ${v > 0 ? 'up' : v < 0 ? 'down' : ''}" style="width:${Math.max(8, Math.min(100, Math.round(50 + v / max * 50)))}%"></span></span></span>`).join('')}${st.wheelie ? '<span class="bnote">+' + String(st.wheelie).replace('.', ',') + ' s impennata</span>' : ''}${st.climb ? '<span class="bnote">forte in salita</span>' : ''}</div>`;
+}
+function renderShop(back, tab = shopTab) {
+  shopTab = tab;
   state = 'ready'; setMenu(true);
   $('overlay').classList.remove('hidden');
+  const lvlNow = P.levelInfo().level;
   const card = (u) => {
     const lvl = P.upgradeLevel(u.id), cost = P.upgradeCost(u.id), can = cost != null && P.profile.beers >= cost;
     return `<div class="upg ${lvl >= P.MAX_UPGRADE ? 'max' : ''}">
@@ -1060,15 +1074,41 @@ function renderShop(back) {
       <button type="button" class="buy" data-buy="${u.id}" ${can ? '' : 'disabled'}>${cost == null ? 'MAX' : cost + ' 🍺'}</button>
     </div>`;
   };
+  const cur = P.currentBike();
+  const bikeCard = b => {
+    const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
+    const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
+    return `<div class="upg bikecard ${inUse ? 'max' : ''}"><span class="ui">${b.icon}</span>
+      <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
+      <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
+  };
+  const parts = P.currentParts();
+  const partRow = p => `<div class="ugroup">${p.name}</div><div class="chips">${p.items.map(it => {
+    const owned = P.ownsPart(p.slot, it.id), on = parts[p.slot].id === it.id, can = owned || P.profile.beers >= it.price;
+    return `<button type="button" class="chip ${on ? 'on' : ''}" data-part="${p.slot}:${it.id}" ${!on && !can ? 'disabled' : ''}>${it.color ? `<i style="background:${it.color}"></i>` : ''}<span>${it.name}${it.stats ? `<em class="chipstat">${P.statLabel(it.stats)}</em>` : ''}</span><small>${on ? '✔' : owned ? 'USA' : it.price + ' 🍺'}</small></button>`;
+  }).join('')}</div>`;
+  const tabs = [['upg', '🔧 POTENZIAMENTI'], ['bikes', '🏍 MOTO'], ['parts', '🎨 ACCESSORI']];
   $('card').innerHTML = `<div class="eyebrow">OFFICINA EDT · SPENDI LE BIRRE</div>
-    <h1 class="shoptitle">POTENZIA<br><em>MOTO E PILOTA.</em></h1>
-    <div class="wallet">🍺 <b>${P.profile.beers}</b> birre in cassa</div>
-    ${['MOTO', 'PILOTA'].map(g => `<div class="ugroup">${g}</div><div class="upgs">${P.UPGRADES.filter(u => u.group === g).map(card).join('')}</div>`).join('')}
+    <h1 class="shoptitle">${tab === 'bikes' ? 'SCEGLI<br><em>LA MOTO.</em>' : tab === 'parts' ? 'FALLA<br><em>TUA.</em>' : 'POTENZIA<br><em>MOTO E PILOTA.</em>'}</h1>
+    <div class="wallet">🍺 <b>${P.profile.beers}</b> birre in cassa<small class="insella">In sella: ${cur.icon} ${cur.name}</small>${Object.keys(P.currentStats()).length ? `<small class="totstat">In gara: ${P.statLabel(P.currentStats())}</small>` : ''}</div>
+    <div class="shoptabs">${tabs.map(([k, n]) => `<button type="button" class="${k === tab ? 'active' : ''}" data-tab="${k}">${n}</button>`).join('')}</div>
+    ${tab === 'upg' ? ['MOTO', 'PILOTA'].map(g => `<div class="ugroup">${g}</div><div class="upgs">${P.UPGRADES.filter(u => u.group === g).map(card).join('')}</div>`).join('')
+      : tab === 'bikes' ? `<div class="upgs">${P.BIKES.map(bikeCard).join('')}</div><p class="tip">Ogni moto cambia davvero la guida. I potenziamenti valgono per tutte.</p>`
+      : `${P.PARTS.map(partRow).join('')}<p class="tip">Gli accessori si vedono sulla moto (e dietro a questo menu). Una volta comprati restano tuoi.</p>`}
     <p class="tip">Le birre si guadagnano raccogliendole in gara (+20 se arrivi al rifugio, +10 per ogni missione).</p>
     <div class="actions"><button class="primary big" id="shopgo">PARTI</button><button class="secondary" id="shopback">INDIETRO</button></div>`;
   iconizeEl($('card'));
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { A.sfx.click(); renderShop(back, b.dataset.tab); });
   document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
     if (P.buyUpgrade(b.dataset.buy)) { A.unlock(); A.sfx.power(); renderShop(back); renderSide(); }
+  });
+  document.querySelectorAll('[data-bike]').forEach(b => b.onclick = () => {
+    const was = P.ownsBike(b.dataset.bike);
+    if (P.buyBike(b.dataset.bike)) { A.unlock(); was ? A.sfx.click() : A.sfx.power(); if (!was) toast('🏍 NUOVA MOTO: ' + P.currentBike().name.toUpperCase(), 'gold'); renderShop(back); renderSide(); }
+  });
+  document.querySelectorAll('[data-part]').forEach(b => b.onclick = () => {
+    const [slot, id] = b.dataset.part.split(':'), was = P.ownsPart(slot, id);
+    if (P.buyPart(slot, id)) { A.unlock(); was ? A.sfx.click() : A.sfx.power(); renderShop(back); renderSide(); }
   });
   $('shopgo').onclick = start;
   $('shopback').onclick = back;
@@ -1098,7 +1138,7 @@ function renderReady() {
     ${inFull() ? '<button class="secondary homebtn" id="homebtn" type="button">🏠 ESCI DALLO SCHERMO INTERO · PILOTI, GARAGE E CLASSIFICA</button>' : ''}
     <div class="audiorow"><button class="secondary voicetest" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="secondary voicetest" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button></div>
     <p class="tracktune">🎵 ${A.STYLES[mode].name}</p>
-    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">👆 Tocca a sinistra o a destra per cambiare corsia (o trascina il dito: la moto lo segue) · tocca al centro o scorri in su per saltare</span></p>`;
+    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">👆 Tocca a sinistra/destra o trascina il dito per cambiare corsia · tocca al centro o scorri in su per saltare</span></p>`;
   iconizeEl($('card'));
   $('start').onclick = start;
   $('openshop').onclick = () => renderShop(renderReady);
@@ -1273,7 +1313,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 43;
+const GAME_VERSION = 44;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
@@ -1287,9 +1327,10 @@ function renderSide() {
   });
 
   const info = P.levelInfo(), current = P.currentLivery();
-  $('garagelevel').innerHTML = levelBar(info) + `<button class="shopside" id="shopside" type="button">🔧 Officina · ${P.profile.beers} 🍺 in cassa</button>`;
+  $('garagelevel').innerHTML = levelBar(info) + `<button class="shopside" id="shopside" type="button">🔧 Officina · ${P.profile.beers} 🍺 in cassa</button><button class="shopside bikeside" id="bikeside" type="button">${P.currentBike().icon} In sella: <b>${P.currentBike().name}</b> · cambia moto e accessori</button>`;
   iconizeEl($('ridergrid')); iconizeEl($('garagelevel'));
   $('shopside').onclick = () => { if (state === 'ready' || state === 'ended') { renderShop(renderReady); $('game').scrollIntoView({ behavior: 'smooth', block: 'start' }); } };
+  $('bikeside').onclick = () => { if (state === 'ready' || state === 'ended') { renderShop(renderReady, 'bikes'); $('game').scrollIntoView({ behavior: 'smooth', block: 'start' }); } };
   $('liveries').innerHTML = P.LIVERIES.map(l => {
     const locked = l.level > info.level;
     return `<button type="button" class="livery ${l.id === current.id ? 'active' : ''}" data-livery="${l.id}" ${locked ? 'aria-disabled="true"' : ''} title="${locked ? 'Si sblocca al livello ' + l.level : l.name}">

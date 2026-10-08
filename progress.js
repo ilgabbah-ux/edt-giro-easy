@@ -109,6 +109,61 @@ export function buyUpgrade(id) {
   data.beers -= cost; data.upgrades[id] = upgradeLevel(id) + 1; save(); return true;
 }
 
+// ---------- v44 · Moto nuove e accessori (officina) ----------
+// stats: speed = velocità, jump = salto, steer = sterzo, turbo = carica del turbo, wheelie = secondi di impennata in più, climb = salite
+export const BIKES = [
+  { id: 'edt250', name: 'EDT 250 4T', price: 0, level: 1, icon: '🏍', desc: 'La moto di tutti i giorni. Equilibrata.', stats: {}, look: { scale: 1 } },
+  { id: 'gp125', name: 'Due tempi 125', price: 140, level: 2, icon: '🐝', desc: 'Leggerissima: sterza al volo e salta di più. Un filo meno veloce.', stats: { speed: -.02, jump: .06, steer: .18 }, look: { scale: .93, twoStroke: true } },
+  { id: 'trial', name: 'La Trial di Giacu', price: 260, level: 3, icon: '🦘', desc: 'Senza sella, nata per saltare: salti lunghi e impennate infinite. Più lenta.', stats: { speed: -.05, jump: .16, wheelie: 1.5, steer: .08 }, look: { scale: .96, trial: true } },
+  { id: 'ts300', name: '300 Due tempi', price: 380, level: 4, icon: '🔥', desc: 'Cattiva: più spunto e il turbo si carica prima.', stats: { speed: .04, turbo: .25 }, look: { scale: 1.01, twoStroke: true } },
+  { id: 'mulo450', name: '450 Mulo', price: 520, level: 5, icon: '🐂', desc: 'Tanta coppia: vola in salita e sul veloce, ma è pesante da sterzare.', stats: { speed: .06, climb: .5, steer: -.1 }, look: { scale: 1.05, big: true } },
+  { id: 'vintage', name: 'Vecchia gloria ’89', price: 700, level: 6, icon: '🏆', desc: 'Doppio ammortizzatore e faro tondo. Un po’ di tutto, con stile.', stats: { speed: .03, jump: .05, steer: .05, turbo: .1 }, look: { scale: 1, vintage: true } },
+];
+export const PARTS = [
+  { slot: 'rims', name: 'Cerchi', items: [
+    { id: 'silver', name: 'Argento', price: 0, color: '#a3b7bb' }, { id: 'black', name: 'Neri', price: 40, color: '#1d2226', stats: { steer: .03 } },
+    { id: 'gold', name: 'Oro', price: 60, color: '#d6a531', stats: { steer: .05 } }, { id: 'blue', name: 'Blu', price: 50, color: '#2a6bd8', stats: { steer: .04 } }, { id: 'red', name: 'Rossi', price: 50, color: '#d7261e', stats: { steer: .04 } } ] },
+  { slot: 'pipe', name: 'Scarico', items: [
+    { id: 'steel', name: 'Acciaio', price: 0, color: '#a3b7bb' }, { id: 'carbon', name: 'Carbonio', price: 60, color: '#222428', stats: { speed: .02 } },
+    { id: 'titan', name: 'Titanio blu', price: 80, color: '#5b6fc9', stats: { speed: .03, turbo: .05 } }, { id: 'chrome', name: 'Cromo', price: 50, color: '#e8eef0', stats: { speed: .015 } } ] },
+  { slot: 'guards', name: 'Paramani', items: [
+    { id: 'none', name: 'Nessuno', price: 0, color: null }, { id: 'black', name: 'Neri', price: 35, color: '#1b1b1b', stats: { protect: .3 } },
+    { id: 'white', name: 'Bianchi', price: 35, color: '#f2f2ee', stats: { protect: .3 } }, { id: 'orange', name: 'Arancio', price: 45, color: '#ff6a13', stats: { protect: .4 } }, { id: 'yellow', name: 'Gialli EDT', price: 45, color: '#fcd326', stats: { protect: .4 } } ] },
+  { slot: 'seat', name: 'Sella', items: [
+    { id: 'black', name: 'Nera', price: 0, color: '#243138' }, { id: 'red', name: 'Rossa', price: 30, color: '#b3221b', stats: { combo: .5 } },
+    { id: 'blue', name: 'Blu', price: 30, color: '#1f3f8f', stats: { combo: .5 } }, { id: 'brown', name: 'Cuoio', price: 40, color: '#7a4a24', stats: { combo: .8 } } ] },
+  { slot: 'decal', name: 'Grafiche', items: [
+    { id: 'none', name: 'Tinta unita', price: 0 }, { id: 'stripes', name: 'Strisce da gara', price: 50, stats: { points: .05 } },
+    { id: 'flames', name: 'Fiamme', price: 70, stats: { points: .06, turbo: .06 } }, { id: 'edt', name: 'Logo EDT gigante', price: 60, stats: { points: .1 } } ] },
+  { slot: 'light', name: 'Fanale', items: [
+    { id: 'none', name: 'Senza', price: 0 }, { id: 'led', name: 'Faro LED', price: 70, stats: { sight: 1, points: .03 } } ] },
+];
+data.bike ||= 'edt250'; data.owned ||= {}; data.parts ||= {};
+export const ownsBike = id => id === 'edt250' || !!data.owned['bike:' + id];
+export const ownsPart = (slot, id) => PARTS.find(p => p.slot === slot)?.items[0].id === id || !!data.owned[slot + ':' + id];
+export function currentBike() { const b = BIKES.find(x => x.id === data.bike); return b && ownsBike(b.id) ? b : BIKES[0]; }
+export function currentParts() { const o = {}; for (const p of PARTS) { const id = data.parts[p.slot]; o[p.slot] = (ownsPart(p.slot, id) && p.items.find(i => i.id === id)) || p.items[0]; } return o; }
+// Tutte le caratteristiche in gara: moto + accessori (si sommano).
+export const STAT_TEXT = { speed: 'velocità', jump: 'salto', steer: 'sterzo', turbo: 'turbo', protect: 's protezione dopo un urto', combo: 's di combo', points: 'punti', sight: 'vedi meglio nella nebbia e al buio', climb: 'in salita', wheelie: 's impennata' };
+export function statLabel(st = {}) {
+  return Object.entries(st).map(([k, v]) => k === 'sight' ? STAT_TEXT.sight : ['protect', 'combo', 'wheelie'].includes(k) ? '+' + String(v).replace('.', ',') + ' ' + STAT_TEXT[k] : (v > 0 ? '+' : '') + Math.round(v * 100) + '% ' + STAT_TEXT[k]).join(' · ');
+}
+export function currentStats() {
+  const out = { ...(currentBike().stats || {}) };
+  for (const it of Object.values(currentParts())) for (const [k, v] of Object.entries(it.stats || {})) out[k] = (out[k] || 0) + v;
+  return out;
+}
+export function buyBike(id) {
+  const b = BIKES.find(x => x.id === id); if (!b) return false;
+  if (!ownsBike(id)) { if (data.beers < b.price || levelInfo().level < b.level) return false; data.beers -= b.price; data.owned['bike:' + id] = true; }
+  data.bike = id; save(); return true;
+}
+export function buyPart(slot, id) {
+  const it = PARTS.find(p => p.slot === slot)?.items.find(i => i.id === id); if (!it) return false;
+  if (!ownsPart(slot, id)) { if (data.beers < it.price) return false; data.beers -= it.price; data.owned[slot + ':' + id] = true; }
+  data.parts[slot] = id; save(); return true;
+}
+
 // ---------- Premi del rifugio (validi per il giro successivo) ----------
 export const PRIZES = [
   { id: 'beers', icon: '🍺', name: 'Cassa di birre', desc: 'birre extra in cassa per l’officina' },
