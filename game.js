@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=47';
-import { createWorld } from './scene3d.js?v=47';
-import * as A from './audio.js?v=47';
-import * as P from './progress.js?v=47';
-import { FOTO } from './piloti.js?v=47';
-import { createMud } from './mudfx.js?v=47';
-import { icon, iconize, iconizeEl } from './icons.js?v=47';
-import * as C from './classifica.js?v=47';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=48';
+import { createWorld } from './scene3d.js?v=48';
+import * as A from './audio.js?v=48';
+import * as P from './progress.js?v=48';
+import { FOTO } from './piloti.js?v=48';
+import { createMud } from './mudfx.js?v=48';
+import { icon, iconize, iconizeEl } from './icons.js?v=48';
+import * as C from './classifica.js?v=48';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -24,6 +24,8 @@ let lastRiderHit = -99;
 function riderLine(kind) {
   const rv = riderVoice(); if (!rv) return false;
   lastVoice = performance.now() / 1000;
+  // v48 · Il Gabbah dopo una botta dice "Dopo migliora!" (registrazione nuova in arrivo: per ora solo la scritta)
+  if (rv === 'gabbah' && kind === 'hit') { bigCall('DOPO MIGLIORA!'); return true; }
   A.sayRider(rv + '_' + kind);
   return true;
 }
@@ -112,6 +114,8 @@ let jumpDur = JUMP_DURATION, jumpH = JUMP_HEIGHT;
 let bs = {}; // v44 · caratteristiche della moto scelta in officina
 // v46 · Ice Scrophy: derapate sul ghiaccio con le gomme chiodate
 let slalomN = 0, lastFord = -9, lastAnimal = -9;
+// v48 · fantasma del primo nella classifica del gruppo
+let gGhost = null, gGhostPassed = false;
 let ice = false, drift = 0, driftT = 0, driftSum = 0, driftPend = 0, driftChain = 0, driftGap = 9, driftScore = 0, driftBest = 0, driftCount = 0, snowT = 0, bendNow = 0, lastWall = -9;
 // v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
 let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos = '';
@@ -152,12 +156,12 @@ function toast(t, kind = '') {
   if (t === lastToast && now - lastToastAt < 1500) return;
   lastToast = t; lastToastAt = now;
   const feed = $('feed');
-  while (feed.childElementCount >= 3) feed.firstElementChild.remove();
+  while (feed.childElementCount >= 2) feed.firstElementChild.remove();   // v48 · al massimo 2 avvisi alla volta
   const el = document.createElement('div');
   el.className = 'msg ' + kind;
   el.innerHTML = iconize(t);
   feed.appendChild(el);
-  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 350); }, 2600);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 350); }, 2100);
   toastTime = 2.2;
 }
 // Scritta enorme al centro (Campa giù!): ha un suo livello, non viene coperta dagli altri messaggi.
@@ -167,7 +171,7 @@ function bigCall(text) {
 }
 function pop(text, kind = 'gold') {
   const layer = $('pops');
-  while (layer.childElementCount > 3) layer.firstElementChild.remove();
+  while (layer.childElementCount > 2) layer.firstElementChild.remove();
   const el = document.createElement('div');
   el.className = 'pop ' + kind;
   el.innerHTML = iconize(text);
@@ -224,6 +228,7 @@ function hud() {
   $('pacemarker').style.left = Math.min(100, elapsed / timeLimit * 100) + '%';
   const gcHud = state === 'playing' || state === 'paused' ? ghostCourse(elapsed) : null;
   $('ghostmarker').hidden = gcHud === null;
+  if (!gGhost || !(state === 'playing' || state === 'paused' || state === 'countdown')) $('gghost').hidden = true;
   if (gcHud !== null) { $('ghostmarker').style.left = (gcHud / GAME_LENGTH * 100) + '%'; $('ghostmarker').title = 'Record di ' + ghosts[ghostKey()].rider + ': ' + ghosts[ghostKey()].time.toFixed(1) + 's'; }
   $('trackbar').classList.toggle('behind', state === 'playing' && elapsed / timeLimit > course / GAME_LENGTH);
   $('kmh').textContent = kmh;
@@ -301,7 +306,7 @@ function resetRun() {
   applyLayout(true);
   bs = P.currentStats();
   ice = !!P.MODES[mode].ice;
-  slalomN = 0; lastFord = lastAnimal = -9;
+  slalomN = 0; lastFord = lastAnimal = -9; setupGroupGhost();
   drift = driftT = driftSum = driftPend = driftChain = driftScore = driftBest = driftCount = snowT = bendNow = 0; driftGap = 9; lastWall = -9;
   setupRace();
 }
@@ -496,8 +501,36 @@ function exitFull() { if (inFull()) try { (document.exitFullscreen || document.w
 if (!fsOK) $('fullscreen').hidden = $('ovfull').hidden = true;
 // v47 · schermo intero anche dai menu (officina, classifica, risultati): pulsante fisso in alto a destra
 $('ovfull').onclick = () => { if (inFull()) exitFull(); else goFull(); };
+// v48 · i pannelli a destra (pilota, garage, classifica, come si sopravvive) si aprono a tutto schermo con un tocco
+// e hanno il pulsante per tornare al menu principale.
+let maxPanel = null;
+function openPanel(sec) {
+  if (maxPanel) closePanel(false);
+  maxPanel = sec; sec.classList.add('panelmax'); document.body.classList.add('panelopen');
+  sec.scrollTop = 0;
+  if (fsOK) try { const r = (sec.requestFullscreen || sec.webkitRequestFullscreen).call(sec, { navigationUI: 'hide' }); r?.catch?.(() => {}); } catch {}
+  A.unlock(); A.sfx.click();
+}
+function closePanel(toMenu = true) {
+  const sec = maxPanel; if (!sec) return;
+  maxPanel = null; sec.classList.remove('panelmax'); document.body.classList.remove('panelopen');
+  if (inFull()) exitFull();
+  if (toMenu) {
+    if (state === 'ready' || state === 'ended') { state = 'ready'; renderReady(); }
+    setTimeout(() => window.scrollTo({ top: Math.max(0, $('game').getBoundingClientRect().top + window.scrollY - 6), behavior: 'auto' }), 350);
+  }
+}
+document.querySelectorAll('aside > .panel').forEach(sec => {
+  const bar = document.createElement('div'); bar.className = 'panelbar';
+  bar.innerHTML = `<button type="button" class="panelback">⬅ MENU PRINCIPALE</button><button type="button" class="icon panelexp" aria-label="Apri a schermo intero" title="Apri a schermo intero">${icon('expand')}</button>`;
+  sec.prepend(bar);
+  bar.querySelector('.panelexp').onclick = () => maxPanel === sec ? closePanel() : openPanel(sec);
+  bar.querySelector('.panelback').onclick = () => closePanel(true);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && maxPanel) closePanel(true); });
 $('fullscreen').onclick = () => { if (inFull()) exitFull(); else goFull(); };
 function onFsChange() {
+  if (!inFull() && maxPanel && fsOK) closePanel(true);
   document.body.classList.toggle('isfull', inFull());
   $('ovfull').innerHTML = icon(inFull() ? 'shrink' : 'expand'); $('ovfull').setAttribute('aria-label', inFull() ? 'Esci dallo schermo intero' : 'Schermo intero');
   if (state === 'ready' && !$('shoptitle') && $('start')) renderReady();
@@ -792,7 +825,7 @@ const RIVAL_LIVERIES = [
 function setupRace() {
   // Tre compagni di giro: uno parte dietro (e ti passerà con un bel "Suuuka!"), due davanti.
   const others = RIDERS.filter(r => r !== profile.rider).sort(() => rng() - .5).slice(0, 3);
-  const starts = [-7, 26, 58], skills = [1.05, 1.0, .96];
+  const starts = [-7, 26, 58], skills = [1.09, 1.04, .99];   // v48 · un filo più forti (salite più dure anche per loro)
   rivals = others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
   coachStep = 0; coachOn = ice ? !P.profile.iceTutorialDone : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
   lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
@@ -806,7 +839,7 @@ function setupRace() {
   if (ice) {
     // sul ghiaccio niente pioggia: al massimo nebbia o il sole che cala dietro al lago
     weatherPlan = [{ kind: rng() < .5 ? 'fog' : 'dusk', from: at, to: at + 18 }];
-    const targets = [14400, 11600, 9000];   // ≈ 9.800 · 7.900 · 6.100 punti a fine gara
+    const targets = [17000, 13700, 10600];   // v48 · ≈ 8.500 · 6.800 · 4.600 punti a fine gara
     rivals.forEach((r, i) => { r.drift = 0; r.dTarget = targets[i] * (.92 + rng() * .16); r.driftAhead = false; r.slip = 3 + rng() * 6; });
   }
   weather = { rain: 0, fog: 0, dusk: 0 }; weatherSaid = '';
@@ -837,7 +870,7 @@ function updateRivals(dt, travelStep, route, diff) {
     const before = r.lx; r.lx += (r.lane - r.lx) * Math.min(1, dt * 2.6); r.lean = (r.lx - before) / Math.max(dt, .001);
     if (ice) {
       // punti derapata dei compagni: più nelle curve, ogni tanto ne buttano via una
-      const bendR = Math.abs(Math.sin(((roadTime * 19.5) + r.gap) * .021));
+      const bendR = Math.abs(iceBend((roadTime * 19.5) + r.gap));
       r.drift += dt * r.dTarget / (P.MODES[mode].limit * .82 * 1.16) * (.4 + bendR * 1.2) * (.85 + Math.sin(elapsed * .7 + r.number) * .15);
       r.slip -= dt; if (r.slip <= 0) { r.slip = 5 + rng() * 8; r.drift = Math.max(0, r.drift - 150 - rng() * 200); }
       const ahead = r.drift > driftScore;
@@ -853,6 +886,30 @@ function updateRivals(dt, travelStep, route, diff) {
       score += 250; run.passes = (run.passes || 0) + 1; pop('SORPASSO SU ' + r.name.toUpperCase() + ' +250', 'gold'); A.sfx.near();
     }
   }
+}
+function setupGroupGhost() {
+  gGhost = null; gGhostPassed = false;
+  if (ice || P.MODES[mode].random === 'run') return;
+  const top = (C.cached()?.boards?.[mode] || []).find(e => e.g && e.g.length > 8);
+  if (!top) return;
+  const pts = C.decodeGhost(top.g); if (pts.length < 5) return;
+  gGhost = { name: top.n, pts, rider: top.r, entry: { name: '👻 ' + top.n.toUpperCase(), ghost: true, gap: 0, lane: 1, lx: 1, lean: 0, number: Math.max(1, RIDERS.indexOf(top.r) + 1), livery: { plastic: '#f2c230', accent: '#ffffff', jersey: '#f2c230', pants: '#202020', helmet: '#ffffff' } } };
+}
+function groupGhostCourse(t) {
+  if (!gGhost) return null;
+  const p = gGhost.pts, a = Math.floor(t);
+  if (a >= p.length - 1) return p[p.length - 1];
+  return p[a] + (p[a + 1] - p[a]) * (t - a);
+}
+function updateGroupGhost() {
+  if (!gGhost) return;
+  const gc = groupGhostCourse(elapsed), e = gGhost.entry;
+  const before = e.lx;
+  e.gap = (gc - course) / GAME_LENGTH * courseLength(P.MODES[mode].difficulty) * 19.5;
+  e.lx = 1 + Math.sin(elapsed * .45 + 1) * .85; e.lean = (e.lx - before) * 60;
+  if (!gGhostPassed && elapsed > 3 && course > gc + .3) { gGhostPassed = true; pop('👻 HAI PASSATO IL FANTASMA DI ' + gGhost.name.toUpperCase() + '!', 'gold'); A.sfx.near(); }
+  if (gGhostPassed && course < gc - 1.5) { gGhostPassed = false; pop('👻 ' + gGhost.name.toUpperCase() + ' TI HA RIPRESO', 'small'); }
+  $('gghost').hidden = false; $('gghost').style.left = Math.min(100, gc / GAME_LENGTH * 100) + '%'; $('gghost').title = 'Fantasma di ' + gGhost.name + ' (1° nel gruppo)';
 }
 function racePos() { return ice ? 1 + rivals.filter(r => r.drift > driftScore).length : 1 + rivals.filter(r => r.gap > 0).length; }
 
@@ -883,9 +940,9 @@ function endDrift(ok) {
 const driftMult = () => 1 + Math.min(8, driftChain) * .15;
 function iceStep(dt, kBase) {
   const grip = Math.min(.8, bs.grip || 0);
-  bendNow = Math.sin(roadTime * 19.5 * .021);   // + = curva che spinge verso destra
-  const k = kBase * (.45 + grip * .4), c = 2 * Math.sqrt(k) * (.36 + grip * .3);
-  const push = bendNow * (gas ? 19 : 7) * (1 - grip * .45) * Math.min(1.2, speedNow);
+  bendNow = iceBend(roadTime * 19.5);   // v48 · curve molto più fitte: + = curva che spinge verso destra
+  const k = kBase * (.5 + grip * .28), c = 2 * Math.sqrt(k) * (.4 + grip * .2);   // v48 · chiodi meno decisivi
+  const push = bendNow * (gas ? 17 : 6) * (1 - grip * .3) * Math.min(1.2, speedNow);
   vx += ((lane - px) * k - vx * c + push) * dt;
   px += vx * dt;
   // muro di neve ai bordi: si rimbalza, si rallenta e la derapata va persa
@@ -900,7 +957,7 @@ function iceStep(dt, kBase) {
   if (active) {
     const q = Math.abs(drift);
     driftT += dt; driftSum += q * dt;
-    driftPend += dt * q * 260 * speedNow * driftMult() * (1 + (bs.drift || 0) * .6);
+    driftPend += dt * q * 260 * speedNow * driftMult() * (1 + (bs.drift || 0) * .3);
     driftGap = 0;
   } else {
     if (driftT > 0) endDrift(true);
@@ -1055,8 +1112,8 @@ function update(dt) {
   if (route.seg !== routePhase) {
     const prevSeg = layoutSegments()[routePhase];
     if (routePhase >= 0) flash('gold');
-    // Controllo orario: settore senza errori = +2 secondi sul tempo massimo.
-    if (prevSeg && errors === segErrors && state === 'playing') { timeLimit += 2; run.cleanSectors = (run.cleanSectors || 0) + 1; A.sfx.mission(); toast('⏱ SETTORE PULITO +2 s', 'green'); }
+    // Controllo orario: settore senza errori = +1 secondo sul tempo massimo (v48).
+    if (prevSeg && errors === segErrors && state === 'playing') { timeLimit += 1; run.cleanSectors = (run.cleanSectors || 0) + 1; A.sfx.mission(); toast('⏱ SETTORE PULITO +1 s', 'green'); }
     segErrors = errors;
     routePhase = route.seg;
     const cur = layoutSegments()[route.seg];
@@ -1073,6 +1130,7 @@ function update(dt) {
   kmh = Math.round(travelStep / dt / 19.5 * 31);
   updateRivals(dt, travelStep, route, diff);
   updateWeather(dt);
+  updateGroupGhost();
   coachUpdate();
   if (!ice && !P.MODES[mode].slalom && shortcutsDone < 2 && elapsed > nextShortcut && course > 12 && course < GAME_LENGTH * .8 && route.id !== 3) { nextShortcut = elapsed + 18 + rng() * 10; spawnShortcut(); }
   while (elapsed >= ghostNextSplit) { ghostSplits.push(course); ghostNextSplit += .5; }
@@ -1265,7 +1323,7 @@ function drawState() {
     riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
     livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, parts: P.currentParts(), sight: bs.sight || 0,
     ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs,
-    rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended' || state === 'continue') ? rivals : [], weather,
+    rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended' || state === 'continue') ? (gGhost && state !== 'ended' ? [...rivals, gGhost.entry] : rivals) : [], weather,
   });
 }
 function draw() { world?.render(drawState()); }
@@ -1409,7 +1467,7 @@ function renderReady() {
   };
   // v43 · a schermo intero il pannello piloti/garage/classifica non si vede: si esce e si va lì.
   const toPage = sel => { const go = () => document.querySelector(sel)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); if (inFull()) { exitFull(); setTimeout(go, 350); } else go(); };
-  $('pilotchip').onclick = () => toPage('.riderpanel');
+  $('pilotchip').onclick = () => { if (inFull()) exitFull(); setTimeout(() => openPanel(document.querySelector('.riderpanel')), inFull() ? 250 : 0); };
   if ($('homebtn')) $('homebtn').onclick = () => { if (inFull()) exitFull(); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 350); };
   document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
     const m = P.MODES[Number(b.dataset.mode)];
@@ -1468,7 +1526,8 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   $('shareScore').onclick = () => shareScore(win, res);
   const bindResult = () => { $('again').onclick = start; $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
   resultSnapshot = { html: $('card').innerHTML, bind: bindResult };
-  if ($('groupres')) groupResult({ score, mode, rider: profile.rider, time: win ? elapsed : 0, win });
+  const gOK = win && !ice && P.MODES[mode].random !== 'run';
+  if ($('groupres')) groupResult({ score, mode, rider: profile.rider, time: win ? elapsed : 0, win, g: gOK ? C.encodeGhost([...ghostSplits, GAME_LENGTH]) : '' });
   // Conteggio animato del punteggio
   const target = score, t0 = performance.now();
   const tick = now => {
@@ -1486,8 +1545,15 @@ const MODE_LABEL = m => m === 3 ? 'SFIDA ' + P.todayLabel() : P.MODES[m].short;
 function groupListHTML(list, me = '') {
   if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
   const mine = C.cleanNick(me).toLowerCase();
-  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.w ? '🏁 ' + (e.t ? e.t + 's' : '') : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
+  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
 }
+// v48 · classifica dei tempi migliori al rifugio
+function timeListHTML(list, me = '') {
+  if (!list?.length) return '<li class="empty">Nessuno è ancora arrivato al rifugio qui.</li>';
+  const mine = C.cleanNick(me).toLowerCase();
+  return list.slice(0, 10).map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.s ? e.s.toLocaleString('it-IT') + ' pt' : ''}</span><b>⏱ ${C.fmtTime(e.t)}</b></li>`).join('');
+}
+let groupKind = 'score';
 // Riquadro nel risultato: invia il punteggio col nome salvato, oppure chiede il nome la prima volta.
 let lastGroupRun = null;
 function groupResult(runInfo) {
@@ -1506,7 +1572,7 @@ function groupResult(runInfo) {
     const pos = C.positionOf(d, runInfo.mode, nick), list = d.boards?.[runInfo.mode] || [];
     const best = list.find(e => e.n.toLowerCase() === nick.toLowerCase());
     $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div>
-      <p class="gpos">${pos ? `<b>${nick}</b> è <b class="big">${pos}°</b>${best && best.s > runInfo.score ? ` (record ${best.s.toLocaleString('it-IT')})` : ''}` : `<b>${nick}</b>: fuori dai primi 10. Dopo migliora!`}</p>
+      <p class="gpos">${pos ? `<b>${nick}</b> è <b class="big">${pos}°</b>${best && best.s > runInfo.score ? ` (record ${best.s.toLocaleString('it-IT')})` : ''}` : `<b>${nick}</b>: fuori dai primi 10. Dopo migliora!`}</p>${(() => { const tl = C.timesFor(d, runInfo.mode), ti = tl.findIndex(e => e.n.toLowerCase() === nick.toLowerCase()); return ti >= 0 ? `<p class="gpos">⏱ Tempi migliori: <b>${ti + 1}°</b> con ${C.fmtTime(tl[ti].t)}${tl[0] && ti > 0 ? ` (1° ${tl[0].n}: ${C.fmtTime(tl[0].t)})` : ''}</p>` : ''; })()}
       <ol class="board gboard">${groupListHTML(list.slice(0, 5), nick)}</ol>
       <div class="grow"><button class="secondary" type="button" id="gall">TUTTA LA CLASSIFICA</button><button class="linkbtn" type="button" id="gnick">non sei ${nick}?</button></div>`;
     $('gall').onclick = () => renderGroup(() => renderResultAgain(), runInfo.mode);
@@ -1535,12 +1601,14 @@ function renderGroup(back, m = mode) {
     $('card').innerHTML = `<div class="eyebrow">ENDURO DRINKING TEAM · TUTTI I TELEFONI</div>
       <h1 class="shoptitle">CLASSIFICA<br><em>DEL GRUPPO.</em></h1>
       <div class="boardtabs gtabs">${P.MODES.map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
+      <div class="kindtabs"><button type="button" class="${groupKind === 'score' ? 'active' : ''}" data-gkind="score">🏆 PUNTI</button><button type="button" class="${groupKind === 'time' ? 'active' : ''}" data-gkind="time">⏱ TEMPI MIGLIORI</button></div>
       <p class="gsub">PS${m + 1} · ${m === 3 ? 'Sfida del ' + P.todayLabel() + ' (si azzera ogni giorno)' : P.MODES[m].name} · migliori 10, un record a testa</p>
-      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard">${groupListHTML(d.boards?.[m], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}
+      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard ${groupKind === 'time' ? 'timeboard' : ''}">${groupKind === 'time' ? timeListHTML(C.timesFor(d, m), nick) : groupListHTML(d.boards?.[m], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}
       <p class="note">${nick ? `In classifica come <b>${nick}</b>.` : 'Il tuo nome lo scegli alla fine del primo giro.'}</p>
       <div class="actions"><button class="primary" id="gback"><span>INDIETRO</span></button><button class="secondary" id="greload">AGGIORNA</button></div>`;
     iconizeEl($('card'));
     document.querySelectorAll('[data-gmode]').forEach(b => b.onclick = () => { m = Number(b.dataset.gmode); draw(C.cached()); });
+    document.querySelectorAll('[data-gkind]').forEach(b => b.onclick = () => { groupKind = b.dataset.gkind; draw(C.cached()); });
     $('gback').onclick = back;
     $('greload').onclick = () => { draw(null); C.load(true).then(x => draw(x)).catch(() => draw(null, true)); };
   };
@@ -1566,7 +1634,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 47;
+const GAME_VERSION = 48;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
@@ -1582,8 +1650,9 @@ function renderSide() {
   const info = P.levelInfo(), current = P.currentLivery();
   $('garagelevel').innerHTML = levelBar(info) + `<button class="shopside" id="shopside" type="button">🔧 Officina · ${P.profile.beers} 🍺 in cassa</button><button class="shopside bikeside" id="bikeside" type="button">${P.currentBike().icon} In sella: <b>${P.currentBike().name}</b> · cambia moto e accessori</button>`;
   iconizeEl($('ridergrid')); iconizeEl($('garagelevel'));
-  $('shopside').onclick = () => { if (state === 'ready' || state === 'ended') { renderShop(renderReady); $('game').scrollIntoView({ behavior: 'smooth', block: 'start' }); } };
-  $('bikeside').onclick = () => { if (state === 'ready' || state === 'ended') { renderShop(renderReady, 'bikes'); $('game').scrollIntoView({ behavior: 'smooth', block: 'start' }); } };
+  const fromPanel = fn => { const was = !!maxPanel; if (was) closePanel(false); fn(); setTimeout(() => { $('game').scrollIntoView({ behavior: 'auto', block: 'start' }); if (was && touchDevice) goFull(); }, was ? 300 : 0); };
+  $('shopside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady)); };
+  $('bikeside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes')); };
   $('liveries').innerHTML = P.LIVERIES.map(l => {
     const locked = l.level > info.level;
     return `<button type="button" class="livery ${l.id === current.id ? 'active' : ''}" data-livery="${l.id}" ${locked ? 'aria-disabled="true"' : ''} title="${locked ? 'Si sblocca al livello ' + l.level : l.name}">

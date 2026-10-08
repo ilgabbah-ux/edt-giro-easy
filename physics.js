@@ -167,9 +167,15 @@ export function randomLayout(rng) {
 // Velocità relativa: la salita frena molto senza GAS o turbo, la discesa spinge.
 export function paceFor(route, gas, turbo, wet) {
   return (turbo > 0 ? 1.42 : 1) * (wet > 0 ? .62 : 1) *
-    (1 - Math.max(0, route.grade) * ((gas || turbo > 0) ? .12 : .68)) *
+    (1 - Math.max(0, route.grade) * ((gas || turbo > 0) ? .16 : .8)) *   // v48 · salite più dure: senza gas si pianta
     (1 + Math.max(0, -route.grade) * .45);
 }
+
+// v48 · Ice Scrophy: tracciato pieno di curve (due onde sovrapposte, curve strette e "esse").
+// iceShape = spostamento laterale della pista; iceBend = curvatura normalizzata (-1..1, + = spinge verso destra).
+const IA1 = 3.2, IF1 = .04, IA2 = .9, IF2 = .075, IK = IA1 * IF1 * IF1 + IA2 * IF2 * IF2;
+export function iceShape(x) { return Math.sin(x * IF1) * IA1 + Math.sin(x * IF2) * IA2; }
+export function iceBend(x) { return (IA1 * IF1 * IF1 * Math.sin(x * IF1) + IA2 * IF2 * IF2 * Math.sin(x * IF2)) / IK; }
 
 // Generatore pseudo-casuale riproducibile (per la Sfida del giorno).
 export function makeRng(seed) {

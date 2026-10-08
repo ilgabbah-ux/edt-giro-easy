@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=47';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=48';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -155,7 +155,8 @@ export function createWorld(canvas) {
   const road = strip(dirt), left = strip(grass), right = strip(grass), edges = [strip(verge), strip(verge)];
   let trail = { grade: 0, width: 1, rough: 0, climb: 0, wet: 0 };
   const spacing = () => 2.5 * trail.width;
-  const center = (z, t) => Math.sin((t - z) * .021) * 3.8 - Math.sin(t * .021) * 3.8 + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;
+  let iceMode = false, iceKey = null, groundMaps = null;
+  const center = (z, t) => iceMode ? iceShape(t - z) - iceShape(t) : Math.sin((t - z) * .021) * 3.8 - Math.sin(t * .021) * 3.8 + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;
   const height = (z, t) => terrainHeight(z, t, trail);
   const slope = (z, t) => terrainGrade(z, t, trail);
   function bank(w, z) {
@@ -207,7 +208,6 @@ export function createWorld(canvas) {
       scene.fog.near = fogBase.near; scene.fog.far = fogBase.far;
     } else dirt.metalness = 0;
   }
-  let iceMode = false, iceKey = null, groundMaps = null;
   // texture del ghiaccio: graffi bianchi dei chiodi su fondo azzurro
   const iceTex = (() => {
     const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
@@ -1185,7 +1185,12 @@ export function createWorld(canvas) {
     tag.parent?.remove(tag); root.add(tag);
     const blob = new T.Mesh(new T.PlaneGeometry(1.3, 2.7), new T.MeshBasicMaterial({ color: '#000', alphaMap: glowTex, transparent: true, opacity: .45, depthWrite: false }));
     blob.rotation.x = -Math.PI / 2; blob.position.y = .03; root.add(blob);
-    const model = { g: root, pitch: body, wheels: wheelsOut, tag, phase: Math.random() * 10 };
+    const model = { g: root, pitch: body, wheels: wheelsOut, tag, phase: Math.random() * 10, ghost: !!r.ghost };
+    if (r.ghost) {
+      // v48 · fantasma del primo in classifica: moto e pilota trasparenti e dorati, senza ombra
+      blob.visible = false;
+      root.traverse(o => { if (o.isMesh && o !== blob) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .38; o.material.depthWrite = false; if (o.material.emissive) { o.material.emissive.set('#f2c230'); o.material.emissiveIntensity = .35; } o.castShadow = false; } });
+    }
     scene.add(root);
     return model;
   }
@@ -1200,14 +1205,14 @@ export function createWorld(canvas) {
       if (!m.g.visible) continue;
       const lx = (r.lx - 1) * spacing();
       m.g.position.set(center(z, t) + lx, height(z, t) + Math.abs(Math.sin(now / 90 + m.phase)) * .02, z);
-      const rYaw = iceMode ? -Math.sin((t + r.gap) * .021) * .45 - (r.lean || 0) * .12 : -(r.lean || 0) * .05;
+      const rYaw = iceMode ? -iceBend(t + r.gap) * .45 - (r.lean || 0) * .12 : -(r.lean || 0) * .05;
       m.g.rotation.set(0, rYaw, Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));
       m.pitch.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 160 + m.phase) * .015;
       m.pitch.position.y = 0;
       for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475;
       m.tag.visible = z > -60;
       // terra dalla ruota dietro
-      if (live && Math.random() < .5) emit(m.g.position.x + (Math.random() - .5) * .3, height(z, t) + .25, z + 1.1, (Math.random() - .5) * 1.5, 2 + Math.random() * 2.2, 4 + Math.random() * 3, .6 + Math.random() * .6);
+      if (live && !m.ghost && Math.random() < .5) emit(m.g.position.x + (Math.random() - .5) * .3, height(z, t) + .25, z + 1.1, (Math.random() - .5) * 1.5, 2 + Math.random() * 2.2, 4 + Math.random() * 3, .6 + Math.random() * .6);
     }
     for (const [name, m] of rivalModels) if (!seen.has(name)) { scene.remove(m.g); rivalModels.delete(name); }
   }

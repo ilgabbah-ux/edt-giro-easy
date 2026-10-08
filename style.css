@@ -940,3 +940,28 @@ body.isfull .installhelp { display: none; }
 .game.isfull-menu .ovfull, .ovfull:hover { background: var(--y); color: #111; }
 .game:fullscreen .overlay { padding-top: 14px; padding-bottom: 14px; }
 .game:fullscreen .card { max-height: calc(100vh - 28px); -webkit-overflow-scrolling: touch; }
+
+/* v48 · fantasma del primo in classifica sulla barra del percorso */
+.ghostmarker.gghost { background: rgba(242,194,48,.9); box-shadow: 0 0 10px #f2c230; }
+
+/* v48 · pannelli a destra a tutto schermo */
+.panelbar { position: absolute; top: 8px; right: 8px; z-index: 3; display: flex; gap: 8px; align-items: center; }
+.panelbar .panelexp { width: 38px; height: 34px; color: var(--y); }
+.panelbar .panelback { display: none; }
+.panel.panelmax { position: fixed; inset: 0; z-index: 1000; margin: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; clip-path: none; border-radius: 0; padding: 64px max(18px, env(safe-area-inset-right)) 40px max(18px, env(safe-area-inset-left)); background: linear-gradient(180deg, #1a1b16, #0e0f0c) fixed; }
+.panel:fullscreen { overflow-y: auto; padding: 64px 18px 40px; background: linear-gradient(180deg, #1a1b16, #0e0f0c); }
+.panel.panelmax .panelbar { position: fixed; top: 0; left: 0; right: 0; padding: 10px max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left)); justify-content: space-between; background: #0b0c09f2; border-bottom: 2px solid var(--y); }
+.panel.panelmax .panelback { display: inline-flex; align-items: center; gap: 6px; background: var(--y); color: #161616; border: 0; padding: 9px 16px; font: italic 900 15px var(--ui); letter-spacing: 1px; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); cursor: pointer; }
+.panel.panelmax .panelexp { display: none; }
+.panel.panelmax > *:not(.panelbar) { max-width: 1100px; margin-left: auto; margin-right: auto; }
+.panel.panelmax .ridergrid, .panel.panelmax #ridergrid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.panel.panelmax .liveries, .panel.panelmax #liveries { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+body.panelopen { overflow: hidden; }
+/* v48 · telefono in orizzontale: la posizione va accanto al tempo, non sulla strada */
+@media (max-height: 500px) and (orientation: landscape) { .hudcenter { position: relative; } .posbox { position: absolute !important; left: calc(100% + 8px); top: 4px; transform: none; } }
+
+/* v48 · classifica: punti o tempi migliori */
+.kindtabs { display: flex; gap: 6px; margin: 8px 0 2px; }
+.kindtabs button { flex: 1; background: #1e1f1c; border: 1px solid #393b35; color: var(--muted); padding: 8px 6px; font: 15px var(--display); letter-spacing: .5px; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.kindtabs button.active { background: var(--y); color: #241b12; border-color: var(--y); }
+.timeboard li b { color: #9fe3ff; }

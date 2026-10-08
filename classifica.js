@@ -51,9 +51,20 @@ export function load(force = false) {
   return inflight;
 }
 
-export function submit({ name, score, mode, rider, time, win, v }) {
-  return call({ action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round(time || 0), win: win ? 1 : 0, v: v || '' });
+export function submit({ name, score, mode, rider, time, win, v, g }) {
+  return call({ action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round((time || 0) * 10) / 10, win: win ? 1 : 0, v: v || '', g: g || '' });
 }
+
+// v48 · fantasma: posizione sul percorso (0-60) ogni secondo, 2 caratteri base36 a campione (valore ×10).
+export function encodeGhost(splits) { return splits.filter((_, i) => i % 2 === 0).map(v => Math.max(0, Math.min(1295, Math.round(v * 10))).toString(36).padStart(2, '0')).join(''); }
+export function decodeGhost(g) { const out = []; for (let i = 0; i + 1 < (g || '').length; i += 2) out.push(parseInt(g.slice(i, i + 2), 36) / 10); return out; }
+
+// v48 · tempi migliori (solo giri arrivati al rifugio): dal server, o ricavati dai record se lo script è vecchio.
+export function timesFor(data, mode) {
+  if (data?.times?.[mode]) return data.times[mode];
+  return (data?.boards?.[mode] || []).filter(e => e.w && (e.bt || e.t)).map(e => ({ ...e, t: e.bt || e.t })).sort((a, b) => a.t - b.t);
+}
+export const fmtTime = t => (Math.round(t * 10) / 10).toFixed(1).replace('.', ',') + ' s';
 
 // Posizione di un nome nella classifica di un percorso (1 = primo), 0 se fuori dai 10.
 export function positionOf(data, mode, name) {
