@@ -848,4 +848,3 @@ body.isfull .installhelp { display: none; }
 .audiorow .voicetest { flex: 1 1 140px; }
 .tracktune { margin: 6px 0 0; font: italic 700 12px var(--ui); color: var(--muted); letter-spacing: .4px; }
 #musictoggle { margin-top: 8px; }
-.card .version { margin: 8px 0 0; font: 600 10px var(--ui); color: #fff5; letter-spacing: 1px; text-align: right; }

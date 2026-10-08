@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=39';
-import { createWorld } from './scene3d.js?v=39';
-import * as A from './audio.js?v=39';
-import * as P from './progress.js?v=39';
-import { FOTO } from './piloti.js?v=39';
-import { createMud } from './mudfx.js?v=39';
-import { icon, iconize, iconizeEl } from './icons.js?v=39';
-import * as C from './classifica.js?v=39';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=40';
+import { createWorld } from './scene3d.js?v=40';
+import * as A from './audio.js?v=40';
+import * as P from './progress.js?v=40';
+import { FOTO } from './piloti.js?v=40';
+import { createMud } from './mudfx.js?v=40';
+import { icon, iconize, iconizeEl } from './icons.js?v=40';
+import * as C from './classifica.js?v=40';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -974,8 +974,7 @@ function renderReady() {
     <div class="missions"><div class="mhead">${icon('flag')} MISSIONI</div><ul>${missionsHTML()}</ul></div>
     <div class="audiorow"><button class="secondary voicetest" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="secondary voicetest" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button></div>
     <p class="tracktune">🎵 ${A.STYLES[mode].name}</p>
-    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">Scorri per sterzare · tocca per saltare</span></p>
-    <p class="version">Giro Easy v${GAME_VERSION}</p>`;
+    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">Scorri per sterzare · tocca per saltare</span></p>`;
   iconizeEl($('card'));
   $('start').onclick = start;
   $('openshop').onclick = () => renderShop(renderReady);
@@ -1147,7 +1146,8 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 39;
+const GAME_VERSION = 40;
+$('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
   $('ridergrid').innerHTML = RIDERS.map((name, i) => `<button type="button" class="rideroption" data-rider="${name}" aria-pressed="${name === profile.rider}" aria-label="Scegli ${name}">
