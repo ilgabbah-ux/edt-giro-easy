@@ -812,3 +812,9 @@ body.isfull .installhelp { display: none; }
   .rightctrl .jump { width: 118px; padding: 0 8px; }
   .dash { left: 130px; right: 244px; }
 }
+
+/* v35: niente menu del browser né selezione tenendo premuto */
+.game, .game * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.game img { -webkit-user-drag: none; pointer-events: none; }
+.ctrl, .gas, .controls, .controls * { touch-action: none; }
+.game input, .game textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
