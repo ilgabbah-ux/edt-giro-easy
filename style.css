@@ -933,3 +933,10 @@ body.isfull .installhelp { display: none; }
 .mode.icy.active { box-shadow: 0 0 0 2px #5fd4ff, 0 0 20px #5fd4ff55; }
 @media (max-width: 900px) { .coach { margin-top: 38px; max-width: 70vw; } }
 @media (max-height: 500px) and (orientation: landscape) { .coach { margin-top: 0; max-width: 44vw; font-size: 11px; } }
+
+/* v47 · pulsante schermo intero sempre visibile nei menu */
+.ovfull { position: absolute; top: 12px; right: 14px; z-index: 6; width: 46px; height: 42px; color: #fff; pointer-events: auto; }
+.ovfull[hidden] { display: none; }
+.game.isfull-menu .ovfull, .ovfull:hover { background: var(--y); color: #111; }
+.game:fullscreen .overlay { padding-top: 14px; padding-bottom: 14px; }
+.game:fullscreen .card { max-height: calc(100vh - 28px); -webkit-overflow-scrolling: touch; }

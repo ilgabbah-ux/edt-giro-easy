@@ -42,6 +42,7 @@ const P = {
   trophy: '<path d="M7 3.5h10v5.3a5 5 0 0 1-10 0z"/><path d="M7 5.5H4.2a3.3 3.3 0 0 0 3.3 4.4M17 5.5h2.8a3.3 3.3 0 0 1-3.3 4.4M12 13.8v3.7M8 21h8M9.2 17.5h5.6v3.5H9.2z"/>',
   pause: '<path d="M8.5 5v14M15.5 5v14"/>',
   expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  shrink: '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>',
   share: '<path d="M4 12.5V19a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 19v-6.5M12 3.5v12M7.3 8 12 3.5 16.7 8"/>',
   chevrons: '<path d="M5 6l6 6-6 6M12 6l6 6-6 6"/>',
   log: '<rect x="2.5" y="8.5" width="16.5" height="8" rx="4"/><ellipse cx="19" cy="12.5" rx="2.5" ry="4"/><path d="M6.5 11h6M8.5 14h6"/>',

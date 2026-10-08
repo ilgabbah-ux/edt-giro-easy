@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=46';
-import { createWorld } from './scene3d.js?v=46';
-import * as A from './audio.js?v=46';
-import * as P from './progress.js?v=46';
-import { FOTO } from './piloti.js?v=46';
-import { createMud } from './mudfx.js?v=46';
-import { icon, iconize, iconizeEl } from './icons.js?v=46';
-import * as C from './classifica.js?v=46';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=47';
+import { createWorld } from './scene3d.js?v=47';
+import * as A from './audio.js?v=47';
+import * as P from './progress.js?v=47';
+import { FOTO } from './piloti.js?v=47';
+import { createMud } from './mudfx.js?v=47';
+import { icon, iconize, iconizeEl } from './icons.js?v=47';
+import * as C from './classifica.js?v=47';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -14,7 +14,7 @@ let world = null, worldError = null;
 try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); }
 
 // ---------- Piloti (abbinamenti foto conservati dalla v14) ----------
-const RIDERS = ['Il Gabbah', 'Angelo', 'Miti', 'Claudio', 'Max', 'Purcello', 'Ciprian', 'Costa', 'Linus', 'Mirco', 'Luigi', 'Renard', 'Paletta', 'Andrea', 'Brizio', 'Sergio', 'Albo', 'Alex'];
+const RIDERS = ['Il Gabbah', 'Angelo', 'Miti', 'Claudio', 'Max', 'Purcello', 'Ciprian', 'Costa', 'Linus', 'Mirco', 'Luigi', 'Renard', 'Paletta', 'Andrea', 'Brizio', 'Sergio', 'Albo', 'Alex', 'Albertone'];
 const PHOTOS = { 'Il Gabbah': 'gabbah', 'Angelo': 'angelo', 'Linus': 'linus', 'Costa': 'costa', 'Purcello': 'purcello', 'Renard': 'renard', 'Miti': 'miti', 'Mirco': 'mirco', 'Max': 'max', 'Paletta': 'paletta',
   'Claudio': 'claudio', 'Ciprian': 'ciprian', 'Luigi': 'luigi', 'Andrea': 'andrea', 'Brizio': 'brizio', 'Sergio': 'sergio', 'Albo': 'albo', 'Alex': 'alex' };
 // Piloti con la loro voce (battute registrate su ElevenLabs): partenza, botta, arrivo.
@@ -46,6 +46,7 @@ const SKILLS = {
   'Brizio': { id: 'grappino', icon: '🔥', name: 'Grappino', desc: 'La grappa dura il doppio e si trova più spesso.' },
   'Sergio': { id: 'sommelier', icon: '🍷', name: 'Sommelier', desc: 'Il vino dura il doppio e con il vino le birre valgono il triplo.' },
   'Alex': { id: 'rocket', icon: '🚀', name: 'Partenza a razzo', desc: 'Parte con il turbo già carico e nei primi 8 s va il 10% più forte.' },
+  'Albertone': { id: 'tank', icon: '🐻', name: 'Carrarmato', desc: 'Le botte lo fermano la metà del tempo e la protezione dopo un urto dura 1 s in più.' },
   'Albo': { id: 'dry', icon: '🚱', name: 'Acqua? Mai', desc: 'Immune alla bottiglia d’acqua: la spacca e fa punti.' },
 };
 let skill = '';
@@ -492,10 +493,13 @@ function goFull() {
   } catch {}
 }
 function exitFull() { if (inFull()) try { (document.exitFullscreen || document.webkitExitFullscreen).call(document)?.catch?.(() => {}); } catch {} }
-if (!fsOK) $('fullscreen').hidden = true;
+if (!fsOK) $('fullscreen').hidden = $('ovfull').hidden = true;
+// v47 · schermo intero anche dai menu (officina, classifica, risultati): pulsante fisso in alto a destra
+$('ovfull').onclick = () => { if (inFull()) exitFull(); else goFull(); };
 $('fullscreen').onclick = () => { if (inFull()) exitFull(); else goFull(); };
 function onFsChange() {
   document.body.classList.toggle('isfull', inFull());
+  $('ovfull').innerHTML = icon(inFull() ? 'shrink' : 'expand'); $('ovfull').setAttribute('aria-label', inFull() ? 'Esci dallo schermo intero' : 'Schermo intero');
   if (state === 'ready' && !$('shoptitle') && $('start')) renderReady();
   setTimeout(() => world?.resize(), 60); setTimeout(() => world?.resize(), 400);
   if (!inFull() && state === 'playing' && touchDevice) pause();
@@ -1199,7 +1203,7 @@ function update(dt) {
         if (ice) endDrift(false);
         lives--; run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0) + (bs.protect || 0); breakCombo(); charge = Math.max(0, charge - 20); mistake();
         fxKind = 'hit'; fxSerial++; shake = 1; A.sfx.hit(); flash('hit');
-        crash = 1; stun = .9 * (bs.protect ? .7 : 1); slowmo = .35; slowScale = .4; jump = 0;
+        crash = 1; stun = .9 * (bs.protect ? .7 : 1) * (has('tank') ? .5 : 1); if (has('tank')) invincible += 1; slowmo = .35; slowScale = .4; jump = 0;
         if (wheelie) endWheelie(false);
         const lines = { rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.' };
         if (o.type === 'tree') slalomN = 0;
@@ -1562,7 +1566,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 46;
+const GAME_VERSION = 47;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
@@ -1738,7 +1742,7 @@ $('installapp').onclick = async () => {
   }
   installHelp();
 };
-syncSound(); $('fullscreen').innerHTML = icon('expand'); $('pause').innerHTML = icon('pause');
+syncSound(); $('fullscreen').innerHTML = icon('expand'); $('ovfull').innerHTML = icon('expand'); $('pause').innerHTML = icon('pause');
 $('sharelink').innerHTML = icon('share') + '<span>CONDIVIDI NEL GRUPPO</span>';
 renderSide();
 renderReady();
