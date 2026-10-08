@@ -900,3 +900,8 @@ body.isfull .installhelp { display: none; }
 .wallet .totstat { display: block; font: 700 12px var(--ui); color: var(--green); margin-top: 2px; }
 .wallet { flex-wrap: wrap; }
 .wallet .insella, .wallet .totstat { flex: 1 0 100%; }
+
+/* v45: allenatore del primo giro */
+.coach { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 7; pointer-events: none; text-align: center; background: #0b0c09d9; color: #fff; border: 2px solid var(--y); padding: 12px 20px; font: italic 800 clamp(16px, 2.2vw, 24px)/1.25 var(--ui); letter-spacing: .5px; text-transform: uppercase; clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); opacity: 0; max-width: min(90%, 520px); }
+.coach.show { animation: coach 4s ease-out forwards; }
+@keyframes coach { 0% { opacity: 0; transform: translate(-50%, -40%) scale(.9); } 10%, 85% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -60%); } }

@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=44';
-import { createWorld } from './scene3d.js?v=44';
-import * as A from './audio.js?v=44';
-import * as P from './progress.js?v=44';
-import { FOTO } from './piloti.js?v=44';
-import { createMud } from './mudfx.js?v=44';
-import { icon, iconize, iconizeEl } from './icons.js?v=44';
-import * as C from './classifica.js?v=44';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=45';
+import { createWorld } from './scene3d.js?v=45';
+import * as A from './audio.js?v=45';
+import * as P from './progress.js?v=45';
+import { FOTO } from './piloti.js?v=45';
+import { createMud } from './mudfx.js?v=45';
+import { icon, iconize, iconizeEl } from './icons.js?v=45';
+import * as C from './classifica.js?v=45';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -361,7 +361,7 @@ function pause() {
   if (state === 'playing' || state === 'countdown') {
     gas = false; A.stopVoice(); A.engineStop(); A.musicStop();
     state = 'paused';
-    $('overlay').classList.remove('hidden');
+    $('overlay').classList.remove('hidden'); $('coach').classList.remove('show');
     $('card').innerHTML = `<div class="eyebrow">SOSTA TECNICA</div><h1>ASPETTIAMO<br><em>IL GRUPPO.</em></h1>
       <p>Nessuno resta indietro.</p>
       <button class="primary" id="resume"><span>RIPARTIAMO</span>${icon('chevrons')}</button><br>
@@ -717,8 +717,9 @@ const RIVAL_LIVERIES = [
 function setupRace() {
   // Tre compagni di giro: uno parte dietro (e ti passerà con un bel "Suuuka!"), due davanti.
   const others = RIDERS.filter(r => r !== profile.rider).sort(() => rng() - .5).slice(0, 3);
-  const starts = [-7, 26, 58], skills = [1.05, .97, .93];
+  const starts = [-7, 26, 58], skills = [1.05, 1.0, .96];
   rivals = others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
+  coachStep = 0; coachOn = !P.profile.tutorialDone; $('coach')?.classList.remove('show');
   lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
   // Meteo: un cambio a metà giro (pioggia, nebbia o tramonto), diverso a ogni gara; la Sfida del giorno è uguale per tutti.
   const kinds = ['rain', 'fog', 'dusk'], k = kinds[Math.floor(rng() * 3)];
@@ -740,7 +741,10 @@ function updateRivals(dt, travelStep, route, diff) {
     // ritmo del compagno: segue la pendenza come te (sempre col gas aperto), con un "elastico" per restare in gara
     const rr = routeAt(course, (roadTime * 19.5) + r.gap);
     let pace = paceFor(rr, true, 0, 0) * r.skill * (1 - rr.rough * .06);
-    if (r.gap > 70) pace *= .86; else if (r.gap < -30) pace *= 1.18;
+    if (r.gap > 70) pace *= .88; else if (r.gap < -30) pace *= 1.25;
+    // v45 · anche i compagni danno gas: ogni tanto uno scatto di turbo
+    r.turboT = (r.turboT ?? 6 + rng() * 10) - dt;
+    if (r.turboT < 0) { pace *= 1.3; if (r.turboT < -2.5) r.turboT = 8 + rng() * 10; }
     if (elapsed < 2.5) pace *= .9 + elapsed * .04;
     const prev = r.gap;
     r.gap += (dt * base * pace) - travelStep;
@@ -795,6 +799,60 @@ function updateWeather(dt) {
   for (const k of ['rain', 'fog', 'dusk']) weather[k] += (target[k] - weather[k]) * Math.min(1, dt * .5);
   // sotto la pioggia ogni tanto arriva uno schizzo sull'obiettivo
   if (weather.rain > .5 && elapsed - lastRainMud > 5 + Math.random() * 4) { lastRainMud = elapsed; mud(.22); }
+}
+
+// ---------- v45 · Seconda possibilità e allenatore per il primo giro ----------
+const CONTINUE_COST = 25;
+let continueTimer = 0;
+function offerContinue() {
+  state = 'continue'; gas = false; A.engineStop(); A.musicStop(); $('coach').classList.remove('show');
+  if (wheelie) endWheelie(false);
+  $('overlay').classList.remove('hidden');
+  let left = 6;
+  const draw = () => {
+    $('card').innerHTML = `<div class="eyebrow">MOTO A TERRA · ULTIMA POSSIBILITÀ</div>
+      <h1>IL RIFUGISTA<br><em>TI RIMETTE IN SELLA.</em></h1>
+      <p>Riparti da qui con una moto per <b>${CONTINUE_COST} 🍺</b> (ne hai ${P.profile.beers}). Una volta per giro.</p>
+      <button class="primary big" id="contyes"><span>CONTINUA · ${left}</span>${icon('chevrons')}</button><br>
+      <button class="secondary" id="contno">BASTA COSÌ</button>`;
+    iconizeEl($('card'));
+    $('contyes').onclick = () => { clearInterval(continueTimer); doContinue(); };
+    $('contno').onclick = () => { clearInterval(continueTimer); finish(false); };
+  };
+  draw();
+  clearInterval(continueTimer);
+  continueTimer = setInterval(() => { left--; if (state !== 'continue') { clearInterval(continueTimer); return; } if (left <= 0) { clearInterval(continueTimer); finish(false); } else draw(); }, 1000);
+}
+function doContinue() {
+  if (state !== 'continue') return;
+  P.profile.beers -= CONTINUE_COST; P.save();
+  run.continued = true; lives = 1; invincible = 3; crash = 0; stun = 0; shownLives = -1;
+  objects = objects.filter(o => o.z > .95 || o.z < .5);
+  $('overlay').classList.add('hidden');
+  state = 'playing'; A.engineStart(); startMusic(); if (touchDevice) goFull();
+  toast('⛑ DI NUOVO IN SELLA! NON SPRECARLA', 'green'); hud();
+}
+// Primo giro in assoluto: consigli grandi al centro, uno alla volta.
+const COACH = () => touchDevice ? [
+  [0.6, '👆 TOCCA A SINISTRA O A DESTRA<br>(o trascina il dito) per cambiare corsia'],
+  [4.8, '🍺 SEGUI LE BIRRE:<br>indicano la linea libera'],
+  [9.2, '🪵 OSTACOLO? SCORRI IN SU<br>o tocca al centro per saltare'],
+  [14, '⚡ TURBO PIENO? premi TURBO<br>e spacca tutto'],
+] : [
+  [0.6, '⬅ ➡ FRECCE o MOUSE<br>per cambiare corsia'],
+  [4.8, '🍺 SEGUI LE BIRRE:<br>indicano la linea libera'],
+  [9.2, '🪵 OSTACOLO? SPAZIO o CLIC<br>per saltare'],
+  [14, '⚡ TURBO PIENO? premi B<br>o la rotellina'],
+];
+let coachStep = 0, coachOn = false;
+function coachUpdate() {
+  if (!coachOn) return;
+  const list = COACH();
+  if (coachStep < list.length && elapsed >= list[coachStep][0]) {
+    const el = $('coach'); el.innerHTML = list[coachStep][1]; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    coachStep++;
+    if (coachStep >= list.length) { coachOn = false; P.profile.tutorialDone = true; P.save(); }
+  }
 }
 
 // ---------- Ciclo di gioco ----------
@@ -861,6 +919,7 @@ function update(dt) {
   kmh = Math.round(travelStep / dt / 19.5 * 31);
   updateRivals(dt, travelStep, route, diff);
   updateWeather(dt);
+  coachUpdate();
   if (shortcutsDone < 2 && elapsed > nextShortcut && course > 12 && course < GAME_LENGTH * .8 && route.id !== 3) { nextShortcut = elapsed + 18 + rng() * 10; spawnShortcut(); }
   while (elapsed >= ghostNextSplit) { ghostSplits.push(course); ghostNextSplit += .5; }
   const gc = ghostCourse(elapsed);
@@ -877,7 +936,7 @@ function update(dt) {
   const wasAirborne = jump > 0;
   jump = Math.max(0, jump - dt);
   if (wasAirborne && jump === 0) {
-    springVelocity = 95; A.sfx.land(); shake = Math.max(shake, .25);
+    springVelocity = 95; A.sfx.land(); shake = Math.max(shake, .25); if (touchDevice && navigator.vibrate) try { navigator.vibrate(12); } catch {}
     if (jumpBuffer > 0) { jumpBuffer = 0; takeoff(); }
   }
   const bump = jump > 0 ? 0 : Math.sin(roadTime * 27) * (18 + route.rough * 40);
@@ -952,7 +1011,7 @@ function update(dt) {
         const perfect = has('precise') ? phase > .2 && phase < .8 : isPerfectJump(phase);
         const base = o.type === 'rock' || o.type === 'rollRock' ? 200 : o.type === 'bigLog' ? 250 : o.type === 'goat' ? 220 : 150;
         const names = { rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!' };
-        if (perfect) { run.perfect++; A.sfx.perfect(); reward(Math.round(base * (has('precise') ? 2 : 1.5)), 'SALTO PERFETTO!', 'perfect'); flash('gold'); slowmo = .3; slowScale = .45; }
+        if (perfect) { run.perfect++; A.sfx.perfect(); if (touchDevice && navigator.vibrate) try { navigator.vibrate([10, 40, 10]); } catch {} reward(Math.round(base * (has('precise') ? 2 : 1.5)), 'SALTO PERFETTO!', 'perfect'); flash('gold'); slowmo = .3; slowScale = .45; }
         else reward(base, names[o.type] || 'BEL SALTO!', 'jump');
       } else if (wheelie && (o.type === 'root' || o.type === 'puddle')) {
         reward(140, o.type === 'root' ? 'IMPENNATA SULLA RADICE!' : 'IMPENNATA NELLA POZZA!', 'trick'); if (o.type === 'puddle') mud(.35);
@@ -971,7 +1030,7 @@ function update(dt) {
         const lines = { rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.' };
         if (o.type === 'log' || o.type === 'bigLog') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
         if (navigator.vibrate) try { navigator.vibrate(120); } catch {}
-        if (lives <= 0) { hud(); finish(false); return; }
+        if (lives <= 0) { hud(); if (!run.continued && P.profile.beers >= CONTINUE_COST) offerContinue(); else finish(false); return; }
       }
     } else if (o.type !== 'puddle' && gap < (has('fox') ? .9 : .68) && invincible <= 0 && o.type !== 'bigLog') {
       run.near++; A.sfx.near(); reward(has('fox') ? 105 : 35, 'PER UN PELO!', 'near', false);
@@ -1026,7 +1085,7 @@ function drawState() {
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
     riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
     livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, parts: P.currentParts(), sight: bs.sight || 0,
-    rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended') ? rivals : [], weather,
+    rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended' || state === 'continue') ? rivals : [], weather,
   });
 }
 function draw() { world?.render(drawState()); }
@@ -1053,7 +1112,7 @@ function missionsHTML(runStats = null) {
     return `<li><span class="mtext">${P.missionText(m)}</span><span class="mprog">${m.target > 1 ? (Number.isInteger(p) ? p : p.toFixed(1)) + '/' + m.target : ''}</span><span class="mxp">+${P.missionXp(m)} XP</span></li>`;
   }).join('');
 }
-function setMenu(on) { $('game').classList.toggle('menu', on); }
+function setMenu(on) { $('game').classList.toggle('menu', on); if (on) $('coach')?.classList.remove('show'); }
 
 // ---------- Officina: si spendono le birre per potenziare moto e pilota ----------
 let shopTab = 'upg';
@@ -1313,7 +1372,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 44;
+const GAME_VERSION = 45;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
