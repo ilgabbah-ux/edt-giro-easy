@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0c0d0b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Giro Easy">
+<meta property="og:title" content="Giro Easy · Enduro Drinking Team">
+<meta property="og:description" content="Tranquilli, è un giro easy. Il gioco arcade 3D dell'EDT: gioca dal telefono o dal PC.">
+<meta property="og:image" content="icon-512.png">
+<title>Giro Easy • Enduro Drinking Team</title>
+<meta name="description" content="Il gioco arcade EDT. Schiva gli ostacoli, salta i tronchi, completa le missioni e sopravvivi al taglio di Angelo.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23ffcf16'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='Arial' font-weight='900' font-size='34' fill='%23e3301c'%3EE%3C/text%3E%3C/svg%3E">
+<link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css?v=29">
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="brand">
+      <img class="teamlogo" src="edt-logo-small.jpg" alt="Enduro Drinking Team" width="480" height="290">
+      <div><strong>ENDURO DRINKING TEAM</strong><small>Sterrare humanum est · dal 2017</small></div>
+    </div>
+    <div class="shareheader">
+      <span class="edition">GIRO EASY · V29</span>
+      <button id="installapp" class="sharebutton install" type="button" hidden>INSTALLA</button>
+      <button id="sharelink" class="sharebutton" type="button">CONDIVIDI NEL GRUPPO</button>
+    </div>
+  </header>
+  <div id="sharestatus" role="status" aria-live="polite"></div>
+  <input id="sharefallback" aria-label="Messaggio e link da copiare" readonly hidden>
+
+  <main>
+    <section id="game" class="game" aria-label="Gioco Giro Easy">
+      <canvas id="canvas" aria-label="Percorso enduro tridimensionale a tre corsie. Usa le frecce per sterzare e spazio per saltare."></canvas>
+      <div class="speedlines" aria-hidden="true"></div>
+      <div class="vignette" aria-hidden="true"></div>
+
+      <div class="hud">
+        <div class="hudleft">
+          <div class="scorebox" id="scorebox"><small>PUNTI EDT</small><b id="score">00000</b></div>
+          <div class="combobox idle" id="combobox"><b id="multiplier">×1</b><span id="combocount">COMBO</span><i><u id="combotimer"></u></i></div>
+          <div class="speedo"><b id="kmh">0</b><small>KM/H</small></div>
+          <div id="powerups" class="powerups"></div>
+        </div>
+        <div class="hudcenter">
+          <div class="timerbox" id="timerbox"><b id="timer">70</b><small>TEMPO MASSIMO</small></div>
+          <div class="trackbar" id="trackbar" aria-hidden="true">
+            <span class="seg s0" style="flex:12">SOTTOBOSCO</span><span class="seg s1" style="flex:14">POZZANGHERE</span><span class="seg s2" style="flex:17">SALITONE</span><span class="seg s3" style="flex:17">MULATTIERA</span>
+            <i id="ghostmarker" class="ghostmarker" hidden></i><i id="pacemarker" class="pacemarker" title="Tempo massimo"></i><i id="trackmarker" class="trackmarker"></i>
+          </div>
+        </div>
+        <div class="hudright">
+          <div class="lives" id="lives" aria-label="3 moto rimaste"></div>
+          <div class="icons">
+            <button class="icon" id="sound" type="button" aria-pressed="true" aria-label="Disattiva audio e incitamenti" title="Audio attivo">♫</button>
+            <button class="icon" id="fullscreen" type="button" aria-label="Schermo intero" title="Schermo intero">⛶</button>
+            <button class="icon" id="pause" type="button" aria-label="Pausa" title="Pausa (P)">Ⅱ</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="banner" class="banner" role="status"></div>
+      <div id="pops" class="pops" aria-live="polite"></div>
+      <div id="bigcall" class="bigcall" aria-live="assertive"></div>
+      <div id="erika" class="erika" role="status"><img alt="Erika"><div class="bubble">GIACU MI AMMAZZA!</div></div>
+      <div id="countdown" class="countdown" aria-live="assertive"></div>
+      <div class="tracklabel"><span id="tracklabel">SOTTOBOSCO</span></div>
+
+      <button id="gas" class="gas" type="button" aria-label="Tieni premuto per dare gas in salita" aria-pressed="false" hidden>TIENI GAS</button>
+      <div class="controls">
+        <div class="steer">
+          <button class="ctrl" id="left" type="button" aria-label="Sposta a sinistra">‹</button>
+          <button class="ctrl" id="right" type="button" aria-label="Sposta a destra">›</button>
+        </div>
+        <button class="ctrl boost" id="boost" type="button" disabled><span id="boostlabel">TURBO 0%</span><i class="chargetrack"><u id="chargefill"></u></i></button>
+        <div class="rightctrl">
+          <button class="ctrl wheelie" id="wheelie" type="button" aria-label="Tieni premuto per impennare">IMPENNA</button>
+          <button class="ctrl jump" id="jump" type="button">SALTA</button>
+        </div>
+      </div>
+
+      <div class="overlay" id="overlay"><div class="card" id="card"></div></div>
+      <div id="confetti" class="confetti" aria-hidden="true"></div>
+      <div id="mud" class="mud" aria-hidden="true"></div>
+    </section>
+
+    <aside>
+      <section class="panel riderpanel">
+        <p class="label">01 / IL PILOTA</p>
+        <h2>Chi apre la pista?</h2>
+        <div id="ridergrid" class="ridergrid" role="group" aria-label="Scegli il pilota"></div>
+      </section>
+      <section class="panel">
+        <p class="label">02 / IL GARAGE</p>
+        <h2>Livrea della moto</h2>
+        <div id="garagelevel"></div>
+        <div id="liveries" class="liveries"></div>
+        <p class="note">Sali di livello con punti e missioni per sbloccare nuove livree.</p>
+      </section>
+      <section class="panel">
+        <p class="label">03 / CLASSIFICA DEL BAR</p>
+        <h2>Chi comanda su questo telefono</h2>
+        <div id="boardtabs" class="boardtabs"></div>
+        <ol id="board" class="board"></ol>
+        <p class="note">Classifica salvata solo su questo dispositivo: passate il telefono al prossimo.</p>
+      </section>
+      <section class="panel howpanel">
+        <p class="label">COME SI SOPRAVVIVE</p>
+        <div class="how">
+          <div><i>🍺</i><span><b>Birre</b> in fila: combo fino a ×4. Indicano sempre la linea libera. Sopra i tronchi di traverso prendile <b>al volo</b>.</span></div>
+          <div><i>🍷</i><span><b>Vino rosso</b>: per 7 secondi le birre vengono da te e valgono doppio.</span></div>
+          <div><i>🔥</i><span><b>Grappa</b>: per 6 secondi super salto e invincibile.</span></div>
+          <div><i>💧</i><span><b>Bottiglia d'acqua</b>: evitala o saltala! Se la prendi rallenti, perdi la combo e ti spuntano le orecchie da coniglio.</span></div>
+          <div><i>🐰</i><span>Al 3° errore (urti, pozzanghere, acqua) o quando resta l'ultima moto: orecchie da coniglio fino al rifugio.</span></div>
+          <div><i>🔧</i><span><b>Officina</b>: le birre raccolte restano in cassa e si spendono per potenziare moto e pilota. Chi arriva al rifugio vince un <b>premio</b> per il giro dopo.</span></div>
+          <div><i>🤠</i><span><b>Impennata</b>: tieni premuto IMPENNA (S / ↓). Più dura, più punti, fino a 3 secondi. Passa sopra radici e pozze.</span></div>
+          <div><i>🪨</i><span>Ogni sezione ha i suoi ostacoli: ceppi, balle di fieno, ometti di pietra, capre e frane. <b>Salto perfetto</b> = punti ×1,5; in volo sterza per uno <b>scrub</b>.</span></div>
+          <div><i>🪵</i><span>Tronco preso in pieno? Arriva <b>Erika</b>: «Giacu mi ammazza!». Nelle <b>pozzanghere</b> il fango schizza sullo schermo e non vedi più niente per qualche secondo.</span></div>
+          <div><i>🖱</i><span><b>Da PC col mouse</b>: muovi il mouse a destra e sinistra per cambiare corsia, clic per saltare, tasto destro tenuto per il GAS in salita (in piano impenna), rotellina per il turbo.</span></div>
+          <div><i>🎮</i><span><b>Joypad</b> (PC, Android, iPad): stick per sterzare, A salta, B impenna, RT gas, X turbo, Start pausa.</span></div>
+          <div><i>⛰</i><span>In salita tieni <b>GAS / W</b>. In discesa: <b>campa giù!</b></span></div>
+          <div><i>⏱</i><span><b>Tempo massimo</b>: arriva al rifugio prima che scada. Il segno rosso sulla barra è il cronometro. Ogni secondo avanzato vale 100 punti.</span></div>
+          <div><i>⚡</i><span>Turbo carico (B): 3 secondi invincibile e punti doppi. Casco verde: +1 moto.</span></div>
+        </div>
+      </section>
+      <div class="quote">“Tranquilli,<br>è un giro easy.”<small>ULTIME PAROLE FAMOSE — EDT</small></div>
+    </aside>
+  </main>
+  <footer>
+    <span class="desktophint">MOUSE · sterza, clic salta, destro gas &nbsp; ← → / A D · sterza &nbsp; SPAZIO · salta &nbsp; S / ↓ · impenna &nbsp; B / SHIFT · turbo &nbsp; W · gas in salita &nbsp; P · pausa</span>
+    <span class="mobilehint">Scorri a destra o sinistra per sterzare · tocca per saltare · scorri giù per impennare</span>
+    <span>Arriva al rifugio prima del tempo massimo.</span>
+  </footer>
+</div>
+<script type="module" src="game.js?v=29"></script>
+</body>
+</html>

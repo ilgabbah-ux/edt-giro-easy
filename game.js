@@ -1,0 +1,1144 @@
+// EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=29';
+import { createWorld } from './scene3d.js?v=29';
+import * as A from './audio.js?v=29';
+import * as P from './progress.js?v=29';
+import { FOTO } from './piloti.js?v=29';
+import { createMud } from './mudfx.js?v=29';
+import { icon, iconize, iconizeEl } from './icons.js?v=29';
+
+const $ = id => document.getElementById(id);
+const canvas = $('canvas');
+let world = null, worldError = null;
+try { world = createWorld(canvas); } catch (e) { worldError = e; console.error('3D non disponibile', e); }
+
+// ---------- Piloti (abbinamenti foto conservati dalla v14) ----------
+const RIDERS = ['Il Gabbah', 'Angelo', 'Miti', 'Claudio', 'Max', 'Purcello', 'Ciprian', 'Costa', 'Linus', 'Mirco', 'Luigi', 'Renard', 'Paletta', 'Andrea', 'Brizio', 'Sergio', 'Albo', 'Alex'];
+const PHOTOS = { 'Il Gabbah': 'gabbah', 'Angelo': 'angelo', 'Linus': 'linus', 'Costa': 'costa', 'Purcello': 'purcello', 'Renard': 'renard', 'Miti': 'miti', 'Mirco': 'mirco', 'Max': 'max', 'Paletta': 'paletta',
+  'Claudio': 'claudio', 'Ciprian': 'ciprian', 'Luigi': 'luigi', 'Andrea': 'andrea', 'Brizio': 'brizio', 'Sergio': 'sergio', 'Albo': 'albo', 'Alex': 'alex' };
+// Abilità speciale di ogni pilota: cambia davvero il modo di giocare.
+const SKILLS = {
+  'Il Gabbah': { id: 'steady', icon: '🎯', name: 'Costanza', desc: 'La combo dura 2 s in più e un errore la dimezza invece di azzerarla.' },
+  'Angelo': { id: 'mule', icon: '🪨', name: 'Re della mulattiera', desc: 'In mulattiera sterza il 35% più veloce e va l’8% più forte.' },
+  'Miti': { id: 'wheelie', icon: '🤠', name: 'Re dell’impennata', desc: 'Impennate fino a 6 s, punti doppi, Yee-haw a ogni impennata.' },
+  'Claudio': { id: 'spring', icon: '🦘', name: 'Molla', desc: 'Salti più alti del 15% e più lunghi del 10%.' },
+  'Max': { id: 'turbo', icon: '⚡', name: 'Turbo facile', desc: 'Il turbo si carica il 40% più in fretta.' },
+  'Purcello': { id: 'nose', icon: '🍺', name: 'Fiuto da birra', desc: 'Prende le birre anche dalla corsia accanto.' },
+  'Ciprian': { id: 'climb', icon: '⛰', name: 'Salitone', desc: 'In salita non perde velocità, come se tenesse sempre il gas.' },
+  'Costa': { id: 'amphibious', icon: '🐸', name: 'Anfibio', desc: 'Le pozzanghere non lo rallentano e non gli rompono la combo.' },
+  'Linus': { id: 'scrub', icon: '🌀', name: 'Scrubber', desc: 'Due scrub per salto e punti tripli.' },
+  'Mirco': { id: 'lion', icon: '🦁', name: 'Giovane leone', desc: 'Parte con una moto in più.' },
+  'Luigi': { id: 'downhill', icon: '⬇️', name: 'Campa giù', desc: 'In discesa va il 25% più forte e fa punti doppi.' },
+  'Renard': { id: 'fox', icon: '🦊', name: 'Volpe', desc: 'I "per un pelo" sono più facili e valgono il triplo.' },
+  'Paletta': { id: 'veteran', icon: '🧓', name: 'Esperienza', desc: '+4 s di tempo massimo e 1 s in più di protezione dopo un urto.' },
+  'Andrea': { id: 'precise', icon: '✴️', name: 'Precisione', desc: 'Salti perfetti molto più facili e pagati il doppio.' },
+  'Brizio': { id: 'grappino', icon: '🔥', name: 'Grappino', desc: 'La grappa dura il doppio e si trova più spesso.' },
+  'Sergio': { id: 'sommelier', icon: '🍷', name: 'Sommelier', desc: 'Il vino dura il doppio e con il vino le birre valgono il triplo.' },
+  'Alex': { id: 'rocket', icon: '🚀', name: 'Partenza a razzo', desc: 'Parte con il turbo già carico e nei primi 8 s va il 10% più forte.' },
+  'Albo': { id: 'dry', icon: '🚱', name: 'Acqua? Mai', desc: 'Immune alla bottiglia d’acqua: la spacca e fa punti.' },
+};
+let skill = '';
+const has = id => skill === id;
+const photoURL = name => PHOTOS[name] ? (FOTO[PHOTOS[name]] || 'piloti/' + PHOTOS[name] + '.jpg') : null;
+function avatarHTML(name, cls = '') {
+  const url = photoURL(name);
+  return url
+    ? `<span class="avatar ${cls}"><img src="${url}" alt="Foto di ${name}"></span>`
+    : `<span class="avatar initials ${cls}" aria-label="${name}">${name.replace('Il ', '').slice(0, 2).toUpperCase()}</span>`;
+}
+
+// ---------- Stato ----------
+const profile = P.profile;
+if (!RIDERS.includes(profile.rider)) profile.rider = RIDERS[0];
+let mode = Math.min(P.MODES.length - 1, Math.max(0, profile.mode | 0));
+if (!P.isUnlocked(P.MODES[mode])) mode = 0;
+// ---------- Tracciato del percorso scelto ----------
+let runSeed = 1;
+function layoutFor(m, fresh = false) {
+  const md = P.MODES[m];
+  if (md.random === 'daily') return randomLayout(makeRng(P.todayKey() * 7 + 13));
+  if (md.random === 'run') { if (fresh) runSeed = (Date.now() ^ (Math.random() * 1e9)) >>> 0; return randomLayout(makeRng(runSeed)); }
+  return md.layout;
+}
+const SEG_SHORT = ['BOSCO', 'POZZE', 'SALITA', 'MULA'];
+function renderTrackbar() {
+  const segs = layoutSegments();
+  $('trackbar').querySelectorAll('.seg').forEach(e => e.remove());
+  const html = segs.map(g => `<span class="seg s${g.t}${g.climb && g.t !== 2 ? ' up' : ''}${g.down ? ' down' : ''}" style="flex:${(g.to - g.from).toFixed(2)}" title="${g.name}">${g.to - g.from > 9 ? SECTION_NAMES[g.t].split(' ')[0] : g.to - g.from > 5 ? SEG_SHORT[g.t] : ''}</span>`).join('');
+  $('trackbar').insertAdjacentHTML('afterbegin', html);
+}
+function applyLayout(fresh = false) { setLayout(layoutFor(mode, fresh)); renderTrackbar(); }
+// Mini-altimetria per le schede dei percorsi.
+function stripHTML(layout) {
+  const tot = layout.reduce((a, x) => a + x.len, 0);
+  return `<span class="strip">${layout.map(x => `<i class="s${x.t}${x.climb && x.t !== 2 ? ' up' : ''}${x.down ? ' down' : ''}" style="flex:${(x.len / tot * 100).toFixed(1)}"></i>`).join('')}</span>`;
+}
+const ghostKey = () => P.MODES[mode].random === 'daily' ? 'd' + P.todayKey() : P.MODES[mode].random ? null : String(mode);
+let state = 'ready';
+let lane = 1, px = 1, jump = 0, jumpBuffer = 0, elapsed = 0, score = 0, lives = 3, objects = [], spawn = 0, invincible = 0, last = 0, roadTime = 0;
+let toastTime = 0, gas = false, wet = 0, routePhase = -1, countdown = 0, countStep = 0;
+let combo = 0, comboTime = 0, charge = 0, turbo = 0, magnet = 0, wave = 0, prevSafe = 1, lastBigLog = -9, fxSerial = 0, fxKind = 'coin';
+let lean = 0, bodyLean = 0, suspension = 0, springVelocity = 0, wheelPhase = 0, whip = 0, scrubbed = 0, shake = 0, speedNow = 1;
+let rng = Math.random, run = null, announced = new Set(), missionCheck = 0, lastCheer = -10;
+// v16: percorso a distanza con tempo massimo, moto con dinamica laterale, caduta e rallentatore.
+// Fantasma del record: dove eri, secondo per secondo, nel tuo giro migliore arrivato al rifugio.
+const GHOST_KEY = 'edt-ghost-v1';
+let ghosts = {}; try { ghosts = JSON.parse(localStorage.getItem(GHOST_KEY) || '{}') || {}; } catch { ghosts = {}; }
+let ghostSplits = [], ghostPassed = false, ghostNextSplit = 0;
+function ghostCourse(t) {
+  const k = ghostKey(), g = k && ghosts[k]; if (!g || !g.splits?.length) return null;
+  const i = t * 2, a = Math.floor(i);
+  if (a >= g.splits.length - 1) return GAME_LENGTH;
+  return g.splits[a] + (g.splits[a + 1] - g.splits[a]) * (i - a);
+}
+let course = 0, vx = 0, crash = 0, stun = 0, slowmo = 0, slowScale = 1, timeLimit = 70, kmh = 0, warned = false;
+const courseLength = diff => 60 * (1 + diff * .35) + 16; // distanza del percorso (unità di strada)
+// v17: birre, vino (calamita), grappa (super salto), acqua (malus), orecchie da coniglio, impennata, discese.
+let grappa = 0, waterT = 0, earsT = 0, earsPermanent = false, errors = 0;
+let wheelie = false, wheelieHeld = false, wheelieT = 0, wheelieCD = 0, lastYee = -10, downAnnounced = false, lastSpecial = -9;
+let jumpDur = JUMP_DURATION, jumpH = JUMP_HEIGHT;
+const curLift = () => jumpHeight(jump, jumpDur, jumpH);
+// Potenziamenti dell'officina (letti a inizio giro) e premi del rifugio.
+let up = { engine: 0, susp: 0, tank: 0, tyres: 0, helmet: 0, nose: 0, balance: 0, grit: 0 }, maxLives = 3, startBoosts = [];
+const turboMax = () => 3 + up.tank * .4;
+const comboMax = () => 4.5 + up.grit * .5 + (has('steady') ? 2 : 0);
+function breakCombo() { if (has('steady')) { combo = Math.floor(combo / 2); comboTime = combo ? comboMax() : 0; } else combo = comboTime = 0; }
+const earsOn = () => earsPermanent || earsT > 0;
+
+const newRun = () => ({ caps: 0, airCaps: 0, jumps: 0, perfect: 0, scrubs: 0, near: 0, maxMult: 1, turbos: 0, splashes: 0, hits: 0, magnets: 0, helmets: 0, grappas: 0, waters: 0, wheelies: 0, wheelieMax: 0, errors: 0, score: 0 });
+
+// ---------- Audio e incitamenti ----------
+A.setEnabled(profile.sound !== false);
+// Le voci MP3 sono preziose: almeno 12 s tra una voce e l'altra e 30 s prima di ripetere la stessa.
+let lastVoice = -99; const lastClip = {};
+function voice(text, force = false) {
+  const key = /gas/i.test(text) ? 'gas' : /così|cosi/i.test(text) ? 'success' : 'vai';
+  const now = performance.now() / 1000;
+  if (!force && (now - lastVoice < 12 || now - (lastClip[key] ?? -99) < 30)) return;
+  lastVoice = now; lastClip[key] = now;
+  A.speak(text);
+}
+function cheer(text, force = false, withVoice = false) {
+  if (!force && elapsed - lastCheer < 5) return;
+  lastCheer = elapsed;
+  toast(text);
+  if (withVoice) voice(text);
+}
+
+// ---------- Messaggi a schermo ----------
+function toast(t, kind = '') {
+  const b = $('banner');
+  b.innerHTML = iconize(t); b.className = 'banner ' + kind;
+  void b.offsetWidth; b.classList.add('show');
+  toastTime = 2.2;
+}
+// Scritta enorme al centro (Campa giù!): ha un suo livello, non viene coperta dagli altri messaggi.
+function bigCall(text) {
+  const el = $('bigcall'); if (!el) return;
+  el.textContent = text; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
+function pop(text, kind = 'gold') {
+  const layer = $('pops');
+  if (layer.childElementCount > 5) layer.firstElementChild.remove();
+  const el = document.createElement('div');
+  el.className = 'pop ' + kind;
+  el.innerHTML = iconize(text);
+  el.style.left = (50 + (Math.random() - .5) * 18) + '%';
+  el.addEventListener('animationend', () => el.remove());
+  layer.appendChild(el);
+}
+function flash(kind) {
+  const g = $('game');
+  g.classList.remove('flash-hit', 'flash-gold', 'flash-blue');
+  void g.offsetWidth;
+  g.classList.add('flash-' + kind);
+}
+
+// ---------- HUD ----------
+let shownScore = -1, shownLives = -1;
+function multiplier() { return Math.min(4, 1 + Math.floor(combo / 3)); }
+let lastPU = '';
+function hud() {
+  const s = Math.floor(score);
+  if (s !== shownScore) {
+    $('score').textContent = String(s).padStart(5, '0');
+    if (s - shownScore > 40) { $('scorebox').classList.remove('bump'); void $('scorebox').offsetWidth; $('scorebox').classList.add('bump'); }
+    shownScore = s;
+  }
+  if (lives !== shownLives) {
+    shownLives = lives;
+    $('lives').innerHTML = Array.from({ length: Math.max(3, maxLives) }, (_, i) => `<i class="helmet ${i < lives ? '' : 'lost'}"></i>`).join('');
+    $('lives').setAttribute('aria-label', lives + ' moto rimaste');
+  }
+  const m = multiplier();
+  $('multiplier').textContent = '×' + m;
+  $('combocount').textContent = combo ? combo + ' IN SERIE' : 'COMBO';
+  $('combobox').className = 'combobox m' + m + (comboTime > 0 && combo ? '' : ' idle');
+  $('combotimer').style.transform = `scaleX(${combo ? comboTime / comboMax() : 0})`;
+  const fill = turbo > 0 ? turbo / turboMax() * 100 : charge;
+  $('chargefill').style.width = fill + '%';
+  $('boost').disabled = state !== 'playing' || charge < 100 || turbo > 0;
+  $('boost').classList.toggle('ready', charge >= 100 && turbo <= 0 && state === 'playing');
+  $('boostlabel').textContent = turbo > 0 ? 'GAAAS! ×2' : charge >= 100 ? 'TURBO PRONTO' : 'TURBO ' + Math.floor(charge) + '%';
+  $('jump').classList.toggle('airborne', jump > 0);
+  $('game').classList.toggle('boosting', state === 'playing' && turbo > 0);
+  $('game').classList.toggle('magnet', state === 'playing' && magnet > 0);
+  $('game').classList.toggle('grappa', state === 'playing' && grappa > 0);
+  $('game').classList.toggle('watery', state === 'playing' && waterT > 0);
+  $('wheelie').classList.toggle('active', wheelie);
+  $('wheelie').textContent = wheelie ? 'YEE-HAW! ' + wheelieT.toFixed(1) + 's' : 'IMPENNA';
+  const left = Math.max(0, (state === 'ready' ? P.MODES[mode].limit : timeLimit) - elapsed);
+  $('timer').textContent = left < 10 && state === 'playing' ? left.toFixed(1) : Math.ceil(left);
+  $('timerbox').classList.toggle('final', state === 'playing' && left <= 10);
+  $('trackmarker').style.left = (course / GAME_LENGTH * 100) + '%';
+  $('pacemarker').style.left = Math.min(100, elapsed / timeLimit * 100) + '%';
+  const gcHud = state === 'playing' || state === 'paused' ? ghostCourse(elapsed) : null;
+  $('ghostmarker').hidden = gcHud === null;
+  if (gcHud !== null) { $('ghostmarker').style.left = (gcHud / GAME_LENGTH * 100) + '%'; $('ghostmarker').title = 'Record di ' + ghosts[ghostKey()].rider + ': ' + ghosts[ghostKey()].time.toFixed(1) + 's'; }
+  $('trackbar').classList.toggle('behind', state === 'playing' && elapsed / timeLimit > course / GAME_LENGTH);
+  $('kmh').textContent = kmh;
+  const route = routeAt(course, roadTime * 19.5);
+  document.querySelectorAll('#trackbar .seg').forEach((el, i) => el.classList.toggle('active', i === route.seg && state !== 'ready'));
+  $('tracklabel').textContent = route.name + (wet > 0 ? ' · IMPANTANATO' : route.grade > .05 ? ' · SALITA ' + Math.round(route.grade * 100) + '%' : route.grade < -.05 ? ' · DISCESA ' + Math.round(-route.grade * 100) + '%' : '');
+  const needGas = state === 'playing' && (route.climb > .05 || route.rough > .05);
+  $('gas').hidden = !needGas;
+  $('gas').classList.toggle('held', gas);
+  $('gas').setAttribute('aria-pressed', String(gas));
+  $('gas').textContent = gas ? 'GAS APERTO!' : 'TIENI GAS';
+  const pu = [];
+  if (magnet > 0) pu.push(`<span class="pu wine">🍷 VINO ${magnet.toFixed(1)}s</span>`);
+  if (grappa > 0) pu.push(`<span class="pu grappa">🔥 GRAPPA ${grappa.toFixed(1)}s</span>`);
+  if (waterT > 0) pu.push(`<span class="pu water">💧 ACQUA ${waterT.toFixed(1)}s</span>`);
+  if (earsOn() && state === 'playing') pu.push('<span class="pu ears">🐰 ORECCHIE</span>');
+  const html = pu.join('');
+  if (lastPU !== html) { lastPU = html; $('powerups').innerHTML = iconize(html); }
+}
+
+// ---------- Punti e combo ----------
+function reward(points, label, kind = 'coin', chain = true) {
+  if (chain) { combo++; comboTime = comboMax(); }
+  const m = multiplier();
+  if (run) run.maxMult = Math.max(run.maxMult, m);
+  const earned = Math.round(points * m * (turbo > 0 ? 2 : 1));
+  score += earned;
+  if (turbo <= 0) charge = Math.min(100, charge + ({ jump: 20, perfect: 26, trick: 10, near: 8, smash: 0 }[kind] ?? 6) * (1 + up.tank * .1) * (has('turbo') ? 1.4 : 1));
+  fxKind = kind; fxSerial++;
+  pop(label + ' +' + earned, kind === 'jump' || kind === 'perfect' ? 'white' : kind === 'trick' ? 'blue' : kind === 'near' ? 'small' : 'gold');
+  if (kind === 'perfect') cheer('SÌÌÌ, COSÌ SI FA!', false, true);
+  else if (chain && combo > 0 && combo % 9 === 0) { cheer('NON MOLLARE!', true); flash('gold'); }
+  if (chain && combo === 9) toast('COMBO ×4 — MANICO VERO!', 'gold');
+}
+
+function boost() {
+  if (state !== 'playing' || charge < 100 || turbo > 0) return;
+  charge = 0; turbo = turboMax(); run.turbos++;
+  toast('DAI GAS CICCIO!'); voice('Dai gas Ciccio!');
+  A.sfx.turbo(); flash('gold'); shake = .5;
+  hud();
+}
+
+// ---------- Avvio, conto alla rovescia, fine ----------
+function setDisabled(v) {
+  document.querySelectorAll('[data-rider],[data-livery]').forEach(b => b.disabled = v);
+}
+function resetRun() {
+  gas = false; wet = 0; routePhase = -1; lane = px = 1; jump = jumpBuffer = elapsed = score = spawn = invincible = 0; lives = 3; objects = [];
+  combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
+  lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
+  ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
+  grappa = waterT = earsT = errors = wheelieT = wheelieCD = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9;
+  jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
+  for (const k of Object.keys(up)) up[k] = P.upgradeLevel(k);
+  maxLives = 3 + (up.helmet >= 2 ? 1 : 0) + (up.helmet >= 4 ? 1 : 0) + (has('lion') ? 1 : 0);
+  const b = P.takeBoosts(); startBoosts = [];
+  if (b.helmet) { maxLives++; startBoosts.push('CASCO DI SCORTA'); }
+  lives = maxLives;
+  if (b.turbo) { charge = 100; startBoosts.push('TURBO CARICO'); }
+  if (has('rocket')) charge = 100;
+  if (b.grappa) { grappa = 6; startBoosts.push('GRAPPA DEL RIFUGISTA'); }
+  if (b.wine) { magnet = 7 + up.nose; startBoosts.push('BOTTIGLIA DI ROSSO'); }
+  run = newRun(); announced = new Set(); shownScore = -1; shownLives = -1; mudFx.clear();
+  rng = mode === 3 ? makeRng(P.todayKey()) : makeRng((Date.now() ^ (Math.random() * 1e9)) >>> 0);
+  applyLayout(true);
+}
+function start() {
+  if (!world) return;
+  A.unlock(); A.stopVoice(); A.preloadExtras();
+  resetRun();
+  state = 'countdown'; countdown = 3.2; countStep = 4;
+  $('overlay').classList.add('hidden');
+  setMenu(false);
+  $('pops').innerHTML = '';
+  $('pause').innerHTML = icon('pause'); $('pause').setAttribute('aria-label', 'Pausa');
+  setDisabled(true);
+  A.engineStart();
+  hud();
+}
+function go() {
+  state = 'playing';
+  $('countdown').className = 'countdown go';
+  $('countdown').textContent = 'VIA!';
+  setTimeout(() => { if (state !== 'countdown') $('countdown').className = 'countdown'; }, 700);
+  toast('VAI CICCIO!'); voice('Vai Ciccio!', true);
+  if (startBoosts.length) setTimeout(() => toast('🎁 ' + startBoosts.join(' · '), 'green'), 1500);
+}
+
+function finish(win, reason = '') {
+  state = 'ended';
+  A.engineStop(); A.stopVoice();
+  setDisabled(false);
+  const timeBonus = win ? Math.round((timeLimit - elapsed) * 100) : 0;
+  if (win) score += lives * 250 + timeBonus;
+  run.timeLeft = win ? Math.floor(timeLimit - elapsed) : 0;
+  run.finishTime = win ? elapsed : 0;
+  run.timeBonus = timeBonus; run.reason = reason;
+  if (win && ghostKey() && (!ghosts[ghostKey()] || elapsed < ghosts[ghostKey()].time)) {
+    ghostSplits.push(GAME_LENGTH);
+    ghosts[ghostKey()] = { time: +elapsed.toFixed(2), rider: profile.rider, splits: ghostSplits.map(v => +v.toFixed(2)) };
+    try { localStorage.setItem(GHOST_KEY, JSON.stringify(ghosts)); } catch {}
+    run.ghostRecord = true;
+  }
+  score = Math.floor(score);
+  run.score = score;
+  const finished = win ? 1 : 0;
+  Object.assign(run, {
+    mode, rider: profile.rider,
+    clean: finished && run.hits === 0 ? 1 : 0,
+    dry: finished && run.splashes === 0 ? 1 : 0,
+    angeloFinish: finished && mode === 2 ? 1 : 0,
+    dailyFinish: finished && mode === 3 ? 1 : 0,
+  });
+  const res = P.recordRun(run);
+  hud();
+  $('banner').classList.remove('show');
+  renderResult(win, res, reason, timeBonus);
+  if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => voice('Sììì, così si fa!', true), 900); }
+  else A.sfx.lose();
+  renderSide();
+}
+
+function pause() {
+  if (state === 'playing' || state === 'countdown') {
+    gas = false; A.stopVoice(); A.engineStop();
+    state = 'paused';
+    $('overlay').classList.remove('hidden');
+    $('card').innerHTML = `<div class="eyebrow">SOSTA TECNICA</div><h1>ASPETTIAMO<br><em>IL GRUPPO.</em></h1>
+      <p>Nessuno resta indietro.</p>
+      <button class="primary" id="resume"><span>RIPARTIAMO</span>${icon('chevrons')}</button><br>
+      <button class="secondary" id="quit">ABBANDONA IL GIRO</button>`;
+    $('resume').onclick = pause;
+    $('quit').onclick = () => { state = 'ready'; setDisabled(false); renderReady(); };
+    $('pause').innerHTML = icon('play'); $('pause').setAttribute('aria-label', 'Riprendi');
+    hud();
+  } else if (state === 'paused') {
+    state = countdown > 0 ? 'countdown' : 'playing';
+    A.engineStart();
+    $('overlay').classList.add('hidden');
+    $('pause').innerHTML = icon('pause'); $('pause').setAttribute('aria-label', 'Pausa');
+    hud();
+  }
+}
+
+// ---------- Comandi ----------
+function move(d) {
+  if (state !== 'playing') return;
+  const before = lane;
+  lane = Math.max(0, Math.min(2, lane + d));
+  if (lane === before) return;
+  A.sfx.lane(lane);
+  if (jump > 0 && scrubbed < (has('scrub') ? 2 : 1) && curLift() > .6) {
+    scrubbed++; whip = d; run.scrubs++;
+    A.sfx.scrub();
+    reward(has('scrub') ? 180 : 60, 'SCRUB!', 'trick', false);
+  }
+}
+function takeoff() {
+  const sup = grappa > 0;
+  jumpDur = (sup ? SUPER_JUMP.duration : JUMP_DURATION) * (1 + up.susp * .03); jumpH = (sup ? SUPER_JUMP.height : JUMP_HEIGHT) * (1 + up.susp * .05) * (has('spring') ? 1.15 : 1); if (has('spring')) jumpDur *= 1.1;
+  jump = jumpDur; scrubbed = 0; A.sfx.jump();
+  if (wheelie) endWheelie(false);
+}
+function hop() {
+  if (state !== 'playing') return;
+  if (jump <= 0) takeoff();
+  else if (jump < .18) jumpBuffer = .2; // premuto un attimo prima di atterrare: salta appena tocca terra
+}
+
+// Impennata: tieni premuto IMPENNA (o S / freccia giù). Più dura, più punti; oltre 3 secondi la ruota torna giù.
+function startWheelie() {
+  wheelieHeld = true;
+  if (state !== 'playing' || jump > 0 || wheelie || wheelieCD > 0 || crash > 0) return;
+  wheelie = true; wheelieT = 0; run.wheelies++;
+  A.sfx.wheelie();
+  if (elapsed - lastYee > (has('wheelie') ? 2 : 8)) { lastYee = elapsed; A.say('yeehaw'); pop('YEE-HAW!', 'white'); }
+}
+function endWheelie(tooLong) {
+  if (!wheelie) return;
+  wheelie = false; wheelieCD = .5;
+  run.wheelieMax = Math.max(run.wheelieMax, wheelieT);
+  if (wheelieT > .4) reward(Math.round(wheelieT * 110), 'IMPENNATA ' + wheelieT.toFixed(1).replace('.', ',') + 's', 'trick');
+  if (tooLong) pop('TROPPO LUNGA! GIÙ LA RUOTA', 'small');
+}
+function stopWheelieInput() { wheelieHeld = false; }
+
+// Errori (urti e pozzanghere): dopo più di 3, orecchie da coniglio fino al rifugio.
+// Orecchie da coniglio fino al rifugio al 3° errore (urti, pozzanghere, acqua) o quando resta l'ultima moto.
+function mistake() {
+  errors++; run.errors = errors;
+  if (!earsPermanent && (errors >= 3 || lives === 1)) {
+    earsPermanent = true; A.sfx.ears();
+    setTimeout(() => toast(lives === 1 ? '🐰 ULTIMA MOTO: ORECCHIE DA CONIGLIO!' : '🐰 TRE ERRORI: ORECCHIE DA CONIGLIO!', 'pink'), 900);
+  }
+}
+
+$('gas').onpointerdown = e => { e.preventDefault(); if (state === 'playing') { gas = true; $('gas').setPointerCapture(e.pointerId); } };
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) $('gas').addEventListener(ev, () => gas = false);
+window.addEventListener('keyup', e => { if (e.key.toLowerCase() === 'w') gas = false; if (['s', 'S', 'ArrowDown'].includes(e.key)) stopWheelieInput(); });
+window.addEventListener('blur', () => { gas = false; if (state === 'playing') pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && (state === 'playing' || state === 'countdown')) pause(); });
+$('left').onpointerdown = e => { e.preventDefault(); move(-1); };
+$('right').onpointerdown = e => { e.preventDefault(); move(1); };
+$('jump').onpointerdown = e => { e.preventDefault(); hop(); };
+$('boost').onpointerdown = e => { e.preventDefault(); boost(); };
+$('wheelie').onpointerdown = e => { e.preventDefault(); $('wheelie').setPointerCapture(e.pointerId); startWheelie(); };
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) $('wheelie').addEventListener(ev, stopWheelieInput);
+$('pause').onclick = pause;
+$('sound').onclick = () => {
+  const on = !A.isEnabled();
+  A.unlock(); A.setEnabled(on); profile.sound = on; P.save();
+  syncSound();
+  if (on) { A.sfx.click(); if (state === 'playing') A.engineStart(); } else A.engineStop();
+};
+function syncSound() {
+  const on = A.isEnabled();
+  $('sound').classList.toggle('off', !on);
+  $('sound').setAttribute('aria-pressed', String(on));
+  $('sound').setAttribute('aria-label', on ? 'Disattiva audio e incitamenti' : 'Attiva audio e incitamenti');
+  $('sound').title = on ? 'Audio attivo' : 'Audio disattivato';
+}
+syncSound();
+const fsTarget = $('game');
+if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) $('fullscreen').hidden = true;
+$('fullscreen').onclick = () => {
+  const el = document.fullscreenElement || document.webkitFullscreenElement;
+  if (el) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else (fsTarget.requestFullscreen || fsTarget.webkitRequestFullscreen).call(fsTarget).catch?.(() => {});
+};
+document.addEventListener('fullscreenchange', () => setTimeout(() => world?.resize(), 60));
+
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = e.key;
+  if (k.toLowerCase() === 'w') { e.preventDefault(); if (state === 'playing') gas = true; return; }
+  if (['s', 'S', 'ArrowDown'].includes(k)) { e.preventDefault(); if (!e.repeat) startWheelie(); return; }
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', ' ', 'a', 'A', 'd', 'D', 'p', 'P', 'Shift', 'b', 'B', 'Enter'].includes(k)) {
+    if (k === 'Enter' && document.activeElement && document.activeElement.tagName === 'BUTTON' && state !== 'playing') return;
+    e.preventDefault();
+    if (e.repeat) return;
+    if (['ArrowLeft', 'a', 'A'].includes(k)) move(-1);
+    if (['ArrowRight', 'd', 'D'].includes(k)) move(1);
+    if ([' ', 'ArrowUp', 'Enter'].includes(k)) { if (state === 'ready' || state === 'ended') start(); else hop(); }
+    if (k.toLowerCase() === 'p') pause();
+    if (k === 'Shift' || k.toLowerCase() === 'b') boost();
+  }
+});
+
+let touch = null;
+// ---------- Mouse (PC): la moto segue il puntatore ----------
+// Muovi il mouse a destra/sinistra = corsia · clic sinistro = salto · tasto destro tenuto = GAS in salita
+// (impennata in piano) · rotellina o clic centrale = turbo.
+let mouseOn = false, rightHeld = false, lastWheel = 0;
+function mouseLane(x) {
+  const r = canvas.getBoundingClientRect(), u = (x - r.left) / r.width;
+  // Isteresi: per cambiare corsia bisogna superare bene il confine.
+  const edges = [.36, .64], m = .03;
+  if (lane === 0) return u > edges[0] + m ? (u > edges[1] + m ? 2 : 1) : 0;
+  if (lane === 2) return u < edges[1] - m ? (u < edges[0] - m ? 0 : 1) : 2;
+  return u < edges[0] - m ? 0 : u > edges[1] + m ? 2 : 1;
+}
+function steerTo(target) { let n = 0; while (lane !== target && n++ < 2 && state === 'playing') { const before = lane; move(Math.sign(target - lane)); if (lane === before) break; } }
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerType !== 'mouse' || state !== 'playing') return;
+  if (!mouseOn) { mouseOn = true; $('game').classList.add('mouseon'); }
+  steerTo(mouseLane(e.clientX));
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('wheel', e => { if (state !== 'playing') return; e.preventDefault(); const now = performance.now(); if (now - lastWheel > 400) { lastWheel = now; boost(); } }, { passive: false });
+function rightDown() {
+  rightHeld = true;
+  const r = routeAt(course, roadTime * 19.5);
+  if (r.climb > .05 || r.rough > .05) gas = true; else startWheelie();
+}
+function rightUp() { if (!rightHeld) return; rightHeld = false; gas = false; stopWheelieInput(); }
+window.addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 2) rightUp(); });
+canvas.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') {
+    e.preventDefault();
+    if (state !== 'playing') return;
+    mouseOn = true; $('game').classList.add('mouseon');
+    if (e.button === 0) hop();
+    else if (e.button === 2) rightDown();
+    else if (e.button === 1) boost();
+    return;
+  }
+  touch = { x: e.clientX, y: e.clientY, t: performance.now() }; canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointerup', e => {
+  if (e.pointerType === 'mouse') { if (e.button === 2) rightUp(); return; }
+  if (!touch) return;
+  const dx = e.clientX - touch.x, dy = e.clientY - touch.y;
+  if (Math.abs(dx) > 25 && Math.abs(dx) > Math.abs(dy)) move(Math.sign(dx));
+  else if (dy > 30) { startWheelie(); setTimeout(stopWheelieInput, 1400); } // scorri in giù: impennata breve
+  else if (dy < -20 || (Math.abs(dx) < 12 && Math.abs(dy) < 12)) hop();
+  touch = null;
+});
+
+// ---------- Joypad (Xbox/PlayStation/Switch su PC, Android, iPad) ----------
+// Stick o croce = corsia · A/✕ = salta (e parti) · B/○ = impenna · RT/R2 = gas · X/□ o RB = turbo · Start = pausa.
+const padPrev = {};
+function pollPad() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const pad of pads) {
+    if (!pad) continue;
+    const b = i => !!(pad.buttons[i] && (pad.buttons[i].pressed || pad.buttons[i].value > .5));
+    const ax = pad.axes[0] || 0;
+    const now = { left: b(14) || ax < -.55, right: b(15) || ax > .55, a: b(0), b: b(1), x: b(2) || b(5), rt: b(7) || b(6), start: b(9) };
+    const prev = padPrev[pad.index] || {};
+    const pressed = k => now[k] && !prev[k];
+    if (pressed('left')) move(-1);
+    if (pressed('right')) move(1);
+    if (pressed('a')) { if (state === 'ready' || state === 'ended') start(); else hop(); }
+    if (pressed('b')) startWheelie();
+    if (!now.b && prev.b) stopWheelieInput();
+    if (pressed('x')) boost();
+    if (state === 'playing' && now.rt !== !!prev.rt) gas = now.rt;
+    if (pressed('start')) pause();
+    padPrev[pad.index] = now;
+  }
+}
+window.addEventListener('gamepadconnected', () => toast('🎮 JOYPAD COLLEGATO: A SALTA · B IMPENNA · RT GAS', 'green'));
+
+// ---------- Ondate di ostacoli ----------
+// Ogni fila lascia sempre una corsia libera, indicata dalle birre. Ogni sezione ha i suoi ostacoli.
+const SECTION_OBS = [
+  ['log', 'rock', 'root', 'stump', 'stump'],   // sottobosco: tronchi, radici, ceppi
+  ['puddle', 'hay', 'puddle', 'log'],          // pozzanghere: pozze e balle di fieno
+  ['step', 'rock', 'cairn', 'step'],           // salitone: gradoni, massi, ometti di pietra
+  ['rock', 'step', 'goat', 'root', 'goat'],    // mulattiera: sassi, gradoni, capre
+];
+function pick(list) { return list[Math.floor(rng() * list.length)]; }
+function spawnWave() {
+  const r = routeAt(course, roadTime * 19.5), section = r.id, diff = P.MODES[mode].difficulty;
+  const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
+  const obs = () => pick(SECTION_OBS[section]);
+  const zSpeed = (1 + diff * .35 + elapsed / 100) * speedNow * 19.5 / 55;
+
+  // Mulattiera: frana! Un sasso rotola giù dalla parete e attraversa le corsie.
+  if (section === 3 && wave > 1 && wave - lastSpecial > 2 && rng() < .3 + diff * .07) {
+    lastSpecial = wave;
+    const lEnd = Math.floor(rng() * 3), k = 3.2 / .83;
+    add(lEnd - (.91 - .08) * k, .08, 'rollRock', { roll: true, lEnd, k });
+    const beerLane = (lEnd + 1 + Math.floor(rng() * 2)) % 3;
+    add(beerLane, .02, 'coin'); add(beerLane, -.08, 'coin');
+    toast('FRANA! OCCHIO AI SASSI', 'red');
+    prevSafe = beerLane; wave++;
+    return;
+  }
+
+  // Tronco di traverso: si passa solo saltando, con birre al volo come premio.
+  if ((section === 0 || section === 2) && wave > 2 && wave - lastBigLog > 3 && rng() < .2 + diff * .04) {
+    lastBigLog = wave;
+    add(1, .08, 'bigLog');
+    for (let k = -2; k <= 2; k++) {
+      const dz = k * .05, dt = dz / zSpeed;
+      const lift = 2.05 * Math.max(0, Math.cos(dt / JUMP_DURATION * Math.PI)) + .1;
+      add(prevSafe, .08 - dz, 'coin', { air: true, lift: Math.max(.35, lift) });
+    }
+    wave++;
+    return;
+  }
+
+  // Chicane: due file sfalsate, la linea buona si sposta di una corsia a metà ondata. In mulattiera è più frequente.
+  if (section !== 1 && wave > (section === 3 ? 1 : 5) && rng() < (section === 3 ? .34 : .16) + diff * .05) {
+    const s1 = prevSafe, s2 = s1 === 1 ? (rng() < .5 ? 0 : 2) : 1;
+    for (let l = 0; l < 3; l++) if (l !== s1) add(l, .08, obs());
+    add(s1, -.14, obs());
+    if (rng() < .3 + diff * .2 + (section === 3 ? .25 : 0)) add(3 - s1 - s2, -.14, obs());
+    add(s1, .08, 'coin'); add(s1, -.02, 'coin'); add(s2, -.14, 'coin'); add(s2, -.24, 'coin');
+    prevSafe = s2; wave++;
+    return;
+  }
+
+  let safe;
+  if (section === 3) {
+    // Mulattiera: la linea buona cambia sempre, ma resta raggiungibile.
+    safe = prevSafe === 1 ? (rng() < .5 ? 0 : 2) : 1;
+  } else {
+    safe = Math.floor(rng() * 3);
+    if (safe === prevSafe && rng() < .5) safe = (safe + 1 + Math.floor(rng() * 2)) % 3;
+  }
+  prevSafe = safe;
+  const other = (safe + 1 + Math.floor(rng() * 2)) % 3, third = 3 - safe - other;
+
+  // Birre sulla linea buona; in mezzo a volte un bonus (casco, vino, grappa).
+  // A volte l'ultima è una bottiglia d'acqua: da saltare o schivare.
+  const waterChance = wave > 2 ? .1 + diff * .03 + (section === 3 ? .1 : 0) : 0;
+  for (let i = 0; i < 3; i++) {
+    let type = 'coin';
+    if (i === 1 && wave > 3) {
+      const roll = rng();
+      if (lives < 3 && roll < .06) type = 'helmet';
+      else if (roll > .94) type = 'wine';
+      else if (roll > (has('grappino') ? .82 : .9)) type = 'grappa';
+    }
+    if (i === 2 && rng() < waterChance) type = 'water';
+    add(safe, .08 - i * .10, type);
+  }
+
+  const thirdChance = .4 + diff * .17;
+  add(other, .08, obs());
+  if (section === 3) {
+    add(third, .08, obs());
+    if (rng() < .35 + diff * .1) add(other, -.12, obs()); // seconda fila sfalsata
+  } else if (rng() < thirdChance + (section === 1 ? .2 : 0)) add(third, .08, obs());
+  if (section !== 3 && rng() < .06) add(third, -.05, 'water'); // acqua "trappola" su un'altra corsia
+  wave++;
+}
+
+// ---------- Ciclo di gioco ----------
+function update(dt) {
+  if (state === 'countdown') {
+    countdown -= dt;
+    const n = Math.ceil(countdown);
+    if (n !== countStep && n > 0 && n <= 3) {
+      countStep = n;
+      $('countdown').textContent = n; $('countdown').className = 'countdown';
+      void $('countdown').offsetWidth; $('countdown').className = 'countdown show';
+      A.sfx.count(false);
+    }
+    if (countdown <= 0) { countdown = 0; A.sfx.count(true); go(); }
+    A.engineUpdate(.15 + Math.sin(performance.now() / 180) * .1 + .1, false, false, false);
+    wheelPhase += dt * 20;
+    hud();
+    return;
+  }
+  if (state !== 'playing') return;
+  // Rallentatore breve su salti perfetti e cadute.
+  if (slowmo > 0) { slowmo -= dt; dt *= slowScale; }
+  const diff = P.MODES[mode].difficulty;
+  elapsed = Math.min(timeLimit, elapsed + dt);
+  turbo = Math.max(0, turbo - dt); wet = Math.max(0, wet - dt); magnet = Math.max(0, magnet - dt);
+  crash = Math.max(0, crash - dt * 1.5); stun = Math.max(0, stun - dt);
+  grappa = Math.max(0, grappa - dt); waterT = Math.max(0, waterT - dt); earsT = Math.max(0, earsT - dt);
+  wheelieCD = Math.max(0, wheelieCD - dt);
+  if (wheelie) {
+    if (!wheelieHeld || jump > 0 || crash > 0) endWheelie(false);
+    else {
+      wheelieT += dt; score += dt * 60 * multiplier() * (1 + up.balance * .15) * (has('wheelie') ? 2 : 1);
+      if (turbo <= 0) charge = Math.min(100, charge + dt * 9);
+      if (wheelieT >= 3.2 + up.balance * .5 + (has('wheelie') ? 2.8 : 0)) endWheelie(true);
+    }
+  }
+  shake = Math.max(0, shake - dt * 2.4);
+  whip *= Math.pow(.02, dt);
+  jumpBuffer = Math.max(0, jumpBuffer - dt);
+
+  const route = routeAt(course, roadTime * 19.5);
+  const speed = paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1);
+  // Discesa: "Campa giù!"
+  if (route.down > .45 && !downAnnounced) { downAnnounced = true; A.say('campa'); bigCall('CAMPA GIÙ!'); }
+  if (route.down < .15) downAnnounced = false;
+  speedNow = speed;
+  if (route.seg !== routePhase) {
+    const prevSeg = layoutSegments()[routePhase];
+    if (routePhase >= 0) flash('gold');
+    routePhase = route.seg;
+    const cur = layoutSegments()[route.seg];
+    const hints = ['SOTTOBOSCO! OCCHIO AI TRONCHI', 'POZZANGHERE! SCHIVA O SALTA', 'SALITONE HARD! TIENI GAS', 'MULATTIERA HARD! SEGUI LE BIRRE'];
+    const text = cur.t === 3 && cur.climb ? 'MULATTIERA IN SALITA! GAS E SANGUE FREDDO' : hints[cur.t];
+    if (prevSeg && (prevSeg.t !== cur.t || prevSeg.climb !== cur.climb)) cheer(text, true, cur.t === 2 || (cur.t === 3 && cur.climb));
+  }
+  score += dt * 12 * (turbo > 0 ? 2 : 1) * (has('downhill') && route.down > .4 ? 2 : 1);
+  // In mulattiera non si va più veloci: è stretta, sassosa e con ondate più dure.
+  const travelStep = dt * (1 + diff * .35 + elapsed / 100) * speed * 19.5 * (1 - route.rough * .06) * (1 + up.engine * .025);
+  roadTime += travelStep / 19.5;
+  course = Math.min(GAME_LENGTH, roadTime / courseLength(diff) * GAME_LENGTH);
+  kmh = Math.round(travelStep / dt / 19.5 * 31);
+  while (elapsed >= ghostNextSplit) { ghostSplits.push(course); ghostNextSplit += .5; }
+  const gc = ghostCourse(elapsed);
+  if (gc !== null && !ghostPassed && elapsed > 3 && course > gc + .4) { ghostPassed = true; pop('👻 SUPERATO IL FANTASMA!', 'white'); }
+  if (gc !== null && ghostPassed && course < gc - 1.5) ghostPassed = false;
+  if (!warned && timeLimit - elapsed <= 10) { warned = true; toast('ULTIMI 10 SECONDI! DAI GAS!', 'red'); voice('Dai gas Ciccio!'); }
+  comboTime = Math.max(0, comboTime - dt);
+  if (comboTime === 0) combo = 0;
+
+  // Spostamento laterale a molla: la moto accelera, piega e si raddrizza in modo naturale.
+  const kLat = (118 - route.rough * 32) * (1 + up.tyres * .08) * (has('mule') && route.rough > .4 ? 1.35 : 1), cLat = 2 * Math.sqrt(kLat) * .9;
+  vx += ((lane - px) * kLat - vx * cLat) * dt;
+  px += vx * dt;
+  const wasAirborne = jump > 0;
+  jump = Math.max(0, jump - dt);
+  if (wasAirborne && jump === 0) {
+    springVelocity = 95; A.sfx.land(); shake = Math.max(shake, .25);
+    if (jumpBuffer > 0) { jumpBuffer = 0; takeoff(); }
+  }
+  const bump = jump > 0 ? 0 : Math.sin(roadTime * 27) * (18 + route.rough * 40);
+  springVelocity += (bump - suspension * 150 - springVelocity * 13) * dt;
+  suspension += springVelocity * dt;
+  wheelPhase += dt * (180 + diff * 45) * speed;
+  invincible = Math.max(0, invincible - dt);
+  toastTime -= dt;
+  if (toastTime < 0) $('banner').classList.remove('show');
+  A.engineUpdate(speed * (1 + elapsed / 200), gas, turbo > 0, jump > 0);
+
+  spawn -= dt * speed;
+  if (spawn <= 0) {
+    spawn = Math.max(.95, (1.8 - diff * .16 - course * .002) * (route.id === 3 ? .8 : 1));
+    spawnWave();
+  }
+
+  const lift = curLift(), phase = jump > 0 ? 1 - jump / jumpDur : 0;
+  const pull = magnet > 0 ? 1.7 : 0;
+  for (const o of objects) {
+    o.z += travelStep / 55;
+    if (o.roll) o.l = o.lEnd - (.91 - o.z) * o.k;
+    if (o.hit || o.z < .91) continue;
+    o.hit = true;
+    const gap = o.type === 'bigLog' ? 0 : Math.abs(px - o.l);
+    if (o.type === 'coin') {
+      const val = magnet > 0 ? (has('sommelier') ? 3 : 2) : 1;
+      if (o.air) {
+        if (gap < .5 && lift > .8) { o.collected = true; run.caps++; run.airCaps++; A.sfx.air(); reward(150 * val, 'BIRRA AL VOLO!', 'coin'); }
+      } else if (gap < .4 + up.nose * .05 || gap < pull || (has('nose') && gap < 1.05)) {
+        o.collected = true; run.caps++; A.sfx.beer(); reward(100 * val, combo >= 2 ? 'COMBO!' : 'BIRRA!');
+      }
+    } else if (o.type === 'helmet' || o.type === 'wine' || o.type === 'grappa') {
+      if (gap < .5 || gap < pull) {
+        o.collected = true; fxKind = 'power'; fxSerial++;
+        if (o.type === 'helmet') {
+          A.sfx.power(); flash('blue'); run.helmets++;
+          if (lives < maxLives) { lives++; toast('CASCO DI SCORTA! +1 MOTO', 'green'); }
+          else { score += 300; pop('CASCO +300', 'blue'); }
+        } else if (o.type === 'wine') {
+          A.sfx.wine(); flash('wine'); run.magnets++; magnet = (7 + up.nose) * (has('sommelier') ? 2 : 1);
+          toast('🍷 VINO ROSSO! BIRRE ATTIRATE E DOPPIE', 'wine');
+        } else {
+          A.sfx.grappa(); flash('gold'); run.grappas++; grappa = has('grappino') ? 12 : 6; shake = .4;
+          toast('🔥 GRAPPA! SUPER SALTO E INVINCIBILE', 'gold');
+        }
+      }
+    } else if (o.type === 'water') {
+      if (gap < .42 && has('dry')) { o.collected = true; reward(150, 'ACQUA? MAI!', 'trick', false); A.sfx.hit(); }
+      else if (gap < .42 && lift < OBSTACLE_HEIGHT.water + .06 && turbo <= 0 && grappa <= 0) {
+        o.collected = true; run.waters++; mistake();
+        waterT = 3; earsT = Math.max(earsT, 8); breakCombo(); charge = Math.max(0, charge - 30);
+        fxKind = 'splash'; fxSerial++; A.sfx.water(); A.say('acqua'); flash('blue');
+        toast('💧 ACQUA?! ORECCHIE DA CONIGLIO!', 'blue');
+      } else if (gap < .42) { o.collected = true; reward(80, lift > .5 ? 'ACQUA SALTATA!' : 'ACQUA SPACCATA!', 'near', false); }
+    } else if (gap < .4) {
+      if (turbo > 0 || grappa > 0) { o.collected = true; reward(50, grappa > 0 ? 'GRAPPA POWER!' : 'GAS A MARTELLO!', 'smash', false); shake = Math.max(shake, .35); }
+      else if (clearsObstacle(o.type, lift)) {
+        run.jumps++;
+        const perfect = has('precise') ? phase > .2 && phase < .8 : isPerfectJump(phase);
+        const base = o.type === 'rock' || o.type === 'rollRock' ? 200 : o.type === 'bigLog' ? 250 : o.type === 'goat' ? 220 : 150;
+        const names = { rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!' };
+        if (perfect) { run.perfect++; A.sfx.perfect(); reward(Math.round(base * (has('precise') ? 2 : 1.5)), 'SALTO PERFETTO!', 'perfect'); flash('gold'); slowmo = .3; slowScale = .45; }
+        else reward(base, names[o.type] || 'BEL SALTO!', 'jump');
+      } else if (wheelie && (o.type === 'root' || o.type === 'puddle')) {
+        reward(140, o.type === 'root' ? 'IMPENNATA SULLA RADICE!' : 'IMPENNATA NELLA POZZA!', 'trick'); if (o.type === 'puddle') mud(.35);
+      } else if (o.type === 'puddle' && has('amphibious')) {
+        reward(90, 'ANFIBIO!', 'trick'); mud(.35); fxKind = 'splash'; fxSerial++; A.sfx.splash();
+      } else if (o.type === 'puddle') {
+        wet = 1.8 - up.tyres * .2; breakCombo(); run.splashes++; mud(); mistake();
+        fxKind = 'splash'; fxSerial++; A.sfx.splash(); flash('blue');
+        toast('PLOF! FANGO FINO AL CASCO', 'blue');
+      } else if (invincible <= 0) {
+        lives--; run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0); breakCombo(); charge = Math.max(0, charge - 20); mistake();
+        fxKind = 'hit'; fxSerial++; shake = 1; A.sfx.hit(); flash('hit');
+        crash = 1; stun = .9; slowmo = .35; slowScale = .4; jump = 0;
+        if (wheelie) endWheelie(false);
+        const lines = { rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.' };
+        if (o.type === 'log' || o.type === 'bigLog') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
+        if (navigator.vibrate) try { navigator.vibrate(120); } catch {}
+        if (lives <= 0) { hud(); finish(false); return; }
+      }
+    } else if (o.type !== 'puddle' && gap < (has('fox') ? .9 : .68) && invincible <= 0 && o.type !== 'bigLog') {
+      run.near++; A.sfx.near(); reward(has('fox') ? 105 : 35, 'PER UN PELO!', 'near', false);
+    }
+  }
+  objects = objects.filter(o => o.z < 1.13 && !o.collected);
+
+  missionCheck -= dt;
+  if (missionCheck <= 0) {
+    missionCheck = .3;
+    run.score = Math.floor(score);
+    for (const m of profile.missions) {
+      if (announced.has(m.id) || ['clean', 'dry', 'angelo', 'daily'].includes(m.id)) continue;
+      if (P.missionProgress(m, run) >= m.target) { announced.add(m.id); A.sfx.mission(); toast('✔ MISSIONE: ' + P.missionText(m).toUpperCase(), 'green'); }
+    }
+  }
+
+  hud();
+  if (course >= GAME_LENGTH) finish(true);
+  else if (elapsed >= timeLimit) finish(false, 'time');
+}
+
+// Schizzi di fango sullo schermo dopo una pozzanghera.
+const mudFx = createMud($('game'));
+// Tronco preso in pieno: spunta Erika.
+let erikaTimer = 0;
+function erika() {
+  const el = $('erika'); if (!el) return;
+  const img = el.querySelector('img');
+  if (!img.src && FOTO['erika-face']) img.src = FOTO['erika-face'];
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  clearTimeout(erikaTimer); erikaTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+function mud(intensity = 1) { mudFx.splash(intensity); }
+function mudOld() {
+  const layer = $('mud');
+  layer.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const b = document.createElement('i');
+    const size = 50 + Math.random() * 110;
+    Object.assign(b.style, { width: size + 'px', height: size * (.7 + Math.random() * .5) + 'px', left: Math.random() * 92 + '%', top: (Math.random() < .5 ? Math.random() * 30 : 55 + Math.random() * 35) + '%', animationDelay: Math.random() * .1 + 's' });
+    layer.appendChild(b);
+  }
+  layer.classList.remove('show'); void layer.offsetWidth; layer.classList.add('show');
+}
+
+function drawState() {
+  return ({
+    mode, state, lane, px, vx, jump, lift: curLift(), jumpPhase: jump > 0 ? 1 - jump / jumpDur : 0, elapsed: course,
+    wheelie: wheelie ? 1 : 0, ears: earsOn(), grappa, water: waterT,
+    courseScale: GAME_LENGTH / (courseLength(P.MODES[mode].difficulty) * 19.5), objects, invincible, roadTime, wheelPhase, turbo, combo, fxKind, fxSerial,
+    gas, wet, magnet, whip, shake, crash, speed: speedNow,
+    riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
+    livery: P.currentLivery(), preset: P.MODES[mode].sky,
+  });
+}
+function draw() { world?.render(drawState()); }
+
+function frame(t) {
+  const dt = Math.min(.04, (t - last) / 1000 || 0);
+  last = t;
+  pollPad();
+  update(dt);
+  mudFx.update(dt);
+  if (state === 'ready' || state === 'ended') roadTime += dt * .25; // il sentiero scorre piano dietro ai menu
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ---------- Schermate ----------
+function levelBar(info) {
+  return `<div class="levelbar"><span>LIV ${info.level} · ${info.grade.toUpperCase()}</span><i><b style="width:${Math.round(info.pct * 100)}%"></b></i><small>${info.into}/${info.need} XP</small></div>`;
+}
+function missionsHTML(runStats = null) {
+  return P.ensureMissions().map(m => {
+    const p = P.missionProgress(m, runStats);
+    return `<li><span class="mtext">${P.missionText(m)}</span><span class="mprog">${m.target > 1 ? (Number.isInteger(p) ? p : p.toFixed(1)) + '/' + m.target : ''}</span><span class="mxp">+${P.missionXp(m)} XP</span></li>`;
+  }).join('');
+}
+function setMenu(on) { $('game').classList.toggle('menu', on); }
+
+// ---------- Officina: si spendono le birre per potenziare moto e pilota ----------
+function renderShop(back) {
+  state = 'ready'; setMenu(true);
+  $('overlay').classList.remove('hidden');
+  const card = (u) => {
+    const lvl = P.upgradeLevel(u.id), cost = P.upgradeCost(u.id), can = cost != null && P.profile.beers >= cost;
+    return `<div class="upg ${lvl >= P.MAX_UPGRADE ? 'max' : ''}">
+      <span class="ui">${u.icon}</span>
+      <span class="ut"><b>${u.name}</b><small>${u.desc}</small><i class="pips">${Array.from({ length: P.MAX_UPGRADE }, (_, k) => `<u class="${k < lvl ? 'on' : ''}"></u>`).join('')}</i></span>
+      <button type="button" class="buy" data-buy="${u.id}" ${can ? '' : 'disabled'}>${cost == null ? 'MAX' : cost + ' 🍺'}</button>
+    </div>`;
+  };
+  $('card').innerHTML = `<div class="eyebrow">OFFICINA EDT · SPENDI LE BIRRE</div>
+    <h1 class="shoptitle">POTENZIA<br><em>MOTO E PILOTA.</em></h1>
+    <div class="wallet">🍺 <b>${P.profile.beers}</b> birre in cassa</div>
+    ${['MOTO', 'PILOTA'].map(g => `<div class="ugroup">${g}</div><div class="upgs">${P.UPGRADES.filter(u => u.group === g).map(card).join('')}</div>`).join('')}
+    <p class="tip">Le birre si guadagnano raccogliendole in gara (+20 se arrivi al rifugio, +10 per ogni missione).</p>
+    <div class="actions"><button class="primary big" id="shopgo">PARTI</button><button class="secondary" id="shopback">INDIETRO</button></div>`;
+  iconizeEl($('card'));
+  document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
+    if (P.buyUpgrade(b.dataset.buy)) { A.unlock(); A.sfx.power(); renderShop(back); renderSide(); }
+  });
+  $('shopgo').onclick = start;
+  $('shopback').onclick = back;
+}
+function renderReady() {
+  state = 'ready';
+  applyLayout(false);
+  setMenu(true);
+  turbo = 0; elapsed = 0; course = 0;
+  $('overlay').classList.remove('hidden');
+  $('countdown').className = 'countdown';
+  const info = P.levelInfo(), md = P.MODES[mode], best = P.bestFor(mode);
+  $('card').innerHTML = `
+    <div class="eyebrow"><span class="ebar"></span>ENDURO DRINKING TEAM · STAGIONE ${new Date().getFullYear()}</div>
+    <h1 class="title"><span class="t1">TRANQUILLI,</span><span class="t2">È UN GIRO <em>EASY.</em></span></h1>
+    <button class="pilotchip" id="pilotchip" type="button"><span class="platenum">${String(RIDERS.indexOf(profile.rider) + 1).padStart(2, '0')}</span>${avatarHTML(profile.rider)}<span><small>PILOTA · CAMBIA</small><b>${profile.rider}</b><em class="skillline">${SKILLS[profile.rider]?.icon || ''} ${SKILLS[profile.rider]?.name || ''}: ${SKILLS[profile.rider]?.desc || ''}</em></span></button>
+    ${levelBar(info)}
+    <div class="record">${icon('trophy')} ${best ? `RECORD ${md.id === 3 ? 'DI OGGI' : 'SU QUESTO PERCORSO'}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD ANCORA: È IL MOMENTO.'}</div>
+    <div class="startrow"><button class="primary big" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>PS${md.id + 1} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</small></span>${icon('chevrons')}</button><button class="shopbtn" id="openshop" type="button"><span class="sbt">🔧 OFFICINA</span><small>${P.profile.beers} 🍺 in cassa</small></button></div>
+    ${P.pendingBoosts().length ? `<div class="boostline">🎁 Pronto per questo giro: ${P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ')}</div>` : ''}
+    <div class="mhead tracks">${icon('flag')} SCEGLI IL PERCORSO</div>
+    <div class="modes" role="radiogroup" aria-label="Percorso">
+      ${P.MODES.map(m => { const open = P.isUnlocked(m, info.level); return `<button type="button" role="radio" class="mode ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
+        <span class="ps">PS${m.id + 1}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.name}</b><small>${open ? m.desc : '🔒 Si sblocca al livello ' + m.unlock}</small>${m.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(m.layout || layoutFor(m.id))}<span class="limit">⏱ ${m.limit} s</span></button>`; }).join('')}
+    </div>
+    <div class="missions"><div class="mhead">${icon('flag')} MISSIONI</div><ul>${missionsHTML()}</ul></div>
+    <button class="secondary voicetest" id="testvoci" type="button">🔊 PROVA VOCI</button>
+    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">Scorri per sterzare · tocca per saltare</span></p>`;
+  iconizeEl($('card'));
+  $('start').onclick = start;
+  $('openshop').onclick = () => renderShop(renderReady);
+  $('testvoci').onclick = () => {
+    const names = { vai: 'Vai Ciccio!', success: 'Così si fa!', gas: 'Dai gas!', yeehaw: 'Yee-haw!', campa: 'Campa giù!', fine: 'Fatto' };
+    $('testvoci').disabled = true;
+    A.unlock();
+    A.testVoices((k, ok, st) => {
+      $('testvoci').innerHTML = iconize(k === 'fine' ? '🔊 PROVA VOCI' : `🔊 ${names[k]}${ok ? '' : ' (manca)'}${st !== 'running' ? ' · audio ' + st : ''}`);
+      if (k === 'fine') $('testvoci').disabled = false;
+    });
+  };
+  $('pilotchip').onclick = () => { document.querySelector('.riderpanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+    const m = P.MODES[Number(b.dataset.mode)];
+    if (!P.isUnlocked(m)) { b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); toast('🔒 PERCORSO BLOCCATO: ARRIVA AL LIVELLO ' + m.unlock, 'red'); return; }
+    mode = m.id; profile.mode = mode; P.save(); A.sfx.click();
+    renderReady(); renderSide();
+  });
+  setDisabled(false);
+  hud();
+}
+
+function renderResult(win, res, reason = '', timeBonus = 0) {
+  const rank = win ? (score >= 30000 ? 'LEGGENDA EDT' : score >= 15000 ? 'MANICO DEL GIORNO' : 'MISSIONE COMPIUTA') : 'GIRO DIVERSAMENTE EASY';
+  const md = P.MODES[mode];
+  const xpTotal = res.scoreXp + res.missionsXp;
+  $('overlay').classList.remove('hidden');
+  setMenu(true);
+  $('card').innerHTML = `
+    <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
+    <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
+    <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
+    <p class="resulttext">${profile.rider} ${win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
+      ${res.position ? `<br><b>${res.position}° nella Classifica del bar</b>` : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1) + 's — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
+    <div class="resultstats">
+      <div><b>${run.caps}</b><small>BIRRE</small></div>
+      <div><b>${run.jumps}</b><small>SALTI</small></div>
+      <div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>
+      <div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>
+      <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
+    </div>
+    ${res.completed.length ? `<div class="donelist">${res.completed.map(c => `<div><span>✔ ${c.text}</span><b>+${c.xp} XP</b></div>`).join('')}</div>` : ''}
+    <div class="loot">
+      <div class="beerline">🍺 <b>+${res.beersEarned}</b> birre portate al rifugio <small>in cassa: ${res.wallet} 🍺</small></div>
+      ${res.prize ? `<div class="prize"><span class="pi">${res.prize.icon}</span><span><small>PREMIO DEL RIFUGIO</small><b>${res.prize.name}${res.prize.amount ? ' +' + res.prize.amount + ' 🍺' : ''}</b>${res.prize.amount ? '' : '<em>' + res.prize.desc + ' (prossimo giro)</em>'}</span></div>` : `<div class="noprize">Arriva al rifugio per vincere un premio.</div>`}
+    </div>
+    <div class="xpline">+${xpTotal} XP ${res.after.level > res.before.level ? `· <b class="lvup">LIVELLO ${res.after.level}: ${res.after.grade.toUpperCase()}!</b>` : ''}</div>
+    ${levelBar(res.after)}
+    ${res.after.level > res.before.level ? P.MODES.filter(m => m.unlock > res.before.level && m.unlock <= res.after.level).map(m => `<div class="unlock track"><i class="ic-holder">🏁</i><span>NUOVO PERCORSO SBLOCCATO: <b>${m.name}</b></span></div>`).join('') : ''}
+    ${res.unlocked.map(l => `<div class="unlock"><i style="--a:${l.plastic};--b:${l.accent}"></i><span>NUOVA LIVREA SBLOCCATA: <b>${l.name}</b> · sceglila nel garage</span></div>`).join('')}
+    <div class="actions">
+      <button class="primary big" id="again"><span>UN ALTRO GIRO</span>${icon('chevrons')}</button>
+      <button class="secondary hot" id="shareScore">SFIDA IL GRUPPO</button>
+      <button class="secondary shopsec" id="shopres">🔧 OFFICINA</button>
+      <button class="secondary" id="menu">MENU</button>
+    </div>`;
+  iconizeEl($('card'));
+  $('again').onclick = start;
+  $('menu').onclick = renderReady;
+  $('shopres').onclick = () => renderShop(renderReady);
+  $('shareScore').onclick = () => shareScore(win, res);
+  // Conteggio animato del punteggio
+  const target = score, t0 = performance.now();
+  const tick = now => {
+    const k = Math.min(1, (now - t0) / 1100), v = Math.floor(target * (1 - Math.pow(1 - k, 3)));
+    const el = $('finalscore'); if (!el) return;
+    el.textContent = v.toLocaleString('it-IT');
+    if (k < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  if (win || res.isRecord) confetti();
+}
+
+function confetti() {
+  const layer = $('confetti');
+  layer.innerHTML = '';
+  const colors = ['#ffcf16', '#e3301c', '#ffffff', '#3ee28f', '#ff8b4f'];
+  for (let i = 0; i < 46; i++) {
+    const c = document.createElement('i');
+    c.style.left = Math.random() * 100 + '%';
+    c.style.background = colors[i % colors.length];
+    c.style.animationDelay = (Math.random() * .6) + 's';
+    c.style.animationDuration = (1.8 + Math.random() * 1.4) + 's';
+    c.style.setProperty('--r', (Math.random() * 720 - 360) + 'deg');
+    c.style.setProperty('--x', (Math.random() * 120 - 60) + 'px');
+    layer.appendChild(c);
+  }
+  setTimeout(() => layer.innerHTML = '', 3800);
+}
+
+// ---------- Pannello laterale: pilota, garage, classifica ----------
+let boardMode = null;
+function renderSide() {
+  $('ridergrid').innerHTML = RIDERS.map((name, i) => `<button type="button" class="rideroption" data-rider="${name}" aria-pressed="${name === profile.rider}" aria-label="Scegli ${name}">
+    ${avatarHTML(name)}<span class="name">${name.replace('Il ', '')}</span><span class="skill" title="${SKILLS[name]?.desc || ''}">${SKILLS[name]?.icon || ''} ${SKILLS[name]?.name || ''}</span><span class="num">#${String(i + 1).padStart(2, '0')}</span></button>`).join('');
+  document.querySelectorAll('[data-rider]').forEach(b => b.onclick = () => {
+    if (state === 'playing' || state === 'paused' || state === 'countdown') return;
+    profile.rider = b.dataset.rider; P.save(); A.sfx.click();
+    renderSide(); if (state === 'ready') renderReady();
+    if (window.matchMedia('(max-width: 900px)').matches) $('game').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  const info = P.levelInfo(), current = P.currentLivery();
+  $('garagelevel').innerHTML = levelBar(info) + `<button class="shopside" id="shopside" type="button">🔧 Officina · ${P.profile.beers} 🍺 in cassa</button>`;
+  iconizeEl($('ridergrid')); iconizeEl($('garagelevel'));
+  $('shopside').onclick = () => { if (state === 'ready' || state === 'ended') { renderShop(renderReady); $('game').scrollIntoView({ behavior: 'smooth', block: 'start' }); } };
+  $('liveries').innerHTML = P.LIVERIES.map(l => {
+    const locked = l.level > info.level;
+    return `<button type="button" class="livery ${l.id === current.id ? 'active' : ''}" data-livery="${l.id}" ${locked ? 'aria-disabled="true"' : ''} title="${locked ? 'Si sblocca al livello ' + l.level : l.name}">
+      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}"></i><span>${locked ? '🔒 LIV ' + l.level : l.name}</span></button>`;
+  }).join('');
+  document.querySelectorAll('[data-livery]').forEach(b => b.onclick = () => {
+    if (state === 'playing' || state === 'paused' || state === 'countdown') return;
+    const l = P.LIVERIES.find(x => x.id === b.dataset.livery);
+    if (l.level > P.levelInfo().level) { b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); return; }
+    profile.livery = l.id; P.save(); A.sfx.click(); renderSide();
+  });
+
+  const bm = boardMode ?? mode;
+  $('boardtabs').innerHTML = P.MODES.filter(m => P.isUnlocked(m) || m.id === bm).map(m => `<button type="button" class="${m.id === bm ? 'active' : ''}" data-board="${m.id}">${m.id === 3 ? 'OGGI' : m.short}</button>`).join('');
+  document.querySelectorAll('[data-board]').forEach(b => b.onclick = () => { boardMode = Number(b.dataset.board); renderSide(); });
+  const list = P.boardFor(bm);
+  $('board').innerHTML = list.length
+    ? list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''}"><span class="pos">${i + 1}</span>${avatarHTML(e.name, 'tiny')}<span class="who">${e.name}</span><span class="when">${e.date}</span><b>${e.score.toLocaleString('it-IT')}</b></li>`).join('')
+    : `<li class="empty">Ancora nessun giro qui. Passa il telefono e iniziate la sfida.</li>`;
+  iconizeEl($('liveries'));
+}
+
+// ---------- Condivisione ----------
+// Su un hosting proprio è l'indirizzo della pagina; nella versione link Claude lo imposta index.html.
+const publicGameURL = window.EDT_PUBLIC_URL || new URL('./', window.location.href).href;
+function status(t) { $('sharestatus').textContent = t; }
+async function shareText(text) {
+  $('sharefallback').hidden = true;
+  if (navigator.share && !window.EDT_TEXT_SHARE) {
+    try { await navigator.share({ title: 'Giro Easy · Enduro Drinking Team', text, url: publicGameURL }); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  try {
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text + ' ' + publicGameURL); status('Link e messaggio copiati: incollali nel gruppo.'); return; }
+  } catch {}
+  const out = $('sharefallback'); out.hidden = false; out.value = text + ' ' + publicGameURL; out.focus(); out.select();
+  status('Copia questo messaggio e incollalo nel gruppo.');
+}
+$('sharelink').onclick = () => shareText('Tranquilli, è un giro easy! Scegli il tuo pilota EDT e prova ad arrivare al rifugio. Vai Ciccio!');
+
+function loadImage(src) {
+  return new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+}
+// Crea l'immagine del punteggio da mandare nel gruppo.
+async function scoreCard(win, res) {
+  const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  try { await document.fonts?.load('80px Anton'); } catch {}
+  const F = n => n + 'px Anton, Impact, sans-serif';
+  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1d1a17'); g.addColorStop(1, '#0d0f0d'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  // Logo
+  const logo = await loadImage('edt-logo.png');
+  if (logo) { const w = 430, h = w * logo.height / logo.width; x.fillStyle = '#fff'; roundRect(x, W / 2 - w / 2 - 14, 46, w + 28, h + 28, 22); x.fill(); x.drawImage(logo, W / 2 - w / 2, 60, w, h); }
+  // Foto del pilota
+  const cy = 488, R = 112;
+  const photo = photoURL(profile.rider) ? await loadImage(photoURL(profile.rider)) : null;
+  x.save(); x.beginPath(); x.arc(W / 2, cy, R, 0, Math.PI * 2); x.closePath(); x.fillStyle = '#3a312a'; x.fill(); x.clip();
+  if (photo) x.drawImage(photo, W / 2 - R, cy - R, R * 2, R * 2);
+  else { x.fillStyle = '#ffcf16'; x.font = F(100); x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(profile.rider.replace('Il ', '').slice(0, 2).toUpperCase(), W / 2, cy + 6); x.textBaseline = 'alphabetic'; }
+  x.restore();
+  x.lineWidth = 10; x.strokeStyle = '#ffcf16'; x.beginPath(); x.arc(W / 2, cy, R + 3, 0, Math.PI * 2); x.stroke();
+  x.textAlign = 'center';
+  x.fillStyle = '#fff3de'; x.font = F(64); x.fillText(profile.rider.toUpperCase(), W / 2, cy + R + 82);
+  // Fascia gialla con il punteggio
+  const by = 850;
+  x.save(); x.translate(W / 2, by); x.rotate(-.07); x.fillStyle = '#ffcf16'; x.fillRect(-W, -125, W * 2, 250); x.fillStyle = '#e3301c'; x.fillRect(-W, 125, W * 2, 24);
+  x.fillStyle = '#1b1712'; x.font = F(196); x.fillText(score.toLocaleString('it-IT'), 0, 62);
+  x.font = '800 30px monospace'; x.fillText('PUNTI EDT', 0, 106);
+  x.restore();
+  const md = P.MODES[mode];
+  x.font = F(42); x.fillStyle = res.isRecord ? '#ffcf16' : '#fff3de';
+  x.fillText((md.id === 3 ? 'SFIDA DEL GIORNO ' + P.todayLabel() : md.name.toUpperCase()) + (res.isRecord ? ' · NUOVO RECORD!' : ''), W / 2, 1060);
+  x.font = 'bold 32px Arial'; x.fillStyle = '#d9cdb8';
+  x.fillText(`${run.caps} birre · ${run.jumps} salti · ${run.perfect} perfetti · combo ×${run.maxMult}`, W / 2, 1112);
+  x.fillStyle = '#ffcf16'; x.font = F(80);
+  x.fillText(win ? 'CHI MI BATTE?' : 'DOPO MIGLIORA…', W / 2, 1232);
+  x.fillStyle = '#9f9686'; x.font = 'bold 28px Arial'; x.fillText('Giro Easy · Enduro Drinking Team · Sterrare humanum est', W / 2, 1296);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+function roundRect(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
+
+async function shareScore(win, res) {
+  const md = P.MODES[mode];
+  const text = `${profile.rider} ha fatto ${score.toLocaleString('it-IT')} punti a Giro Easy EDT (${md.id === 3 ? 'Sfida del ' + P.todayLabel() : md.name})${res.isRecord ? ' — NUOVO RECORD' : ''}. Chi mi batte?`;
+  if (window.EDT_TEXT_SHARE) { await shareText(text); return; }
+  try {
+    const blob = await scoreCard(win, res);
+    const file = blob && new File([blob], 'giro-easy-edt.png', { type: 'image/png' });
+    if (file && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Giro Easy · EDT', text: text + ' ' + publicGameURL });
+      return;
+    }
+    if (blob) {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'giro-easy-edt.png';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }
+  } catch (e) { if (e.name === 'AbortError') return; }
+  await shareText(text);
+  status('Immagine del punteggio salvata: allegala nel gruppo insieme al messaggio.');
+}
+
+// ---------- Avvio ----------
+P.ensureMissions();
+iconizeEl(document.querySelector('.howpanel'));
+// ---------- App installabile (Android, PC, iPhone) e funzionamento offline ----------
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.EDT_PUBLIC_URL) navigator.serviceWorker.register('sw.js').catch(() => {});
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('installapp').hidden = false; });
+const standalone = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (isIOS && !standalone && !window.EDT_PUBLIC_URL) $('installapp').hidden = false;
+$('installapp').innerHTML = icon('pin') + '<span>INSTALLA</span>';
+$('installapp').onclick = async () => {
+  if (installEvt) { installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null; $('installapp').hidden = true; }
+  else if (isIOS) status('Su iPhone/iPad: tocca il pulsante Condividi di Safari e poi "Aggiungi alla schermata Home". Il gioco si apre a schermo intero come un’app.');
+};
+$('sound').innerHTML = icon('speaker'); $('fullscreen').innerHTML = icon('expand'); $('pause').innerHTML = icon('pause');
+$('sharelink').innerHTML = icon('share') + '<span>CONDIVIDI NEL GRUPPO</span>';
+renderSide();
+renderReady();
+if (worldError) {
+  $('card').innerHTML = '<div class="eyebrow">GRAFICA 3D NON DISPONIBILE</div><h1>APRI NEL<br><em>BROWSER.</em></h1><p>Apri il gioco in Chrome o Safari con la grafica WebGL attiva, poi ricarica la pagina.</p>';
+} else {
+  requestAnimationFrame(frame);
+}
+window.addEventListener('resize', () => world?.resize());
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); if (state === 'playing') pause(); toast('Grafica interrotta: ricarica la pagina.'); });
+
+// Pannello di diagnosi: apri il link con #debug alla fine.
+if (/debug/.test(location.hash)) {
+  const box = document.createElement('pre');
+  box.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:99;max-width:96vw;background:#000d;color:#7f7;font:11px/1.3 monospace;padding:8px;border:1px solid #7f7;border-radius:6px;pointer-events:none;white-space:pre-wrap';
+  document.body.appendChild(box);
+  setInterval(() => {
+    const d = A.debugInfo(), r = routeAt(course, roadTime * 19.5);
+    box.textContent = `AUDIO ${d.state} · suono ${d.enabled ? 'ON' : 'OFF'}\nvoci: ${d.voci}\nextra: ${d.extra}\nstato ${state} · percorso ${course.toFixed(1)} · discesa ${r.down.toFixed(2)} · annunciata ${downAnnounced} · impennata ${wheelie}\n` + d.log.join('\n');
+  }, 250);
+}
+
+// Aggancio per i test automatici (non usato dal gioco).
+window.__world = world;
+window.__edt = { get state() { return state; }, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
+  get objects() { return objects; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
+  get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, erika, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
