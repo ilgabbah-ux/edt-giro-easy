@@ -2,8 +2,8 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=45';
-import { VOCI_PILOTI } from './voci-piloti.js?v=45';
+import { VOCI } from './voci.js?v=46';
+import { VOCI_PILOTI } from './voci-piloti.js?v=46';
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -388,6 +388,14 @@ export const STYLES = [
     k: 'x...x...x...x...', s: '....x.......x...', h: '..o...o...o...o.', b: 'xoxoxoxoxoxoxoxo', g: 'X.......X.......', l: '0.2.4.2.3.2.4.2.', swing: 0 },
   { name: 'Il giro della morte · metal', bpm: 184, root: 38, prog: [[0, 'm'], [1, 'M'], [0, 'm'], [-2, 'M']],
     k: 'xxxxxxxxxxxxxxxx', s: '....x.......x...', h: 'x...x...x...x...', b: 'xxxxxxxxxxxxxxxx', g: 'xxx.xxx.xx.xX---', l: '', swing: 0 },
+  { name: 'Ice Scrophy · eurodance sul ghiaccio', bpm: 134, root: 42, prog: [[0, 'm'], [-4, 'M'], [-2, 'M'], [-7, 'M']],
+    k: 'x...x...x...x...', s: '....x.......x...', h: '..o...o...o...o.', b: '.x.x.x.x.x.x.x.x', g: '', l: '0.2.4.3.4.2.4.2.', swing: 0 },
+  { name: 'MotoFogna · grunge di fango', bpm: 88, root: 38, prog: [[0, 'm'], [1, 'M'], [-2, 'M'], [0, 'm']],
+    k: 'x..x....x.x.....', s: '....x.......x...', h: 'x.x.x.x.x.x.x.x.', b: 'x---..x-x---..x.', g: 'X-----..X---x.x.', l: '', swing: .08 },
+  { name: 'Valle Argentera · folk di montagna', bpm: 122, root: 43, prog: [[0, 'M'], [5, 'M'], [7, 'M'], [0, 'M']],
+    k: 'x.......x.......', s: '....x.......x...', h: '..x...x...x...x.', b: 'x...5...x...5.o.', g: '..x.x...x.x...x.', l: '0.1.2...4.3.2...', swing: .1 },
+  { name: 'MontaFiga · surf tra gli alberi', bpm: 172, root: 40, prog: [[0, 'M'], [5, 'M'], [0, 'M'], [7, 'M']],
+    k: 'x.x...x.x.x...x.', s: '....x.......x...', h: 'xxxxxxxxxxxxxxxx', b: 'x.o.x.o.x.o.x.o.', g: 'x.xxx.xxx.xxx.xx', l: '4.3.2.1.0.1.2.3.', swing: 0 },
 ];
 let musicBus = null, gtrIn = null, music = null, musicOn = true;
 try { musicOn = localStorage.getItem('edt-music') !== '0'; } catch {}
@@ -465,7 +473,7 @@ function scheduleStep(m, i, t) {
   const gc = st.g[i];
   if (gc === 'x' || gc === 'X') mGtr(t, root, gc === 'X' ? untilNext(st.g, i, step, 16) : step, gc === 'x');
   const lc = st.l[i];
-  if (lc && /\d/.test(lc) && (intense > .45 || m.n % 32 >= 16)) mLead(t, tones[Number(lc)] + 12, untilNext(st.l, i, step, 4) * .9, st === STYLES[7] ? 'square' : 'triangle');
+  if (lc && /\d/.test(lc) && (intense > .45 || m.n % 32 >= 16)) mLead(t, tones[Number(lc)] + 12, untilNext(st.l, i, step, 4) * .9, st === STYLES[7] || st === STYLES[9] ? 'square' : 'triangle');
   if (m.n % 64 === 0 && m.n > 0) mNoise(t, 1.2, 6000, 'highpass', .12);   // piatto a inizio frase
 }
 export function musicStart(styleId = 0, opts = {}) {

@@ -23,6 +23,18 @@ export const MODES = [
   { id: 7, short: 'A CASO', name: 'Giro a caso', desc: 'Ogni giro un tracciato diverso.', difficulty: 1, sky: 0, limit: 66, unlock: 5, random: 'run' },
   { id: 8, short: 'MORTE', name: 'Il giro della morte (easy)', desc: 'Tutto, tutto in salita, tutto insieme.', difficulty: 2, sky: 2, limit: 62, unlock: 6,
     layout: [{ t: 0, len: 4, down: 1 }, { t: 1, len: 6 }, { t: 2, len: 10 }, { t: 3, len: 10, climb: 1 }, { t: 1, len: 5, down: 1 }, { t: 2, len: 10 }, { t: 3, len: 8, climb: 1 }, { t: 3, len: 7 }] },
+  // v46 · Ice Scrophy: pista di ghiaccio, gomme chiodate. Vince chi derapa di più e meglio (la classifica è a punti derapata).
+  { id: 9, short: 'ICE', name: 'Ice Scrophy', desc: 'Pista di ghiaccio, gomme chiodate. Vince chi derapa di più e meglio.', difficulty: 0, sky: 4, limit: 74, unlock: 1, ice: true,
+    layout: [{ t: 0, len: 6, name: 'RETTILINEO GHIACCIATO' }, { t: 0, len: 10, name: 'CURVONI DI SCROPHY' }, { t: 0, len: 6, down: 1, name: 'DISCESA SUL VETRO' }, { t: 0, len: 10, name: 'ESSE DEL LAGO' }, { t: 2, len: 6, climb: .35, name: 'SALITA CHIODATA' }, { t: 0, len: 10, name: 'CURVONI DI SCROPHY' }, { t: 0, len: 6, down: 1, name: 'PICCHIATA FINALE' }] },
+  // v46 · tre percorsi nuovi che si sbloccano più avanti
+  { id: 10, short: 'FOGNA', name: 'MotoFogna', desc: 'Bagnatissimo e pieno di pezzi hard e rocce. Solo per manici veri.', difficulty: 2, sky: 5, limit: 58, unlock: 7, rainy: true, dense: .25,
+    obs: { 0: ['rock', 'rock', 'root', 'log', 'stump'], 1: ['puddle', 'rock', 'puddle', 'step', 'rock'], 2: ['step', 'rock', 'rock', 'step'], 3: ['rock', 'step', 'rock', 'root'] },
+    layout: [{ t: 1, len: 5, name: 'IMBOCCO DELLA FOGNA' }, { t: 3, len: 9, wet: 1, name: 'PIETRAIA BAGNATA' }, { t: 1, len: 6, down: 1, name: 'IL CANALE' }, { t: 2, len: 9, wet: 1, name: 'GRADONI VISCIDI' }, { t: 3, len: 10, wet: 1, climb: 1, name: 'IL SIFONE' }, { t: 1, len: 6, name: 'LIQUAME' }, { t: 3, len: 9, wet: 1, name: 'ROCCE HARD' }] },
+  { id: 11, short: 'ARGENTERA', name: 'Valle Argentera', desc: 'Guadi da saltare e animali selvatici che attraversano: stambecchi, camosci, marmotte.', difficulty: 1, sky: 0, limit: 64, unlock: 8, wild: true,
+    obs: { 0: ['log', 'rock', 'stump', 'marmot'], 1: ['puddle', 'rock', 'marmot'], 2: ['rock', 'cairn', 'marmot', 'step'], 3: ['rock', 'goat', 'step', 'marmot'] },
+    layout: [{ t: 0, len: 6, name: 'FONDOVALLE' }, { t: 1, len: 8, name: 'GUADI DELLA STURA' }, { t: 2, len: 10, name: 'PASCOLI DEGLI STAMBECCHI' }, { t: 1, len: 6, down: 1, name: 'IL GUADO GRANDE' }, { t: 3, len: 10, climb: 1, name: 'VERSO IL COLLE' }, { t: 2, len: 6, down: 1, name: 'DISCESA DEI CAMOSCI' }] },
+  { id: 12, short: 'MONTAFIGA', name: 'MontaFiga', desc: 'Uno slalom continuo tra gli alberi. Sterza, sterza, sterza.', difficulty: 1, sky: 1, limit: 62, unlock: 9, slalom: true,
+    layout: [{ t: 0, len: 6, name: 'BOSCO FITTO' }, { t: 0, len: 10, name: 'SLALOM DEI FAGGI' }, { t: 0, len: 6, down: 1, name: 'PICCHIATA TRA GLI ABETI' }, { t: 0, len: 10, name: 'LA SELVA' }, { t: 2, len: 6, climb: .6, name: 'STRAPPO NEL BOSCO' }, { t: 0, len: 10, down: 1, name: 'SLALOM FINALE' }] },
 ];
 export const isUnlocked = (m, level = levelInfo().level) => level >= (m.unlock || 1);
 
@@ -118,25 +130,41 @@ export const BIKES = [
   { id: 'ts300', name: '300 Due tempi', price: 380, level: 4, icon: '🔥', desc: 'Cattiva: più spunto e il turbo si carica prima.', stats: { speed: .04, turbo: .25 }, look: { scale: 1.01, twoStroke: true } },
   { id: 'mulo450', name: '450 Mulo', price: 520, level: 5, icon: '🐂', desc: 'Tanta coppia: vola in salita e sul veloce, ma è pesante da sterzare.', stats: { speed: .06, climb: .5, steer: -.1 }, look: { scale: 1.05, big: true } },
   { id: 'vintage', name: 'Vecchia gloria ’89', price: 700, level: 6, icon: '🏆', desc: 'Doppio ammortizzatore e faro tondo. Un po’ di tutto, con stile.', stats: { speed: .03, jump: .05, steer: .05, turbo: .1 }, look: { scale: 1, vintage: true } },
+  // v46 · BO-anal Special Parts: le più care e le più forti di tutte.
+  { id: 'boanal', name: 'BO-anal Special', price: 1200, level: 6, icon: '💎', boanal: true, desc: 'BO-anal Special Parts: la più cara e la più forte. Veloce, salta, sterza e carica il turbo meglio di tutte.', stats: { speed: .09, jump: .1, steer: .14, turbo: .3, climb: .3, wheelie: 1 }, look: { scale: 1.02, twoStroke: true, boanal: true } },
 ];
 export const PARTS = [
   { slot: 'rims', name: 'Cerchi', items: [
     { id: 'silver', name: 'Argento', price: 0, color: '#a3b7bb' }, { id: 'black', name: 'Neri', price: 40, color: '#1d2226', stats: { steer: .03 } },
-    { id: 'gold', name: 'Oro', price: 60, color: '#d6a531', stats: { steer: .05 } }, { id: 'blue', name: 'Blu', price: 50, color: '#2a6bd8', stats: { steer: .04 } }, { id: 'red', name: 'Rossi', price: 50, color: '#d7261e', stats: { steer: .04 } } ] },
+    { id: 'gold', name: 'Oro', price: 60, color: '#d6a531', stats: { steer: .05 } }, { id: 'blue', name: 'Blu', price: 50, color: '#2a6bd8', stats: { steer: .04 } }, { id: 'red', name: 'Rossi', price: 50, color: '#d7261e', stats: { steer: .04 } },
+    { id: 'boanal', name: 'BO-anal Special', price: 160, color: '#f2c230', boanal: true, stats: { steer: .1, speed: .02 } } ] },
   { slot: 'pipe', name: 'Scarico', items: [
     { id: 'steel', name: 'Acciaio', price: 0, color: '#a3b7bb' }, { id: 'carbon', name: 'Carbonio', price: 60, color: '#222428', stats: { speed: .02 } },
-    { id: 'titan', name: 'Titanio blu', price: 80, color: '#5b6fc9', stats: { speed: .03, turbo: .05 } }, { id: 'chrome', name: 'Cromo', price: 50, color: '#e8eef0', stats: { speed: .015 } } ] },
+    { id: 'titan', name: 'Titanio blu', price: 80, color: '#5b6fc9', stats: { speed: .03, turbo: .05 } }, { id: 'chrome', name: 'Cromo', price: 50, color: '#e8eef0', stats: { speed: .015 } },
+    { id: 'boanal', name: 'BO-anal Special', price: 190, color: '#2a2320', boanal: true, stats: { speed: .05, turbo: .1 } } ] },
   { slot: 'guards', name: 'Paramani', items: [
     { id: 'none', name: 'Nessuno', price: 0, color: null }, { id: 'black', name: 'Neri', price: 35, color: '#1b1b1b', stats: { protect: .3 } },
-    { id: 'white', name: 'Bianchi', price: 35, color: '#f2f2ee', stats: { protect: .3 } }, { id: 'orange', name: 'Arancio', price: 45, color: '#ff6a13', stats: { protect: .4 } }, { id: 'yellow', name: 'Gialli EDT', price: 45, color: '#fcd326', stats: { protect: .4 } } ] },
+    { id: 'white', name: 'Bianchi', price: 35, color: '#f2f2ee', stats: { protect: .3 } }, { id: 'orange', name: 'Arancio', price: 45, color: '#ff6a13', stats: { protect: .4 } }, { id: 'yellow', name: 'Gialli EDT', price: 45, color: '#fcd326', stats: { protect: .4 } },
+    { id: 'boanal', name: 'BO-anal Special', price: 130, color: '#f2c230', boanal: true, stats: { protect: .8 } } ] },
   { slot: 'seat', name: 'Sella', items: [
     { id: 'black', name: 'Nera', price: 0, color: '#243138' }, { id: 'red', name: 'Rossa', price: 30, color: '#b3221b', stats: { combo: .5 } },
-    { id: 'blue', name: 'Blu', price: 30, color: '#1f3f8f', stats: { combo: .5 } }, { id: 'brown', name: 'Cuoio', price: 40, color: '#7a4a24', stats: { combo: .8 } } ] },
+    { id: 'blue', name: 'Blu', price: 30, color: '#1f3f8f', stats: { combo: .5 } }, { id: 'brown', name: 'Cuoio', price: 40, color: '#7a4a24', stats: { combo: .8 } },
+    { id: 'boanal', name: 'BO-anal Special', price: 120, color: '#141414', boanal: true, stats: { combo: 1.5 } } ] },
   { slot: 'decal', name: 'Grafiche', items: [
     { id: 'none', name: 'Tinta unita', price: 0 }, { id: 'stripes', name: 'Strisce da gara', price: 50, stats: { points: .05 } },
-    { id: 'flames', name: 'Fiamme', price: 70, stats: { points: .06, turbo: .06 } }, { id: 'edt', name: 'Logo EDT gigante', price: 60, stats: { points: .1 } } ] },
+    { id: 'flames', name: 'Fiamme', price: 70, stats: { points: .06, turbo: .06 } }, { id: 'edt', name: 'Logo EDT gigante', price: 60, stats: { points: .1 } },
+    { id: 'boanal', name: 'BO-anal Special', price: 170, color: '#f2c230', boanal: true, stats: { points: .18, turbo: .05 } } ] },
   { slot: 'light', name: 'Fanale', items: [
-    { id: 'none', name: 'Senza', price: 0 }, { id: 'led', name: 'Faro LED', price: 70, stats: { sight: 1, points: .03 } } ] },
+    { id: 'none', name: 'Senza', price: 0 }, { id: 'led', name: 'Faro LED', price: 70, stats: { sight: 1, points: .03 } },
+    { id: 'boanal', name: 'BO-anal Special', price: 150, color: '#ffe9a6', boanal: true, stats: { sight: 1, points: .08 } } ] },
+  // v46 · Chiodi per Ice Scrophy: grip = tieni la linea sul ghiaccio, drift = punti derapata.
+  { slot: 'studs', name: 'Chiodi', ice: true, items: [
+    { id: 'none', name: 'Gomme di serie', price: 0, desc: 'Sul ghiaccio sono saponette.' },
+    { id: 'aliexpress', name: 'Chiodi AliExpress', price: 40, color: '#8d8f93', desc: 'Arrivati dopo 40 giorni. Metà sono storti.', stats: { grip: .15, drift: .05 } },
+    { id: 'puntine', name: 'Puntine da disegno', price: 90, color: '#e8452c', desc: 'Prese dalla bacheca del bar. Colorate e cattive.', stats: { grip: .28, drift: .12 } },
+    { id: 'gusta', name: 'Gusta Grip', price: 170, color: '#e2b13c', desc: 'Mordono il ghiaccio come Gusta morde il panino.', stats: { grip: .42, drift: .22 } },
+    { id: 'icefury', name: 'Ice Fury', price: 280, color: '#5fd4ff', desc: 'Il top: traversi infiniti senza perdere la linea.', stats: { grip: .58, drift: .35 } },
+    { id: 'boanal', name: 'BO-anal Special', price: 420, color: '#f2c230', boanal: true, desc: 'BO-anal Special Parts: chiodi d’oro. Grip totale e punti derapata a pioggia.', stats: { grip: .72, drift: .5 } } ] },
 ];
 data.bike ||= 'edt250'; data.owned ||= {}; data.parts ||= {};
 export const ownsBike = id => id === 'edt250' || !!data.owned['bike:' + id];
@@ -144,7 +172,7 @@ export const ownsPart = (slot, id) => PARTS.find(p => p.slot === slot)?.items[0]
 export function currentBike() { const b = BIKES.find(x => x.id === data.bike); return b && ownsBike(b.id) ? b : BIKES[0]; }
 export function currentParts() { const o = {}; for (const p of PARTS) { const id = data.parts[p.slot]; o[p.slot] = (ownsPart(p.slot, id) && p.items.find(i => i.id === id)) || p.items[0]; } return o; }
 // Tutte le caratteristiche in gara: moto + accessori (si sommano).
-export const STAT_TEXT = { speed: 'velocità', jump: 'salto', steer: 'sterzo', turbo: 'turbo', protect: 's protezione dopo un urto', combo: 's di combo', points: 'punti', sight: 'vedi meglio nella nebbia e al buio', climb: 'in salita', wheelie: 's impennata' };
+export const STAT_TEXT = { speed: 'velocità', jump: 'salto', steer: 'sterzo', turbo: 'turbo', protect: 's protezione dopo un urto', combo: 's di combo', points: 'punti', sight: 'vedi meglio nella nebbia e al buio', climb: 'in salita', wheelie: 's impennata', grip: 'grip sul ghiaccio', drift: 'punti derapata' };
 export function statLabel(st = {}) {
   return Object.entries(st).map(([k, v]) => k === 'sight' ? STAT_TEXT.sight : ['protect', 'combo', 'wheelie'].includes(k) ? '+' + String(v).replace('.', ',') + ' ' + STAT_TEXT[k] : (v > 0 ? '+' : '') + Math.round(v * 100) + '% ' + STAT_TEXT[k]).join(' · ');
 }

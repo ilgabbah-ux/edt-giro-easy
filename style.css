@@ -902,6 +902,34 @@ body.isfull .installhelp { display: none; }
 .wallet .insella, .wallet .totstat { flex: 1 0 100%; }
 
 /* v45: allenatore del primo giro */
-.coach { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 7; pointer-events: none; text-align: center; background: #0b0c09d9; color: #fff; border: 2px solid var(--y); padding: 12px 20px; font: italic 800 clamp(16px, 2.2vw, 24px)/1.25 var(--ui); letter-spacing: .5px; text-transform: uppercase; clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); opacity: 0; max-width: min(90%, 520px); }
-.coach.show { animation: coach 4s ease-out forwards; }
-@keyframes coach { 0% { opacity: 0; transform: translate(-50%, -40%) scale(.9); } 10%, 85% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -60%); } }
+/* v46 · consigli del primo giro: piccoli, sotto il tempo e la posizione (nel flusso dell'HUD), mai sulla strada */
+.coach { pointer-events: none; text-align: center; background: #0b0c09b0; color: #fff; border-left: 4px solid var(--y); padding: 5px 14px; font: italic 800 clamp(11px, 1.3vw, 14px)/1.25 var(--ui); letter-spacing: .4px; text-transform: uppercase; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); opacity: 0; max-width: min(42vw, 380px); visibility: hidden; }
+.coach.show { visibility: visible; animation: coach 4.2s ease-out forwards; }
+@keyframes coach { 0% { opacity: 0; transform: translateY(-6px); } 8%, 86% { opacity: .92; transform: none; } 100% { opacity: 0; transform: translateY(-6px); } }
+
+/* v46 · Ice Scrophy: contatore derapate, classifica del ghiaccio, BO-anal Special */
+.driftbox { display: flex; align-items: center; gap: 8px; background: #0b1a26d8; border-left: 6px solid #5fd4ff; padding: 4px 14px 4px 8px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); min-width: 150px; transition: background .2s; }
+.driftbox[hidden] { display: none; }
+.driftbox .dgauge { position: relative; width: 38px; height: 21px; overflow: hidden; }
+.driftbox .dgauge::before { content: ''; position: absolute; left: 0; top: 0; width: 38px; height: 38px; border-radius: 50%; background: conic-gradient(from 270deg, #ff5a3c 0 36deg, #5fd4ff 36deg 43.5deg, #3ddc84 43.5deg 67.5deg, #5d6b72 67.5deg 112.5deg, #3ddc84 112.5deg 136.5deg, #5fd4ff 136.5deg 144deg, #ff5a3c 144deg 180deg, transparent 180deg); opacity: .85; }
+.driftbox .dgauge i { position: absolute; left: 18px; bottom: 0; width: 2px; height: 19px; background: #fff; transform-origin: 50% 100%; box-shadow: 0 0 4px #000; border-radius: 2px; }
+.driftbox .dtext { display: flex; flex-direction: column; }
+.driftbox small { font: italic 800 10px var(--ui); letter-spacing: 1.4px; color: #a8e8ff; }
+.driftbox b { font: 26px/1 var(--display); color: #fff; font-variant-numeric: tabular-nums; }
+.driftbox em { font: italic 900 16px var(--ui); color: #5fd4ff; font-style: italic; }
+.driftbox.on { background: #0d3550e8; } .driftbox.on b { color: #bff0ff; }
+.driftbox.sweet { border-left-color: #3ddc84; } .driftbox.sweet b { color: #b9ffd6; }
+.icetable { display: grid; gap: 3px; margin: 8px auto 0; max-width: 340px; text-align: left; }
+.icetable span { display: grid; grid-template-columns: 30px 1fr auto; gap: 8px; padding: 3px 10px; background: #0d2a3ab0; border-left: 4px solid #5fd4ff; font: 700 13px var(--ui); }
+.icetable span.me { background: #5fd4ff33; border-left-color: var(--y); }
+.icetable i { font-style: normal; color: #a8e8ff; } .icetable b { font-variant-numeric: tabular-nums; }
+.upg.boanal { border-color: #f2c230 !important; background: linear-gradient(135deg, #2a2108, #121212 60%) !important; box-shadow: 0 0 18px #f2c23033; }
+.upg.boanal b { color: #f2c230; }
+.chip.boanal { border-color: #f2c230 !important; background: linear-gradient(135deg, #3a2c08, #151515) !important; }
+.chip.boanal span { color: #ffe08a; }
+.shoptabs { flex-wrap: wrap; }
+@media (max-height: 500px) and (orientation: landscape) { .driftbox { min-width: 0; padding: 2px 10px 2px 6px; } .driftbox b { font-size: 20px; } .driftbox .dgauge { transform: scale(.8); } }
+.mode.icy { background: linear-gradient(135deg, #12324a, #0d1c28) !important; border-color: #5fd4ff !important; }
+.mode.icy.active { box-shadow: 0 0 0 2px #5fd4ff, 0 0 20px #5fd4ff55; }
+@media (max-width: 900px) { .coach { margin-top: 38px; max-width: 70vw; } }
+@media (max-height: 500px) and (orientation: landscape) { .coach { margin-top: 0; max-width: 44vw; font-size: 11px; } }

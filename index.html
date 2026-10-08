@@ -17,7 +17,7 @@
 <meta name="description" content="Il gioco arcade EDT. Schiva gli ostacoli, salta i tronchi, completa le missioni e sopravvivi al taglio di Angelo.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23ffcf16'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='Arial' font-weight='900' font-size='34' fill='%23e3301c'%3EE%3C/text%3E%3C/svg%3E">
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=45">
+<link rel="stylesheet" href="style.css?v=46">
 </head>
 <body>
 <div class="shell">
@@ -27,7 +27,7 @@
       <div><strong>ENDURO DRINKING TEAM</strong><small>Sterrare humanum est · dal 2017</small></div>
     </div>
     <div class="shareheader">
-      <span class="edition" id="edition">GIRO EASY · V45</span>
+      <span class="edition" id="edition">GIRO EASY · V46</span>
       <button id="installapp" class="sharebutton install" type="button" hidden>INSTALLA</button>
       <button id="sharelink" class="sharebutton" type="button">CONDIVIDI NEL GRUPPO</button>
     </div>
@@ -45,12 +45,14 @@
         <div class="hudleft">
           <div class="scorebox" id="scorebox"><small>PUNTI EDT</small><b id="score">00000</b></div>
           <div class="combobox idle" id="combobox"><b id="multiplier">×1</b><span id="combocount">COMBO</span><i><u id="combotimer"></u></i></div>
+          <div class="driftbox" id="driftbox" hidden><span class="dgauge"><i id="driftneedle"></i></span><span class="dtext"><small id="driftlabel">PUNTI DERAPATA</small><b id="driftpts">0</b></span><em id="driftchain">×1</em></div>
           <div id="powerups" class="powerups"></div>
           <div id="feed" class="feed" aria-live="polite"></div>
         </div>
         <div class="hudcenter">
           <div class="timerbox" id="timerbox"><b id="timer">70</b><small>TEMPO MASSIMO</small></div>
           <div class="posbox" id="posbox" hidden><b id="pos">1°</b><small id="posof">DI 4</small></div>
+          <div id="coach" class="coach" aria-live="polite"></div>
         </div>
         <div class="hudright">
           <div class="lives" id="lives" aria-label="3 moto rimaste"></div>
@@ -68,7 +70,6 @@
       <div id="erika" class="erika" role="status"><img alt="Erika"><div class="bubble">GIACU MI AMMAZZA!</div></div>
       <div id="angelo" class="erika angelo" role="status"><img alt="Angelo"><div class="bubble">IL TAGLIO DELLE 16.00!</div></div>
       <div id="countdown" class="countdown" aria-live="assertive"></div>
-      <div id="coach" class="coach" aria-live="polite"></div>
       <div class="dash" aria-hidden="true">
         <div class="speedo"><b id="kmh">0</b><small>KM/H</small></div>
         <div class="trackbox">
@@ -127,6 +128,8 @@
           <div><i>🔥</i><span><b>Grappa</b>: per 6 secondi super salto e invincibile.</span></div>
           <div><i>💧</i><span><b>Bottiglia d'acqua</b>: evitala o saltala! Se la prendi rallenti, perdi la combo e ti spuntano le orecchie da coniglio.</span></div>
           <div><i>🐰</i><span>Al 3° errore (urti, pozzanghere, acqua) o quando resta l'ultima moto: orecchie da coniglio fino al rifugio.</span></div>
+          <div><i>❄</i><span><b>Ice Scrophy</b>: pista di ghiaccio con le gomme chiodate. Tieni <b>GAS in curva</b> per derapare: vince chi fa più punti di traverso. In officina i chiodi: AliExpress, Puntine da disegno, Gusta Grip, Ice Fury.</span></div>
+          <div><i>💎</i><span><b>BO-anal Special Parts</b>: moto e accessori top di gamma in officina. I più cari, i più forti.</span></div>
           <div><i>⛑</i><span><b>Seconda possibilità</b>: se perdi tutte le moto, una volta per giro il rifugista ti rimette in sella per 25 🍺.</span></div>
           <div><i>🔧</i><span><b>Officina</b>: le birre raccolte restano in cassa e si spendono per potenziare moto e pilota. Chi arriva al rifugio vince un <b>premio</b> per il giro dopo.</span></div>
           <div><i>🤠</i><span><b>Impennata</b>: tieni premuto IMPENNA (S / ↓). Più dura, più punti, fino a 3 secondi. Passa sopra radici e pozze.</span></div>
@@ -153,6 +156,6 @@
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="game.js?v=45"></script>
+<script type="module" src="game.js?v=46"></script>
 </body>
 </html>

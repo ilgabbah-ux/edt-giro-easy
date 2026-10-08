@@ -23,6 +23,10 @@ export const OBSTACLE_HEIGHT = {
   goat: .85,      // capra (mulattiera)
   rollRock: .90,  // sasso che rotola giù dalla frana (mulattiera)
   water: .50,     // bottiglia d'acqua: da evitare o saltare
+  snowman: .92,   // v46 · pupazzo di neve (Ice Scrophy)
+  ibex: .95,      // v46 · stambecco (Valle Argentera)
+  chamois: .85,   // v46 · camoscio
+  marmot: .38,    // v46 · marmotta
 };
 
 export function jumpHeight(remaining, duration = JUMP_DURATION, height = JUMP_HEIGHT) {

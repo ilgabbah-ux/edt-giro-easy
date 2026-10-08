@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=45';
+import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=46';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -13,6 +13,12 @@ const PRESETS = [
     light: '#ffa066', lightI: 3.0, hemiSky: '#ffb391', hemiGround: '#3a2934', hemiI: 1.35, fog: '#d58a68', fogNear: 60, fogFar: 190, exposure: 1.08, ridge: '#6c5a6e' },
   { name: 'Cielo d’autunno', top: '#58809e', horizon: '#e2e6dc', sunDir: [.5, .42, -.75], sunColor: '#fff8e6', clouds: .82, cloud: '#f4f4f0',
     light: '#fff6e4', lightI: 3.0, hemiSky: '#e4eef2', hemiGround: '#5a4b37', hemiI: 1.85, fog: '#d5ddd6', fogNear: 65, fogFar: 195, exposure: 1.04, ridge: '#7e8d90' },
+  // v46 · Ice Scrophy: cielo d'inverno terso, luce fredda e bassa, foschia azzurra
+  { name: 'Gelo di Scrophy', top: '#3f7fc4', horizon: '#e4f1f8', sunDir: [-.6, .22, -.77], sunColor: '#fff4e0', clouds: .3, cloud: '#ffffff',
+    light: '#f4f8ff', lightI: 3.3, hemiSky: '#e2f0ff', hemiGround: '#a8bccb', hemiI: 2.0, fog: '#dbe8f0', fogNear: 70, fogFar: 200, exposure: 1.0, ridge: '#9fb3c2', snowLine: -99, ice: true },
+  // v46 · MotoFogna: diluvio, cielo piombo, luce bassa
+  { name: 'Diluvio della Fogna', top: '#4a545c', horizon: '#9aa3a3', sunDir: [.4, .5, -.75], sunColor: '#d8dcd6', clouds: .95, cloud: '#8c9496',
+    light: '#dfe3dc', lightI: 2.4, hemiSky: '#b9c2c4', hemiGround: '#3c3426', hemiI: 1.6, fog: '#8f9897', fogNear: 45, fogFar: 160, exposure: 1.02, ridge: '#5d6866' },
 ];
 
 export function createWorld(canvas) {
@@ -193,6 +199,34 @@ export function createWorld(canvas) {
     blend(verge.color, VERGE_COLS, W);
     scene.fog.near = fogBase.near * (1 - W[0] * .2); scene.fog.far = fogBase.far * (1 - W[0] * .12);
     dirt.bumpScale = .07 + trail.rough * .16;
+    if (iceMode) {
+      // pista di ghiaccio lucido, bordi e prati sotto la neve
+      iceTex.offset.y = (t * 10 / 200) % 1;
+      dirt.color.set('#d6ecf6'); dirt.roughness = .16; dirt.metalness = .08; dirt.bumpScale = .02;
+      grass.color.set('#f2f7fa'); verge.color.set('#dde9ef');
+      scene.fog.near = fogBase.near; scene.fog.far = fogBase.far;
+    } else dirt.metalness = 0;
+  }
+  let iceMode = false, iceKey = null, groundMaps = null;
+  // texture del ghiaccio: graffi bianchi dei chiodi su fondo azzurro
+  const iceTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+    x.fillStyle = '#e9f5fb'; x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 70; i++) { x.strokeStyle = `rgba(${150 + Math.random() * 60},${200 + Math.random() * 40},255,${.15 + Math.random() * .3})`; x.lineWidth = .6 + Math.random() * 2.2; x.beginPath(); const sx = Math.random() * 256, sy = Math.random() * 256; x.moveTo(sx, sy); x.bezierCurveTo(sx + (Math.random() - .5) * 40, sy + 40, sx + (Math.random() - .5) * 60, sy + 90, sx + (Math.random() - .5) * 50, sy + 140); x.stroke(); }
+    for (let i = 0; i < 260; i++) { x.fillStyle = `rgba(255,255,255,${Math.random() * .6})`; x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 1 + Math.random() * 2); }
+    const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.repeat.set(3, 10); t.anisotropy = 4; return t;
+  })();
+  function setIce(on) {
+    if (on === iceKey) return; iceKey = on; iceMode = on;
+    // inverno: latifoglie e larici spogli, abeti con la neve in cima, niente erba
+    leafCrowns.visible = larchCrowns.visible = !on;
+    if (!groundMaps) groundMaps = { d: dirt.map, g: grass.map, v: verge.map };
+    dirt.map = on ? iceTex : groundMaps.d; grass.map = on ? null : groundMaps.g; verge.map = on ? null : groundMaps.v;
+    dirt.needsUpdate = grass.needsUpdate = verge.needsUpdate = true;
+    pine.color.set(on ? '#2c4a44' : '#30594c'); pineLight.color.set(on ? '#eef4f7' : '#3e6d56');
+    tufts.visible = !on && quality < 2;
+    ferns.visible = flowers.visible = shroomStems.visible = shroomCaps.visible = !on;
+    shrubs.material.color.set(on ? '#e6eef2' : '#567342');
   }
 
   // ---------- Paesaggi per sezione (instanced: leggero sui telefoni) ----------
@@ -481,7 +515,8 @@ export function createWorld(canvas) {
         n.fromBufferAttribute(nr, i);
         const shade = .5 + .75 * Math.max(0, n.dot(light));
         tmp.copy(r === ridges[1] ? dark : base).multiplyScalar(shade * (.92 + .1 * Math.sin(i * 1.7)));
-        if (y > cols.snow) tmp.lerp(snow.clone().multiplyScalar(.75 + shade * .3), Math.min(1, (y - cols.snow) / 9));
+        const sl = p.ice ? Math.min(cols.snow, 2) : cols.snow;
+        if (y > sl) tmp.lerp(snow.clone().multiplyScalar(.75 + shade * .3), Math.min(1, (y - sl) / 9));
         tmp.lerp(horizon, cols.haze + (1 - Math.min(1, y / 70)) * .18);
         c.setXYZ(i, tmp.r, tmp.g, tmp.b);
       }
@@ -565,6 +600,18 @@ export function createWorld(canvas) {
   }
   const rearWheel = wheel(pitch, 0, .47, .82); rearWheel.name = 'wheelR';
   const frontWheel = wheel(front, 0, .47, -.86 - STEER_Z); frontWheel.name = 'wheelF';
+  // v46 · chiodi sulle gomme (Ice Scrophy): si vedono solo se montati in officina
+  const studMat = new T.MeshStandardMaterial({ color: '#c9d2d6', roughness: .25, metalness: .85, emissive: '#000000' });
+  const studGeo = new T.ConeGeometry(.022, .07, 5);
+  const studSets = [rearWheel, frontWheel].map(w => {
+    const inst = new T.InstancedMesh(studGeo, studMat, 44); inst.name = 'fx'; inst.castShadow = false;
+    const d = new T.Object3D();
+    for (let i = 0; i < 22; i++) for (const side of [0, 1]) {
+      const a = i * Math.PI * 2 / 22 + side * .14;
+      d.position.set((side ? 1 : -1) * .07, Math.cos(a) * .5, Math.sin(a) * .5); d.rotation.set(a, 0, 0); d.updateMatrix(); inst.setMatrixAt(i * 2 + side, d.matrix);
+    }
+    inst.visible = false; w.add(inst); return inst;
+  });
   // Telaio, forcellone, mono, motore, serbatoio, sella
   rod([-.13, .48, .82], [-.13, .72, -.2], .035, alloy, chassis); rod([.13, .48, .82], [.13, .72, -.2], .035, alloy, chassis);
   rod([0, .64, .2], [0, 1.12, .46], .055, gold, chassis);
@@ -697,24 +744,28 @@ export function createWorld(canvas) {
     const x = decalCanvas.getContext('2d'); x.clearRect(0, 0, 256, 128);
     if (kind === 'stripes') { x.fillStyle = a; x.fillRect(0, 34, 256, 22); x.fillStyle = b; x.fillRect(0, 62, 256, 10); x.fillStyle = a; x.fillRect(0, 78, 256, 6); }
     else if (kind === 'flames') { x.fillStyle = '#ff6a13'; for (let i = 0; i < 6; i++) { x.beginPath(); x.moveTo(0, 30 + i * 12); x.quadraticCurveTo(120 + i * 18, 10 + i * 14, 250 - i * 22, 40 + i * 10); x.quadraticCurveTo(140, 70 + i * 6, 0, 60 + i * 12); x.fill(); } x.fillStyle = '#ffd400'; for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(0, 50 + i * 12); x.quadraticCurveTo(100 + i * 12, 40 + i * 12, 180 - i * 20, 60 + i * 8); x.quadraticCurveTo(100, 80, 0, 74 + i * 10); x.fill(); } }
+    else if (kind === 'boanal') { const gr = x.createLinearGradient(0, 20, 0, 110); gr.addColorStop(0, '#fff2b0'); gr.addColorStop(.5, '#f2c230'); gr.addColorStop(1, '#a8770c'); x.fillStyle = '#111'; x.fillRect(0, 22, 256, 84); x.fillStyle = gr; x.font = 'italic 900 52px Arial'; x.textAlign = 'center'; x.fillText('BO-anal', 128, 72); x.font = '900 18px Arial'; x.fillText('SPECIAL PARTS', 128, 98); }
     else if (kind === 'edt') { x.fillStyle = b; x.font = 'italic 900 78px Arial'; x.textAlign = 'center'; x.lineWidth = 8; x.strokeStyle = '#111'; x.strokeText('EDT', 128, 96); x.fillText('EDT', 128, 96); }
     sideDecalTex.needsUpdate = true;
   }
   function applyCustom(look = {}, parts = {}, livery = {}) {
-    const key = JSON.stringify([look, parts.rims?.id, parts.pipe?.id, parts.guards?.id, parts.seat?.id, parts.decal?.id, parts.light?.id, livery.id]);
+    const key = JSON.stringify([look, parts.rims?.id, parts.pipe?.id, parts.guards?.id, parts.seat?.id, parts.decal?.id, parts.light?.id, parts.studs?.id, livery.id]);
     if (key === customKey) return; customKey = key;
     rimMat.color.set(parts.rims?.color || '#a3b7bb'); rimMat.metalness = parts.rims?.id === 'black' ? .3 : .7;
     pipeMat.color.set(parts.pipe?.color || '#a3b7bb'); chamberMat.color.copy(pipeMat.color); pipeMat.metalness = chamberMat.metalness = parts.pipe?.id === 'carbon' ? .2 : .75; pipeMat.roughness = chamberMat.roughness = parts.pipe?.id === 'chrome' ? .08 : .3;
     seatMat.color.set(parts.seat?.color || '#243138');
     if (parts.guards?.color) guardMat.color.set(parts.guards.color);
     for (const m of meshesWith(guardMat)) m.visible = !!parts.guards?.color;
-    const lamp = parts.light?.id === 'led' || !!look.vintage;
+    const lamp = parts.light?.id === 'led' || parts.light?.id === 'boanal' || !!look.vintage || !!look.boanal;
     for (const m of meshesWith(lampMat)) m.visible = lamp;
     lampGlow.visible = lamp;
     for (const m of meshesWith(chamberMat)) m.visible = !!look.twoStroke;
     for (const m of meshesWith(vintageMat)) m.visible = !!look.vintage;
     for (const m of meshesWith(seatMat)) m.visible = !look.trial;
-    const dk = parts.decal?.id || 'none';
+    const st = parts.studs?.id || 'none';
+    for (const sset of studSets) sset.visible = st !== 'none';
+    if (st !== 'none') { studMat.color.set(parts.studs.color || '#c9d2d6'); studMat.emissive.set(st === 'icefury' ? '#1a6f9a' : st === 'boanal' ? '#5a4200' : '#000000'); studMat.metalness = st === 'puntine' ? .3 : .85; }
+    const dk = look.boanal && (parts.decal?.id || 'none') === 'none' ? 'boanal' : parts.decal?.id || 'none';
     bike.traverse(o => { if (o.name === 'sidedecal') o.visible = dk !== 'none'; });
     if (dk !== 'none') paintSideDecal(dk, livery.accent || '#fcd326', livery.helmet || '#ffffff');
     bike.scale.setScalar(look.scale || 1);
@@ -734,7 +785,7 @@ export function createWorld(canvas) {
   let earsScale = 0;
 
   // Stato dinamico della moto (molle e smorzatori, aggiornato in render).
-  const dyn = { pitch: 0, pitchV: 0, cf: 0, vf: 0, cr: 0, vr: 0, stand: 0, steer: 0, crashSpin: 0, lastJump: 0, wheelie: 0 };
+  const dyn = { yaw: 0, pitch: 0, pitchV: 0, cf: 0, vf: 0, cr: 0, vr: 0, stand: 0, steer: 0, crashSpin: 0, lastJump: 0, wheelie: 0 };
   let decalKey = '';
   function paintDecal(name, number, bg) {
     const key = name + number + bg; if (key === decalKey) return; decalKey = key;
@@ -814,6 +865,10 @@ export function createWorld(canvas) {
 
   const rampDirt = mat('#7b5a38', .95), rampWood = mat('#b98a52', .8), rampLip = new T.MeshStandardMaterial({ color: '#ffd400', roughness: .6, emissive: '#3a2f00', emissiveIntensity: .25 });
   const obstacleMap = new Map(), pools = {};
+  const fordWater = new T.MeshStandardMaterial({ color: '#5d8fa3', roughness: .08, metalness: .2, transparent: true, opacity: .88 }), fordFoam = mat('#eef6f7', .6);
+  const ibexFur = mat('#8a6a48', .9), chamFur = mat('#4a3526', .9), marmotFur = mat('#9a7650', .95);
+  const snowMat = mat('#f6f9fb', .7), carrotMat = mat('#f07a1c', .6), scarfMat = mat('#d0242a', .8);
+  const gateWhite = mat('#f4f6f8', .5), gateBlue = new T.MeshStandardMaterial({ color: '#1e7fd8', roughness: .6, side: T.DoubleSide }), gateRing = new T.MeshBasicMaterial({ color: '#5fd4ff', transparent: true, opacity: .75, depthWrite: false });
   function hazardRing(g, r) { const ring = mesh(new T.RingGeometry(r, r + .08, 28), ringMat, g); ring.rotation.x = -Math.PI / 2; ring.position.y = .015; ring.castShadow = false; }
   function makeObstacle(type) {
     if (pools[type]?.length) return pools[type].pop();
@@ -912,6 +967,66 @@ export function createWorld(canvas) {
       const h = mesh(new T.CylinderGeometry(.4, .4, 1.5, 18), hayObs, g); h.rotation.z = Math.PI / 2; h.position.y = .4;
       for (const x of [-.4, .4]) { const t2 = mesh(new T.TorusGeometry(.405, .02, 6, 24), twine, g); t2.rotation.y = Math.PI / 2; t2.position.set(x, .4, 0); }
       for (const x of [-.751, .751]) { const c = mesh(new T.CircleGeometry(.38, 18), twine, g); c.rotation.y = Math.sign(x) * Math.PI / 2; c.position.set(x, .4, 0); }
+    } else if (type === 'tree') {
+      // v46 · MontaFiga: abete in mezzo alla pista (non si salta: si schiva)
+      mesh(new T.CylinderGeometry(.16, .26, 1.6, 9), bark, g).position.y = .8;
+      const c1 = mesh(new T.ConeGeometry(.72, 2.1, 10), pine, g); c1.position.y = 2.1;
+      const c2 = mesh(new T.ConeGeometry(.55, 1.7, 10), pineLight, g); c2.position.y = 3.0;
+      const c3 = mesh(new T.ConeGeometry(.34, 1.2, 9), pine, g); c3.position.y = 3.75;
+      for (let i = 0; i < 4; i++) { const a = i * 1.57 + .5; rod([Math.cos(a) * .15, .15, Math.sin(a) * .15], [Math.cos(a) * .5, 0, Math.sin(a) * .5], .05, bark, g); }
+      hazardRing(g, .62);
+    } else if (type === 'ford') {
+      // v46 · guado: torrente che attraversa tutta la pista, con sassi e schiuma
+      const inner = new T.Group(); g.add(inner); g.userData.inner = inner;
+      const w = mesh(new T.BoxGeometry(1, .05, 1.5), fordWater, inner); w.position.y = .03; w.receiveShadow = true;
+      for (const z of [-.8, .8]) { const b = mesh(new T.BoxGeometry(1, .07, .14), fordFoam, inner); b.position.set(0, .05, z); }
+      for (let i = 0; i < 7; i++) { const r = mesh(new T.IcosahedronGeometry(.13 + (i % 3) * .05, 0), stone, g); r.position.set((i - 3) * 1.15 + Math.sin(i * 7) * .3, .06, Math.cos(i * 5) * .5); }
+    } else if (type === 'ibex' || type === 'chamois') {
+      // v46 · stambecco (corna grandi a falce) e camoscio (corna a uncino, maschera bianca e nera)
+      const ib = type === 'ibex', fur = ib ? ibexFur : chamFur, sc = ib ? 1.1 : .95;
+      const inner = new T.Group(); inner.scale.setScalar(sc); g.add(inner);
+      g.userData.inner = inner; ball(.45, .27, .22, fur, inner, 0, .66, 0);
+      for (const [x, z] of [[-.3, -.11], [-.3, .11], [.29, -.11], [.29, .11]]) rod([x, .55, z], [x, .02, z], .045, goatDark, inner);
+      ball(.15, .16, .12, ib ? fur : goatWhite, inner, .5, .88, 0);
+      ball(.08, .07, .08, goatDark, inner, .62, .84, 0);
+      if (ib) for (const z of [-.06, .06]) { const c = new T.CatmullRomCurve3([new T.Vector3(.48, .98, z), new T.Vector3(.4, 1.25, z * 1.4), new T.Vector3(.2, 1.38, z * 1.8), new T.Vector3(.02, 1.22, z * 2)]); mesh(new T.TubeGeometry(c, 10, .035, 6), hornMat, inner); }
+      else for (const z of [-.05, .05]) { const c = new T.CatmullRomCurve3([new T.Vector3(.5, .98, z), new T.Vector3(.52, 1.18, z), new T.Vector3(.44, 1.24, z)]); mesh(new T.TubeGeometry(c, 8, .022, 6), goatDark, inner); box(.02, .12, .05, goatDark, inner, .58, .9, z * 1.6); }
+      rod([-.44, .7, 0], [-.52, .76, 0], .03, fur, inner);
+      hazardRing(g, .62);
+    } else if (type === 'marmot') {
+      // v46 · marmotta in piedi a fischiare
+      ball(.2, .26, .18, marmotFur, g, 0, .26, 0);
+      ball(.13, .12, .12, marmotFur, g, 0, .58, .03);
+      ball(.06, .05, .05, goatDark, g, 0, .58, .14);
+      for (const x of [-.07, .07]) ball(.035, .03, .03, goatDark, g, x, .62, .12);
+      for (const x of [-.11, .11]) ball(.04, .04, .03, marmotFur, g, x, .69, 0);
+      ball(.06, .05, .2, marmotFur, g, 0, .06, -.24);
+      hazardRing(g, .4);
+    } else if (type === 'snowman') {
+      // v46 · pupazzo di neve in mezzo alla pista di ghiaccio
+      ball(.46, .42, .46, snowMat, g, 0, .4, 0); ball(.34, .32, .34, snowMat, g, 0, 1.02, 0); ball(.24, .23, .24, snowMat, g, 0, 1.5, 0);
+      const nose = mesh(new T.ConeGeometry(.05, .26, 8), carrotMat, g); nose.rotation.x = Math.PI / 2; nose.position.set(0, 1.5, .33);
+      for (const x of [-.08, .08]) ball(.03, .03, .03, black, g, x, 1.58, .21);
+      for (let i = 0; i < 3; i++) ball(.035, .035, .035, black, g, 0, .92 + i * .12, .33 - Math.abs(i - 1) * .02);
+      const sc = mesh(new T.TorusGeometry(.25, .06, 6, 18), scarfMat, g); sc.rotation.x = Math.PI / 2; sc.position.y = 1.3;
+      box(.08, .26, .06, scarfMat, g, .16, 1.15, .2);
+      for (const sd of [-1, 1]) rod([sd * .3, 1.05, 0], [sd * .72, 1.35, 0], .022, bark, g);
+      mesh(new T.CylinderGeometry(.17, .19, .22, 14), black, g).position.y = 1.78;
+      mesh(new T.CylinderGeometry(.27, .27, .03, 16), black, g).position.y = 1.68;
+      hazardRing(g, .6);
+    } else if (type === 'gate') {
+      // v46 · porta del ghiaccio: due paletti con le bandierine e lo striscione "DI TRAVERSO!"
+      const c = document.createElement('canvas'); c.width = 512; c.height = 112; const x = c.getContext('2d');
+      x.fillStyle = '#1e7fd8'; x.fillRect(0, 0, 512, 112); x.fillStyle = '#ffffff'; for (let i = 0; i < 16; i++) x.fillRect(i * 32, i % 2 ? 0 : 100, 32, 12);
+      x.font = 'italic 900 58px Arial'; x.textAlign = 'center'; x.fillText('❄ DI TRAVERSO! ❄', 256, 76);
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+      for (const sd of [-1, 1]) {
+        rod([sd * 1.05, 0, 0], [sd * 1.05, 2.5, 0], .045, gateWhite, g);
+        for (let k = 0; k < 4; k++) box(.1, .3, .1, k % 2 ? gateWhite : gateBlue, g, sd * 1.05, .3 + k * .55, 0);
+        const fl = mesh(new T.PlaneGeometry(.5, .32), gateBlue, g); fl.position.set(sd * 1.33, 2.32, 0); fl.castShadow = false;
+      }
+      const ban = mesh(new T.PlaneGeometry(2.1, .46), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); ban.position.set(0, 2.18, 0); ban.castShadow = false;
+      const ring = mesh(new T.RingGeometry(.85, .98, 28), gateRing, g); ring.rotation.x = -Math.PI / 2; ring.position.y = .02; ring.castShadow = false;
     } else if (type === 'cairn') {
       const c = mesh(cairnGeo, stone, g); c.scale.setScalar(1.1); hazardRing(g, .55);
     } else if (type === 'goat') {
@@ -1085,7 +1200,8 @@ export function createWorld(canvas) {
       if (!m.g.visible) continue;
       const lx = (r.lx - 1) * spacing();
       m.g.position.set(center(z, t) + lx, height(z, t) + Math.abs(Math.sin(now / 90 + m.phase)) * .02, z);
-      m.g.rotation.set(0, -(r.lean || 0) * .05, Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));
+      const rYaw = iceMode ? -Math.sin((t + r.gap) * .021) * .45 - (r.lean || 0) * .12 : -(r.lean || 0) * .05;
+      m.g.rotation.set(0, rYaw, Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));
       m.pitch.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 160 + m.phase) * .015;
       m.pitch.position.y = 0;
       for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475;
@@ -1175,7 +1291,7 @@ export function createWorld(canvas) {
   function ambient(dt, t, W, live) {
     const move = ambLastT === null ? 0 : Math.max(0, Math.min(3, t - ambLastT)); ambLastT = t;
     const now = performance.now() / 1000;
-    const leafAmt = Math.min(1, W[0] + W[1] * .35);
+    const leafAmt = iceMode ? 0 : Math.min(1, W[0] + W[1] * .35);
     fallLeaves.visible = leafAmt > .03;
     if (fallLeaves.visible) {
       const n = Math.round(LEAVES * leafAmt);
@@ -1200,13 +1316,13 @@ export function createWorld(canvas) {
       });
       rainGeo.attributes.position.needsUpdate = true;
     }
-    moteMat.opacity = Math.min(.8, (W[2] + W[3]) * .85);
-    moteMat.color.set(W[3] > W[2] ? '#e6d2a4' : '#fff3c4');
+    moteMat.opacity = iceMode ? .95 : Math.min(.8, (W[2] + W[3]) * .85);
+    moteMat.color.set(iceMode ? '#ffffff' : W[3] > W[2] ? '#e6d2a4' : '#fff3c4'); moteMat.size = iceMode ? .13 : .09;
     motes.visible = moteMat.opacity > .03;
     if (motes.visible) {
       md.forEach((d, i) => {
-        d.z += move * .9; d.y += Math.sin(now * .9 + d.ph) * dt * .25; d.x += Math.cos(now * .7 + d.ph) * dt * .3;
-        if (d.z > 6) { d.z = -26 - Math.random() * 10; d.x = (Math.random() - .5) * 22; d.y = .3 + Math.random() * 5; }
+        d.z += move * .9; d.y += Math.sin(now * .9 + d.ph) * dt * .25 - (iceMode ? dt * 1.1 : 0); d.x += Math.cos(now * .7 + d.ph) * dt * .3;
+        if (d.z > 6 || d.y < .05) { d.z = -26 - Math.random() * 10; d.x = (Math.random() - .5) * 22; d.y = .3 + Math.random() * 5; }
         motePos[i * 3] = d.x; motePos[i * 3 + 1] = d.y + height(d.z, t); motePos[i * 3 + 2] = d.z;
       });
       moteGeo.attributes.position.needsUpdate = true;
@@ -1217,6 +1333,7 @@ export function createWorld(canvas) {
     const now = performance.now(), fdt = Math.min(.07, s.dt || (now - lastRender) / 1000); lastRender = now;
     adaptQuality();
     applyPreset(s.preset ?? 0);
+    setIce(!!(PRESETS[s.preset ?? 0] || {}).ice);
     applyLivery(s.livery);
     applyCustom(s.bikeLook, s.parts, s.livery);
     paintDecal(s.riderName || 'EDT', s.riderNumber || 1, s.livery?.jersey || '#fcd326');
@@ -1277,8 +1394,10 @@ export function createWorld(canvas) {
     dyn.steer += (Math.max(-.38, Math.min(.38, -vx * .11)) - dyn.steer) * Math.min(1, fdt * 14);
     bike.position.set((s.px - 1) * spacing(), lift + .06 * Math.abs(trail.grade) + noseDown, 0);
     bike.rotation.z = lean;
-    bike.rotation.y = -vx * .045 + whip * .55;
-    front.rotation.y = dyn.steer + (s.jump > 0 ? whip * -.3 : 0);
+    // v46 · sul ghiaccio la moto va di traverso (il posteriore scivola) e il pilota controsterza
+    dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : -vx * .045)) - dyn.yaw) * Math.min(1, fdt * 10);
+    bike.rotation.y = dyn.yaw + whip * .55;
+    front.rotation.y = s.ice ? Math.max(-.55, Math.min(.55, (s.drift || 0) * .7)) : dyn.steer + (s.jump > 0 ? whip * -.3 : 0);
     const blink = Math.floor(s.invincible * 12) % 2 === 0;
     bike.visible = s.invincible <= 0 || crash > 0 || blink;
 
@@ -1322,7 +1441,7 @@ export function createWorld(canvas) {
       const z = (o.z - .91) * 55;
       let lx = (o.l - 1) * spacing();
       if (o.type === 'coin' && s.magnet > 0 && o.z > .62 && !o.air) lx += ((s.px - 1) * spacing() - lx) * Math.min(1, (o.z - .62) / .29);
-      if (o.type === 'bigLog') lx = 0;
+      if (o.type === 'bigLog' || o.type === 'ford') lx = 0;
       m.position.set(center(z, t) + lx, height(z, t) + (o.lift || 0), z);
       m.rotation.x = Math.atan(slope(z, t));
       if (m.userData.spin) {
@@ -1331,12 +1450,22 @@ export function createWorld(canvas) {
       }
       if (m.userData.roller) m.userData.roller.rotation.z = -o.z * 26;
       if (o.type === 'bigLog') { const len = spacing() * 2 + 2.2; m.userData.inner.scale.x = len; }
+      if (o.type === 'ford') m.userData.inner.scale.x = spacing() * 2 + 4.5;
+      if (o.cross) m.rotation.y = o.cross > 0 ? 0 : Math.PI;
+      else if (o.type === 'ibex' || o.type === 'chamois' || o.type === 'marmot') m.rotation.y = 0;
+      if (o.lean !== undefined && o.type === 'tree') m.rotation.z = o.lean * .3;
     }
 
     // Terra dalla ruota posteriore: più gas, più terra.
     const onGround = s.state === 'playing' && s.jump <= 0;
     const muddy = trail.wet > .3 || s.wet > 0;
-    partMat.color.set(muddy ? '#5b4630' : trail.rough > .5 ? '#8f8f88' : '#9b7f56');
+    partMat.color.set(iceMode ? '#eaf6ff' : muddy ? '#5b4630' : trail.rough > .5 ? '#8f8f88' : '#9b7f56');
+    if (onGround && iceMode && s.driftOn) {
+      // ghiaccio grattato dai chiodi: spruzzo laterale bianco durante la derapata
+      const n = 2 + Math.round(Math.abs(s.drift || 0) * 5);
+      for (let i = 0; i < n; i++) { const dir = Math.sign(s.drift || 1); emit(bike.position.x + dir * .5, .2, 1.0, dir * (3 + Math.random() * 3), 1.5 + Math.random() * 2.2, 2 + Math.random() * 3, .7 + Math.random() * .6); }
+    }
+    if (s.snowHit > .6) for (let i = 0; i < 6; i++) emit(bike.position.x + (Math.random() - .5), .4, (Math.random() - .5), (Math.random() - .5) * 7, 3 + Math.random() * 4, (Math.random() - .3) * 4, 1.5);
     if (onGround) {
       emitAcc += fdt * (30 + (s.gas ? 34 : 0) + boostAmount * 14) * (s.speed || 1) * (muddy ? 1.3 : 1);
       while (emitAcc > 1) {
@@ -1380,9 +1509,9 @@ export function createWorld(canvas) {
       dummy.rotation.order = 'XYZ';
     }
     tracks.instanceMatrix.needsUpdate = true;
-    trackMat.opacity = trail.rough > .5 ? .14 : trail.wet > .3 ? .42 : .3;
+    trackMat.opacity = iceMode ? .5 : trail.rough > .5 ? .14 : trail.wet > .3 ? .42 : .3;
 
-    dustMaterial.color.set(muddy ? '#9a8a74' : '#ceba8c');
+    dustMaterial.color.set(iceMode ? '#f4fbff' : muddy ? '#9a8a74' : '#ceba8c');
     dust.visible = onGround;
     for (let i = 0; i < 24; i++) {
       const age = (s.roadTime * 1.7 + i / 24) % 1;
@@ -1425,7 +1554,8 @@ export function createWorld(canvas) {
     // Scintille / schizzi sugli eventi
     if (s.fxSerial !== undefined && s.fxSerial !== lastEvent) {
       lastEvent = s.fxSerial; eventAt = now; eventX = bike.position.x; eventY = s.fxKind === 'splash' ? .4 : 1.1 + lift;
-      sparkMaterial.color.set(s.fxKind === 'hit' ? '#ff5a39' : s.fxKind === 'splash' ? '#93d9e4' : s.fxKind === 'power' ? '#7dffc4' : s.fxKind === 'jump' ? '#ffffff' : '#ffe04b');
+      if (s.fxKind === 'snow') for (let i = 0; i < 30; i++) emit(bike.position.x + (Math.random() - .5), .3, (Math.random() - .5), (Math.random() - .5) * 8, 3 + Math.random() * 5, (Math.random() - .2) * 4, 1.6);
+      sparkMaterial.color.set(s.fxKind === 'snow' ? '#e8f8ff' : s.fxKind === 'hit' ? '#ff5a39' : s.fxKind === 'splash' ? '#93d9e4' : s.fxKind === 'power' ? '#7dffc4' : s.fxKind === 'jump' ? '#ffffff' : '#ffe04b');
       if (s.fxKind === 'splash') for (let i = 0; i < 26; i++) emit(bike.position.x + (Math.random() - .5), .2, (Math.random() - .5), (Math.random() - .5) * 6, 3 + Math.random() * 4, (Math.random() - .2) * 4, 1.4);
     }
     const age = (now - eventAt) / 520;
