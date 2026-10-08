@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=42';
+import { JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=43';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -963,6 +963,8 @@ export function createWorld(canvas) {
 
   // ---------- v41 · Avversari EDT: copie della moto con livrea, numero e nome propri ----------
   const rivalModels = new Map();
+  const rivalTyre = new T.TorusGeometry(.38, .12, 6, 22), rivalRim = new T.TorusGeometry(.29, .025, 4, 18);
+  const rivalSpokes = (() => { const g = new T.CylinderGeometry(.01, .01, .58, 3); const gs = []; for (let i = 0; i < 4; i++) { const c = g.clone(); c.rotateX(i * Math.PI / 4); gs.push(c); } return mergeGeometries(gs); })();
   const rivalMats = ['plastic', 'accent', 'jersey', 'pants', 'helmet'];
   function makeRival(r) {
     const g = bike.clone(true);
@@ -989,9 +991,43 @@ export function createWorld(canvas) {
     y.fillStyle = '#fff'; y.font = 'italic 900 34px Arial'; y.textAlign = 'center'; y.fillText(r.name.toUpperCase(), 134, 45, 220);
     const tag = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(tc2), depthWrite: false, transparent: true }));
     tag.material.map.colorSpace = T.SRGBColorSpace; tag.scale.set(1.5, .375, 1); tag.position.set(0, 3.0, 0); tag.renderOrder = 5; g.add(tag);
-    const model = { g, pitch: g.children[0], wheels: [], tag, phase: Math.random() * 10 };
-    g.traverse(o => { if (o.name === 'wheelR' || o.name === 'wheelF') model.wheels.push(o); });
-    scene.add(g);
+    // v43 · prestazioni: tutta la moto (tranne le ruote) diventa pochi pezzi, uno per materiale, senza ombre vere.
+    g.position.set(0, 0, 0); g.rotation.set(0, 0, 0); g.children[0].rotation.set(0, 0, 0); g.children[0].position.set(0, 0, 0);
+    g.traverse(o => { if (o.name === 'wheelR' || o.name === 'wheelF') o.rotation.x = 0; });
+    g.updateMatrixWorld(true);
+    const root = new T.Group(), body = new T.Group(); root.add(body);
+    const buckets = new Map(), wheelObjs = [];
+    g.traverse(o => { if (o.name === 'wheelR' || o.name === 'wheelF') wheelObjs.push(o); });
+    const hiddenOrWheel = o => { for (let p = o; p && p !== g; p = p.parent) { if (!p.visible) return true; if (p.name === 'wheelR' || p.name === 'wheelF') return true; } return false; };
+    g.traverse(o => {
+      if (!o.isMesh || o.isSprite || hiddenOrWheel(o)) return;
+      const gp = o.geometry.parameters || {}, gt = o.geometry.type;
+      const geo = (gt === 'SphereGeometry' ? new T.SphereGeometry(gp.radius, 10, 7)
+        : gt === 'CylinderGeometry' ? new T.CylinderGeometry(gp.radiusTop, gp.radiusBottom, gp.height, 6)
+        : gt === 'TorusGeometry' ? new T.TorusGeometry(gp.radius, gp.tube, 4, 12)
+        : o.geometry.clone()).applyMatrix4(o.matrixWorld);
+      for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', 'uv'].includes(k)) geo.deleteAttribute(k);
+      if (!geo.attributes.uv) geo.setAttribute('uv', new T.BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
+      if (!buckets.has(o.material)) buckets.set(o.material, []);
+      buckets.get(o.material).push(geo);
+    });
+    for (const [material, geos] of buckets) { const m = new T.Mesh(mergeGeometries(geos), material); geos.forEach(x => x.dispose()); m.castShadow = false; m.receiveShadow = false; body.add(m); }
+    const wheelsOut = [];
+    // ruote leggere: gomma tassellata finta, cerchio e mozzo (poche centinaia di triangoli)
+    for (const w of wheelObjs) {
+      const pos = new T.Vector3(); w.getWorldPosition(pos);
+      const holder = new T.Group(); holder.position.copy(pos); body.add(holder); w.parent.remove(w);
+      const wl = new T.Group(); holder.add(wl);
+      const tyre = new T.Mesh(rivalTyre, rubber); tyre.rotation.y = Math.PI / 2; wl.add(tyre);
+      const rim = new T.Mesh(rivalRim, alloy); rim.rotation.y = Math.PI / 2; wl.add(rim);
+      const spokes = new T.Mesh(rivalSpokes, alloy); wl.add(spokes);
+      wheelsOut.push(wl);
+    }
+    tag.parent?.remove(tag); root.add(tag);
+    const blob = new T.Mesh(new T.PlaneGeometry(1.3, 2.7), new T.MeshBasicMaterial({ color: '#000', alphaMap: glowTex, transparent: true, opacity: .45, depthWrite: false }));
+    blob.rotation.x = -Math.PI / 2; blob.position.y = .03; root.add(blob);
+    const model = { g: root, pitch: body, wheels: wheelsOut, tag, phase: Math.random() * 10 };
+    scene.add(root);
     return model;
   }
   function renderRivals(list, t, now, live) {
@@ -1134,7 +1170,7 @@ export function createWorld(canvas) {
   }
 
   function render(s) {
-    const now = performance.now(), fdt = Math.min(.05, s.dt || (now - lastRender) / 1000); lastRender = now;
+    const now = performance.now(), fdt = Math.min(.07, s.dt || (now - lastRender) / 1000); lastRender = now;
     adaptQuality();
     applyPreset(s.preset ?? 0);
     applyLivery(s.livery);

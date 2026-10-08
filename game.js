@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=42';
-import { createWorld } from './scene3d.js?v=42';
-import * as A from './audio.js?v=42';
-import * as P from './progress.js?v=42';
-import { FOTO } from './piloti.js?v=42';
-import { createMud } from './mudfx.js?v=42';
-import { icon, iconize, iconizeEl } from './icons.js?v=42';
-import * as C from './classifica.js?v=42';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=43';
+import { createWorld } from './scene3d.js?v=43';
+import * as A from './audio.js?v=43';
+import * as P from './progress.js?v=43';
+import { FOTO } from './piloti.js?v=43';
+import { createMud } from './mudfx.js?v=43';
+import { icon, iconize, iconizeEl } from './icons.js?v=43';
+import * as C from './classifica.js?v=43';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -477,6 +477,7 @@ if (!fsOK) $('fullscreen').hidden = true;
 $('fullscreen').onclick = () => { if (inFull()) exitFull(); else goFull(); };
 function onFsChange() {
   document.body.classList.toggle('isfull', inFull());
+  if (state === 'ready' && !$('shoptitle') && $('start')) renderReady();
   setTimeout(() => world?.resize(), 60); setTimeout(() => world?.resize(), 400);
   if (!inFull() && state === 'playing' && touchDevice) pause();
 }
@@ -1024,7 +1025,8 @@ function drawState() {
 function draw() { world?.render(drawState()); }
 
 function frame(t) {
-  const dt = Math.min(.04, (t - last) / 1000 || 0);
+  // v43 · fino a 15 fotogrammi al secondo il gioco va alla stessa velocità (prima sotto i 25 rallentava)
+  const dt = Math.min(.066, (t - last) / 1000 || 0);
   last = t;
   pollPad();
   update(dt);
@@ -1093,6 +1095,7 @@ function renderReady() {
         <span class="ps">PS${m.id + 1}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.name}</b><small>${open ? m.desc : '🔒 Si sblocca al livello ' + m.unlock}</small>${m.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(m.layout || layoutFor(m.id))}<span class="limit">⏱ ${m.limit} s</span></button>`; }).join('')}
     </div>
     <div class="missions"><div class="mhead">${icon('flag')} MISSIONI</div><ul>${missionsHTML()}</ul></div>
+    ${inFull() ? '<button class="secondary homebtn" id="homebtn" type="button">🏠 ESCI DALLO SCHERMO INTERO · PILOTI, GARAGE E CLASSIFICA</button>' : ''}
     <div class="audiorow"><button class="secondary voicetest" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="secondary voicetest" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button></div>
     <p class="tracktune">🎵 ${A.STYLES[mode].name}</p>
     <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro tenuto gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">👆 Tocca a sinistra o a destra per cambiare corsia (o trascina il dito: la moto lo segue) · tocca al centro o scorri in su per saltare</span></p>`;
@@ -1116,7 +1119,10 @@ function renderReady() {
       if (k === 'fine') $('testvoci').disabled = false;
     });
   };
-  $('pilotchip').onclick = () => { document.querySelector('.riderpanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  // v43 · a schermo intero il pannello piloti/garage/classifica non si vede: si esce e si va lì.
+  const toPage = sel => { const go = () => document.querySelector(sel)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); if (inFull()) { exitFull(); setTimeout(go, 350); } else go(); };
+  $('pilotchip').onclick = () => toPage('.riderpanel');
+  if ($('homebtn')) $('homebtn').onclick = () => { if (inFull()) exitFull(); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 350); };
   document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
     const m = P.MODES[Number(b.dataset.mode)];
     if (!P.isUnlocked(m)) { b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); toast('🔒 PERCORSO BLOCCATO: ARRIVA AL LIVELLO ' + m.unlock, 'red'); return; }
@@ -1267,7 +1273,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 42;
+const GAME_VERSION = 43;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {

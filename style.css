@@ -872,3 +872,4 @@ body.isfull .installhelp { display: none; }
 .erika.angelo { bottom: 210px; }
 @media (max-width: 900px) { .erika.angelo { bottom: 200px; } .erika.angelo img { width: 120px; } .erika.angelo .bubble { margin: 0 -10px 40% 0; } }
 @media (max-height: 500px) and (orientation: landscape) { .erika.angelo { bottom: 80px; } }
+.homebtn { width: 100%; margin: 4px 0 10px; font-size: 14px; }
