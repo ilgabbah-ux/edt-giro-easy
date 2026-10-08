@@ -971,3 +971,7 @@ body.panelopen { overflow: hidden; }
 @media (max-height: 500px) and (orientation: landscape) { .coach { position: absolute; top: 48px; left: 50%; transform: translateX(-50%); margin: 0; } .coach.show { animation-name: coachL; } }
 @keyframes coachL { 0% { opacity: 0; } 8%, 86% { opacity: .92; } 100% { opacity: 0; } }
 @media (max-width: 900px) and (orientation: portrait) { .coach { position: absolute; top: 200px; left: 50%; transform: translateX(-50%); margin: 0; max-width: 78vw; } .coach.show { animation-name: coachL; } }
+
+/* v51 · classifica nel pannello: tutti i percorsi visibili, su più righe */
+.boardtabs { flex-wrap: wrap; }
+.boardtabs button { flex: 1 0 auto; min-width: 72px; }

@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=50';
-import { createWorld } from './scene3d.js?v=50';
-import * as A from './audio.js?v=50';
-import * as P from './progress.js?v=50';
-import { FOTO } from './piloti.js?v=50';
-import { createMud } from './mudfx.js?v=50';
-import { icon, iconize, iconizeEl } from './icons.js?v=50';
-import * as C from './classifica.js?v=50';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=51';
+import { createWorld } from './scene3d.js?v=51';
+import * as A from './audio.js?v=51';
+import * as P from './progress.js?v=51';
+import { FOTO } from './piloti.js?v=51';
+import { createMud } from './mudfx.js?v=51';
+import { icon, iconize, iconizeEl } from './icons.js?v=51';
+import * as C from './classifica.js?v=51';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -1703,7 +1703,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 50;
+const GAME_VERSION = 51;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
@@ -1735,7 +1735,7 @@ function renderSide() {
   });
 
   const bm = boardMode ?? mode;
-  $('boardtabs').innerHTML = P.MODES.filter(m => P.isUnlocked(m) || m.id === bm).map(m => `<button type="button" class="${m.id === bm ? 'active' : ''}" data-board="${m.id}">${m.id === 3 ? 'OGGI' : m.short}</button>`).join('');
+  $('boardtabs').innerHTML = P.MODES.map(m => `<button type="button" class="${m.id === bm ? 'active' : ''}" data-board="${m.id}">${m.id === 3 ? 'OGGI' : m.short}</button>`).join('');
   document.querySelectorAll('[data-board]').forEach(b => b.onclick = () => { boardMode = Number(b.dataset.board); renderSide(); });
   const group = boardSrc === 'group' && C.enabled();
   document.querySelectorAll('[data-src]').forEach(b => { b.classList.toggle('active', b.dataset.src === (group ? 'group' : 'local')); b.onclick = () => { boardSrc = b.dataset.src; renderSide(); }; });
