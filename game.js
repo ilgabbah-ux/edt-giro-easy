@@ -1,11 +1,11 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=35';
-import { createWorld } from './scene3d.js?v=35';
-import * as A from './audio.js?v=35';
-import * as P from './progress.js?v=35';
-import { FOTO } from './piloti.js?v=35';
-import { createMud } from './mudfx.js?v=35';
-import { icon, iconize, iconizeEl } from './icons.js?v=35';
+import { JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=36';
+import { createWorld } from './scene3d.js?v=36';
+import * as A from './audio.js?v=36';
+import * as P from './progress.js?v=36';
+import { FOTO } from './piloti.js?v=36';
+import { createMud } from './mudfx.js?v=36';
+import { icon, iconize, iconizeEl } from './icons.js?v=36';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -501,6 +501,11 @@ canvas.addEventListener('pointermove', e => {
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 // v35 · tenendo premuto su telefono non deve aprirsi il menu di Chrome (Scarica/Stampa/Condividi).
 ['contextmenu', 'selectstart', 'dragstart'].forEach(t => $('game').addEventListener(t, e => { if (!e.target.closest?.('input, textarea, a[href]')) e.preventDefault(); }, true));
+// v36 · Chrome Android apre il menu della pagina con la pressione lunga anche così: si blocca alla radice.
+// touchstart annullato su comandi e strada = niente pressione lunga (i comandi vanno con i pointer event).
+const noLongPress = e => { if (e.cancelable) e.preventDefault(); };
+[canvas, document.querySelector('.controls'), $('gas')].forEach(el => el && ['touchstart', 'touchmove', 'touchend'].forEach(t => el.addEventListener(t, noLongPress, { passive: false })));
+window.addEventListener('contextmenu', e => { if (state === 'playing' || state === 'countdown' || e.target.closest?.('.game, .controls')) { e.preventDefault(); e.stopPropagation(); } }, true);
 canvas.addEventListener('wheel', e => { if (state !== 'playing') return; e.preventDefault(); const now = performance.now(); if (now - lastWheel > 400) { lastWheel = now; boost(); } }, { passive: false });
 function rightDown() {
   rightHeld = true;
