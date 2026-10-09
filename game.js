@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=61';
-import { createWorld } from './scene3d.js?v=61';
-import * as A from './audio.js?v=61';
-import * as P from './progress.js?v=61';
-import { FOTO } from './piloti.js?v=61';
-import { createMud } from './mudfx.js?v=61';
-import { icon, iconize, iconizeEl } from './icons.js?v=61';
-import * as C from './classifica.js?v=61';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=62';
+import { createWorld } from './scene3d.js?v=62';
+import * as A from './audio.js?v=62';
+import * as P from './progress.js?v=62';
+import { FOTO } from './piloti.js?v=62';
+import { createMud } from './mudfx.js?v=62';
+import { icon, iconize, iconizeEl } from './icons.js?v=62';
+import * as C from './classifica.js?v=62';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -98,7 +98,7 @@ function stripHTML(layout) {
   const tot = layout.reduce((a, x) => a + x.len, 0);
   return `<span class="strip">${layout.map(x => `<i class="s${x.t}${x.climb && x.t !== 2 ? ' up' : ''}${x.down ? ' down' : ''}" style="flex:${(x.len / tot * 100).toFixed(1)}"></i>`).join('')}</span>`;
 }
-const ghostKey = () => P.MODES[mode].random === 'daily' ? 'd' + P.todayKey() : P.MODES[mode].random ? null : String(mode);
+const ghostKey = () => P.MODES[mode].leap ? null : P.MODES[mode].random === 'daily' ? 'd' + P.todayKey() : P.MODES[mode].random ? null : String(mode);
 let state = 'ready';
 let lane = 1, px = 1, jump = 0, jumpBuffer = 0, elapsed = 0, score = 0, lives = 3, objects = [], spawn = 0, invincible = 0, last = 0, roadTime = 0;
 let toastTime = 0, gas = false, wet = 0, routePhase = -1, countdown = 0, countStep = 0;
@@ -128,9 +128,10 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-suuuka', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=61';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=62';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
+let leapMul = 1, leapZRate = .5, leapFree = 1;
 let leap = false, leapState = 0, leapPow = 0, leapPitch = 0, leapW = 0, leapStartT = 0, leapStartKmh = 0, leapDist = 0, leapBest = 0, lastHopAt = -9, leapEndT = 0, leapPerfect = false;
 let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
 const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
@@ -142,7 +143,31 @@ let gGhost = null, gGhostPassed = false;
 let keyAt = { l: 0, r: 0 }, btnAt = { l: 0, r: 0 };
 const TAP_MS = 190;   // tocco breve = una corsia intera (come prima); tenuto = sterzo libero
 let keyL = false, keyR = false, btnL = false, btnR = false, zoneSteer = 0, padSteer = 0, aimPx = null, lastSteerDir = 0, edgeT = 0, lastEdgeMsg = -9;
-const steerNow = () => Math.max(-1, Math.min(1, (keyR ? 1 : 0) - (keyL ? 1 : 0) + (btnR ? 1 : 0) - (btnL ? 1 : 0) + zoneSteer + padSteer));
+const steerNow = () => Math.max(-1, Math.min(1, (keyR ? 1 : 0) - (keyL ? 1 : 0) + (btnR ? 1 : 0) - (btnL ? 1 : 0) + zoneSteer + padSteer + tiltSteer));
+// v62 · sterzo inclinando il telefono (giroscopio): si attiva dal menu; lo "zero" è la posizione del telefono al via.
+let tiltOn = false, tiltSteer = 0, tiltZero = null, tiltRaw = 0;
+try { tiltOn = localStorage.getItem('edt-tilt') === '1'; } catch {}
+function tiltAngle(e) {
+  const a = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0;
+  if (a === 90) return e.beta;          // orizzontale, tasto home a destra
+  if (a === -90 || a === 270) return -e.beta;
+  return e.gamma;                       // verticale
+}
+window.addEventListener('deviceorientation', e => {
+  if (!tiltOn || e.gamma === null) { tiltSteer = 0; return; }
+  tiltRaw = tiltAngle(e) || 0;
+  if (tiltZero === null) tiltZero = tiltRaw;
+  const d = tiltRaw - tiltZero, dead = 3, full = 18;   // 3° di zona morta, sterzata piena a 18°
+  tiltSteer = Math.abs(d) < dead ? 0 : Math.max(-1, Math.min(1, (d - Math.sign(d) * dead) / (full - dead)));
+});
+async function setTilt(on) {
+  if (on && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try { if (await DeviceOrientationEvent.requestPermission() !== 'granted') { toast('📱 PERMESSO AL GIROSCOPIO NEGATO', 'red'); on = false; } } catch { on = false; }
+  }
+  tiltOn = on; tiltZero = null; tiltSteer = 0;
+  try { localStorage.setItem('edt-tilt', on ? '1' : '0'); } catch {}
+  return on;
+}
 let throttleSlip = 0, overT = 0, wasSweet = false, gasLock = false, gasDownAt = 0, noClimbT = 0;
 let ice = false, drift = 0, driftT = 0, driftSum = 0, driftPend = 0, driftChain = 0, driftGap = 9, driftScore = 0, driftBest = 0, driftCount = 0, snowT = 0, bendNow = 0, lastWall = -9;
 // v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
@@ -345,7 +370,7 @@ function resetRun() {
   ice = !!P.MODES[mode].ice;
   slalomN = 0; lastFord = lastAnimal = -9; setupGroupGhost();
   if (P.MODES[mode].ranch) objects.push({ l: -2.6, z: .78, type: 'farm', hit: false });   // v59 · la cascina del Gusta Ranch alla partenza
-  leap = !!P.MODES[mode].leap; leapState = 0; leapPitch = leapW = leapDist = leapBest = 0; lastHopAt = -9; leapEndT = 0; leapPerfect = false;
+  leap = !!P.MODES[mode].leap; leapMul = 1; leapZRate = .5; leapFree = 1; leapState = 0; leapPitch = leapW = leapDist = leapBest = 0; lastHopAt = -9; leapEndT = 0; leapPerfect = false;
   gev = !!P.MODES[mode].gev; gevZ = 9; gevThrow = 4.5; gevArm = gevLost = 0; gevGone = false; gevShout = 0; gevSide = 1; gevFine = 0;
   keyL = keyR = btnL = btnR = false; zoneSteer = padSteer = 0; aimPx = null; lastSteerDir = 0; edgeT = 0;
   throttleSlip = overT = noClimbT = 0; wasSweet = gasLock = false;
@@ -379,7 +404,7 @@ function startMusic() {
   A.musicStart(mode, { transpose });
 }
 function go() {
-  state = 'playing';
+  state = 'playing'; tiltZero = null;   // v62 · lo zero del giroscopio è la posizione al VIA
   $('countdown').className = 'countdown go';
   $('trackintro').className = 'trackintro out';
   $('countdown').textContent = 'VIA!';
@@ -912,47 +937,50 @@ function spawnWave() {
 
 // ---------- v59 · Il taglio di Angelo: rincorsa, trampolino, salto nel vuoto ----------
 function spawnLeapWave() {
+  // v62 · discesa dalla montagna SENZA ostacoli: frecce di spinta (più velocità) e birre (turbo). Poi il trampolino sul bordo del vuoto.
   const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
-  if (leapState === 0 && course > 24) {   // il trampolino su tutta la pista, con le birre per la rincorsa
+  if (leapState === 0 && course > 30) {
     leapState = 1; add(1, .08, 'bigRamp');
-    for (let k = 1; k <= 4; k++) add(1, .08 + k * .07, 'coin');
-    toast('🏔 TRAMPOLINO IN ARRIVO: GAS A MARTELLO E SALTA SUL BORDO!', 'gold'); wave++; return;
+    for (let k = 1; k <= 4; k++) add(1, .08 + k * .07, 'speedpad');
+    toast('🏔 FINE DELLA MONTAGNA: TURBO E SALTA SUL BORDO!', 'gold'); wave++; return;
   }
-  if (leapState === 1 && course > 22) return;   // ultimi metri prima del trampolino: pista libera
-  if (leapState === 2) {   // zona di atterraggio: file di rocce, una corsia libera indicata dalle birre
-    const free = Math.floor(rng() * 3);
-    for (let l = 0; l < 3; l++) if (l !== free) add(l, .08, 'rock');
-    add(free, .02, 'coin', { air: true, lift: 1.4 }); wave++; return;
-  }
-  if (leapState >= 3) return;
-  // rincorsa giù dalla montagna: sassi da schivare, birre sulla linea buona
-  let safe = Math.floor(rng() * 3); if (safe === prevSafe && rng() < .5) safe = (safe + 1) % 3; prevSafe = safe;
-  for (let i = 0; i < 3; i++) add(safe, .08 - i * .1, i === 1 && rng() < .12 ? 'grappa' : 'coin');
-  const other = (safe + 1 + Math.floor(rng() * 2)) % 3;
-  add(other, .08, rng() < .7 ? 'rock' : 'step');
-  if (wave > 2 && rng() < .45) add(3 - safe - other, -.06, 'rock');
+  if (leapState >= 1) return;
+  const l = wave < 2 ? 1 : Math.max(0, Math.min(2, prevSafe + (rng() < .5 ? -1 : 1)));
+  prevSafe = l;
+  add(l, .08, 'speedpad');
+  const o = (l + 1 + Math.floor(rng() * 2)) % 3;
+  add(o, .02, 'coin'); add(o, -.06, 'coin');
+  if (wave > 2 && rng() < .18) add(o, -.14, 'grappa');
   wave++;
 }
 function leapTakeoff() {
   const perfect = elapsed - lastHopAt < .4;
   leapStartKmh = Math.max(20, kmh); leapPerfect = perfect;
-  const k = Math.max(0, Math.min(1.4, (leapStartKmh - 30) / 45)) * (perfect ? 1.15 : 1) * (turbo > 0 ? 1.12 : 1);
-  jumpDur = 1.9 + k * 2.0; jumpH = 4 + k * 7; jump = jumpDur; scrubbed = 0;
+  const k = Math.max(0, Math.min(1.6, (leapStartKmh - 35) / 50)) * (perfect ? 1.15 : 1) * (turbo > 0 ? 1.1 : 1);
+  jumpDur = 2.4 + k * 2.2; jumpH = 14 + k * 16; jump = jumpDur; scrubbed = 0;
   if (wheelie) endWheelie(false);
-  leapState = 2; leapStartT = elapsed; leapPitch = .12; leapW = -.15 - rng() * .15;
+  leapState = 2; leapStartT = elapsed; leapPitch = .15; leapW = -.12 - rng() * .12;
   objects = objects.filter(o => o.type === 'bigRamp');
-  A.sfx.jump(); A.sfx.turbo(); shake = .6; flash('gold');
+  // zona di atterraggio: pietroni su due corsie, quella libera ha il bersaglio verde. Si sceglie sterzando in volo.
+  leapFree = Math.floor(rng() * 3);
+  const zLand = .91 - leapZRate * jumpDur;
+  for (let r = -2; r <= 2; r++) {
+    const z = zLand + r * .045;
+    for (let l = 0; l < 3; l++) if (l !== leapFree) objects.push({ l, z, type: 'boulder', hit: false });
+  }
+  objects.push({ l: leapFree, z: zLand, type: 'landpad', hit: false });
+  A.sfx.jump(); A.sfx.turbo(); shake = .7; flash('gold');
   bigCall(perfect ? 'STACCO PERFETTO!' : 'NEL VUOTO!');
-  setTimeout(() => { if (leapState === 2) toast('TIENI IL MUSO SU: GAS O IMPENNA · SCEGLI LA CORSIA SENZA ROCCE', 'gold'); }, 500);
+  setTimeout(() => { if (leapState === 2) toast('MUSO SU CON GAS O IMPENNA · ATTERRA SUL BERSAGLIO VERDE, LONTANO DAI PIETRONI', 'gold'); }, 500);
 }
 function leapStep(dt) {
+  if (leapState < 2) leapMul = Math.min(1.75, leapMul + dt * (gas || turbo > 0 ? .035 : .012));   // la discesa spinge, col gas di più
   if (leapState === 2 && jump > 0) {
     const up = gas || wheelieHeld;
     leapW += ((up ? 1.25 : 0) - .62 - Math.sin(elapsed * 2.1) * .25) * dt;
     leapW *= Math.pow(.6, dt);
     leapPitch = Math.max(-1.3, Math.min(1.3, leapPitch + leapW * dt));
     leapDist = (elapsed - leapStartT) * leapStartKmh / 3.6;
-    spawn = Math.min(spawn, .9);
   }
   if (leapState === 2 && jump <= 0) {   // atterraggio
     leapState = 3; leapEndT = elapsed + 2.6;
@@ -1024,7 +1052,7 @@ function setupRace() {
   // Tre compagni di giro: uno parte dietro (e ti passerà con un bel "Suuuka!"), due davanti.
   const others = RIDERS.filter(r => r !== profile.rider).sort(() => rng() - .5).slice(0, 3);
   const starts = [-7, 26, 58], skills = [1.09, 1.04, .99];   // v48 · un filo più forti (salite più dure anche per loro)
-  rivals = others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
+  rivals = P.MODES[mode].leap ? [] : others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
   coachStep = 0; coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
   lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
   // Meteo: un cambio a metà giro (pioggia, nebbia o tramonto), diverso a ogni gara; la Sfida del giorno è uguale per tutti.
@@ -1087,7 +1115,7 @@ function updateRivals(dt, travelStep, route, diff) {
 }
 function setupGroupGhost() {
   gGhost = null; gGhostPassed = false;
-  if (ice || P.MODES[mode].random === 'run') return;
+  if (ice || P.MODES[mode].random === 'run' || P.MODES[mode].leap) return;
   const top = (C.cached()?.boards?.[mode] || []).find(e => e.g && e.g.length > 8);
   if (!top) return;
   const pts = C.decodeGhost(top.g); if (pts.length < 5) return;
@@ -1328,7 +1356,7 @@ function update(dt) {
   jumpBuffer = Math.max(0, jumpBuffer - dt);
 
   const route = routeAt(course, roadTime * 19.5);
-  const speed = paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1);
+  const speed = paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (leap ? leapMul : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
   // Discesa: "Campa giù!"
   if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); }
   if (route.down < .15) downAnnounced = false;
@@ -1350,6 +1378,7 @@ function update(dt) {
   // In mulattiera non si va più veloci: è stretta, sassosa e con ondate più dure.
   const travelStep = dt * (1 + diff * .35 + elapsed / 100) * speed * 19.5 * (1 - route.rough * .06) * (1 + up.engine * .025) * (1 + (bs.speed || 0)) * (1 + (bs.climb || 0) * Math.max(0, route.grade));
   roadTime += travelStep / 19.5;
+  if (leap && leapState < 2 && dt > 0) leapZRate = travelStep / 55 / dt;
   course = Math.min(GAME_LENGTH, roadTime / courseLength(diff) * GAME_LENGTH);
   kmh = Math.round(travelStep / dt / 19.5 * 31);
   updateRivals(dt, travelStep, route, diff);
@@ -1430,6 +1459,11 @@ function update(dt) {
       continue;
     }
     if (o.type === 'shortcut') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeShortcut(); return; } continue; }
+    if (o.type === 'landpad') continue;
+    if (o.type === 'speedpad') {   // v62 · freccia di spinta: più velocità per il salto
+      if (Math.abs(px - o.l) < .6 && jump <= 0) { o.collected = true; leapMul = Math.min(2.1, leapMul + .1); A.sfx.turbo(); shake = Math.max(shake, .2); pop('SPINTA! ' + Math.round(kmh + 6) + ' km/h', 'gold'); fxKind = 'trick'; fxSerial++; }
+      continue;
+    }
     if (o.type === 'bigRamp') { o.collected = true; if (leapState === 1) leapTakeoff(); continue; }
     if (o.type === 'ramp') {
       // Rampa di terra: se ci passi sopra a terra, decolli con un salto lunghissimo.
@@ -1508,7 +1542,7 @@ function update(dt) {
         for (const q of objects) if (q !== o && !q.hit && q.z > .66 && q.z < .91 && OBSTACLE_HEIGHT[q.type] !== undefined && q.type !== 'water') q.collected = true;
         crash = 1; stun = .9 * (bs.protect ? .7 : 1) * (has('tank') ? .5 : 1); if (has('tank')) invincible += 1; slowmo = .35; slowScale = .4; jump = 0;
         if (wheelie) endWheelie(false);
-        const lines = { rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
+        const lines = { rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
         if (o.type === 'tree') slalomN = 0;
         // v49 · Erika anche su ogni albero di MontaFiga
         if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
@@ -1633,7 +1667,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=61" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=62" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -1720,7 +1754,7 @@ function renderReady() {
         ${ta ? `<img class="modeart" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 LIV ' + m.unlock}</small></button>`; }).join('')}
     </div>
     <div class="menufoot">
-      <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
+      <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}
     </div>
     <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare</span></p>`;
@@ -1730,6 +1764,7 @@ function renderReady() {
   $('start').onclick = start;
   $('openshop').onclick = () => renderShop(renderReady);
   $('alltracks').onclick = () => { A.sfx.click(); renderTracks(renderReady); };
+  if ($('tiltmenu')) $('tiltmenu').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltmenu').textContent = '📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO'); $('tiltmenu').classList.toggle('on', on); if (on) toast('📱 INCLINA IL TELEFONO A DESTRA E SINISTRA PER STERZARE', 'green'); };
   $('musicmenu').onclick = () => {
     A.unlock(); A.setMusic(!A.isMusicOn()); $('musicmenu').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO');
     if (A.isMusicOn()) { startMusic(); setTimeout(() => { if (state === 'ready') A.musicStop(); }, 6000); } else A.musicStop();
@@ -1953,7 +1988,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 61;
+const GAME_VERSION = 62;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2008,7 +2043,7 @@ function renderSide() {
   }
   iconizeEl($('liveries'));
   if ($('previewname')) $('previewname').textContent = current.name + ' · ' + P.currentBike().name;
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=61" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=62" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- Condivisione ----------

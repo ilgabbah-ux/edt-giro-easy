@@ -1177,3 +1177,4 @@ aside#hub { gap: 10px; }
 .bikephoto img { width: 100%; max-height: 190px; object-fit: contain; filter: drop-shadow(0 12px 14px #000b); }
 .bikephoto span { position: absolute; left: 10px; bottom: 6px; font: italic 800 12px var(--ui); letter-spacing: 1px; color: var(--y); text-transform: uppercase; }
 .bikephoto:empty { display: none; }
+.mini.on { border-color: var(--y); color: var(--y); }

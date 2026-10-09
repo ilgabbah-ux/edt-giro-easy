@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=61';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=62';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -518,7 +518,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=61', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=62', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -1274,6 +1274,22 @@ export function createWorld(canvas) {
       box(1.56, .1, .12, rampLip, g, 0, .64, -.6);
       for (const sx of [-1, 1]) rod([sx * .8, .0, -.66], [sx * .8, 1.05, -.66], .035, black, g);
       const fl = box(.32, .2, .02, rampLip, g, -.66, .95, -.66); fl.castShadow = false;
+    } else if (type === 'speedpad') {
+      // v62 · freccia di spinta sulla discesa: tre chevron gialli luminosi a terra
+      const padMat = new T.MeshBasicMaterial({ color: '#ffd23a', transparent: true, opacity: .9, depthWrite: false });
+      for (let i = 0; i < 3; i++) { const c = mesh(new T.ShapeGeometry(new T.Shape([new T.Vector2(-.55, 0), new T.Vector2(0, .45), new T.Vector2(.55, 0), new T.Vector2(.55, .22), new T.Vector2(0, .67), new T.Vector2(-.55, .22)])), padMat, g); c.rotation.x = -Math.PI / 2; c.position.set(0, .03 + i * .002, .5 - i * .55); c.castShadow = false; }
+      const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffb12b', transparent: true, opacity: .5, blending: T.AdditiveBlending, depthWrite: false }));
+      glow.scale.set(2.2, .9, 1); glow.position.set(0, .3, 0); g.add(glow);
+    } else if (type === 'landpad') {
+      // v62 · bersaglio verde: la corsia libera per atterrare
+      const ring = mesh(new T.RingGeometry(.55, .8, 32), new T.MeshBasicMaterial({ color: '#3ddc84', transparent: true, opacity: .85, side: T.DoubleSide, depthWrite: false }), g); ring.rotation.x = -Math.PI / 2; ring.position.y = .04; ring.castShadow = false;
+      const dot = mesh(new T.CircleGeometry(.25, 24), new T.MeshBasicMaterial({ color: '#3ddc84', transparent: true, opacity: .85, depthWrite: false }), g); dot.rotation.x = -Math.PI / 2; dot.position.y = .045; dot.castShadow = false;
+      const beam = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#3ddc84', transparent: true, opacity: .7, blending: T.AdditiveBlending, depthWrite: false }));
+      beam.scale.set(1.2, 6, 1); beam.position.set(0, 3, 0); g.add(beam);
+    } else if (type === 'boulder') {
+      // v62 · pietrone della zona di atterraggio
+      const r = mesh(detailedRockGeometry, detailedStone, g); r.scale.set(2.1, 2.3, 1.9); r.position.y = .2;
+      hazardRing(g, 1.0);
     } else if (type === 'bigRamp') {
       // v59 · il trampolino del Taglio di Angelo: rampa di legno su tutta la pista, bordo giallo-nero e striscione
       const inner = new T.Group(); g.add(inner); g.userData.inner = inner;
@@ -1891,6 +1907,7 @@ export function createWorld(canvas) {
     camera.rotateZ(bike.rotation.z * .06);
     if (s.ice) camera.rotateZ(-(s.drift || 0) * .045);   // v49 · la camera segue un filo la derapata
     sky.position.copy(camera.position);
+    ridges[1].visible = !pano.visible;   // v62 · la cresta vicina copriva il fondale con una sagoma piatta grigia: col panorama resta solo il fondale
     if (pano.visible) {   // v61 · il fondale segue la camera; si attenua con nebbia e pioggia
       pano.position.set(camera.position.x, camera.position.y - 14 + PANO_H * .1, camera.position.z);
       panoMat.opacity += ((1 - (weatherNow.fog || 0) * .7 - (weatherNow.rain || 0) * .25) - panoMat.opacity) * .05;
