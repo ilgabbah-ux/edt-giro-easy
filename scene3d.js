@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=60';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=61';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -504,6 +504,25 @@ export function createWorld(canvas) {
   }
   makeRidge(-235, 8, 4, 50, 2.1, { snow: 70, haze: .38 });
   makeRidge(-140, 6, 2, 26, .4, { snow: 999, haze: .12 });
+  // v61 · fondale dipinto (panorama generato con Higgsfield) per ogni tracciato, dietro le colline vicine
+  const PANO_R = 262, PANO_ARC = Math.PI * .85, PANO_H = 165;
+  const panoFade = (() => { const c = document.createElement('canvas'); c.width = 4; c.height = 256; const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, '#000'); g.addColorStop(.1, '#fff'); g.addColorStop(1, '#fff'); x.fillStyle = g; x.fillRect(0, 0, 4, 256);
+    const t = new T.CanvasTexture(c); return t; })();
+  const panoMat = new T.MeshBasicMaterial({ color: '#ffffff', side: T.BackSide, fog: false, transparent: true, alphaMap: panoFade, depthWrite: false, opacity: 0 });
+  const pano = new T.Mesh(new T.CylinderGeometry(PANO_R, PANO_R, PANO_H, 64, 1, true, Math.PI - PANO_ARC / 2, PANO_ARC), panoMat);
+  pano.renderOrder = -90; pano.visible = false; scene.add(pano);
+  const panoTex = {}; let panoMode = -1;
+  function setPano(mode) {
+    if (mode === panoMode) return; panoMode = mode;
+    const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
+    if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
+    panoTex[mode] = null; show(null);
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=61', t => {
+      t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
+      panoTex[mode] = t; show(t);
+    }, undefined, () => { panoTex[mode] = null; });
+  }
   // Montagne non illuminate: l'ombreggiatura è calcolata qui, così restano leggibili con ogni cielo.
   function paintRidges(p) {
     const horizon = new T.Color(p.horizon), base = new T.Color(p.ridge), snow = new T.Color('#f4f6f2'), dark = new T.Color(p.ridge).multiplyScalar(.55);
@@ -1605,6 +1624,7 @@ export function createWorld(canvas) {
     const now = performance.now(), fdt = Math.min(.07, s.dt || (now - lastRender) / 1000); lastRender = now;
     adaptQuality();
     applyPreset(s.preset ?? 0);
+    setPano(s.mode ?? 0);
     setIce(!!(PRESETS[s.preset ?? 0] || {}).ice);
     applyLivery(s.livery);
     applyCustom(s.bikeLook, s.parts, s.livery);
@@ -1871,6 +1891,11 @@ export function createWorld(canvas) {
     camera.rotateZ(bike.rotation.z * .06);
     if (s.ice) camera.rotateZ(-(s.drift || 0) * .045);   // v49 · la camera segue un filo la derapata
     sky.position.copy(camera.position);
+    if (pano.visible) {   // v61 · il fondale segue la camera; si attenua con nebbia e pioggia
+      pano.position.set(camera.position.x, camera.position.y - 14 + PANO_H * .1, camera.position.z);
+      panoMat.opacity += ((1 - (weatherNow.fog || 0) * .7 - (weatherNow.rain || 0) * .25) - panoMat.opacity) * .05;
+      panoMat.color.setScalar(1 - (weatherNow.dusk || 0) * .35 - (weatherNow.rain || 0) * .2);
+    }
     sun.target.position.set(bike.position.x, 0, -6);
     const L = PRESETS[presetIndex] || PRESETS[0];
     sun.position.set(bike.position.x - 12, 24, 3).add(new T.Vector3(L.sunDir[0] * 6, 0, 0));

@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=60';
-import { createWorld } from './scene3d.js?v=60';
-import * as A from './audio.js?v=60';
-import * as P from './progress.js?v=60';
-import { FOTO } from './piloti.js?v=60';
-import { createMud } from './mudfx.js?v=60';
-import { icon, iconize, iconizeEl } from './icons.js?v=60';
-import * as C from './classifica.js?v=60';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=61';
+import { createWorld } from './scene3d.js?v=61';
+import * as A from './audio.js?v=61';
+import * as P from './progress.js?v=61';
+import { FOTO } from './piloti.js?v=61';
+import { createMud } from './mudfx.js?v=61';
+import { icon, iconize, iconizeEl } from './icons.js?v=61';
+import * as C from './classifica.js?v=61';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -128,7 +128,7 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-suuuka', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=60';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=61';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leap = false, leapState = 0, leapPow = 0, leapPitch = 0, leapW = 0, leapStartT = 0, leapStartKmh = 0, leapDist = 0, leapBest = 0, lastHopAt = -9, leapEndT = 0, leapPerfect = false;
@@ -1633,7 +1633,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui">${b.icon}</span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=61" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -1714,7 +1714,7 @@ function renderReady() {
       <button class="qbtn" id="openmissions" type="button" aria-expanded="false"><span class="qi">🏁</span><b>MISSIONI</b><small>${missions.length} attive</small></button>
     </div>
     <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul></div>
-    <div class="mhead tracks">${icon('flag')} CAMBIA PERCORSO <small>scorri →</small></div>
+    <div class="mhead tracks">${icon('flag')} CAMBIA PERCORSO <button class="linkbtn alltracks" id="alltracks" type="button">📋 TUTTI I TRACCIATI ›</button></div>
     <div class="modes" role="radiogroup" aria-label="Percorso">
       ${P.SHOWN().map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
         ${ta ? `<img class="modeart" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 LIV ' + m.unlock}</small></button>`; }).join('')}
@@ -1729,6 +1729,7 @@ function renderReady() {
   iconizeEl($('card'));
   $('start').onclick = start;
   $('openshop').onclick = () => renderShop(renderReady);
+  $('alltracks').onclick = () => { A.sfx.click(); renderTracks(renderReady); };
   $('musicmenu').onclick = () => {
     A.unlock(); A.setMusic(!A.isMusicOn()); $('musicmenu').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO');
     if (A.isMusicOn()) { startMusic(); setTimeout(() => { if (state === 'ready') A.musicStop(); }, 6000); } else A.musicStop();
@@ -1874,6 +1875,43 @@ function groupResult(runInfo) {
 let resultSnapshot = null;
 function renderResultAgain() { if (resultSnapshot) { state = 'ended'; setMenu(true); $('overlay').classList.remove('hidden'); $('card').innerHTML = resultSnapshot.html; resultSnapshot.bind(); } else renderReady(); }
 // Schermata con tutte le classifiche del gruppo, un percorso per scheda.
+// ---------- v61 · Sezione Tracciati: tutti i percorsi con le loro caratteristiche ----------
+const TRACK_INFO = {
+  0: { tipo: 'Il classico', ostacoli: 'Tronchi, radici, ceppi, pozzanghere, gradoni, sassi e capre', speciale: 'Rampe con le birre al volo, tronco di traverso da saltare, il taglio delle 16.00', consiglio: 'Segui le birre: segnano sempre la corsia libera.' },
+  1: { tipo: 'Due salitoni e due mulattiere', ostacoli: 'Più fango, pozze, gradoni, sassi e frane', speciale: 'Salite dure: senza GAS ti pianti', consiglio: 'Un tocco su GAS in salita lo blocca aperto.' },
+  2: { tipo: 'Gara di salto', ostacoli: 'Sassi e gradoni nella rincorsa, rocce nella zona di atterraggio', speciale: 'Trampolino nel vuoto: vince il salto più lungo atterrato in piedi (100 punti a metro)', consiglio: 'Turbo prima del trampolino, SALTA sul bordo, poi GAS o IMPENNA per tenere il muso su.' },
+  3: { tipo: 'Tracciato del giorno', ostacoli: 'Cambiano ogni giorno', speciale: 'Uguale per tutti: classifica che si azzera a mezzanotte', consiglio: 'Primo giro per imparare il tracciato, secondo per fare il tempo.' },
+  9: { tipo: 'Pista di ghiaccio a curve', ostacoli: 'Pupazzi di neve e balle di fieno', speciale: 'Vince chi derapa di più e meglio: punti derapata, porte da passare di traverso', consiglio: 'GAS in curva per mettere la moto di traverso e controsterza. Monta le gomme chiodate.' },
+  10: { tipo: 'Bagnatissimo e hard', ostacoli: 'Pietraie bagnate, gradoni viscidi, pozze, radici', speciale: 'Diluvio continuo: si sterza peggio', consiglio: 'Gomme tassellate e niente frenesia: una corsia alla volta.' },
+  11: { tipo: 'Valle alpina selvaggia', ostacoli: 'Sassi, ometti di pietra, marmotte', speciale: 'Guadi su tutta la pista da saltare e stambecchi, camosci e capre che attraversano', consiglio: 'Al guado salta: se no scarponi pieni d’acqua.' },
+  12: { tipo: 'Slalom nel bosco', ostacoli: 'Alberi in pista: non si saltano, si schivano', speciale: 'Varco che cambia corsia a ogni fila: bonus slalom a catena. A ogni albero preso arriva Erika', consiglio: 'Guarda due file avanti, non quella davanti alla ruota.' },
+  13: { tipo: 'Fuga dalle GEV', ostacoli: 'Birilli, copertoni, cartelli e transenne lanciati dalla jeep', speciale: 'Le moto sono i tentativi: finiti quelli (o il tempo) arriva la multa', consiglio: 'Turbo o grappa per seminare la jeep.' },
+  14: { tipo: 'Fango puro', ostacoli: 'Pozzanghere e alberi, nient’altro', speciale: 'Partenza dalla cascina del Gusta Ranch sulle colline', consiglio: 'Le pozze rallentano, gli alberi fanno male: scegli il male minore.' },
+};
+function renderTracks(back) {
+  if (state !== 'ended') state = 'ready';
+  setMenu(true); $('overlay').classList.remove('hidden');
+  const info = P.levelInfo(), stars = d => '★'.repeat(d + 1) + '☆'.repeat(2 - d);
+  $('card').innerHTML = `<div class="eyebrow">ENDURO DRINKING TEAM · ${P.SHOWN().length} PROVE SPECIALI</div>
+    <h1 class="shoptitle">TUTTI I<br><em>TRACCIATI.</em></h1>
+    <div class="tracklist">${P.SHOWN().map(m => { const ti = TRACK_INFO[m.id] || {}, open = P.isUnlocked(m, info.level), best = P.bestFor(m.id);
+      return `<button type="button" class="trackcard ${m.id === mode ? 'active' : ''} ${open ? '' : 'locked'}" data-track="${m.id}">
+        <span class="tcart"><img src="${trackArtOf(m)}" alt="" loading="lazy">${open ? '' : `<i class="tclock">🔒 LIV ${m.unlock}</i>`}</span>
+        <span class="tcbody"><span class="ps">PS${psOf(m)} · ${ti.tipo || ''}</span><b>${m.id === 3 ? 'Sfida del giorno' : m.name}</b><small>${m.desc}</small>
+        <span class="tcfacts"><span>⏱ <b>${m.limit} s</b></span><span>🔥 <b>${stars(m.difficulty || 0)}</b></span><span>🔓 <b>LIV ${m.unlock || 1}</b></span><span>🏆 <b>${best ? best.toLocaleString('it-IT') : '—'}</b></span></span>
+        <span class="tcrow"><em>Ostacoli</em>${ti.ostacoli || ''}</span>
+        <span class="tcrow"><em>Speciale</em>${ti.speciale || ''}</span>
+        <span class="tcrow"><em>Consiglio</em>${ti.consiglio || ''}</span>
+        <span class="tcrow"><em>Musica</em>🎵 ${A.STYLES[m.id]?.name || ''}</span></span></button>`; }).join('')}</div>
+    <div class="actions"><button class="primary" id="tback"><span>⬅ MENU PRINCIPALE</span></button></div>`;
+  document.querySelectorAll('[data-track]').forEach(b => b.onclick = () => {
+    const m = P.MODES[Number(b.dataset.track)];
+    if (!P.isUnlocked(m, info.level)) { toast(`🔒 SI SBLOCCA AL LIVELLO ${m.unlock}`, 'red'); return; }
+    mode = m.id; profile.mode = mode; P.save(); A.sfx.click(); applyLayout(); renderSide(); back();
+  });
+  $('tback').onclick = back;
+  $('card').scrollTop = 0;
+}
 function renderGroup(back, m = mode) {
   if (state !== 'ended') state = 'ready';
   setMenu(true); $('overlay').classList.remove('hidden');
@@ -1915,7 +1953,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 60;
+const GAME_VERSION = 61;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -1970,6 +2008,7 @@ function renderSide() {
   }
   iconizeEl($('liveries'));
   if ($('previewname')) $('previewname').textContent = current.name + ' · ' + P.currentBike().name;
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=61" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- Condivisione ----------

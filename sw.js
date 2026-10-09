@@ -1,5 +1,5 @@
 // EDT Giro Easy · service worker: il gioco funziona anche offline dopo la prima apertura.
-const CACHE = 'giro-easy-v60';
+const CACHE = 'giro-easy-v61';
 const FILES = ['./', './index.html', './style.css', './game.js', './physics.js', './scene3d.js', './progress.js', './audio.js', './icons.js', './mudfx.js', './voci.js', './voci-piloti.js', './piloti.js', './classifica.js',
   './three.module.min.js', './three.core.min.js', './RoundedBoxGeometry.js', './anton.woff2', './barlow-condensed-latin-600-normal.woff2', './barlow-condensed-latin-700-normal.woff2',
   './barlow-condensed-latin-800-italic.woff2', './edt-logo-small.jpg', './edt-logo.png', './img/edt-shield.webp', './img/ice-scrofy.webp', './img/angelo-suuuka.webp', './img/san-miti.webp', './img/i-want-you.webp', './img/san-braulio.webp', './img/anti-gev.webp', './img/gusta-ranch.webp', './img/track-0.webp', './img/track-1.webp', './img/track-3.webp', './img/track-4.webp', './img/track-5.webp', './img/track-6.webp', './img/track-7.webp', './img/track-8.webp', './img/track-10.webp', './img/track-11.webp', './img/track-12.webp', './icon-v53-192.png', './icon-v53-512.png', './manifest.webmanifest'];
