@@ -1178,3 +1178,15 @@ aside#hub { gap: 10px; }
 .bikephoto span { position: absolute; left: 10px; bottom: 6px; font: italic 800 12px var(--ui); letter-spacing: 1px; color: var(--y); text-transform: uppercase; }
 .bikephoto:empty { display: none; }
 .mini.on { border-color: var(--y); color: var(--y); }
+
+/* v62 · striscia con tutte le moto del garage */
+.bikestrip { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin: 0 0 10px; }
+.bikestrip .bk { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px 5px; background: linear-gradient(160deg, #23271d, #121410); border: 2px solid #ffffff1a; color: #fff; cursor: pointer; font: inherit; }
+.bikestrip .bk img { width: 100%; height: 52px; object-fit: contain; filter: drop-shadow(0 4px 5px #000a); }
+.bikestrip .bk b { font: italic 800 11px var(--ui); letter-spacing: .3px; text-transform: uppercase; line-height: 1.1; text-align: center; }
+.bikestrip .bk small { font: 700 9px var(--ui); letter-spacing: .8px; color: #ffffff99; }
+.bikestrip .bk.lock img { filter: grayscale(.7) brightness(.8) drop-shadow(0 4px 5px #000a); }
+.bikestrip .bk.lock b { color: #ffffff88; }
+.bikestrip .bk.on { border-color: var(--y); background: radial-gradient(ellipse at 50% 60%, #ffcf1630, #0000 70%), linear-gradient(160deg, #2e2a12, #15130a); box-shadow: 0 0 0 1px var(--y), 0 0 14px #ffcf1655; }
+.bikestrip .bk.on small { color: var(--y); }
+.bikestrip .bk.on::after { content: '✓'; position: absolute; top: 3px; right: 5px; font: 900 13px var(--ui); color: var(--y); }

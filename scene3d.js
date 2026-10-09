@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=62';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=63';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -518,7 +518,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=62', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=63', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });

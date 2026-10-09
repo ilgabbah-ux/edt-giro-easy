@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=62';
-import { createWorld } from './scene3d.js?v=62';
-import * as A from './audio.js?v=62';
-import * as P from './progress.js?v=62';
-import { FOTO } from './piloti.js?v=62';
-import { createMud } from './mudfx.js?v=62';
-import { icon, iconize, iconizeEl } from './icons.js?v=62';
-import * as C from './classifica.js?v=62';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=63';
+import { createWorld } from './scene3d.js?v=63';
+import * as A from './audio.js?v=63';
+import * as P from './progress.js?v=63';
+import { FOTO } from './piloti.js?v=63';
+import { createMud } from './mudfx.js?v=63';
+import { icon, iconize, iconizeEl } from './icons.js?v=63';
+import * as C from './classifica.js?v=63';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -128,7 +128,7 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-suuuka', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=62';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=63';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1;
@@ -1667,7 +1667,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=62" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=63" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -1988,7 +1988,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 62;
+const GAME_VERSION = 63;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2043,7 +2043,19 @@ function renderSide() {
   }
   iconizeEl($('liveries'));
   if ($('previewname')) $('previewname').textContent = current.name + ' · ' + P.currentBike().name;
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=62" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikestrip')) {   // v62 · tutte le moto del garage, quella in sella evidenziata
+    const cur = P.currentBike().id, lv = P.levelInfo().level;
+    $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
+      const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=63" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+    $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
+      const id = el.dataset.bike;
+      if (state === 'playing' || state === 'paused' || state === 'countdown') return;
+      if (P.ownsBike(id)) { P.buyBike(id); A.sfx.click(); renderSide(); }
+      else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
+    });
+  }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=63" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- Condivisione ----------
