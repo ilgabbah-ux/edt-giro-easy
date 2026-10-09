@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=57';
-import { createWorld } from './scene3d.js?v=57';
-import * as A from './audio.js?v=57';
-import * as P from './progress.js?v=57';
-import { FOTO } from './piloti.js?v=57';
-import { createMud } from './mudfx.js?v=57';
-import { icon, iconize, iconizeEl } from './icons.js?v=57';
-import * as C from './classifica.js?v=57';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=58';
+import { createWorld } from './scene3d.js?v=58';
+import * as A from './audio.js?v=58';
+import * as P from './progress.js?v=58';
+import { FOTO } from './piloti.js?v=58';
+import { createMud } from './mudfx.js?v=58';
+import { icon, iconize, iconizeEl } from './icons.js?v=58';
+import * as C from './classifica.js?v=58';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -124,6 +124,9 @@ let jumpDur = JUMP_DURATION, jumpH = JUMP_HEIGHT;
 let bs = {}; // v44 · caratteristiche della moto scelta in officina
 // v46 · Ice Scrofy: derapate sul ghiaccio con le gomme chiodate
 let slalomN = 0, lastFord = -9, lastAnimal = -9;
+// v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
+const TRACK_ART_FILE = { 2: 'angelo-suuuka', 9: 'ice-scrofy', 13: 'anti-gev' };
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=58';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
 const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
@@ -343,6 +346,9 @@ function start() {
   A.preloadRivals(Object.values(RIDER_VOICE)); A.preloadSong(mode);
   resetRun();
   state = 'countdown'; countdown = 3.2; countStep = 4;
+  { const md = P.MODES[mode], ti = $('trackintro');   // v58 · cartolina del percorso durante il via
+    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${md.id + 1} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.desc}</small></div>`;
+    ti.className = 'trackintro'; void ti.offsetWidth; ti.className = 'trackintro show'; }
   $('overlay').classList.add('hidden');
   setMenu(false);
   $('pops').innerHTML = '';
@@ -361,6 +367,7 @@ function startMusic() {
 function go() {
   state = 'playing';
   $('countdown').className = 'countdown go';
+  $('trackintro').className = 'trackintro out';
   $('countdown').textContent = 'VIA!';
   setTimeout(() => { if (state !== 'countdown') $('countdown').className = 'countdown'; }, 700);
   toast('VAI CICCIO!'); if (!riderLine('start')) voice('Vai Ciccio!', true);
@@ -1412,6 +1419,8 @@ function update(dt) {
         if (ice) endDrift(false);
         lives--; run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0) + (bs.protect || 0); breakCombo(); charge = Math.max(0, charge - 20); mistake();
         fxKind = 'hit'; fxSerial++; shake = 1; A.sfx.hit(); flash('hit');
+        // v58 · dopo una botta la fila subito dopo si apre: niente botte a catena mentre la moto riparte
+        for (const q of objects) if (q !== o && !q.hit && q.z > .66 && q.z < .91 && OBSTACLE_HEIGHT[q.type] !== undefined && q.type !== 'water') q.collected = true;
         crash = 1; stun = .9 * (bs.protect ? .7 : 1) * (has('tank') ? .5 : 1); if (has('tank')) invincible += 1; slowmo = .35; slowScale = .4; jump = 0;
         if (wheelie) endWheelie(false);
         const lines = { rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
@@ -1587,11 +1596,12 @@ function renderReady() {
   turbo = 0; elapsed = 0; course = 0;
   $('overlay').classList.remove('hidden');
   $('countdown').className = 'countdown';
+  $('trackintro').className = 'trackintro';
   const info = P.levelInfo(), md = P.MODES[mode], best = P.bestFor(mode);
   // v53 · menu ordinato: testata, pilota, percorso scelto in evidenza, partenza, azioni rapide, elenco percorsi a scorrimento
   const sk = SKILLS[profile.rider] || {};
   const missions = P.ensureMissions();
-  const trackArt = m => (m.ice ? 'img/ice-scrofy.webp' : m.gev ? 'img/anti-gev.webp' : m.id === 2 ? 'img/angelo-suuuka.webp' : '') .replace(/webp$/, 'webp?v=57');
+  const trackArt = trackArtOf;
   const art = trackArt(md);
   $('card').innerHTML = `
     <div class="menuhead">
@@ -1817,7 +1827,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 57;
+const GAME_VERSION = 58;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
