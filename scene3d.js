@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=69';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=70';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -272,6 +272,8 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
+  texLoader.load('img/tex/rockwall_d.webp?v=70', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
     const on = !!canyon; valley.visible = farWall.visible = on;
@@ -282,7 +284,7 @@ export function createWorld(canvas) {
     valleyTex.repeat.set(420 / 160, (L + 6) / 320); valleyTex.offset.y = (-(canyon.x0) / 320) % 1;
     const topF = -CANYON_DROP - ref, hF = topF - floorY;
     farWall.scale.set(1, hF * 1.08, 1); farWall.rotation.x = -.38; farWall.position.set(0, floorY + hF / 2, zFar + 1.2 + hF * .2);
-    rockTex.repeat.set(420 / 45, 1);
+    rockTex.repeat.set(420 / 45, 1); if (rockTexPhoto) rockTexPhoto.repeat.set(420 / 30, Math.max(1, hF / 30));
   }
   // texture del ghiaccio: graffi bianchi dei chiodi su fondo azzurro
   const iceTex = (() => {
@@ -295,7 +297,7 @@ export function createWorld(canvas) {
   function setIce(on) {
     if (on === iceKey) return; iceKey = on; iceMode = on;
     // inverno: latifoglie e larici spogli, abeti con la neve in cima, niente erba
-    leafCrowns.visible = larchCrowns.visible = !on;
+    leafCrowns.visible = !on && !leafOK; larchCrowns.visible = !on && !larchOK; leafCards.visible = !on && leafOK; larchCards.visible = !on && larchOK;
     if (on) groundMaps = { d: dirt.map, g: grass.map, v: verge.map, dn: dirt.normalMap, gn: grass.normalMap, vn: verge.normalMap };
     else if (!groundMaps) groundMaps = { d: dirt.map, g: grass.map, v: verge.map, dn: dirt.normalMap, gn: grass.normalMap, vn: verge.normalMap };
     dirt.map = on ? iceTex : groundMaps.d; grass.map = on ? null : groundMaps.g; verge.map = on ? null : groundMaps.v;
@@ -350,6 +352,32 @@ export function createWorld(canvas) {
   const rocks = new T.InstancedMesh(new T.IcosahedronGeometry(1, 1), stone, 60);
   const rockData = Array.from({ length: 60 }, (_, i) => ({ side: i % 2 ? 1 : -1, z: i * 3.03, off: (i % 7) * .47, big: rand() }));
   for (const item of [trunks, crowns, tops, rocks, birchTrunks, leafCrowns, larchTrunks, larchCrowns]) { item.castShadow = true; item.receiveShadow = true; scene.add(item); }
+  // v70 · abeti veri: modelli Poly Haven (CC0) renderizzati in Blender e messi in pista come sagome incrociate
+  const cardGeo = (() => {
+    const g = new T.BufferGeometry(), P = [], U = [], I = [];
+    for (const [ax, az] of [[1, 0], [0, 1]]) {
+      const b = P.length / 3;
+      P.push(-.5 * ax, 0, -.5 * az, .5 * ax, 0, .5 * az, .5 * ax, 2, .5 * az, -.5 * ax, 2, -.5 * az);
+      U.push(0, 0, 1, 0, 1, 1, 0, 1); I.push(b, b + 1, b + 2, b, b + 2, b + 3);
+    }
+    g.setAttribute('position', new T.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(U, 2)); g.setIndex(I); g.computeVertexNormals();
+    return g;
+  })();
+  const cardMat = (tint) => new T.MeshLambertMaterial({ color: tint, alphaTest: .42, side: T.DoubleSide, transparent: false });
+  const firA = new T.InstancedMesh(cardGeo, cardMat('#9fb08c'), PINES), firB = new T.InstancedMesh(cardGeo, cardMat('#93a885'), PINES);
+  for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
+  let firOK = false;
+  const zeroM = new T.Matrix4().makeScale(0, 0, 0);
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=70`, t => {
+    t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
+    if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
+  });
+  // larici dorati e latifoglie d'autunno: stesso albero vero, colorato in Blender/foto
+  const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
+  for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
+  let larchOK = false, leafOK = false;
+  texLoader.load('img/tex/fir_gold.webp?v=70', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=70', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -358,6 +386,7 @@ export function createWorld(canvas) {
       const s = d.scale * shrink * vis(z, PINE_D, d.h);
       dummy.rotation.set(0, d.rot, 0); dummy.scale.setScalar(s);
       for (const [m, yy] of [[trunks, 1.5], [crowns, 4.0], [tops, 6]]) { dummy.position.set(x, y + yy * s, z); put(m, i); }
+      if (firOK) { const card = i % 2 ? firB : firA, other = i % 2 ? firA : firB; dummy.position.set(x, y - .15, z); dummy.scale.setScalar(4.6 * s); put(card, i); other.setMatrixAt(i, zeroM); }
     });
     leafData.forEach((d, i) => {
       const z = wrapZ(d.z, t), x = center(z, t) + d.side * d.off, y = ground(z, t, d.side * d.off);
@@ -365,6 +394,7 @@ export function createWorld(canvas) {
       dummy.rotation.set(0, d.rot, 0); dummy.scale.setScalar(s);
       dummy.position.set(x, y + 1.6 * s, z); put(birchTrunks, i);
       dummy.scale.set(s, s * 1.15, s); dummy.position.set(x, y + 3.9 * s, z); put(leafCrowns, i);
+      if (leafOK) { dummy.position.set(x, y - .1, z); dummy.scale.setScalar(3.4 * s); put(leafCards, i); }
     });
     larchData.forEach((d, i) => {
       const z = wrapZ(d.z, t), x = center(z, t) + d.side * d.off, y = ground(z, t, d.side * d.off);
@@ -372,6 +402,7 @@ export function createWorld(canvas) {
       dummy.rotation.set(0, i, 0); dummy.scale.setScalar(s);
       dummy.position.set(x, y + 1.2 * s, z); put(larchTrunks, i);
       dummy.scale.set(s * .9, s, s * .9); dummy.position.set(x, y + 3.9 * s, z); put(larchCrowns, i);
+      if (larchOK) { dummy.position.set(x, y - .1, z); dummy.scale.setScalar(3.6 * s); put(larchCards, i); }
     });
     rockData.forEach((d, i) => {
       const z = wrapZ(d.z, t), w = d.side * (5.2 * trail.width + d.off);
@@ -380,7 +411,7 @@ export function createWorld(canvas) {
       dummy.position.set(center(z, t) + w + d.side * (k - 1) * .8, ground(z, t, w) + .23 * k, z);
       dummy.rotation.set(i * .8, i, 0); dummy.scale.set((.35 + (i % 4) * .16) * k, (.28 + (i % 3) * .25) * k, .6 * k); put(rocks, i);
     });
-    for (const o of [trunks, crowns, tops, rocks, birchTrunks, leafCrowns, larchTrunks, larchCrowns]) o.instanceMatrix.needsUpdate = true;
+    for (const o of [trunks, crowns, tops, rocks, birchTrunks, leafCrowns, larchTrunks, larchCrowns, firA, firB, larchCards, leafCards]) o.instanceMatrix.needsUpdate = true;
   }
 
   // Ciuffi d'erba, felci, canne, fiori, funghi, cespugli
@@ -596,7 +627,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=69', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=70', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -1095,6 +1126,10 @@ export function createWorld(canvas) {
     detailedRockGeometry.setAttribute('color', new T.BufferAttribute(rc, 3));
   }
   const detailedStone = new T.MeshStandardMaterial({ color: '#b7c0c3', roughness: .94, vertexColors: true });
+  // v70 · roccia fotografata (Poly Haven) su massi e pietroni
+  photoTex('rockwall', 1, 1, true, ({ map, normalMap }) => {
+    for (const m of [detailedStone, stone]) { m.map = map; m.normalMap = normalMap; m.normalScale?.set(1.2, 1.2); m.color.set(m === stone ? '#d8d6d0' : '#e8e8e4'); m.needsUpdate = true; }
+  });
   const logCap = mat('#cda66c'), puddleRim = mat('#66503b', .9), puddleWater = mat('#5c949a', .08, .45), ripple = mat('#bdddd9', .22);
   const helmetShell = mat('#3ee28f', .3, .2), visorMat = mat('#1b2328', .2, .4), peakMat = mat('#ffffff', .4), magnetRed = mat('#e8263c', .35), magnetTip = mat('#dfe6ea', .25, .8);
 
@@ -1273,12 +1308,18 @@ export function createWorld(canvas) {
       for (const x of [-.751, .751]) { const c = mesh(new T.CircleGeometry(.38, 18), twine, g); c.rotation.y = Math.sign(x) * Math.PI / 2; c.position.set(x, .4, 0); }
     } else if (type === 'tree') {
       // v46 · MontaFiga: abete in mezzo alla pista (non si salta: si schiva)
+      if (firOK) {   // v70 · abete vero (sagoma dal modello Poly Haven)
+        const c = new T.Mesh(cardGeo, (Math.random() < .5 ? firA : firB).material); c.scale.setScalar(2.6); c.rotation.y = Math.random() * 3; g.add(c);
+        mesh(new T.CylinderGeometry(.14, .22, 1.2, 8), bark, g).position.y = .6;
+        hazardRing(g, .62);
+      } else {
       mesh(new T.CylinderGeometry(.16, .26, 1.6, 9), bark, g).position.y = .8;
       const c1 = mesh(new T.ConeGeometry(.72, 2.1, 10), pine, g); c1.position.y = 2.1;
       const c2 = mesh(new T.ConeGeometry(.55, 1.7, 10), pineLight, g); c2.position.y = 3.0;
       const c3 = mesh(new T.ConeGeometry(.34, 1.2, 9), pine, g); c3.position.y = 3.75;
       for (let i = 0; i < 4; i++) { const a = i * 1.57 + .5; rod([Math.cos(a) * .15, .15, Math.sin(a) * .15], [Math.cos(a) * .5, 0, Math.sin(a) * .5], .05, bark, g); }
       hazardRing(g, .62);
+      }
     } else if (type === 'ford') {
       // v46 · guado: torrente che attraversa tutta la pista, con sassi e schiuma
       const inner = new T.Group(); g.add(inner); g.userData.inner = inner;
