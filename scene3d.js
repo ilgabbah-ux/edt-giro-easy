@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=71';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=72';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -196,7 +196,7 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=71`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=72`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
@@ -293,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=71', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=72', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -326,7 +326,7 @@ export function createWorld(canvas) {
     dirt.needsUpdate = grass.needsUpdate = verge.needsUpdate = true;
     pine.color.set(on ? '#2c4a44' : '#30594c'); pineLight.color.set(on ? '#eef4f7' : '#3e6d56');
     tufts.visible = !on && quality < 2;
-    ferns.visible = flowers.visible = shroomStems.visible = shroomCaps.visible = !on;
+    ferns.visible = flowers.visible = !on; shroomStems.visible = shroomCaps.visible = false;   // v72 · niente funghi giganti da cartone
     shrubs.material.color.set(on ? '#e6eef2' : '#567342');
   }
 
@@ -389,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=71`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=72`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -397,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=71', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=71', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=72', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=72', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -475,7 +475,7 @@ export function createWorld(canvas) {
   const shroomStems = new T.InstancedMesh(stemGeo, mat('#efe6d2', .8), SHROOMS);
   const shroomCaps = new T.InstancedMesh(capGeo, mat('#d0301f', .5), SHROOMS);
   const shroomData = Array.from({ length: SHROOMS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 5 + rand() * 4, z: rand() * 180, s: .8 + rand() * 1.2, h: rand() * .9 }));
-  scene.add(shroomStems, shroomCaps);
+  scene.add(shroomStems, shroomCaps); shroomStems.visible = shroomCaps.visible = false;
   const shrubs = new T.InstancedMesh(new T.IcosahedronGeometry(1, 1), mat('#567342'), 100);
   shrubs.receiveShadow = true; scene.add(shrubs);
 
@@ -648,7 +648,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=71', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=72', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -871,18 +871,19 @@ export function createWorld(canvas) {
   // Pilota: gambe sulle pedane (fisse), busto che si alza, braccia e cosce che si adattano.
   const rider = new T.Group(); chassis.add(rider);
   const upper = new T.Group(); rider.add(upper);
-  ball(.21, .16, .21, pantsMat, upper, 0, 1.4, .27);
+  ball(.18, .14, .17, pantsMat, upper, 0, 1.41, .27);   // v72 · proporzioni da pilota vero (prima era tutto gonfio)
   const body = new T.Group(); body.position.set(0, 1.42, .25); upper.add(body);
   const B = (x, y, z) => [x, y - 1.42, z - .25];
   // v53 · busto a capsula, spalle con paraspalle, collare e casco da cross con mentoniera, maschera e frontino
-  const jersey = mesh(new T.CapsuleGeometry(.19, .24, 8, 18), jerseyMat, body); jersey.position.set(...B(0, 1.76, .19)); jersey.scale.set(1.32, 1, .82); jersey.rotation.x = -.26;
+  const jersey = mesh(new T.CapsuleGeometry(.155, .3, 8, 18), jerseyMat, body); jersey.position.set(...B(0, 1.76, .19)); jersey.scale.set(1.3, 1, .78); jersey.rotation.x = -.26;
+  { const back = mesh(new T.CapsuleGeometry(.12, .22, 6, 14), jerseyMat, body); back.position.set(...B(0, 1.66, .25)); back.scale.set(1.35, 1, .7); back.rotation.x = -.3; }
   const anchor = (parent, x, y, z) => { const o = new T.Object3D(); o.position.set(x, y, z); parent.add(o); return o; };
   const joints = [];
   const strapMat = mat('#313b39', .75), bootTrim = mat('#b6b7a8', .5), lensMat = new T.MeshStandardMaterial({ color: '#2a8fc4', roughness: .08, metalness: .7, emissive: '#0b3550', emissiveIntensity: .4 });
   for (const side of [-1, 1]) {
-    ball(.12, .07, .13, black, body, ...B(side * .2, 1.97, .15));
+    ball(.095, .06, .105, black, body, ...B(side * .19, 1.95, .15));
     // stivali: gambale e piede sagomati
-    rod([side * .34, 1.1, .08], [side * .31, .86, .2], .085, white, rider);
+    rod([side * .33, 1.08, .08], [side * .31, .86, .2], .072, white, rider);
     sideShape(s => { s.moveTo(-.04, .74); s.lineTo(.26, .74); s.quadraticCurveTo(.29, .8, .26, .88); s.lineTo(.12, .9); s.quadraticCurveTo(-.02, .86, -.04, .74); }, .11, black, rider, side * .31, .02);
     joints.push({
       side,
@@ -890,32 +891,31 @@ export function createWorld(canvas) {
       shoulder: anchor(body, ...B(side * .23, 1.97, .09)), grip: anchor(front, ...F(side * .43, 1.49, -.53)),
     });
   }
-  { const nb = mesh(new T.TorusGeometry(.13, .04, 8, 20), black, body); nb.position.set(...B(0, 2.03, .13)); nb.rotation.x = Math.PI / 2 - .3; }
+  { const nb = mesh(new T.TorusGeometry(.105, .032, 8, 20), black, body); nb.position.set(...B(0, 2.02, .13)); nb.rotation.x = Math.PI / 2 - .3; }
   const head = new T.Group(); head.position.set(...B(0, 2.17, .035)); body.add(head);
-  ball(.215, .235, .25, helmetMat, head, 0, .01, .01);
-  sideShape(s => { s.moveTo(-.06, -.21); s.quadraticCurveTo(-.3, -.21, -.33, -.09); s.lineTo(-.29, -.03); s.quadraticCurveTo(-.18, -.09, -.04, -.05); s.lineTo(-.06, -.21); }, .2, helmetMat, head, 0, .03);
-  box(.05, .05, .05, accent, head, 0, -.1, -.33);
-  sideShape(s => { s.moveTo(-.12, .17); s.lineTo(-.37, .1); s.quadraticCurveTo(-.4, .075, -.36, .07); s.lineTo(-.16, .1); s.lineTo(-.12, .17); }, .22, accent, head, 0, .014);
-  ball(.11, .05, .2, accent, head, 0, .2, .03);
-  { const st = mesh(new T.TorusGeometry(.226, .02, 6, 30), strapMat, head); st.rotation.x = Math.PI / 2; st.position.y = .02; }
-  box(.31, .1, .07, black, head, 0, .02, -.215);
-  box(.25, .07, .03, lensMat, head, 0, .02, -.25);
+  // v72 · casco da cross in scala vera: calotta, mentoniera sporgente, frontino, maschera con elastico
+  ball(.158, .172, .19, helmetMat, head, 0, -.01, .01);
+  sideShape(s => { s.moveTo(-.04, -.17); s.quadraticCurveTo(-.24, -.17, -.26, -.07); s.lineTo(-.22, -.02); s.quadraticCurveTo(-.14, -.07, -.03, -.04); s.lineTo(-.04, -.17); }, .15, helmetMat, head, 0, .024);
+  box(.04, .03, .04, accent, head, 0, -.09, -.255);
+  sideShape(s => { s.moveTo(-.09, .14); s.lineTo(-.29, .08); s.quadraticCurveTo(-.31, .06, -.28, .055); s.lineTo(-.12, .08); s.lineTo(-.09, .14); }, .17, accent, head, 0, .011);
+  ball(.085, .04, .15, accent, head, 0, .155, .03);
+  { const st = mesh(new T.TorusGeometry(.17, .014, 6, 30), strapMat, head); st.rotation.x = Math.PI / 2; st.position.y = .01; }
+  box(.235, .075, .055, black, head, 0, .01, -.165);
+  box(.19, .052, .02, lensMat, head, 0, .01, -.193);
   for (const side of [-1, 1]) {
-    rod(B(side * .20, 2.00, .30), B(side * .21, 1.58, .32), .025, strapMat, body);
-    rod(B(side * .12, 2.06, .19), B(side * .20, 2.00, .30), .029, strapMat, body);
-    box(.12, .05, .025, accent, body, ...B(side * .19, 1.64, .35));
+    box(.1, .04, .02, accent, body, ...B(side * .15, 1.58, .33));
     for (let i = 0; i < 3; i++) box(.15, .026, .03, bootTrim, rider, side * .31, .9 + i * .06, .22 - i * .03);
-    ball(.1, .11, .1, accent, rider, side * .35, 1.14, .03);
+    ball(.075, .095, .07, accent, rider, side * .345, 1.13, .03);
   }
   // Arti dinamici: cilindri unitari orientati ogni fotogramma tra due giunti.
   const unitCyl = r => new T.CylinderGeometry(r, r, 1, 12);
   const limbs = [];
   for (const j of joints) {
-    j.thigh = mesh(unitCyl(.105), pantsMat, rider); j.thigh.userData.keep = true;
-    j.upperArm = mesh(new T.CylinderGeometry(.078, .09, 1, 12), jerseyMat, rider); j.upperArm.userData.keep = true;
-    j.forearm = mesh(new T.CylinderGeometry(.06, .075, 1, 12), jerseyMat, rider); j.forearm.userData.keep = true;
-    j.glove = ball(.08, .08, .075, black, rider); j.glove.userData.keep = true;
-    j.elbowBall = ball(.085, .085, .085, black, rider); j.elbowBall.userData.keep = true;
+    j.thigh = mesh(new T.CylinderGeometry(.078, .098, 1, 12), pantsMat, rider); j.thigh.userData.keep = true;
+    j.upperArm = mesh(new T.CylinderGeometry(.06, .07, 1, 12), jerseyMat, rider); j.upperArm.userData.keep = true;
+    j.forearm = mesh(new T.CylinderGeometry(.047, .058, 1, 12), jerseyMat, rider); j.forearm.userData.keep = true;
+    j.glove = ball(.055, .05, .07, black, rider); j.glove.userData.keep = true;
+    j.elbowBall = ball(.062, .062, .066, black, rider); j.elbowBall.userData.keep = true;
     limbs.push(j);
   }
   const _a = new T.Vector3(), _b = new T.Vector3(), _e = new T.Vector3(), _up = new T.Vector3(0, 1, 0), _d = new T.Vector3();
@@ -949,7 +949,7 @@ export function createWorld(canvas) {
   const textCtx = textCanvas.getContext('2d');
   const decalTexture = new T.CanvasTexture(textCanvas); decalTexture.colorSpace = T.SRGBColorSpace;
   const decal = mesh(new T.PlaneGeometry(.37, .185), new T.MeshStandardMaterial({ map: decalTexture, roughness: 1 }), body);
-  decal.position.set(...B(0, 1.80, .356)); decal.rotation.x = .2; decal.userData.keep = true; decal.name = 'decal';
+  decal.position.set(...B(0, 1.80, .318)); decal.rotation.x = .2; decal.userData.keep = true; decal.name = 'decal';
   // v44 · pezzi opzionali: paramani, faro, espansione del 2 tempi, doppio ammortizzatore vintage, grafiche
   for (const side of [-1, 1]) { const hg = box(.06, .13, .24, guardMat, front, ...F(side * .52, 1.5, -.66)); hg.rotation.y = side * .35; hg.rotation.z = side * -.2; }
   box(.17, .11, .06, lampMat, front, ...F(0, 1.30, -.72));
@@ -1543,7 +1543,7 @@ export function createWorld(canvas) {
 
   // ---------- Particelle: terra dalla ruota, schizzi, scintille ----------
   const PARTS = 150;
-  const partMat = new T.MeshStandardMaterial({ color: '#8b6f4a', roughness: 1 });
+  const partMat = new T.MeshStandardMaterial({ color: '#6e5638', roughness: 1, flatShading: true });   // v72 · zolle di terra più scure e spigolose
   const parts = new T.InstancedMesh(new T.IcosahedronGeometry(.07, 0), partMat, PARTS);
   parts.castShadow = false; scene.add(parts);
   const pData = Array.from({ length: PARTS }, () => ({ life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, s: 1 }));
@@ -1556,8 +1556,9 @@ export function createWorld(canvas) {
   const trackGeo = new T.PlaneGeometry(.17, 1); trackGeo.rotateX(-Math.PI / 2);
   const tracks = new T.InstancedMesh(trackGeo, trackMat, TRACKS); tracks.renderOrder = 1; scene.add(tracks);
   const trackHist = [];
-  const dustMaterial = new T.MeshBasicMaterial({ color: '#ceba8c', transparent: true, opacity: .22, depthWrite: false });
-  const dust = new T.InstancedMesh(new T.SphereGeometry(1, 8, 6), dustMaterial, 24); scene.add(dust);
+  // v72 · polvere morbida (nuvolette sfumate rivolte alla camera) al posto delle palle grigie trasparenti
+  const dustMaterial = new T.MeshBasicMaterial({ color: '#ceba8c', alphaMap: glowTex, transparent: true, opacity: .2, depthWrite: false, fog: true });
+  const dust = new T.InstancedMesh(new T.PlaneGeometry(1, 1), dustMaterial, 24); dust.frustumCulled = false; dust.renderOrder = 2; scene.add(dust);
 
   const sparkMaterial = new T.MeshBasicMaterial({ color: '#ffdb43', transparent: true, opacity: .9, depthWrite: false, blending: T.AdditiveBlending });
   const sparks = new T.InstancedMesh(new T.OctahedronGeometry(.07, 0), sparkMaterial, 26); scene.add(sparks);
@@ -2009,8 +2010,8 @@ export function createWorld(canvas) {
     dust.visible = onGround;
     for (let i = 0; i < 24; i++) {
       const age = (s.roadTime * 1.7 + i / 24) % 1;
-      dummy.position.set(bike.position.x + Math.sin(i * 23) * age * .9, height(1 + age * 3.2, t) + .1 + age * .4, 1 + age * 3.6);
-      dummy.rotation.set(i, age * 2, i); dummy.scale.setScalar(.05 + age * .32); dummy.updateMatrix(); dust.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(bike.position.x + Math.sin(i * 23) * (.12 + age * .8), height(1 + age * 3.2, t) + .12 + age * .3, 1.05 + age * 3.4);
+      dummy.quaternion.copy(camera.quaternion); dummy.rotateZ(i * 1.7); const sz = (.18 + age * .75) * (1 - age * age * .5); dummy.scale.set(sz, sz, sz); dummy.updateMatrix(); dust.setMatrixAt(i, dummy.matrix);
     }
     dust.instanceMatrix.needsUpdate = true;
 
