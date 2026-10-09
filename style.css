@@ -1237,3 +1237,8 @@ aside#hub { gap: 10px; }
 .cardprev img { width: 92px; aspect-ratio: 1080 / 1350; object-fit: cover; border-radius: 6px; background: #2a2620; box-shadow: 0 6px 16px #000a; transform: rotate(-3deg); flex: none; }
 .cardprev b { display: block; font: 18px var(--display); letter-spacing: 1px; color: var(--y); }
 .cardprev small { font-size: 13px; color: var(--muted); line-height: 1.35; }
+/* v79 · stagioni della classifica */
+.seasontabs { display: flex; gap: 6px; margin: 6px 0 2px; }
+.seasontabs button { flex: 1; background: #1e1f1c; border: 1px solid #393b35; color: var(--muted); padding: 7px 6px; font: 13.5px var(--display); letter-spacing: .6px; border-radius: 8px; }
+.seasontabs button.active { background: #2e2a1a; color: var(--y); border-color: #ffcf1688; }
+.seasonnote { margin: 4px 0 6px; font-size: 12.5px; line-height: 1.4; }

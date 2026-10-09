@@ -6,6 +6,12 @@ const NICK_KEY = 'edt-giro-easy-nick';
 
 export const enabled = () => !API.includes('__DEPLOY_ID__');
 
+// v79 · STAGIONI: in classifica contano solo i giri fatti con le regole attuali (velocità, punteggi, tempi massimi).
+// Quando cambia qualcosa che sposta tempi o punti si alza "from" (e il numero della stagione): i giri vecchi
+// restano nel foglio e si vedono nell'archivio. ACTIVE = percorsi nel menu (solo questi danno punti coppa).
+export const SEASON = { n: 2, from: 78 };
+export const ACTIVE = '0,1,2,3,9,10,11,12,13,14';
+
 export function dayISO(d = new Date()) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
@@ -30,9 +36,9 @@ function jsonp(url, ms = 20000) {
     document.head.appendChild(s);
   });
 }
-async function call(params) {
+async function call(params, keep = true) {
   if (!enabled()) throw new Error('off');
-  const url = API + '?' + new URLSearchParams(params).toString();
+  const url = API + '?' + new URLSearchParams({ minv: SEASON.from, act: ACTIVE, ...params }).toString();
   let data;
   try {
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 20000);   // v57 · telefono con rete lenta: più pazienza
@@ -40,6 +46,8 @@ async function call(params) {
     data = await r.json();
   } catch { data = await jsonp(url); }
   if (!data?.ok) throw new Error('risposta');
+  if (!keep) return data;
+  if (!('minv' in data)) delete data.week;   // script vecchio: niente stagioni, niente coppa (non sarebbe giusta)
   cache = data; cacheAt = Date.now();
   return data;
 }
@@ -50,6 +58,11 @@ export function load(force = false) {
   inflight = call({ action: 'top', day: dayISO() }).finally(() => { inflight = null; });
   return inflight;
 }
+
+// archivio: classifiche di tutte le stagioni (giri di ogni versione), non tocca la cache della stagione
+let archive = null;
+export const cachedArchive = () => archive;
+export function loadArchive() { return archive ? Promise.resolve(archive) : call({ action: 'top', day: dayISO(), minv: 0 }, false).then(d => (archive = d)); }
 
 export function submit({ name, score, mode, rider, time, win, v, g }) {
   const p = { action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round((time || 0) * 10) / 10, win: win ? 1 : 0, v: v || '', g: g || '' };

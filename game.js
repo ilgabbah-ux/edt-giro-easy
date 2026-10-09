@@ -1,13 +1,13 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=78';
-import { createWorld } from './scene3d.js?v=78';
-import * as A from './audio.js?v=78';
-import * as P from './progress.js?v=78';
-import { FOTO } from './piloti.js?v=78';
-import { createMud } from './mudfx.js?v=78';
-import { icon, iconize, iconizeEl } from './icons.js?v=78';
-import * as C from './classifica.js?v=78';
-import * as D from './duel.js?v=78';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=79';
+import { createWorld } from './scene3d.js?v=79';
+import * as A from './audio.js?v=79';
+import * as P from './progress.js?v=79';
+import { FOTO } from './piloti.js?v=79';
+import { createMud } from './mudfx.js?v=79';
+import { icon, iconize, iconizeEl } from './icons.js?v=79';
+import * as C from './classifica.js?v=79';
+import * as D from './duel.js?v=79';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -129,7 +129,7 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=78';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=79';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400;
@@ -1720,7 +1720,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=78" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=79" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -1922,10 +1922,10 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
 
 // ---------- Classifica del gruppo (online) ----------
 const MODE_LABEL = m => m === 3 ? 'SFIDA ' + P.todayLabel() : P.MODES[m].short;
-function groupListHTML(list, me = '') {
+function groupListHTML(list, me = '', m = -1) {
   if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
   const mine = C.cleanNick(me).toLowerCase();
-  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
+  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
 }
 // v48 · classifica dei tempi migliori al rifugio
 function timeListHTML(list, me = '', m = -1) {
@@ -1973,7 +1973,7 @@ function groupResult(runInfo) {
     $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div>
       <p class="gpos">${pos ? `<b>${nick}</b> è <b class="big">${pos}°</b>${best && best.s > runInfo.score ? ` (record ${best.s.toLocaleString('it-IT')})` : ''}` : `<b>${nick}</b>: fuori dai primi 10. Dopo migliora!`}</p>${(() => { const tl = C.timesFor(d, runInfo.mode), ti = tl.findIndex(e => e.n.toLowerCase() === nick.toLowerCase()); const jb = runInfo.mode === C.JUMP_MODE, fm = jb ? C.fmtJump : C.fmtTime; return ti >= 0 ? `<p class="gpos">${jb ? '📏 Salto più lungo' : '⏱ Tempi migliori'}: <b>${ti + 1}°</b> con ${fm(tl[ti].t)}${tl[0] && ti > 0 ? ` (1° ${tl[0].n}: ${fm(tl[0].t)})` : ''}</p>` : ''; })()}
 ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 Coppa della settimana: <b>${me.pos}°</b> con ${me.p} pt${d.week.list[0] && me.pos > 1 ? ` (1° ${d.week.list[0].n}: ${d.week.list[0].p} pt)` : ''}</p>` : ''; })()}
-      <ol class="board gboard">${groupListHTML(list.slice(0, 5), nick)}</ol>
+      <ol class="board gboard">${groupListHTML(list.slice(0, 5), nick, runInfo.mode)}</ol>
       <div class="grow"><button class="secondary" type="button" id="gall">TUTTA LA CLASSIFICA</button><button class="linkbtn" type="button" id="gnick">non sei ${nick}?</button></div>`;
     $('gall').onclick = () => renderGroup(() => renderResultAgain(), runInfo.mode);
     $('gnick').onclick = () => { C.setNick(''); groupResult({ ...runInfo, sent: null }); };
@@ -2030,24 +2030,33 @@ function renderTracks(back) {
   $('tback').onclick = back;
   $('card').scrollTop = 0;
 }
+let groupArch = false;   // v79 · archivio delle stagioni passate
 function renderGroup(back, m = mode) {
   if (state !== 'ended') state = 'ready';
   setMenu(true); $('overlay').classList.remove('hidden');
   const nick = C.getNick();
-  const draw = (d, err) => {
+  const draw = (d0, err) => {
+    const d = groupArch ? C.cachedArchive() : d0;
+    if (groupArch && m === 'cup') m = mode;
     $('card').innerHTML = `<div class="eyebrow">ENDURO DRINKING TEAM · TUTTI I TELEFONI</div>
       <h1 class="shoptitle">CLASSIFICA<br><em>DEL GRUPPO.</em></h1>
-      <div class="boardtabs gtabs"><button type="button" class="cuptab ${m === 'cup' ? 'active' : ''}" data-gmode="cup">🏆 COPPA</button>${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
+      <div class="seasontabs"><button type="button" class="${groupArch ? '' : 'active'}" data-season="now">STAGIONE ${C.SEASON.n} · DALLA V${C.SEASON.from}</button><button type="button" class="${groupArch ? 'active' : ''}" data-season="arch">📜 ARCHIVIO</button></div>
+      <p class="note seasonnote">${groupArch ? 'Archivio: giri di tutte le versioni, anche con regole diverse (velocità, punti e tempi massimi cambiati). Solo per ricordo: <b>non si confrontano</b>.' : `Contano solo i giri fatti con le regole di adesso (dalla versione ${C.SEASON.from}), così tempi e punti si confrontano con lo stesso metro.`}</p>
+      <div class="boardtabs gtabs">${groupArch ? '' : `<button type="button" class="cuptab ${m === 'cup' ? 'active' : ''}" data-gmode="cup">🏆 COPPA</button>`}${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
       ${m === 'cup' ? (() => { const w = d?.week, me = cupMine(w, nick); return `<p class="gsub">COPPA DELLA SETTIMANA${w ? ` · dal ${w.from.slice(8)}/${w.from.slice(5, 7)} al ${w.to.slice(8)}/${w.to.slice(5, 7)}` : ''} · si azzera ogni lunedì</p>
       <p class="note cupnote">In ogni percorso i primi 8 della settimana prendono <b>10-8-6-5-4-3-2-1</b> punti coppa: vince chi ne somma di più. Più percorsi fai, più punti puoi prendere.${w?.prev ? `<br>👑 Vincitore della settimana scorsa: <b>${w.prev.n}</b> (${w.prev.p} pt)` : ''}${me ? `<br>Tu sei <b>${me.pos}°</b> con <b>${me.p} pt</b>.` : ''}</p>
       ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : !d ? '<p class="gwait">Carico la coppa…</p>' : w ? `<ol class="board gboard">${cupListHTML(w.list, nick)}</ol>` : '<p class="gwait">La coppa si accende appena è aggiornato lo script della classifica.</p>'}`; })() : `<div class="kindtabs"><button type="button" class="${groupKind === 'score' ? 'active' : ''}" data-gkind="score">🏆 PUNTI</button><button type="button" class="${groupKind === 'time' ? 'active' : ''}" data-gkind="time">${m === C.JUMP_MODE ? '📏 SALTO PIÙ LUNGO' : '⏱ TEMPI MIGLIORI'}</button></div>
       <p class="gsub">PS${psOf(P.MODES[m])} · ${m === 3 ? 'Sfida del ' + P.todayLabel() + ' (si azzera ogni giorno)' : P.MODES[m].name} · migliori 10, un record a testa</p>
-      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard ${groupKind === 'time' ? 'timeboard' : ''}">${groupKind === 'time' ? timeListHTML(C.timesFor(d, m), nick, m) : groupListHTML(d.boards?.[m], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}`}
+      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard ${groupKind === 'time' ? 'timeboard' : ''}">${groupKind === 'time' ? timeListHTML(C.timesFor(d, m), nick, m) : groupListHTML(d.boards?.[m], nick, m)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}`}
       <p class="note">${nick ? `In classifica come <b>${nick}</b>.` : 'Il tuo nome lo scegli alla fine del primo giro.'}</p>
       <div class="actions"><button class="primary" id="gback"><span>INDIETRO</span></button><button class="secondary" id="greload">AGGIORNA</button></div>`;
     iconizeEl($('card'));
     document.querySelectorAll('[data-gmode]').forEach(b => b.onclick = () => { m = b.dataset.gmode === 'cup' ? 'cup' : Number(b.dataset.gmode); draw(C.cached()); });
     document.querySelectorAll('[data-gkind]').forEach(b => b.onclick = () => { groupKind = b.dataset.gkind; draw(C.cached()); });
+    document.querySelectorAll('[data-season]').forEach(b => b.onclick = () => {
+      groupArch = b.dataset.season === 'arch'; A.sfx.click();
+      if (groupArch && !C.cachedArchive()) { draw(null); C.loadArchive().then(() => draw(C.cached())).catch(() => draw(null, true)); } else draw(C.cached());
+    });
     $('gback').onclick = back;
     $('greload').onclick = () => { draw(null); C.load(true).then(x => draw(x)).catch(() => draw(null, true)); };
   };
@@ -2073,7 +2082,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 78;
+const GAME_VERSION = 79;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2115,10 +2124,10 @@ function renderSide() {
   document.querySelectorAll('[data-src]').forEach(b => { b.classList.toggle('active', b.dataset.src === (group ? 'group' : 'local')); b.onclick = () => { boardSrc = b.dataset.src; renderSide(); }; });
   $('boardsrc').hidden = !C.enabled();
   $('boardtitle').textContent = group ? 'Chi comanda nel gruppo' : 'Chi comanda su questo telefono';
-  $('boardnote').textContent = group ? 'Classifica di tutto l’EDT: un record a testa, migliori 10 per percorso.' : 'Classifica salvata solo su questo dispositivo: passate il telefono al prossimo.';
+  $('boardnote').textContent = group ? `Classifica di tutto l’EDT · stagione ${C.SEASON.n} (giri dalla versione ${C.SEASON.from}): un record a testa, migliori 10 per percorso.` : 'Classifica salvata solo su questo dispositivo: passate il telefono al prossimo.';
   if (group) {
     const d = C.cached();
-    $('board').innerHTML = d ? groupListHTML(d.boards?.[bm], C.getNick()) : '<li class="empty">Carico la classifica del gruppo…</li>';
+    $('board').innerHTML = d ? groupListHTML(d.boards?.[bm], C.getNick(), bm) : '<li class="empty">Carico la classifica del gruppo…</li>';
     if (!d || sideLoadedAt < Date.now() - 60000) { sideLoadedAt = Date.now(); C.load().then(() => renderSide()).catch(() => { if (!C.cached()) $('board').innerHTML = '<li class="empty">Classifica del gruppo non raggiungibile.</li>'; }); }
   } else {
     const list = P.boardFor(bm);
@@ -2132,7 +2141,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=78" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=79" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2140,7 +2149,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=78" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=79" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- v68 · Sfida 1 contro 1 dal vivo ----------
