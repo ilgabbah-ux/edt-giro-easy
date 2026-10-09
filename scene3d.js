@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=63';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=64';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -157,7 +157,17 @@ export function createWorld(canvas) {
   const spacing = () => 2.5 * trail.width;
   let iceMode = false, iceKey = null, groundMaps = null;
   const center = (z, t) => iceMode ? iceShape(t - z) - iceShape(t) : Math.sin((t - z) * .021) * 3.8 - Math.sin(t * .021) * 3.8 + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;
-  const height = (z, t) => terrainHeight(z, t, trail);
+  // v64 · burrone del Taglio di Angelo: la montagna finisce e il terreno sprofonda (la moto resta alla quota del bordo)
+  let canyon = null;
+  const CANYON_D = 75;
+  const canyonDepth = x => {
+    if (!canyon) return 0;
+    const u = x - canyon.x0; if (u < 0 || u > canyon.len) return 0;
+    const wall = Math.min(1, u / 2.5, (canyon.len - u) / 5);
+    const k = wall * wall * (3 - 2 * wall);
+    return -CANYON_D * k - Math.sin(u * .35) * 2.5 * k;
+  };
+  const height = (z, t) => terrainHeight(z, t, trail) + canyonDepth(t - z);
   const slope = (z, t) => terrainGrade(z, t, trail);
   function bank(w, z) {
     const edge = 4.65 * trail.width, d = Math.max(0, Math.abs(w) - edge);
@@ -184,7 +194,8 @@ export function createWorld(canvas) {
           const rut = o === road ? trail.rough * (Math.cos(w * 5.8) * .025 + Math.sin((t - z) * 1.2 + w) * .022) : 0;
           a.setXYZ(k, c + w, h + hill + rut, z);
           const noise = Math.sin((t - z) * .21 + w * .84) * Math.cos((t - z) * .083 - w * 1.7);
-          const tint = o === road ? .93 + noise * .07 : .86 + noise * .14;
+          const deep = canyon ? Math.max(.3, 1 + canyonDepth(t - z) / 60) : 1;
+          const tint = (o === road ? .93 + noise * .07 : .86 + noise * .14) * deep;
           col.setXYZ(k, tint, tint, o === road ? tint : tint * .94);
         }
       }
@@ -518,7 +529,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=63', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=64', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -1291,16 +1302,15 @@ export function createWorld(canvas) {
       const r = mesh(detailedRockGeometry, detailedStone, g); r.scale.set(2.1, 2.3, 1.9); r.position.y = .2;
       hazardRing(g, 1.0);
     } else if (type === 'bigRamp') {
-      // v59 · il trampolino del Taglio di Angelo: rampa di legno su tutta la pista, bordo giallo-nero e striscione
+      // v64 · il bordo del burrone: niente rampa, solo lo striscione del Taglio di Angelo tra due pali e i sassi sul ciglio
       const inner = new T.Group(); g.add(inner); g.userData.inner = inner;
-      const wood = mat('#8a5a32', .85), lip = mat('#ffcf16', .5);
-      for (let i = 0; i < 7; i++) { const k = i / 6, pl = box(1, .06, .5, wood, inner, 0, .05 + k * 1.6, 1.6 - k * 3.2); pl.rotation.x = -Math.atan2(1.6, 3.2); }
-      const l = box(1.02, .16, .2, lip, inner, 0, 1.7, -1.62); l.castShadow = false;
+      const wood = mat('#8a5a32', .85);
       const c = document.createElement('canvas'); c.width = 512; c.height = 96; const x = c.getContext('2d');
       x.fillStyle = '#141414'; x.fillRect(0, 0, 512, 96); x.fillStyle = '#ffcf16'; x.font = '900 58px Arial'; x.textAlign = 'center'; x.fillText('IL TAGLIO DI ANGELO', 256, 70);
       const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
-      const ban = mesh(new T.PlaneGeometry(6.4, 1.2), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); ban.position.set(0, 4.6, -1.8); ban.castShadow = false;
-      for (const sd of [-1, 1]) box(.2, 5.2, .2, wood, g, sd * 3.3, 2.6, -1.8);
+      const ban = mesh(new T.PlaneGeometry(7.2, 1.3), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); ban.position.set(0, 5.4, 1.2); ban.castShadow = false;
+      for (const sd of [-1, 1]) box(.22, 6, .22, wood, g, sd * 3.7, 3, 1.2);
+      for (let i = 0; i < 9; i++) { const r = mesh(detailedRockGeometry, detailedStone, g); const sx = (i - 4) * 1.9; r.position.set(sx + Math.sin(i * 7) * .3, -.1, .6 + Math.cos(i * 3) * .3); r.scale.setScalar(.5 + (i % 3) * .2); }
     } else if (type === 'farm') {
       // v59 · la cascina del Gusta Ranch: casa lunga, tetto di coppi, portico ad archi, fieno e insegna
       const wall = mat('#e8d3a8', .9), roof = mat('#b4532a', .8), wood = mat('#6b4423', .9), dark = mat('#2a1e16', .9), hay = mat('#e0b64a', 1);
@@ -1647,6 +1657,7 @@ export function createWorld(canvas) {
     paintDecal(s.riderName || 'EDT', s.riderNumber || 1, s.livery?.jersey || '#fcd326');
     skyUniforms.uTime.value = now / 1000;
 
+    canyon = s.canyon || null;
     const t = s.roadTime * 19.5;
     const live = s.state === 'playing' || s.state === 'paused' || s.state === 'countdown';
     const boostAmount = live ? (s.turbo || 0) : 0;
@@ -1760,7 +1771,6 @@ export function createWorld(canvas) {
       if (m.userData.roller) m.userData.roller.rotation.z = -o.z * 26;
       if (o.type === 'bigLog') { const len = spacing() * 2 + 2.2; m.userData.inner.scale.x = len; }
       if (o.type === 'ford') m.userData.inner.scale.x = spacing() * 2 + 4.5;
-      if (o.type === 'bigRamp') m.userData.inner.scale.x = spacing() * 2 + 3;
       if (o.cross) m.rotation.y = o.cross > 0 ? 0 : Math.PI;
       else if (o.type === 'ibex' || o.type === 'chamois' || o.type === 'marmot') m.rotation.y = 0;
       if (o.lean !== undefined && o.type === 'tree') m.rotation.z = o.lean * .3;

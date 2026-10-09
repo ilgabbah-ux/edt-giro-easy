@@ -13,8 +13,8 @@ export const MODES = [
     layout: [{ t: 0, len: 6 }, { t: 1, len: 4, down: 1 }, { t: 1, len: 6 }, { t: 2, len: 10 }, { t: 3, len: 8 }, { t: 2, len: 8 }, { t: 3, len: 10 }, { t: 0, len: 4, down: 1 }, { t: 0, len: 4 }] },
   // v59 · Il taglio di Angelo: rincorsa giù dalla montagna, stacco dal trampolino e salto nel vuoto. Vince il salto più lungo atterrato in piedi.
   // v62 · Il taglio di Angelo: discesa dalla montagna senza ostacoli (frecce di spinta), stacco nel vuoto dal bordo e atterraggio tra i pietroni.
-  { id: 2, short: 'ANGELO', name: 'Il taglio di Angelo', desc: 'Giù dalla montagna a tutta (frecce di spinta, niente ostacoli), stacco nel vuoto dal bordo e atterraggio evitando i pietroni. Vince il salto più lungo.', difficulty: 1, sky: 2, limit: 60, unlock: 1, leap: true,
-    layout: [{ t: 3, len: 12, down: 1, name: 'DISCESA DALLA MONTAGNA' }, { t: 2, len: 12, down: 1, name: 'IL CANALONE' }, { t: 0, len: 10, down: 1, name: 'LA RAMPA FINALE' }, { t: 0, len: 12, down: 1, name: 'IL VUOTO' }, { t: 2, len: 14, name: 'ATTERRAGGIO' }] },
+  { id: 2, short: 'ANGELO', name: 'Il taglio di Angelo', desc: 'Partenza in cima, discesa a tutta sulle frecce di spinta, poi il burrone: ci voli sopra. Più velocità prendi, più lontano atterri. In volo tieni il muso nel verde e scegli la corsia senza pietroni.', difficulty: 1, sky: 2, limit: 60, unlock: 1, leap: true,
+    layout: [{ t: 2, len: 5, climb: 0, name: 'PARTENZA' }, { t: 2, len: 27, climb: 0, down: 1, name: 'LA DISCESA' }, { t: 2, len: 28, climb: 0, name: 'IL BURRONE' }] },
   { id: 3, short: 'SFIDA', name: 'Sfida del giorno', desc: 'Tracciato nuovo ogni giorno, uguale per tutti.', difficulty: 1, sky: 3, limit: 58, unlock: 1, random: 'daily' },
   { id: 4, hidden: true, short: 'ASSIETTA', name: 'Il muro dell’Assietta', desc: 'Tre salitoni uno dopo l’altro. Gas!', difficulty: 1, sky: 0, limit: 56, unlock: 2,
     layout: [{ t: 0, len: 5 }, { t: 2, len: 12 }, { t: 3, len: 6 }, { t: 2, len: 14 }, { t: 0, len: 5, down: 1 }, { t: 2, len: 12 }, { t: 3, len: 6 }] },
