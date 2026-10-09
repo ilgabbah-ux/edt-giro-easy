@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=75';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=76';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -196,7 +196,7 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=75`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=76`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
@@ -293,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=75', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=76', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -389,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=75`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=76`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -397,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=75', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=75', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=76', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=76', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -671,7 +671,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=75', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=76', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -794,12 +794,41 @@ export function createWorld(canvas) {
     wheels.push(root); return root;
   }
   // Pezzi sagomati: un profilo laterale (z, y) estruso lungo x e smussato, centrato su x.
-  function sideShape(path, depth, m, p, x = 0, bevel = .018) {
+  function sideShape(path, depth, m, p, x = 0, bevel = .018, steps = 1) {
     const s = new T.Shape(); path(s);
-    const g = new T.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3, curveSegments: 14 });
+    const g = new T.ExtrudeGeometry(s, { depth, steps, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3, curveSegments: 14 });
     g.translate(0, 0, -depth / 2); g.rotateY(-Math.PI / 2);
     const o = mesh(g, m, p); o.position.x = x; return o;
   }
+  // v76 · plastiche "modellate": profilo laterale (z, y) + sezione arrotondata (superellisse) che cambia lungo la moto.
+  // Niente più lastre estruse: serbatoio, sella, fianchetti e convogliatori hanno fianchi bombati come quelli veri.
+  // hw(t) = mezza larghezza (t: 0 davanti → 1 dietro) · n = squadratura della sezione (2 ellisse, 4 quasi box)
+  // topNarrow = quanto si stringe in alto · bulge(t, ys) = spostamento laterale (curva la lastra verso l'esterno)
+  function loftShape(path, hw, m, p, o = {}) {
+    const { n = 2.4, seg = 34, rings = 22, x = 0, bulge = null, topNarrow = 0, endRound = .3 } = o;
+    const s = new T.Shape(); path(s);
+    const poly = s.getPoints(10);
+    let z0 = Infinity, z1 = -Infinity; for (const q of poly) { z0 = Math.min(z0, q.x); z1 = Math.max(z1, q.x); }
+    const slice = z => { let lo = Infinity, hi = -Infinity; for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length]; if ((a.x - z) * (b.x - z) <= 0 && a.x !== b.x) { const y = a.y + (b.y - a.y) * (z - a.x) / (b.x - a.x); lo = Math.min(lo, y); hi = Math.max(hi, y); } } return lo <= hi ? [lo, hi] : [0, 0]; };
+    const e = 2 / n, sp = v => Math.sign(v) * Math.pow(Math.abs(v), e);
+    const pos = [], uv = [], idx = [];
+    for (let i = 0; i <= seg; i++) {
+      const t = .5 - .5 * Math.cos(Math.PI * i / seg), z = z0 + (z1 - z0) * (.004 + .992 * t);
+      const [lo, hi] = slice(z), yc = (lo + hi) / 2, hy = (hi - lo) / 2;
+      const w = hw(t) * Math.max(.2, Math.pow(Math.sin(Math.PI * t), endRound));
+      for (let j = 0; j <= rings; j++) {
+        const a = -Math.PI / 2 + j / rings * Math.PI * 2, ys = sp(Math.sin(a));
+        let xx = sp(Math.cos(a)) * w * (1 - topNarrow * Math.max(0, ys));
+        if (bulge) xx += bulge(t, ys);
+        const y = yc + ys * hy; pos.push(x + xx, y, z); uv.push(z, y);
+      }
+    }
+    for (let i = 0; i < seg; i++) for (let j = 0; j < rings; j++) { const a = i * (rings + 1) + j, b = a + rings + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    return mesh(g, m, p);
+  }
+  // parafanghi a sezione curva (scendono ai lati come quelli veri)
+  function bendFender(o, k) { const a = o.geometry.attributes.position; for (let i = 0; i < a.count; i++) { const x = a.getX(i); a.setY(i, a.getY(i) - k * x * x); } a.needsUpdate = true; o.geometry.computeVertexNormals(); return o; }
   // Profilo frontale (x, y) estruso lungo z: tabella portanumero, piastre.
   function frontShape(path, depth, m, p, bevel = .012) {
     const s = new T.Shape(); path(s);
@@ -834,9 +863,9 @@ export function createWorld(canvas) {
     box(.06, .3, .27, black, chassis, side * .17, 1.0, -.38);
     for (let i = 0; i < 6; i++) box(.07, .012, .25, alloy, chassis, side * .175, .88 + i * .045, -.38);
     // convogliatori del radiatore (portano la grafica laterale)
-    sideShape(s => { s.moveTo(-.66, 1.25); s.quadraticCurveTo(-.48, 1.32, -.24, 1.28); s.lineTo(-.06, 1.2); s.quadraticCurveTo(.02, 1.15, -.05, 1.1); s.lineTo(-.24, 1.0); s.quadraticCurveTo(-.42, .86, -.57, .85); s.quadraticCurveTo(-.71, .87, -.71, 1.02); s.quadraticCurveTo(-.71, 1.19, -.66, 1.25); }, .026, plastic, chassis, side * .222, .012);   // v74 · convogliatori aderenti al serbatoio (prima sporgevano come ali)
+    loftShape(s => { s.moveTo(-.66, 1.25); s.quadraticCurveTo(-.48, 1.32, -.24, 1.28); s.lineTo(-.06, 1.2); s.quadraticCurveTo(.02, 1.15, -.05, 1.1); s.lineTo(-.24, 1.0); s.quadraticCurveTo(-.42, .86, -.57, .85); s.quadraticCurveTo(-.71, .87, -.71, 1.02); s.quadraticCurveTo(-.71, 1.19, -.66, 1.25); }, () => .017, plastic, chassis, { x: side * .214, n: 3, endRound: .5, bulge: (t, ys) => side * .022 * (1 - ys * ys * .8) * Math.sin(Math.PI * t) });   // v76 · convogliatori bombati   // v74 · convogliatori aderenti al serbatoio (prima sporgevano come ali)
     // fianchetti posteriori
-    sideShape(s => { s.moveTo(.02, 1.21); s.lineTo(.7, 1.23); s.quadraticCurveTo(.78, 1.21, .71, 1.13); s.lineTo(.27, .9); s.quadraticCurveTo(.13, .84, .07, .93); s.lineTo(.0, 1.1); s.quadraticCurveTo(-.01, 1.19, .02, 1.21); }, .03, sidePanel, chassis, side * .2, .014);
+    loftShape(s => { s.moveTo(.02, 1.21); s.lineTo(.7, 1.23); s.quadraticCurveTo(.78, 1.21, .71, 1.13); s.lineTo(.27, .9); s.quadraticCurveTo(.13, .84, .07, .93); s.lineTo(.0, 1.1); s.quadraticCurveTo(-.01, 1.19, .02, 1.21); }, () => .02, sidePanel, chassis, { x: side * .196, n: 3, endRound: .5, bulge: (t, ys) => side * .014 * (1 - ys * ys) * Math.sin(Math.PI * t) });   // v76 · fianchetti bombati
     // pedane
     rod([side * .1, .62, .13], [side * .29, .63, .13], .024, alloy, chassis);
   }
@@ -857,10 +886,11 @@ export function createWorld(canvas) {
   // paramotore
   sideShape(s => { s.moveTo(-.44, .58); s.quadraticCurveTo(-.4, .42, -.2, .42); s.lineTo(.12, .44); s.lineTo(.15, .52); s.lineTo(-.36, .6); s.lineTo(-.44, .58); }, .27, alloy, chassis, 0, .012);
   // serbatoio e sella lunga piatta da enduro
-  sideShape(s => { s.moveTo(-.63, 1.17); s.quadraticCurveTo(-.56, 1.3, -.38, 1.31); s.quadraticCurveTo(-.14, 1.31, -.03, 1.23); s.lineTo(-.06, 1.05); s.quadraticCurveTo(-.3, .99, -.56, 1.03); s.lineTo(-.63, 1.17); }, .16, plastic, chassis, 0, .055);
-  sideShape(s => { s.moveTo(-.42, 1.26); s.quadraticCurveTo(-.3, 1.35, -.06, 1.32); s.lineTo(.56, 1.33); s.quadraticCurveTo(.72, 1.34, .77, 1.28); s.lineTo(.74, 1.21); s.lineTo(-.2, 1.21); s.quadraticCurveTo(-.36, 1.21, -.42, 1.26); }, .2, seatMat, chassis, 0, .035);
+  // v76 · serbatoio a goccia (largo in basso, stretto in alto) e sella stretta davanti, larga dietro, con bordo arrotondato
+  loftShape(s => { s.moveTo(-.65, 1.17); s.quadraticCurveTo(-.58, 1.31, -.38, 1.325); s.quadraticCurveTo(-.14, 1.325, -.02, 1.24); s.lineTo(-.05, 1.04); s.quadraticCurveTo(-.3, .98, -.57, 1.02); s.lineTo(-.65, 1.17); }, t => .15 - .045 * t, plastic, chassis, { n: 2.5, topNarrow: .35, endRound: .35 });
+  loftShape(s => { s.moveTo(-.44, 1.26); s.quadraticCurveTo(-.32, 1.36, -.06, 1.335); s.lineTo(.56, 1.345); s.quadraticCurveTo(.73, 1.35, .79, 1.28); s.lineTo(.75, 1.2); s.lineTo(-.2, 1.2); s.quadraticCurveTo(-.37, 1.2, -.44, 1.26); }, t => .075 + .06 * Math.min(1, t / .4), seatMat, chassis, { n: 3.4, topNarrow: .12, endRound: .2, seg: 40 });
   // parafango posteriore a coda alta
-  sideShape(s => { s.moveTo(.5, 1.25); s.lineTo(.95, 1.27); s.quadraticCurveTo(1.17, 1.3, 1.31, 1.37); s.lineTo(1.31, 1.33); s.quadraticCurveTo(1.16, 1.23, .95, 1.19); s.lineTo(.5, 1.17); s.lineTo(.5, 1.25); }, .25, plastic, chassis, 0, .018);
+  bendFender(sideShape(s => { s.moveTo(.5, 1.25); s.lineTo(.95, 1.27); s.quadraticCurveTo(1.17, 1.3, 1.31, 1.37); s.lineTo(1.31, 1.33); s.quadraticCurveTo(1.16, 1.23, .95, 1.19); s.lineTo(.5, 1.17); s.lineTo(.5, 1.25); }, .25, plastic, chassis, 0, .018, 8), 3.2);
   const brakeLightMat = new T.MeshStandardMaterial({ color: '#fc441f', roughness: .3, emissive: '#ff2a00', emissiveIntensity: .3 });
   box(.15, .05, .04, brakeLightMat, chassis, 0, 1.19, 1.16);
   // scarico 4 tempi: collettore curvo e silenziatore
@@ -874,7 +904,7 @@ export function createWorld(canvas) {
     box(.07, .12, .1, alloy, front, side * .14, .5, zAt(.5));
   }
   for (const [y, w] of [[1.17, .42], [1.33, .4]]) { const c = box(w, .05, .13, alloy, front, 0, y, ZF(-.86 + (y - .48) * .3375) + .02); c.rotation.x = .32; }
-  sideShape(s => { s.moveTo(ZF(-1.3), 1.03); s.quadraticCurveTo(ZF(-1.0), 1.09, ZF(-.64), 1.04); s.lineTo(ZF(-.52), .99); s.lineTo(ZF(-.56), .96); s.quadraticCurveTo(ZF(-.95), 1.03, ZF(-1.3), .985); s.lineTo(ZF(-1.3), 1.03); }, .18, plastic, front, 0, .016);
+  bendFender(sideShape(s => { s.moveTo(ZF(-1.3), 1.03); s.quadraticCurveTo(ZF(-1.0), 1.09, ZF(-.64), 1.04); s.lineTo(ZF(-.52), .99); s.lineTo(ZF(-.56), .96); s.quadraticCurveTo(ZF(-.95), 1.03, ZF(-1.3), .985); s.lineTo(ZF(-1.3), 1.03); }, .18, plastic, front, 0, .016, 8), 4.2);
   { const np = frontShape(s => { s.moveTo(-.15, .13); s.quadraticCurveTo(0, .21, .15, .13); s.lineTo(.11, -.15); s.quadraticCurveTo(0, -.2, -.11, -.15); s.lineTo(-.15, .13); }, .02, sidePanel, front); np.position.set(...F(0, 1.37, -.70)); np.rotation.x = .3; }
   rod(F(0, 1.34, -.56), F(0, 1.46, -.55), .035, alloy, front);
   tube([F(-.48, 1.5, -.5), F(-.3, 1.475, -.55), F(0, 1.465, -.565), F(.3, 1.475, -.55), F(.48, 1.5, -.5)], .022, alloy, front, 24);
@@ -991,7 +1021,7 @@ export function createWorld(canvas) {
   const decalCanvas = document.createElement('canvas'); decalCanvas.width = 256; decalCanvas.height = 128;
   const sideDecalTex = new T.CanvasTexture(decalCanvas); sideDecalTex.colorSpace = T.SRGBColorSpace;
   const sideDecalMat = new T.MeshStandardMaterial({ map: sideDecalTex, transparent: true, roughness: .5 });
-  for (const side of [-1, 1]) { const pl = mesh(new T.PlaneGeometry(.38, .26), sideDecalMat, chassis); pl.position.set(side * .25, 1.1, -.36); pl.rotation.y = side * Math.PI / 2; pl.castShadow = false; pl.userData.keep = true; pl.name = 'sidedecal'; }
+  for (const side of [-1, 1]) { const pl = mesh(new T.PlaneGeometry(.38, .26), sideDecalMat, chassis); pl.position.set(side * .262, 1.1, -.38); pl.rotation.y = side * Math.PI / 2; pl.castShadow = false; pl.userData.keep = true; pl.name = 'sidedecal'; }
   // v71 · riflessi veri su vernice e metallo: una piccola "stanza luminosa" (cielo, terra, pannelli di luce) trasformata in mappa d'ambiente
   const envTex = (() => {
     try {
