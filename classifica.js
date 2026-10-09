@@ -80,7 +80,14 @@ export function encodeGhost(splits) { return splits.filter((_, i) => i % 2 === 0
 export function decodeGhost(g) { const out = []; for (let i = 0; i + 1 < (g || '').length; i += 2) out.push(parseInt(g.slice(i, i + 2), 36) / 10); return out; }
 
 // v48 · tempi migliori (solo giri arrivati al rifugio): dal server, o ricavati dai record se lo script è vecchio.
+export const JUMP_MODE = 2;
+// v67 · Angelo Potter: classifica del salto più lungo (metri nel campo tempo, punteggi che finiscono per 7)
+export function jumpsFor(data, mode = JUMP_MODE) {
+  return (data?.boards?.[mode] || []).filter(e => e.w && e.t > 0 && e.s % 10 === 7).map(e => ({ ...e, t: e.t })).sort((a, b) => b.t - a.t);
+}
+export const fmtJump = m => (Math.round(m * 10) / 10).toFixed(1).replace('.', ',') + ' m';
 export function timesFor(data, mode) {
+  if (mode === JUMP_MODE) return jumpsFor(data, mode);
   if (data?.times?.[mode]) return data.times[mode];
   return (data?.boards?.[mode] || []).filter(e => e.w && (e.bt || e.t)).map(e => ({ ...e, t: e.bt || e.t })).sort((a, b) => a.t - b.t);
 }

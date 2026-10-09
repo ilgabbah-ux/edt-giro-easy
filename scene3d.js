@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=66';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=67';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -570,7 +570,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=66', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=67', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -1327,11 +1327,18 @@ export function createWorld(canvas) {
       for (const sx of [-1, 1]) rod([sx * .8, .0, -.66], [sx * .8, 1.05, -.66], .035, black, g);
       const fl = box(.32, .2, .02, rampLip, g, -.66, .95, -.66); fl.castShadow = false;
     } else if (type === 'speedpad') {
-      // v62 · freccia di spinta sulla discesa: tre chevron gialli luminosi a terra
-      const padMat = new T.MeshBasicMaterial({ color: '#ffd23a', transparent: true, opacity: .9, depthWrite: false });
-      for (let i = 0; i < 3; i++) { const c = mesh(new T.ShapeGeometry(new T.Shape([new T.Vector2(-.55, 0), new T.Vector2(0, .45), new T.Vector2(.55, 0), new T.Vector2(.55, .22), new T.Vector2(0, .67), new T.Vector2(-.55, .22)])), padMat, g); c.rotation.x = -Math.PI / 2; c.position.set(0, .03 + i * .002, .5 - i * .55); c.castShadow = false; }
-      const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffb12b', transparent: true, opacity: .5, blending: T.AdditiveBlending, depthWrite: false }));
-      glow.scale.set(2.2, .9, 1); glow.position.set(0, .3, 0); g.add(glow);
+      // v67 · scopa volante di Angelo Potter: manico di legno, saggina con le fasce dorate, scia luminosa
+      const spin = new T.Group(); spin.position.y = 1.15; g.add(spin); g.userData.spin = spin;
+      spin.scale.setScalar(1.6);
+      const wood = mat('#7a4424', .55), straw = mat('#c8964a', .9), band = mat('#d9b04a', .3, .7);
+      const h = mesh(new T.CylinderGeometry(.04, .05, 1.7, 10), wood, spin); h.rotation.z = Math.PI / 2; h.position.x = -.2;
+      const br = mesh(new T.ConeGeometry(.24, .62, 14, 1, true), straw, spin); br.rotation.z = Math.PI / 2; br.position.x = .85;
+      const core = mesh(new T.CylinderGeometry(.075, .2, .5, 12), straw, spin); core.rotation.z = Math.PI / 2; core.position.x = .82;
+      for (const bx of [.6, .68]) { const b = mesh(new T.TorusGeometry(.085, .022, 6, 16), band, spin); b.rotation.y = Math.PI / 2; b.position.x = bx; }
+      const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffd36a', transparent: true, opacity: .75, blending: T.AdditiveBlending, depthWrite: false }));
+      glow.scale.set(2.6, 1.3, 1); glow.position.set(0, 1.15, 0); g.add(glow);
+      const trail = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#fff2b0', transparent: true, opacity: .45, blending: T.AdditiveBlending, depthWrite: false }));
+      trail.scale.set(1.2, .5, 1); trail.position.set(0, .05, 0); g.add(trail);
     } else if (type === 'landpad') {
       // v62 · bersaglio verde: la corsia libera per atterrare
       const ring = mesh(new T.RingGeometry(.55, .8, 32), new T.MeshBasicMaterial({ color: '#3ddc84', transparent: true, opacity: .85, side: T.DoubleSide, depthWrite: false }), g); ring.rotation.x = -Math.PI / 2; ring.position.y = .04; ring.castShadow = false;
@@ -1347,7 +1354,7 @@ export function createWorld(canvas) {
       const inner = new T.Group(); g.add(inner); g.userData.inner = inner;
       const wood = mat('#8a5a32', .85);
       const c = document.createElement('canvas'); c.width = 512; c.height = 96; const x = c.getContext('2d');
-      x.fillStyle = '#141414'; x.fillRect(0, 0, 512, 96); x.fillStyle = '#ffcf16'; x.font = '900 58px Arial'; x.textAlign = 'center'; x.fillText('IL TAGLIO DI ANGELO', 256, 70);
+      x.fillStyle = '#141414'; x.fillRect(0, 0, 512, 96); x.fillStyle = '#ffcf16'; x.font = '900 58px Arial'; x.textAlign = 'center'; x.fillText('ANGELO POTTER', 256, 70);
       const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
       const ban = mesh(new T.PlaneGeometry(7.2, 1.3), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); ban.position.set(0, 5.4, 1.2); ban.castShadow = false;
       for (const sd of [-1, 1]) box(.22, 6, .22, wood, g, sd * 3.7, 3, 1.2);

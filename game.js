@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=66';
-import { createWorld } from './scene3d.js?v=66';
-import * as A from './audio.js?v=66';
-import * as P from './progress.js?v=66';
-import { FOTO } from './piloti.js?v=66';
-import { createMud } from './mudfx.js?v=66';
-import { icon, iconize, iconizeEl } from './icons.js?v=66';
-import * as C from './classifica.js?v=66';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=67';
+import { createWorld } from './scene3d.js?v=67';
+import * as A from './audio.js?v=67';
+import * as P from './progress.js?v=67';
+import { FOTO } from './piloti.js?v=67';
+import { createMud } from './mudfx.js?v=67';
+import { icon, iconize, iconizeEl } from './icons.js?v=67';
+import * as C from './classifica.js?v=67';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -126,9 +126,9 @@ let bs = {}; // v44 · caratteristiche della moto scelta in officina
 // v46 · Ice Scrofy: derapate sul ghiaccio con le gomme chiodate
 let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
-const TRACK_ART_FILE = { 2: 'angelo-suuuka', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
+const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=66';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=67';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400;
@@ -453,7 +453,7 @@ function finish(win, reason = '') {
   if (ice) endDrift(true);
   const timeBonus = win && !leap ? Math.round((timeLimit - elapsed) * (ice ? 40 : 100)) : 0;
   if (win) score += lives * 250 + timeBonus;
-  if (leap) score = win ? Math.round(leapBest * 100) + (leapPerfect ? 500 : 0) : 0;   // v59 · al Taglio di Angelo conta solo il salto: 100 punti a metro (+500 stacco perfetto)
+  if (leap) score = win ? Math.round(leapBest * 100) + (leapPerfect ? 500 : 0) + 7 : 0;   // v67 · il 7 finale segna i punteggi col salto in metri nel campo tempo   // v59 · al Taglio di Angelo conta solo il salto: 100 punti a metro (+500 stacco perfetto)
   run.timeLeft = win ? Math.floor(timeLimit - elapsed) : 0;
   run.finishTime = win ? elapsed : 0;
   run.timeBonus = timeBonus; run.reason = reason;
@@ -976,7 +976,7 @@ function spawnLeapWave() {
     canyonX0 = roadTime * 19.5 + (.91 - .08) * 55;
     canyonLen = 400;   // finché non stacchi il burrone non finisce
     for (let k = 1; k <= 3; k++) add(1, .08 + k * .08, 'speedpad');
-    toast('🏔 ARRIVA IL BURRONE: GAS A TUTTA, CI VOLI SOPRA!', 'gold'); wave++; return;
+    toast('🏔 ARRIVA IL BURRONE: PRENDI LE ULTIME SCOPE E VOLA!', 'gold'); wave++; return;
   }
   if (leapState >= 1) return;
   const l = wave < 2 ? 1 : Math.max(0, Math.min(2, prevSafe + (rng() < .5 ? -1 : 1)));
@@ -1003,7 +1003,7 @@ function leapTakeoff() {
   const zLand = .91 - v / 55 * jumpDur;
   for (let r = -3; r <= 3; r++) {
     const z = zLand + r * .04;
-    for (let l = 0; l < 3; l++) if (l !== leapFree) objects.push({ l, z: z + (rng() - .5) * .015, type: 'boulder', hit: false });
+    for (let l = 0; l < 3; l++) if (l !== leapFree || Math.abs(r) === 3) objects.push({ l, z: z + (rng() - .5) * .015, type: 'boulder', hit: false });   // pietroni sempre: due corsie piene, la libera chiusa ai due capi
   }
   objects.push({ l: leapFree, z: zLand, type: 'landpad', hit: false });
   A.sfx.jump(); A.sfx.turbo(); shake = .6; flash('gold');
@@ -1498,8 +1498,8 @@ function update(dt) {
     }
     if (o.type === 'shortcut') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeShortcut(); return; } continue; }
     if (o.type === 'landpad' || (o.type === 'boulder' && leap)) continue;   // v64 · i pietroni si valutano all'atterraggio (corsia)
-    if (o.type === 'speedpad') {   // v62 · freccia di spinta: più velocità per il salto
-      if (Math.abs(px - o.l) < .6 && jump <= 0) { o.collected = true; leapMul = Math.min(2.1, leapMul + .1); A.sfx.turbo(); shake = Math.max(shake, .2); pop('SPINTA! ' + Math.round(kmh + 6) + ' km/h', 'gold'); fxKind = 'trick'; fxSerial++; }
+    if (o.type === 'speedpad') {   // v67 · scopa volante di Angelo Potter: più velocità per il salto
+      if (Math.abs(px - o.l) < .6) { o.collected = true; leapMul = Math.min(2.2, leapMul + .12); A.sfx.turbo(); shake = Math.max(shake, .2); pop('🧹 SCOPA! ' + Math.round(kmh * 1.07) + ' km/h', 'gold'); fxKind = 'trick'; fxSerial++; }
       continue;
     }
     if (o.type === 'bigRamp') { o.collected = true; if (leapState === 1) leapTakeoff(); continue; }
@@ -1705,7 +1705,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=66" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=67" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -1882,7 +1882,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   const bindResult = () => { $('again').onclick = start; $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
   resultSnapshot = { html: $('card').innerHTML, bind: bindResult };
   const gOK = win && !ice && P.MODES[mode].random !== 'run';
-  if ($('groupres')) groupResult({ score, mode, rider: profile.rider, time: win ? elapsed : 0, win, g: gOK ? C.encodeGhost([...ghostSplits, GAME_LENGTH]) : '' });
+  if ($('groupres')) groupResult({ score, mode, rider: profile.rider, time: win ? (leap ? leapBest : elapsed) : 0, win, g: gOK ? C.encodeGhost([...ghostSplits, GAME_LENGTH]) : '' });
   // Conteggio animato del punteggio
   const target = score, t0 = performance.now();
   const tick = now => {
@@ -1900,13 +1900,14 @@ const MODE_LABEL = m => m === 3 ? 'SFIDA ' + P.todayLabel() : P.MODES[m].short;
 function groupListHTML(list, me = '') {
   if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
   const mine = C.cleanNick(me).toLowerCase();
-  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
+  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
 }
 // v48 · classifica dei tempi migliori al rifugio
-function timeListHTML(list, me = '') {
-  if (!list?.length) return '<li class="empty">Nessuno è ancora arrivato al rifugio qui.</li>';
+function timeListHTML(list, me = '', m = -1) {
+  const jumpB = m === C.JUMP_MODE, fmt = jumpB ? C.fmtJump : C.fmtTime;
+  if (!list?.length) return `<li class="empty">${jumpB ? 'Nessun salto atterrato in piedi qui.' : 'Nessuno è ancora arrivato al rifugio qui.'}</li>`;
   const mine = C.cleanNick(me).toLowerCase();
-  return list.slice(0, 10).map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.s ? e.s.toLocaleString('it-IT') + ' pt' : ''}</span><b>⏱ ${C.fmtTime(e.t)}</b></li>`).join('');
+  return list.slice(0, 10).map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.s ? e.s.toLocaleString('it-IT') + ' pt' : ''}</span><b>${jumpB ? '📏' : '⏱'} ${fmt(e.t)}</b></li>`).join('');
 }
 let groupKind = 'score';
 // Riquadro nel risultato: invia il punteggio col nome salvato, oppure chiede il nome la prima volta.
@@ -1927,7 +1928,7 @@ function groupResult(runInfo) {
     const pos = C.positionOf(d, runInfo.mode, nick), list = d.boards?.[runInfo.mode] || [];
     const best = list.find(e => e.n.toLowerCase() === nick.toLowerCase());
     $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div>
-      <p class="gpos">${pos ? `<b>${nick}</b> è <b class="big">${pos}°</b>${best && best.s > runInfo.score ? ` (record ${best.s.toLocaleString('it-IT')})` : ''}` : `<b>${nick}</b>: fuori dai primi 10. Dopo migliora!`}</p>${(() => { const tl = C.timesFor(d, runInfo.mode), ti = tl.findIndex(e => e.n.toLowerCase() === nick.toLowerCase()); return ti >= 0 ? `<p class="gpos">⏱ Tempi migliori: <b>${ti + 1}°</b> con ${C.fmtTime(tl[ti].t)}${tl[0] && ti > 0 ? ` (1° ${tl[0].n}: ${C.fmtTime(tl[0].t)})` : ''}</p>` : ''; })()}
+      <p class="gpos">${pos ? `<b>${nick}</b> è <b class="big">${pos}°</b>${best && best.s > runInfo.score ? ` (record ${best.s.toLocaleString('it-IT')})` : ''}` : `<b>${nick}</b>: fuori dai primi 10. Dopo migliora!`}</p>${(() => { const tl = C.timesFor(d, runInfo.mode), ti = tl.findIndex(e => e.n.toLowerCase() === nick.toLowerCase()); const jb = runInfo.mode === C.JUMP_MODE, fm = jb ? C.fmtJump : C.fmtTime; return ti >= 0 ? `<p class="gpos">${jb ? '📏 Salto più lungo' : '⏱ Tempi migliori'}: <b>${ti + 1}°</b> con ${fm(tl[ti].t)}${tl[0] && ti > 0 ? ` (1° ${tl[0].n}: ${fm(tl[0].t)})` : ''}</p>` : ''; })()}
       <ol class="board gboard">${groupListHTML(list.slice(0, 5), nick)}</ol>
       <div class="grow"><button class="secondary" type="button" id="gall">TUTTA LA CLASSIFICA</button><button class="linkbtn" type="button" id="gnick">non sei ${nick}?</button></div>`;
     $('gall').onclick = () => renderGroup(() => renderResultAgain(), runInfo.mode);
@@ -1952,7 +1953,7 @@ function renderResultAgain() { if (resultSnapshot) { state = 'ended'; setMenu(tr
 const TRACK_INFO = {
   0: { tipo: 'Il classico', ostacoli: 'Tronchi, radici, ceppi, pozzanghere, gradoni, sassi e capre', speciale: 'Rampe con le birre al volo, tronco di traverso da saltare, il taglio delle 16.00', consiglio: 'Segui le birre: segnano sempre la corsia libera.' },
   1: { tipo: 'Due salitoni e due mulattiere', ostacoli: 'Più fango, pozze, gradoni, sassi e frane', speciale: 'Salite dure: senza GAS ti pianti', consiglio: 'Un tocco su GAS in salita lo blocca aperto.' },
-  2: { tipo: 'Gara di salto', ostacoli: 'Sassi e gradoni nella rincorsa, rocce nella zona di atterraggio', speciale: 'Trampolino nel vuoto: vince il salto più lungo atterrato in piedi (100 punti a metro)', consiglio: 'Turbo prima del trampolino, SALTA sul bordo, poi GAS o IMPENNA per tenere il muso su.' },
+  2: { tipo: 'Gara di salto nel burrone', ostacoli: 'Nessuno in discesa; pietroni nella zona di atterraggio', speciale: 'Scope volanti che danno velocità: più veloce arrivi al bordo, più lontano voli. Classifica anche del salto più lungo', consiglio: 'Prendi tutte le scope tenendo il GAS, poi in volo lancetta nel verde e corsia del bersaglio verde.' },
   3: { tipo: 'Tracciato del giorno', ostacoli: 'Cambiano ogni giorno', speciale: 'Uguale per tutti: classifica che si azzera a mezzanotte', consiglio: 'Primo giro per imparare il tracciato, secondo per fare il tempo.' },
   9: { tipo: 'Pista di ghiaccio a curve', ostacoli: 'Pupazzi di neve e balle di fieno', speciale: 'Vince chi derapa di più e meglio: punti derapata, porte da passare di traverso', consiglio: 'GAS in curva per mettere la moto di traverso e controsterza. Monta le gomme chiodate.' },
   10: { tipo: 'Bagnatissimo e hard', ostacoli: 'Pietraie bagnate, gradoni viscidi, pozze, radici', speciale: 'Diluvio continuo: si sterza peggio', consiglio: 'Gomme tassellate e niente frenesia: una corsia alla volta.' },
@@ -1993,9 +1994,9 @@ function renderGroup(back, m = mode) {
     $('card').innerHTML = `<div class="eyebrow">ENDURO DRINKING TEAM · TUTTI I TELEFONI</div>
       <h1 class="shoptitle">CLASSIFICA<br><em>DEL GRUPPO.</em></h1>
       <div class="boardtabs gtabs">${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
-      <div class="kindtabs"><button type="button" class="${groupKind === 'score' ? 'active' : ''}" data-gkind="score">🏆 PUNTI</button><button type="button" class="${groupKind === 'time' ? 'active' : ''}" data-gkind="time">⏱ TEMPI MIGLIORI</button></div>
+      <div class="kindtabs"><button type="button" class="${groupKind === 'score' ? 'active' : ''}" data-gkind="score">🏆 PUNTI</button><button type="button" class="${groupKind === 'time' ? 'active' : ''}" data-gkind="time">${m === C.JUMP_MODE ? '📏 SALTO PIÙ LUNGO' : '⏱ TEMPI MIGLIORI'}</button></div>
       <p class="gsub">PS${psOf(P.MODES[m])} · ${m === 3 ? 'Sfida del ' + P.todayLabel() + ' (si azzera ogni giorno)' : P.MODES[m].name} · migliori 10, un record a testa</p>
-      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard ${groupKind === 'time' ? 'timeboard' : ''}">${groupKind === 'time' ? timeListHTML(C.timesFor(d, m), nick) : groupListHTML(d.boards?.[m], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}
+      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard ${groupKind === 'time' ? 'timeboard' : ''}">${groupKind === 'time' ? timeListHTML(C.timesFor(d, m), nick, m) : groupListHTML(d.boards?.[m], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}
       <p class="note">${nick ? `In classifica come <b>${nick}</b>.` : 'Il tuo nome lo scegli alla fine del primo giro.'}</p>
       <div class="actions"><button class="primary" id="gback"><span>INDIETRO</span></button><button class="secondary" id="greload">AGGIORNA</button></div>`;
     iconizeEl($('card'));
@@ -2026,7 +2027,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 66;
+const GAME_VERSION = 67;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2085,7 +2086,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=66" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=67" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2093,7 +2094,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=66" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=67" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- Condivisione ----------
