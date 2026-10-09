@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=55';
-import { createWorld } from './scene3d.js?v=55';
-import * as A from './audio.js?v=55';
-import * as P from './progress.js?v=55';
-import { FOTO } from './piloti.js?v=55';
-import { createMud } from './mudfx.js?v=55';
-import { icon, iconize, iconizeEl } from './icons.js?v=55';
-import * as C from './classifica.js?v=55';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=56';
+import { createWorld } from './scene3d.js?v=56';
+import * as A from './audio.js?v=56';
+import * as P from './progress.js?v=56';
+import { FOTO } from './piloti.js?v=56';
+import { createMud } from './mudfx.js?v=56';
+import { icon, iconize, iconizeEl } from './icons.js?v=56';
+import * as C from './classifica.js?v=56';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -32,7 +32,7 @@ function riderLine(kind) {
   const rv = riderVoice(); if (!rv) return false;
   lastVoice = performance.now() / 1000;
   // v48 · Il Gabbah dopo una botta dice "Dopo migliora!" (registrazione nuova in arrivo: per ora solo la scritta)
-  if (rv === 'gabbah' && kind === 'hit') { bigCall('DOPO MIGLIORA!'); return true; }
+  if (rv === 'gabbah' && kind === 'hit') bigCall('DOPO MIGLIORA!');   // v56 · ora con la sua voce (ElevenLabs, ILGABBAH)
   A.sayRider(rv + '_' + kind);
   return true;
 }
@@ -1358,7 +1358,8 @@ function update(dt) {
         if (wheelie) endWheelie(false);
         const lines = { rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.' };
         if (o.type === 'tree') slalomN = 0;
-        if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika();   // v49 · anche su ogni albero di MontaFiga else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
+        // v49 · Erika anche su ogni albero di MontaFiga
+        if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
         if (navigator.vibrate) try { navigator.vibrate(120); } catch {}
         if (lives <= 0) { hud(); if (!run.continued && P.profile.beers >= CONTINUE_COST) offerContinue(); else finish(false); return; }
       }
@@ -1756,7 +1757,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 55;
+const GAME_VERSION = 56;
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
