@@ -1,12 +1,13 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=67';
-import { createWorld } from './scene3d.js?v=67';
-import * as A from './audio.js?v=67';
-import * as P from './progress.js?v=67';
-import { FOTO } from './piloti.js?v=67';
-import { createMud } from './mudfx.js?v=67';
-import { icon, iconize, iconizeEl } from './icons.js?v=67';
-import * as C from './classifica.js?v=67';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=68';
+import { createWorld } from './scene3d.js?v=68';
+import * as A from './audio.js?v=68';
+import * as P from './progress.js?v=68';
+import { FOTO } from './piloti.js?v=68';
+import { createMud } from './mudfx.js?v=68';
+import { icon, iconize, iconizeEl } from './icons.js?v=68';
+import * as C from './classifica.js?v=68';
+import * as D from './duel.js?v=68';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -128,7 +129,7 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=67';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=68';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400;
@@ -396,7 +397,7 @@ function resetRun() {
   if (b.grappa) { grappa = 6; startBoosts.push('GRAPPA DEL RIFUGISTA'); }
   if (b.wine) { magnet = 7 + up.nose; startBoosts.push('BOTTIGLIA DI ROSSO'); }
   run = newRun(); announced = new Set(); shownScore = -1; shownLives = -1; mudFx.clear();
-  rng = mode === 3 ? makeRng(P.todayKey()) : makeRng((Date.now() ^ (Math.random() * 1e9)) >>> 0);
+  rng = duel?.racing ? makeRng(duel.seed) : mode === 3 ? makeRng(P.todayKey()) : makeRng((Date.now() ^ (Math.random() * 1e9)) >>> 0);
   applyLayout(true);
   bs = P.currentStats();
   ice = !!P.MODES[mode].ice;
@@ -408,6 +409,7 @@ function resetRun() {
   throttleSlip = overT = noClimbT = 0; wasSweet = gasLock = false;
   drift = driftT = driftSum = driftPend = driftChain = driftScore = driftBest = driftCount = snowT = bendNow = 0; driftGap = 9; lastWall = -9;
   setupRace();
+  if (duel?.racing) { rivals = [duel.entry]; gGhost = null; duel.opp.c = 0; duel.opp.end = null; duel.me = null; duel.ahead = false; Object.assign(duel.entry, { gap: 0, lx: 1, lift: 0 }); }
 }
 function start() {
   if (!world) return;
@@ -447,6 +449,7 @@ function go() {
 }
 
 function finish(win, reason = '') {
+  if (duel?.racing) { duel.me = { s: Math.round(score), w: win ? 1 : 0, tm: +elapsed.toFixed(2), c: +course.toFixed(2), j: leap ? leapBest : 0 }; D.send({ t: 'end', ...duel.me }); }
   state = 'ended';
   A.engineStop(); A.stopVoice(); A.musicStop();
   setDisabled(false);
@@ -1116,6 +1119,7 @@ function rivalSay(r) {
 function updateRivals(dt, travelStep, route, diff) {
   const base = (1 + diff * .35 + elapsed / 100) * 19.5;
   for (const r of rivals) {
+    if (r.duel) continue;   // v68 · l'avversario dal vivo si muove da solo
     // ritmo del compagno: segue la pendenza come te (sempre col gas aperto), con un "elastico" per restare in gara
     const rr = routeAt(course, (roadTime * 19.5) + r.gap);
     let pace = paceFor(rr, true, 0, 0) * r.skill * (1 - rr.rough * .06);
@@ -1422,6 +1426,7 @@ function update(dt) {
   updateRivals(dt, travelStep, route, diff);
   updateWeather(dt);
   updateGroupGhost();
+  updateDuel(dt);
   if (gasLock) { noClimbT = route.climb > .05 || route.rough > .05 ? 0 : noClimbT + dt; if (noClimbT > 2.5) { gasLock = false; if (!gasDownAt) gas = false; } }
   coachUpdate();
   if (gev) gevStep(dt, diff);
@@ -1705,7 +1710,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=67" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=68" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -1780,6 +1785,7 @@ function renderReady() {
       <span class="record">${icon('trophy')} ${best ? `RECORD ${md.id === 3 ? 'DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span></div>
     </div>
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : A.STYLES[mode].name}</small></span>${icon('chevrons')}</button>
+    <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
     <div class="quickrow">
       <button class="qbtn" id="openshop" type="button"><span class="qi">🔧</span><b>OFFICINA</b><small>${P.profile.beers} 🍺</small></button>
       ${C.enabled() ? '<button class="qbtn" id="opengroup" type="button"><span class="qi">🏆</span><b>CLASSIFICA</b><small id="grouplead">del gruppo</small></button>' : ''}
@@ -1799,7 +1805,8 @@ function renderReady() {
   $('openmissions').onclick = () => { const box = $('missionbox'), open = box.hidden; box.hidden = !open; $('openmissions').setAttribute('aria-expanded', String(open)); $('openmissions').classList.toggle('on', open); A.sfx.click(); };
   requestAnimationFrame(() => { const act = document.querySelector('.modes .mode.active'); if (act) act.parentElement.scrollLeft = act.offsetLeft - act.parentElement.clientWidth / 2 + act.offsetWidth / 2; });
   iconizeEl($('card'));
-  $('start').onclick = start;
+  $('start').onclick = () => { if (duel) duel.racing = false; start(); };
+  $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
   $('openshop').onclick = () => renderShop(renderReady);
   $('alltracks').onclick = () => { A.sfx.click(); renderTracks(renderReady); };
   if ($('tiltmenu')) $('tiltmenu').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltmenu').textContent = '📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO'); $('tiltmenu').classList.toggle('on', on); if (on) toast('📱 INCLINA IL TELEFONO A DESTRA E SINISTRA PER STERZARE', 'green'); };
@@ -1867,6 +1874,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${levelBar(res.after)}
     ${res.after.level > res.before.level ? P.SHOWN().filter(m => m.unlock > res.before.level && m.unlock <= res.after.level).map(m => `<div class="unlock track"><i class="ic-holder">🏁</i><span>NUOVO PERCORSO SBLOCCATO: <b>${m.name}</b></span></div>`).join('') : ''}
     ${res.unlocked.map(l => `<div class="unlock"><i style="--a:${l.plastic};--b:${l.accent}"></i><span>NUOVA LIVREA SBLOCCATA: <b>${l.name}</b> · sceglila nel garage</span></div>`).join('')}
+    ${duel?.racing ? '<div class="duelres" id="duelres"></div>' : ''}
     ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}
     <div class="actions">
       <button class="primary big" id="again"><span>UN ALTRO GIRO</span>${icon('chevrons')}</button>
@@ -1875,11 +1883,12 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
       <button class="secondary" id="menu">MENU</button>
     </div>`;
   iconizeEl($('card'));
-  $('again').onclick = start;
+  $('again').onclick = () => { if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); } };
+  drawDuelResult();
   $('menu').onclick = renderReady;
   $('shopres').onclick = () => renderShop(renderReady);
   $('shareScore').onclick = () => shareScore(win, res);
-  const bindResult = () => { $('again').onclick = start; $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
+  const bindResult = () => { $('again').onclick = () => { if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); } }; drawDuelResult(); $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
   resultSnapshot = { html: $('card').innerHTML, bind: bindResult };
   const gOK = win && !ice && P.MODES[mode].random !== 'run';
   if ($('groupres')) groupResult({ score, mode, rider: profile.rider, time: win ? (leap ? leapBest : elapsed) : 0, win, g: gOK ? C.encodeGhost([...ghostSplits, GAME_LENGTH]) : '' });
@@ -2027,7 +2036,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 67;
+const GAME_VERSION = 68;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2086,7 +2095,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=67" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=68" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2094,8 +2103,134 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=67" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=68" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
+
+// ---------- v68 · Sfida 1 contro 1 dal vivo ----------
+let duel = null;
+const duelInfo = () => { const l = P.currentLivery(); return { t: 'hi', n: C.cleanNick(C.getNick() || profile.rider), r: profile.rider, num: RIDERS.indexOf(profile.rider) + 1, liv: { plastic: l.plastic, accent: l.accent, jersey: l.jersey, pants: l.pants, helmet: l.helmet } }; };
+function duelNew() {
+  duel = { racing: false, seed: 0, status: '', opp: { n: 'AVVERSARIO', r: '', c: 0, x: 1, l: 0, end: null }, me: null, ahead: false, lastSend: 0, lastMsg: 0,
+    entry: { name: 'AVVERSARIO', duel: true, gap: 0, lane: 1, lx: 1, lean: 0, lift: 0, number: 2, livery: { plastic: '#1e7fd8', accent: '#ffffff', jersey: '#1e7fd8', pants: '#202020', helmet: '#ffffff' } } };
+}
+D.on('open', () => { if (!duel) duelNew(); duel.status = 'ok'; D.send(duelInfo()); A.sfx.perfect?.(); if (state === 'ready' || state === 'ended') renderDuel(); });
+D.on('close', () => {
+  if (!duel) return; duel.status = 'lost';
+  if (state === 'playing') toast('⚔️ ' + duel.opp.n.toUpperCase() + ' SI È SCOLLEGATO', 'red');
+  if (duel.racing && state === 'playing') { duel.entry.gap = -999; }
+  if (state === 'ready' && $('duelcard')) renderDuel();
+});
+D.on('data', d => {
+  if (!duel) duelNew();
+  duel.lastMsg = performance.now();
+  if (d.t === 'hi') {
+    duel.opp.n = String(d.n || 'AVVERSARIO').slice(0, 16); duel.opp.r = d.r || '';
+    Object.assign(duel.entry, { name: '⚔️ ' + duel.opp.n.toUpperCase(), number: Math.max(1, Math.min(99, d.num | 0)) || 2 });
+    if (d.liv) duel.entry.livery = { ...duel.entry.livery, ...d.liv };
+    if ($('duelcard')) renderDuel();
+  } else if (d.t === 'go') {
+    if (D.getRole() !== 'guest') return;
+    if (state === 'playing' || state === 'countdown') return;
+    duelGo(d.mode, d.seed);
+  } else if (d.t === 'p') {
+    Object.assign(duel.opp, { c: +d.c || 0, x: +d.x || 1, l: +d.l || 0, k: d.k | 0 });
+  } else if (d.t === 'end') {
+    duel.opp.end = d;
+    if (state === 'playing') toast('⚔️ ' + duel.opp.n.toUpperCase() + (d.w ? ' HA FINITO: ' + (P.MODES[mode].leap ? C.fmtJump(d.j) : (+d.tm).toFixed(1).replace('.', ',') + ' s') : ' È FUORI GARA'), d.w ? 'gold' : 'green');
+    drawDuelResult();
+  } else if (d.t === 'menu') {
+    if ($('duelcard')) renderDuel();
+  }
+});
+function duelGo(m, seed) {
+  if (!P.MODES[m] || !P.isUnlocked(P.MODES[m])) { toast('⚔️ QUEL PERCORSO NON È ANCORA SBLOCCATO QUI', 'red'); }
+  mode = m; profile.mode = m; P.save(); duel.racing = true; duel.seed = seed >>> 0;
+  start();
+}
+function updateDuel() {
+  if (!duel?.racing) return;
+  const now = performance.now(), e = duel.entry, o = duel.opp;
+  if (state === 'playing' && now - duel.lastSend > 90) { duel.lastSend = now; D.send({ t: 'p', c: +course.toFixed(3), x: +px.toFixed(3), l: +curLift().toFixed(2), k: kmh }); }
+  const before = e.lx;
+  e.gap = (o.c - course) / GAME_LENGTH * courseLength(P.MODES[mode].difficulty) * 19.5;
+  e.lx += (o.x - e.lx) * .35; e.lean = (e.lx - before) * 60; e.lift = o.l || 0;
+  if (state !== 'playing' || elapsed < 2) return;
+  const ahead = course > o.c;
+  if (ahead && !duel.ahead) { pop('⚔️ SORPASSO SU ' + o.n.toUpperCase() + '!', 'gold'); A.sfx.near(); }
+  else if (!ahead && duel.ahead) pop('⚔️ ' + o.n.toUpperCase() + ' TI HA PASSATO!', 'white');
+  duel.ahead = ahead;
+}
+function duelWinner(a, b) {   // +1 vince a, -1 vince b
+  const md = P.MODES[mode];
+  if (md.leap) return a.j === b.j ? 0 : a.j > b.j ? 1 : -1;
+  if (md.ice) return a.s === b.s ? 0 : a.s > b.s ? 1 : -1;
+  if (a.w && b.w) return a.tm === b.tm ? 0 : a.tm < b.tm ? 1 : -1;
+  if (a.w !== b.w) return a.w ? 1 : -1;
+  if (Math.abs(a.c - b.c) > .05) return a.c > b.c ? 1 : -1;
+  return a.s === b.s ? 0 : a.s > b.s ? 1 : -1;
+}
+function drawDuelResult() {
+  const box = $('duelres'); if (!box || !duel) return;
+  const me = duel.me, op = duel.opp.end, n = duel.opp.n.toUpperCase(), md = P.MODES[mode];
+  const val = x => md.leap ? (x.j ? C.fmtJump(x.j) : 'salto nullo') : md.ice ? x.s.toLocaleString('it-IT') + ' pt' : x.w ? (+x.tm).toFixed(1).replace('.', ',') + ' s al rifugio' : 'fuori gara (' + Math.round(x.c / GAME_LENGTH * 100) + '%)';
+  if (!me) { box.innerHTML = ''; return; }
+  if (!op) { box.innerHTML = `<div class="dhead">⚔️ SFIDA CON ${n}</div><p>Tu: <b>${val(me)}</b> · aspetto ${n}…</p>`; return; }
+  const r = duelWinner(me, op);
+  box.innerHTML = `<div class="dhead ${r > 0 ? 'win' : r < 0 ? 'lose' : ''}">⚔️ ${r > 0 ? 'HAI VINTO LA SFIDA!' : r < 0 ? n + ' HA VINTO' : 'PAREGGIO!'}</div>
+    <p>Tu: <b>${val(me)}</b> · ${n}: <b>${val(op)}</b></p>
+    <button class="primary" type="button" id="duelagain">${D.getRole() === 'host' ? '⚔️ RIVINCITA' : '⚔️ TORNA ALLA SFIDA'}</button>`;
+  if (r > 0) A.sfx.fanfare?.();
+  $('duelagain').onclick = () => renderDuel();
+}
+function renderDuel() {
+  if (state === 'playing' || state === 'countdown') return;
+  if (state !== 'ended') state = 'ready';
+  setMenu(true); $('overlay').classList.remove('hidden');
+  if (!duel) duelNew();
+  const on = D.isOn(), host = D.getRole() === 'host', md = P.MODES[mode], n = duel.opp.n.toUpperCase();
+  const shareURL = publicGameURL + '?sfida=' + D.getCode();
+  const modes = P.SHOWN().filter(m => P.isUnlocked(m));
+  $('card').innerHTML = `<div id="duelcard" class="duelcard"><div class="eyebrow">ENDURO DRINKING TEAM · DAL VIVO</div>
+    <h1>SFIDA<br><em>1 CONTRO 1.</em></h1>
+    ${on ? `<div class="duelvs"><span>${avatarHTML(profile.rider)}<b>TU</b></span><i>VS</i><span>${RIDERS.includes(duel.opp.r) ? avatarHTML(duel.opp.r) : '<i class="noav"></i>'}<b>${n}</b></span></div>
+      ${host ? `<label class="duelpick">PERCORSO <select id="duelmode">${modes.map(m => `<option value="${m.id}" ${m.id === mode ? 'selected' : ''}>PS${psOf(m)} · ${m.name}</option>`).join('')}</select></label>
+        <button class="primary big" id="duelgo" type="button"><span>PARTIAMO!</span>${icon('chevrons')}</button>
+        <p class="tip">Partite insieme dopo il 3-2-1. Vince chi arriva prima al rifugio (al ghiaccio chi fa più punti derapata, ad Angelo Potter il salto più lungo).</p>`
+      : `<p class="duelwait">Collegato con <b>${n}</b>. Aspetta che faccia partire la gara: il percorso lo sceglie lui.</p>`}`
+    : D.getRole() === 'host' ? `<p class="duelwait">Manda questo codice all'amico: lo inserisce in <b>SFIDA 1 CONTRO 1</b>, oppure apre il link.</p>
+      <div class="duelcode">${D.getCode()}</div>
+      <div class="grow"><button class="secondary" id="duelshare" type="button">📤 MANDA IL LINK</button></div>
+      <p class="tip">Aspetto che si colleghi… (tieni aperta questa schermata)</p>`
+    : `<button class="primary big" id="duelhost" type="button"><span>CREA LA SFIDA</span>${icon('chevrons')}</button>
+      <div class="dueljoin"><input id="duelin" maxlength="4" placeholder="CODICE" autocomplete="off" autocapitalize="characters" value="${duel.pending || ''}"><button class="secondary" id="dueljoin" type="button">ENTRA</button></div>
+      <p class="duelstat" id="duelstat">${duel.status === 'lost' ? 'Collegamento perso. Rifate la sfida.' : duel.status === 'err' ? duel.err : ''}</p>
+      <p class="tip">Serve internet su tutti e due i telefoni. Il collegamento è diretto tra i telefoni: su alcune reti (es. certe linee mobili o Wi-Fi aziendali) può non riuscire; in quel caso provate un'altra rete.</p>`}
+    <div class="actions"><button class="secondary" id="duelback" type="button">⬅ MENU</button>${on || D.getRole() ? '<button class="linkbtn" id="duelquit" type="button">chiudi la sfida</button>' : ''}</div></div>`;
+  iconizeEl($('card'));
+  $('duelback').onclick = renderReady;
+  if ($('duelquit')) $('duelquit').onclick = () => { D.close(); duel = null; renderDuel(); };
+  if ($('duelhost')) $('duelhost').onclick = async () => {
+    $('duelhost').disabled = true; $('duelstat').textContent = 'Creo la sfida…';
+    try { await D.host(); duel.status = 'wait'; renderDuel(); }
+    catch (e) { duel.status = 'err'; duel.err = 'Non riesco a creare la sfida: controlla la rete e riprova.'; renderDuel(); }
+  };
+  if ($('dueljoin')) $('dueljoin').onclick = async () => {
+    const c = $('duelin').value.trim().toUpperCase(); if (c.length !== 4) { $('duelstat').textContent = 'Il codice è di 4 lettere.'; return; }
+    $('dueljoin').disabled = true; $('duelstat').textContent = 'Mi collego a ' + c + '…';
+    try { await D.join(c); }
+    catch (e) { D.close(); duel.status = 'err'; duel.err = 'Sfida ' + c + ' non trovata o rete bloccata. Controlla il codice (chi l’ha creata deve tenere aperta la schermata).'; renderDuel(); }
+  };
+  if ($('duelshare')) $('duelshare').onclick = async () => {
+    const text = '⚔️ Ti sfido a Giro Easy! Codice ' + D.getCode() + ' · ' + shareURL;
+    try { if (navigator.share) await navigator.share({ title: 'Sfida Giro Easy', text, url: shareURL }); else { await navigator.clipboard.writeText(text); toast('LINK COPIATO', 'green'); } } catch {}
+  };
+  if ($('duelgo')) $('duelgo').onclick = () => {
+    const m = +$('duelmode').value, seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
+    D.send({ t: 'go', mode: m, seed }); duelGo(m, seed);
+  };
+}
+// link d'invito: ?sfida=ABCD apre la sfida e si collega da solo
+{ const q = new URLSearchParams(location.search).get('sfida'); if (q && /^[A-Za-z]{4}$/.test(q)) { setTimeout(() => { duelNew(); duel.pending = q.toUpperCase(); renderDuel(); $('duelin') && ($('duelin').value = duel.pending); $('dueljoin')?.click(); }, 1200); } }
 
 // ---------- Condivisione ----------
 // Su un hosting proprio è l'indirizzo della pagina; nella versione link Claude lo imposta index.html.
@@ -2246,6 +2381,6 @@ if (/debug/.test(location.hash)) {
 }
 
 // Aggancio per i test automatici (non usato dal gioco).
-window.__edt = { get state() { return state; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
+window.__edt = { get state() { return state; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, erika, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };

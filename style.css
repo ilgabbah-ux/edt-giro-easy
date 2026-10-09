@@ -1190,3 +1190,23 @@ aside#hub { gap: 10px; }
 .bikestrip .bk.on { border-color: var(--y); background: radial-gradient(ellipse at 50% 60%, #ffcf1630, #0000 70%), linear-gradient(160deg, #2e2a12, #15130a); box-shadow: 0 0 0 1px var(--y), 0 0 14px #ffcf1655; }
 .bikestrip .bk.on small { color: var(--y); }
 .bikestrip .bk.on::after { content: '✓'; position: absolute; top: 3px; right: 5px; font: 900 13px var(--ui); color: var(--y); }
+
+/* v68 · sfida 1 contro 1 dal vivo */
+.duelbtn { width: 100%; margin: 8px 0 2px; font: italic 800 15px var(--ui); letter-spacing: 1px; }
+.duelcard h1 { margin-bottom: 10px; }
+.duelcode { margin: 10px auto 12px; width: max-content; padding: 10px 26px; font: 400 56px/1 'Anton', sans-serif; letter-spacing: 12px; color: #141414; background: var(--y); clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); }
+.dueljoin { display: flex; gap: 8px; margin: 12px 0 6px; }
+.dueljoin input { flex: 1; min-width: 0; padding: 12px; font: 400 26px 'Anton', sans-serif; letter-spacing: 8px; text-transform: uppercase; text-align: center; background: #0d0f0c; color: #fff; border: 2px solid #ffffff33; }
+.dueljoin input:focus { outline: none; border-color: var(--y); }
+.duelstat { min-height: 1.2em; color: var(--y); font: 700 13px var(--ui); }
+.duelwait { font: 600 15px var(--ui); color: #fff; }
+.duelvs { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 10px 0 14px; }
+.duelvs > span { display: flex; flex-direction: column; align-items: center; gap: 4px; font: italic 800 13px var(--ui); letter-spacing: 1px; }
+.duelvs > i { font: 400 34px 'Anton', sans-serif; color: var(--y); font-style: normal; }
+.duelpick { display: flex; flex-direction: column; gap: 4px; margin: 0 0 10px; font: 800 12px var(--ui); letter-spacing: 1px; color: #ffffffaa; }
+.duelpick select { padding: 10px; font: 700 15px var(--ui); background: #0d0f0c; color: #fff; border: 2px solid #ffffff33; }
+.duelres { margin: 10px 0; padding: 10px 12px; border: 2px solid var(--y); background: #1b1a10; }
+.duelres .dhead { font: 400 22px 'Anton', sans-serif; letter-spacing: 1px; color: #fff; }
+.duelres .dhead.win { color: var(--y); }
+.duelres .dhead.lose { color: #ff7a5c; }
+.duelres p { margin: 6px 0 8px; font: 600 14px var(--ui); }
