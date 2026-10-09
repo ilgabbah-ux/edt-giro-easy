@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=65';
-import { createWorld } from './scene3d.js?v=65';
-import * as A from './audio.js?v=65';
-import * as P from './progress.js?v=65';
-import { FOTO } from './piloti.js?v=65';
-import { createMud } from './mudfx.js?v=65';
-import { icon, iconize, iconizeEl } from './icons.js?v=65';
-import * as C from './classifica.js?v=65';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=66';
+import { createWorld } from './scene3d.js?v=66';
+import * as A from './audio.js?v=66';
+import * as P from './progress.js?v=66';
+import { FOTO } from './piloti.js?v=66';
+import { createMud } from './mudfx.js?v=66';
+import { icon, iconize, iconizeEl } from './icons.js?v=66';
+import * as C from './classifica.js?v=66';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -128,7 +128,7 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-suuuka', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=65';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=66';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400;
@@ -163,7 +163,7 @@ function tiltApply(raw) {
 window.addEventListener('deviceorientation', e => {
   if (e.gamma === null || e.gamma === undefined) return;
   tiltSeen = tiltOriSeen = performance.now();
-  if (!tiltOn) { tiltSteer = 0; return; }
+  if (!tiltOn) { tiltSteer = 0; tiltRaw = tiltAngle(e) || 0; return; }
   tiltApply(tiltAngle(e) || 0);
 });
 // v65 · riserva: alcuni telefoni non mandano l'orientamento ma solo l'accelerometro (gravità)
@@ -182,6 +182,11 @@ document.addEventListener('pointerdown', () => {
   if (tiltOn && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function' && performance.now() - tiltSeen > 1000)
     DeviceOrientationEvent.requestPermission().catch(() => {});
 }, { passive: true });
+setInterval(() => {   // v66 · il pulsante del menu mostra se il telefono manda l'inclinazione
+  const b = document.getElementById('tiltmenu'); if (!b || !b.offsetParent) return;
+  const live = performance.now() - tiltSeen < 1200;
+  b.textContent = '📱 STERZO INCLINANDO: ' + (tiltOn ? 'SÌ' + (live ? ' · ' + Math.round(tiltRaw) + '°' : ' · NESSUN SEGNALE') : 'NO');
+}, 300);
 async function setTilt(on) {
   if (on && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     try { if (await DeviceOrientationEvent.requestPermission() !== 'granted') { toast('📱 PERMESSO AL GIROSCOPIO NEGATO', 'red'); on = false; } } catch { on = false; }
@@ -966,7 +971,7 @@ function spawnWave() {
 function spawnLeapWave() {
   // v64 · partenza, discesa a tutta sulle frecce di spinta, poi il burrone (niente rampa: finisce la montagna)
   const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
-  if (leapState === 0 && course > 26) {
+  if (leapState === 0 && course > 9) {
     leapState = 1; add(1, .08, 'bigRamp');
     canyonX0 = roadTime * 19.5 + (.91 - .08) * 55;
     canyonLen = 400;   // finché non stacchi il burrone non finisce
@@ -988,7 +993,7 @@ function leapTakeoff() {
   const k = Math.max(0, Math.min(1.6, (leapStartKmh - 35) / 50)) * (perfect ? 1.12 : 1) * (turbo > 0 ? 1.08 : 1);
   const v = Math.max(8, leapZRate * 55) * .42;   // unità di mondo al secondo in volo (scorrimento rallentato)
   jumpDur = Math.max(2.2 + k * 2.2, 30 / v);
-  jumpH = 7 + k * 9; jump = jumpDur; scrubbed = 0;
+  jumpH = 3.5 + k * 5; jump = jumpDur; scrubbed = 0;
   canyonLen = Math.max(20, v * jumpDur - 12);   // il bordo opposto arriva poco prima di dove atterri
   if (wheelie) endWheelie(false);
   leapState = 2; leapStartT = elapsed; leapPitch = .1; leapW = 0;
@@ -1700,7 +1705,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=65" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=66" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -2021,7 +2026,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 65;
+const GAME_VERSION = 66;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2080,7 +2085,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=65" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=66" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2088,7 +2093,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=65" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=66" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- Condivisione ----------

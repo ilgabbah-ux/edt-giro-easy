@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=65';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=66';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -159,15 +159,22 @@ export function createWorld(canvas) {
   const center = (z, t) => iceMode ? iceShape(t - z) - iceShape(t) : Math.sin((t - z) * .021) * 3.8 - Math.sin(t * .021) * 3.8 + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;
   // v64 · burrone del Taglio di Angelo: la montagna finisce e il terreno sprofonda (la moto resta alla quota del bordo)
   let canyon = null;
-  const CANYON_D = 75;
-  const canyonDepth = x => {
+  const CANYON_D = 52, CANYON_DROP = 14;   // profondità del burrone e quanto più in basso si atterra
+  const canyonDepth = x => {   // quota assoluta in più (negativa) del terreno nel punto x del percorso
     if (!canyon) return 0;
-    const u = x - canyon.x0; if (u < 0 || u > canyon.len) return 0;
-    const wall = Math.min(1, u / 2.5, (canyon.len - u) / 5);
+    const u = x - canyon.x0; if (u < 0) return 0;
+    if (u > canyon.len) return -CANYON_DROP;
+    const wall = Math.min(1, u / 2.5, (canyon.len - u) / 2.5);
     const k = wall * wall * (3 - 2 * wall);
-    return -CANYON_D * k - Math.sin(u * .35) * 2.5 * k;
+    return -CANYON_D * k - CANYON_DROP * (1 - k) * (u > canyon.len / 2 ? 1 : 0);
   };
-  const height = (z, t) => terrainHeight(z, t, trail) + canyonDepth(t - z);
+  const canyonRef = t => {   // la quota di riferimento della moto scende piano mentre vola sopra il burrone
+    if (!canyon) return 0;
+    const u = t - canyon.x0, L = canyon.len + 12; if (u <= 0) return 0; if (u >= L) return -CANYON_DROP;
+    const k = u / L; return -CANYON_DROP * k * k;
+  };
+  const inCanyon = x => canyon && x - canyon.x0 > 1.5 && x - canyon.x0 < canyon.len - 1.5;
+  const height = (z, t) => terrainHeight(z, t, trail) + canyonDepth(t - z) - canyonRef(t);
   const slope = (z, t) => terrainGrade(z, t, trail);
   function bank(w, z) {
     const edge = 4.65 * trail.width, d = Math.max(0, Math.abs(w) - edge);
@@ -194,8 +201,7 @@ export function createWorld(canvas) {
           const rut = o === road ? trail.rough * (Math.cos(w * 5.8) * .025 + Math.sin((t - z) * 1.2 + w) * .022) : 0;
           a.setXYZ(k, c + w, h + hill + rut, z);
           const noise = Math.sin((t - z) * .21 + w * .84) * Math.cos((t - z) * .083 - w * 1.7);
-          const deep = canyon ? Math.max(.3, 1 + canyonDepth(t - z) / 60) : 1;
-          const tint = (o === road ? .93 + noise * .07 : .86 + noise * .14) * deep;
+          const tint = o === road ? .93 + noise * .07 : .86 + noise * .14;
           col.setXYZ(k, tint, tint, o === road ? tint : tint * .94);
         }
       }
@@ -218,6 +224,41 @@ export function createWorld(canvas) {
       grass.color.set('#f2f7fa'); verge.color.set('#dde9ef');
       scene.fog.near = fogBase.near; scene.fog.far = fogBase.far;
     } else dirt.metalness = 0;
+  }
+  // v66 · il burrone visto dall'alto: fondovalle dipinto (bosco, prati, torrente) e parete di roccia di fronte, senza nebbia
+  const valleyTex = (() => {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 1024; const x = c.getContext('2d');
+    x.fillStyle = '#2f4a2c'; x.fillRect(0, 0, 512, 1024);
+    for (let i = 0; i < 2600; i++) { const r = 4 + Math.random() * 13; x.fillStyle = `hsl(${95 + Math.random() * 40},${25 + Math.random() * 25}%,${12 + Math.random() * 16}%)`; x.beginPath(); x.arc(Math.random() * 512, Math.random() * 1024, r, 0, 7); x.fill(); }
+    for (let i = 0; i < 14; i++) { x.fillStyle = `hsla(${70 + Math.random() * 30},35%,${38 + Math.random() * 12}%,.55)`; x.beginPath(); x.ellipse(Math.random() * 512, Math.random() * 1024, 30 + Math.random() * 60, 18 + Math.random() * 40, Math.random() * 3, 0, 7); x.fill(); }
+    x.lineCap = 'round';
+    for (const [w, col] of [[30, '#c9c2ae'], [18, '#4f8fb0'], [8, '#8fc4dc']]) { x.strokeStyle = col; x.lineWidth = w; x.beginPath(); for (let y = -10; y <= 1034; y += 8) { const xx = 256 + Math.sin(y * .011) * 120 + Math.sin(y * .029) * 40; y < 0 ? x.moveTo(xx, y) : x.lineTo(xx, y); } x.stroke(); }
+    for (let i = 0; i < 500; i++) { x.fillStyle = `rgba(160,150,135,${.3 + Math.random() * .4})`; x.fillRect(Math.random() * 512, Math.random() * 1024, 2 + Math.random() * 5, 2 + Math.random() * 4); }
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4; return t;
+  })();
+  const rockTex = (() => {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 256; const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, '#9a9386'); g.addColorStop(.6, '#706a60'); g.addColorStop(1, '#3a3631'); x.fillStyle = g; x.fillRect(0, 0, 512, 256);
+    for (let i = 0; i < 900; i++) { const r = 3 + Math.random() * 16, l = 30 + Math.random() * 40; x.fillStyle = `hsla(${25 + Math.random() * 20},${6 + Math.random() * 10}%,${l}%,${.25 + Math.random() * .35})`; x.beginPath(); x.ellipse(Math.random() * 512, Math.random() * 256, r * (1 + Math.random()), r * (.4 + Math.random() * .5), 0, 0, 7); x.fill(); }
+    for (let i = 0; i < 18; i++) { x.strokeStyle = 'rgba(30,26,22,.55)'; x.lineWidth = 1.5 + Math.random() * 2; x.beginPath(); let px = Math.random() * 512, py = Math.random() * 120; x.moveTo(px, py); for (let k = 0; k < 6; k++) { px += (Math.random() - .5) * 30; py += 8 + Math.random() * 18; x.lineTo(px, py); } x.stroke(); }
+    for (let i = 0; i < 9; i++) { const y = 20 + Math.random() * 220; x.fillStyle = 'rgba(40,36,32,.35)'; x.fillRect(0, y, 512, 2 + Math.random() * 3); x.fillStyle = 'rgba(210,200,185,.18)'; x.fillRect(0, y - 2, 512, 2); }
+    for (let i = 0; i < 60; i++) { x.fillStyle = `rgba(${60 + Math.random() * 30},${90 + Math.random() * 30},${45 + Math.random() * 20},${.5 + Math.random() * .3})`; x.beginPath(); x.arc(Math.random() * 512, Math.random() * 26, 4 + Math.random() * 9, 0, 7); x.fill(); }
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.anisotropy = 4; return t;
+  })();
+  const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
+  const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
+  const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
+  const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
+  function placeCanyon(t) {
+    const on = !!canyon; valley.visible = farWall.visible = on;
+    if (!on) return;
+    const ref = canyonRef(t), zNear = t - canyon.x0, zFar = t - (canyon.x0 + canyon.len), floorY = -CANYON_D - ref + 1.5;
+    const L = Math.max(1, zNear - zFar);
+    valley.scale.set(1, L + 6, 1); valley.position.set(0, floorY, (zNear + zFar) / 2);
+    valleyTex.repeat.set(420 / 160, (L + 6) / 320); valleyTex.offset.y = (-(canyon.x0) / 320) % 1;
+    const topF = -CANYON_DROP - ref, hF = topF - floorY;
+    farWall.scale.set(1, hF * 1.08, 1); farWall.rotation.x = -.38; farWall.position.set(0, floorY + hF / 2, zFar + 1.2 + hF * .2);
+    rockTex.repeat.set(420 / 45, 1);
   }
   // texture del ghiaccio: graffi bianchi dei chiodi su fondo azzurro
   const iceTex = (() => {
@@ -250,7 +291,7 @@ export function createWorld(canvas) {
   const dens = (z, D) => { const w = sectionWeights(curCourse - z * courseScale); return w[0] * D[0] + w[1] * D[1] + w[2] * D[2] + w[3] * D[3]; };
   const vis = (z, D, h) => Math.max(0, Math.min(1, (dens(z, D) - h) * 5));
   const put = (m, i) => { dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix); };
-  const ground = (z, t, w) => height(z, t) + bank(w, z);
+  const ground = (z, t, w) => height(z, t) + bank(w, z) - (inCanyon(t - z) ? 400 : 0);   // nel burrone niente alberi a mezz'aria
 
   // Pini (sottobosco)
   const branchShape = [[0, -2.4], [1.6, -2.25], [.7, -.82], [1.28, -1.05], [.46, .35], [.9, .10], [0, 2.4]].map(([x, y]) => new T.Vector2(x, y));
@@ -529,7 +570,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=65', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=66', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -1658,6 +1699,7 @@ export function createWorld(canvas) {
     skyUniforms.uTime.value = now / 1000;
 
     canyon = s.canyon || null;
+    placeCanyon(s.roadTime * 19.5);
     const t = s.roadTime * 19.5;
     const live = s.state === 'playing' || s.state === 'paused' || s.state === 'countdown';
     const boostAmount = live ? (s.turbo || 0) : 0;
