@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=58';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=59';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -1255,6 +1255,34 @@ export function createWorld(canvas) {
       box(1.56, .1, .12, rampLip, g, 0, .64, -.6);
       for (const sx of [-1, 1]) rod([sx * .8, .0, -.66], [sx * .8, 1.05, -.66], .035, black, g);
       const fl = box(.32, .2, .02, rampLip, g, -.66, .95, -.66); fl.castShadow = false;
+    } else if (type === 'bigRamp') {
+      // v59 · il trampolino del Taglio di Angelo: rampa di legno su tutta la pista, bordo giallo-nero e striscione
+      const inner = new T.Group(); g.add(inner); g.userData.inner = inner;
+      const wood = mat('#8a5a32', .85), lip = mat('#ffcf16', .5);
+      for (let i = 0; i < 7; i++) { const k = i / 6, pl = box(1, .06, .5, wood, inner, 0, .05 + k * 1.6, 1.6 - k * 3.2); pl.rotation.x = -Math.atan2(1.6, 3.2); }
+      const l = box(1.02, .16, .2, lip, inner, 0, 1.7, -1.62); l.castShadow = false;
+      const c = document.createElement('canvas'); c.width = 512; c.height = 96; const x = c.getContext('2d');
+      x.fillStyle = '#141414'; x.fillRect(0, 0, 512, 96); x.fillStyle = '#ffcf16'; x.font = '900 58px Arial'; x.textAlign = 'center'; x.fillText('IL TAGLIO DI ANGELO', 256, 70);
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+      const ban = mesh(new T.PlaneGeometry(6.4, 1.2), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); ban.position.set(0, 4.6, -1.8); ban.castShadow = false;
+      for (const sd of [-1, 1]) box(.2, 5.2, .2, wood, g, sd * 3.3, 2.6, -1.8);
+    } else if (type === 'farm') {
+      // v59 · la cascina del Gusta Ranch: casa lunga, tetto di coppi, portico ad archi, fieno e insegna
+      const wall = mat('#e8d3a8', .9), roof = mat('#b4532a', .8), wood = mat('#6b4423', .9), dark = mat('#2a1e16', .9), hay = mat('#e0b64a', 1);
+      box(9, 3.4, 4.2, wall, g, 0, 1.7, 0);
+      const r1 = box(9.6, .25, 2.6, roof, g, 0, 3.9, -1.05); r1.rotation.x = .5;
+      const r2 = box(9.6, .25, 2.6, roof, g, 0, 3.9, 1.05); r2.rotation.x = -.5;
+      for (let i = 0; i < 4; i++) { box(1.5, 2.1, .2, dark, g, -3.2 + i * 2.1, 1.05, 2.12); }
+      for (let i = 0; i < 5; i++) box(.4, 2.4, .4, wall, g, -4.2 + i * 2.1, 1.2, 2.3);
+      for (let i = 0; i < 3; i++) { box(.9, .8, .2, dark, g, -3 + i * 3, 2.75, 2.12); box(1.1, .1, .3, wood, g, -3 + i * 3, 2.3, 2.15); }
+      for (const [x, z] of [[5.6, 1.6], [6.6, .6], [5.9, -.6], [6.2, 2.8]]) { const h = mesh(new T.CylinderGeometry(.75, .75, 1.2, 16), hay, g); h.rotation.z = Math.PI / 2; h.position.set(x, .75, z); }
+      const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d');
+      x.fillStyle = '#3a2414'; x.fillRect(0, 0, 512, 128); x.strokeStyle = '#e0a03a'; x.lineWidth = 10; x.strokeRect(6, 6, 500, 116);
+      x.fillStyle = '#ffb12b'; x.font = '900 74px Arial'; x.textAlign = 'center'; x.fillText('GUSTA RANCH', 256, 92);
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+      for (const sd of [-1, 1]) box(.2, 3.4, .2, wood, g, 5.2 + sd * 1.6, 1.7, 4.6);
+      const sign = mesh(new T.PlaneGeometry(3.4, .85), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); sign.position.set(5.2, 3.0, 4.7); sign.rotation.y = .5; sign.castShadow = false;
+      g.rotation.y = .25;
     } else if (type === 'cone') {
       // v57 · birillo lanciato dalle GEV
       box(.6, .06, .6, gevBlack, g, 0, .03, 0);
@@ -1502,7 +1530,7 @@ export function createWorld(canvas) {
     }
   }
 
-  let camLift = 0, camX = 0, lastRender = performance.now(), wasAir = false, shakeX = 0, shakeY = 0;
+  let leapFollow = 0, camLift = 0, camX = 0, lastRender = performance.now(), wasAir = false, shakeX = 0, shakeY = 0;
 
   function resize() {
     const r = canvas.getBoundingClientRect();
@@ -1625,7 +1653,7 @@ export function createWorld(canvas) {
     const wheelieTarget = playing && s.jump <= 0 ? (s.wheelie ? .58 : boostAmount > 2.0 ? .42 : boostAmount > 0 ? .08 : s.gas && trail.climb > .3 ? .05 : 0) : 0;
     dyn.wheelie += (wheelieTarget - dyn.wheelie) * Math.min(1, fdt * (wheelieTarget > dyn.wheelie ? 12 : 4));
     const crashPitch = crash > 0 ? Math.sin(crash * 18) * crash * .25 : 0;
-    const pitchTarget = air + dyn.wheelie + crashPitch;
+    const pitchTarget = s.leapPitch !== undefined ? s.leapPitch : air + dyn.wheelie + crashPitch;   // v59 · in volo dal trampolino l'assetto lo decide il pilota
     dyn.pitchV += ((pitchTarget - dyn.pitch) * 95 - dyn.pitchV * 13) * fdt;
     dyn.pitch += dyn.pitchV * fdt;
     pitch.rotation.x = grade + dyn.pitch;
@@ -1686,7 +1714,7 @@ export function createWorld(canvas) {
       const z = (o.z - .91) * 55;
       let lx = (o.l - 1) * spacing();
       if (o.type === 'coin' && s.magnet > 0 && o.z > .62 && !o.air) lx += ((s.px - 1) * spacing() - lx) * Math.min(1, (o.z - .62) / .29);
-      if (o.type === 'bigLog' || o.type === 'ford') lx = 0;
+      if (o.type === 'bigLog' || o.type === 'ford' || o.type === 'bigRamp') lx = 0;
       m.position.set(center(z, t) + lx, height(z, t) + (o.lift || 0), z);
       m.rotation.x = Math.atan(slope(z, t));
       if (m.userData.spin) {
@@ -1696,6 +1724,7 @@ export function createWorld(canvas) {
       if (m.userData.roller) m.userData.roller.rotation.z = -o.z * 26;
       if (o.type === 'bigLog') { const len = spacing() * 2 + 2.2; m.userData.inner.scale.x = len; }
       if (o.type === 'ford') m.userData.inner.scale.x = spacing() * 2 + 4.5;
+      if (o.type === 'bigRamp') m.userData.inner.scale.x = spacing() * 2 + 3;
       if (o.cross) m.rotation.y = o.cross > 0 ? 0 : Math.PI;
       else if (o.type === 'ibex' || o.type === 'chamois' || o.type === 'marmot') m.rotation.y = 0;
       if (o.lean !== undefined && o.type === 'tree') m.rotation.z = o.lean * .3;
@@ -1837,7 +1866,8 @@ export function createWorld(canvas) {
     // v51 · in salita sul telefono in orizzontale la camera resta bassa e guarda più su: si vede la strada che arriva
     camera.position.set(camX + .55 * trail.rough + shakeX, camY + airborne * .3 + trail.climb * (portrait ? .2 : short ? .25 : 1.2) + shakeY, camZ + trail.climb * (short ? .6 : 1.3) - boostAmount * .15);
     camLift += (Math.max(0, lift - 1.1) * .8 - camLift) * .12;
-    camera.lookAt(bike.position.x * (portrait ? .4 : .16), lookY + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : short ? 1.5 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : short ? .45 : .1), lookZ);
+    leapFollow += ((s.leapCam ? lift * .9 : 0) - leapFollow) * .15; if (leapFollow > .01) { camera.position.y += leapFollow; camera.position.z += leapFollow * .25; }
+    camera.lookAt(bike.position.x * (portrait ? .4 : .16), lookY + leapFollow * .55 + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : short ? 1.5 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : short ? .45 : .1), lookZ);
     camera.rotateZ(bike.rotation.z * .06);
     if (s.ice) camera.rotateZ(-(s.drift || 0) * .045);   // v49 · la camera segue un filo la derapata
     sky.position.copy(camera.position);

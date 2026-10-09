@@ -73,7 +73,7 @@ export function iconizeEl(root) {
   if (!root) return;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const nodes = [];
-  while (walker.nextNode()) { RE.lastIndex = 0; if (RE.test(walker.currentNode.nodeValue)) nodes.push(walker.currentNode); }
+  while (walker.nextNode()) { RE.lastIndex = 0; if (RE.test(walker.currentNode.nodeValue) && !walker.currentNode.parentElement?.closest('.noicx')) nodes.push(walker.currentNode); }   // v59 · .noicx = lascia l'emoji
   for (const n of nodes) {
     const span = document.createElement('span');
     span.className = 'icx';

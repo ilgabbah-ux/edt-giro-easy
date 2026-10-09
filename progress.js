@@ -11,35 +11,43 @@ export const MODES = [
     layout: [{ t: 0, len: 7.5 }, { t: 0, len: 4.5, down: 1 }, { t: 1, len: 7.5 }, { t: 1, len: 5, down: 1 }, { t: 1, len: 1.5 }, { t: 2, len: 17 }, { t: 3, len: 17 }] },
   { id: 1, short: 'MIGLIORA', name: 'Dopo migliora!', desc: 'Due salitoni, due mulattiere. Più fango.', difficulty: 1, sky: 1, limit: 55, unlock: 1,
     layout: [{ t: 0, len: 6 }, { t: 1, len: 4, down: 1 }, { t: 1, len: 6 }, { t: 2, len: 10 }, { t: 3, len: 8 }, { t: 2, len: 8 }, { t: 3, len: 10 }, { t: 0, len: 4, down: 1 }, { t: 0, len: 4 }] },
-  { id: 2, short: 'ANGELO', name: 'Il taglio di Angelo', desc: 'La scorciatoia era una mulattiera in salita.', difficulty: 2, sky: 2, limit: 58, unlock: 1,
-    layout: [{ t: 0, len: 4 }, { t: 3, len: 10 }, { t: 2, len: 8 }, { t: 3, len: 10, climb: 1 }, { t: 1, len: 5, down: 1 }, { t: 1, len: 5 }, { t: 3, len: 10 }, { t: 2, len: 8 }] },
+  // v59 · Il taglio di Angelo: rincorsa giù dalla montagna, stacco dal trampolino e salto nel vuoto. Vince il salto più lungo atterrato in piedi.
+  { id: 2, short: 'ANGELO', name: 'Il taglio di Angelo', desc: 'Rincorsa giù dalla montagna e salto nel vuoto: vince il salto più lungo, atterrato in piedi e senza prendere rocce.', difficulty: 1, sky: 2, limit: 60, unlock: 1, leap: true,
+    obs: { 0: ['rock', 'rock', 'stump'], 1: ['rock', 'puddle'], 2: ['rock', 'rock', 'step'], 3: ['rock', 'rock', 'step'] },
+    layout: [{ t: 3, len: 12, down: 1, name: 'RINCORSA DALLA MONTAGNA' }, { t: 2, len: 10, down: 1, name: 'LA PIETRAIA' }, { t: 0, len: 10, down: 1, name: 'IL TRAMPOLINO' }, { t: 0, len: 14, down: 1, name: 'IL VUOTO' }, { t: 2, len: 14, name: 'ATTERRAGGIO' }] },
   { id: 3, short: 'SFIDA', name: 'Sfida del giorno', desc: 'Tracciato nuovo ogni giorno, uguale per tutti.', difficulty: 1, sky: 3, limit: 58, unlock: 1, random: 'daily' },
-  { id: 4, short: 'ASSIETTA', name: 'Il muro dell’Assietta', desc: 'Tre salitoni uno dopo l’altro. Gas!', difficulty: 1, sky: 0, limit: 56, unlock: 2,
+  { id: 4, hidden: true, short: 'ASSIETTA', name: 'Il muro dell’Assietta', desc: 'Tre salitoni uno dopo l’altro. Gas!', difficulty: 1, sky: 0, limit: 56, unlock: 2,
     layout: [{ t: 0, len: 5 }, { t: 2, len: 12 }, { t: 3, len: 6 }, { t: 2, len: 14 }, { t: 0, len: 5, down: 1 }, { t: 2, len: 12 }, { t: 3, len: 6 }] },
-  { id: 5, short: 'PANTANO', name: 'Il pantano', desc: 'Discese, pozze e fango fino al casco.', difficulty: 1, sky: 3, limit: 54, unlock: 2,
+  { id: 5, hidden: true, short: 'PANTANO', name: 'Il pantano', desc: 'Discese, pozze e fango fino al casco.', difficulty: 1, sky: 3, limit: 54, unlock: 2,
     layout: [{ t: 0, len: 4 }, { t: 1, len: 5, down: 1 }, { t: 1, len: 10 }, { t: 0, len: 5 }, { t: 1, len: 6, down: 1 }, { t: 1, len: 10 }, { t: 2, len: 8 }, { t: 1, len: 6, down: 1 }, { t: 1, len: 6 }] },
-  { id: 6, short: 'MULATTIERA', name: 'Mulattiera infinita', desc: 'Sassi, capre e frane dall’inizio alla fine.', difficulty: 2, sky: 1, limit: 61, unlock: 3,
+  { id: 6, hidden: true, short: 'MULATTIERA', name: 'Mulattiera infinita', desc: 'Sassi, capre e frane dall’inizio alla fine.', difficulty: 2, sky: 1, limit: 61, unlock: 3,
     layout: [{ t: 0, len: 4 }, { t: 3, len: 12 }, { t: 3, len: 12, climb: 1 }, { t: 3, len: 6, down: 1 }, { t: 3, len: 12 }, { t: 3, len: 14, climb: 1 }] },
-  { id: 7, short: 'A CASO', name: 'Giro a caso', desc: 'Ogni giro un tracciato diverso.', difficulty: 1, sky: 0, limit: 58, unlock: 3, random: 'run' },
-  { id: 8, short: 'MORTE', name: 'Il giro della morte (easy)', desc: 'Tutto, tutto in salita, tutto insieme.', difficulty: 2, sky: 2, limit: 55, unlock: 4,
+  { id: 7, hidden: true, short: 'A CASO', name: 'Giro a caso', desc: 'Ogni giro un tracciato diverso.', difficulty: 1, sky: 0, limit: 58, unlock: 3, random: 'run' },
+  { id: 8, hidden: true, short: 'MORTE', name: 'Il giro della morte (easy)', desc: 'Tutto, tutto in salita, tutto insieme.', difficulty: 2, sky: 2, limit: 55, unlock: 4,
     layout: [{ t: 0, len: 4, down: 1 }, { t: 1, len: 6 }, { t: 2, len: 10 }, { t: 3, len: 10, climb: 1 }, { t: 1, len: 5, down: 1 }, { t: 2, len: 10 }, { t: 3, len: 8, climb: 1 }, { t: 3, len: 7 }] },
   // v46 · Ice Scrofy: pista di ghiaccio, gomme chiodate. Vince chi derapa di più e meglio (la classifica è a punti derapata).
   { id: 9, short: 'ICE', name: 'Ice Scrofy', desc: 'Pista di ghiaccio, gomme chiodate. Vince chi derapa di più e meglio.', difficulty: 0, sky: 4, limit: 74, unlock: 1, ice: true,
     layout: [{ t: 0, len: 6, name: 'RETTILINEO GHIACCIATO' }, { t: 0, len: 10, name: 'CURVONI DI SCROPHY' }, { t: 0, len: 6, down: 1, name: 'DISCESA SUL VETRO' }, { t: 0, len: 10, name: 'ESSE DEL LAGO' }, { t: 2, len: 6, climb: .35, name: 'SALITA CHIODATA' }, { t: 0, len: 10, name: 'CURVONI DI SCROPHY' }, { t: 0, len: 6, down: 1, name: 'PICCHIATA FINALE' }] },
   // v46 · tre percorsi nuovi che si sbloccano più avanti
-  { id: 10, short: 'FOGNA', name: 'MotoFogna', desc: 'Bagnatissimo e pieno di pezzi hard e rocce. Solo per manici veri.', difficulty: 2, sky: 5, limit: 52, unlock: 4, rainy: true, dense: .25,
+  { id: 10, short: 'FOGNA', name: 'MotoFogna', desc: 'Bagnatissimo e pieno di pezzi hard e rocce. Solo per manici veri.', difficulty: 2, sky: 5, limit: 52, unlock: 3, rainy: true, dense: .25,
     obs: { 0: ['rock', 'rock', 'root', 'log', 'stump'], 1: ['puddle', 'rock', 'puddle', 'step', 'rock'], 2: ['step', 'rock', 'rock', 'step'], 3: ['rock', 'step', 'rock', 'root'] },
     layout: [{ t: 1, len: 5, name: 'IMBOCCO DELLA FOGNA' }, { t: 3, len: 9, wet: 1, name: 'PIETRAIA BAGNATA' }, { t: 1, len: 6, down: 1, name: 'IL CANALE' }, { t: 2, len: 9, wet: 1, name: 'GRADONI VISCIDI' }, { t: 3, len: 10, wet: 1, climb: 1, name: 'IL SIFONE' }, { t: 1, len: 6, name: 'LIQUAME' }, { t: 3, len: 9, wet: 1, name: 'ROCCE HARD' }] },
-  { id: 11, short: 'ARGENTERA', name: 'Valle Argentera', desc: 'Guadi da saltare e animali selvatici che attraversano: stambecchi, camosci, marmotte.', difficulty: 1, sky: 0, limit: 57, unlock: 5, wild: true,
+  { id: 11, short: 'ARGENTERA', name: 'Valle Argentera', desc: 'Guadi da saltare e animali selvatici che attraversano: stambecchi, camosci, marmotte.', difficulty: 1, sky: 0, limit: 57, unlock: 4, wild: true,
     obs: { 0: ['log', 'rock', 'stump', 'marmot'], 1: ['puddle', 'rock', 'marmot'], 2: ['rock', 'cairn', 'marmot', 'step'], 3: ['rock', 'goat', 'step', 'marmot'] },
     layout: [{ t: 0, len: 6, name: 'FONDOVALLE' }, { t: 1, len: 8, name: 'GUADI DELLA STURA' }, { t: 2, len: 10, name: 'PASCOLI DEGLI STAMBECCHI' }, { t: 1, len: 6, down: 1, name: 'IL GUADO GRANDE' }, { t: 3, len: 10, climb: 1, name: 'VERSO IL COLLE' }, { t: 2, len: 6, down: 1, name: 'DISCESA DEI CAMOSCI' }] },
-  { id: 12, short: 'MONTAFIGA', name: 'MontaFiga', desc: 'Uno slalom continuo tra gli alberi. Sterza, sterza, sterza.', difficulty: 1, sky: 1, limit: 55, unlock: 5, slalom: true,
+  { id: 12, short: 'MONTAFIGA', name: 'MontaFiga', desc: 'Uno slalom continuo tra gli alberi. Sterza, sterza, sterza.', difficulty: 1, sky: 1, limit: 55, unlock: 4, slalom: true,
     layout: [{ t: 0, len: 6, name: 'BOSCO FITTO' }, { t: 0, len: 10, name: 'SLALOM DEI FAGGI' }, { t: 0, len: 6, down: 1, name: 'PICCHIATA TRA GLI ABETI' }, { t: 0, len: 10, name: 'LA SELVA' }, { t: 2, len: 6, climb: .6, name: 'STRAPPO NEL BOSCO' }, { t: 0, len: 10, down: 1, name: 'SLALOM FINALE' }] },
   // v57 · ANTI-GEV: scappa dalle Guardie Ecologiche Volontarie. Dalla jeep ti lanciano ostacoli in pista; finiti i tentativi arriva la multa.
   { id: 13, short: 'ANTI-GEV', name: 'Anti-GEV', desc: 'Scappa dalle GEV: dalla jeep ti lanciano di tutto in pista. Finisci i tentativi e arriva la multa.', difficulty: 1, sky: 2, limit: 57, unlock: 2, gev: true, dense: -.15,
     obs: { 0: ['log', 'rock', 'stump', 'root'], 1: ['puddle', 'rock', 'puddle'], 2: ['step', 'rock', 'step'], 3: ['rock', 'step', 'root'] },
     layout: [{ t: 0, len: 5, name: 'FUGA DAL BAR' }, { t: 0, len: 8, name: 'LA FORESTALE' }, { t: 1, len: 7, down: 1, name: 'IL GRETO DEL FIUME' }, { t: 2, len: 8, name: 'LA SBARRA' }, { t: 0, len: 7, name: 'IL BOSCO DEGLI OPOSSUM' }, { t: 3, len: 9, climb: 1, name: 'LA CRESTA DEL CONIGLIO MANNARO' }, { t: 0, len: 6, down: 1, name: 'SEMINATE! VERSO IL RIFUGIO' }] },
+  // v59 · Gusta Ranch: si parte dalla cascina sulle colline. Solo fango, pozzanghere e alberi da schivare.
+  { id: 14, short: 'GUSTA', name: 'Gusta Ranch', desc: 'Si parte dalla cascina sulle colline: solo fango, pozzanghere e alberi da schivare. Ignoranza pura.', difficulty: 1, sky: 1, limit: 56, unlock: 1, ranch: true,
+    obs: { 0: ['tree', 'tree', 'puddle', 'tree'], 1: ['puddle', 'puddle', 'tree', 'puddle'], 2: ['tree', 'puddle', 'tree'], 3: ['tree', 'puddle', 'tree'] },
+    layout: [{ t: 0, len: 6, name: 'LA CASCINA' }, { t: 1, len: 8, wet: 1, name: 'IL FANGAIO' }, { t: 0, len: 8, wet: 1, name: 'BOSCO DEL RANCH' }, { t: 1, len: 7, down: 1, wet: 1, name: 'DISCESA NELLA MOTA' }, { t: 0, len: 8, wet: 1, name: 'GLI ALBERI DEL GUSTA' }, { t: 1, len: 8, wet: 1, name: 'IGNORANZA PURA' }, { t: 0, len: 5, down: 1, name: 'RITORNO AL FALÒ' }] },
 ];
+// v59 · percorsi tolti dal menu (restano nell'elenco per non mescolare record e classifiche già salvati)
+export const SHOWN = () => MODES.filter(m => !m.hidden);
 export const isUnlocked = (m, level = levelInfo().level) => level >= (m.unlock || 1);
 
 // v52 · livree goliardiche: colori + fantasia (pattern) su plastiche e maglia. icon = simbolo nella scheda del garage.

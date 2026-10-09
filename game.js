@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=58';
-import { createWorld } from './scene3d.js?v=58';
-import * as A from './audio.js?v=58';
-import * as P from './progress.js?v=58';
-import { FOTO } from './piloti.js?v=58';
-import { createMud } from './mudfx.js?v=58';
-import { icon, iconize, iconizeEl } from './icons.js?v=58';
-import * as C from './classifica.js?v=58';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=59';
+import { createWorld } from './scene3d.js?v=59';
+import * as A from './audio.js?v=59';
+import * as P from './progress.js?v=59';
+import { FOTO } from './piloti.js?v=59';
+import { createMud } from './mudfx.js?v=59';
+import { icon, iconize, iconizeEl } from './icons.js?v=59';
+import * as C from './classifica.js?v=59';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -38,22 +38,22 @@ function riderLine(kind) {
 }
 // Abilità speciale di ogni pilota: cambia davvero il modo di giocare.
 const SKILLS = {
-  'Il Gabbah': { id: 'steady', icon: '🎯', name: 'Costanza', desc: 'La combo dura 2 s in più e un errore la dimezza invece di azzerarla.' },
-  'Angelo': { id: 'mule', icon: '🪨', name: 'Re della mulattiera', desc: 'In mulattiera sterza il 35% più veloce e va l’8% più forte.' },
-  'Miti': { id: 'wheelie', icon: '🤠', name: 'Re dell’impennata', desc: 'Impennate fino a 6 s, punti doppi, Yee-haw a ogni impennata.' },
-  'Claudio': { id: 'spring', icon: '🦘', name: 'Molla', desc: 'Salti più alti del 15% e più lunghi del 10%.' },
+  'Il Gabbah': { id: 'steady', icon: '🧭', name: 'Guida / tour operator', desc: 'Porta il gruppo: la combo dura 2 s in più e un errore la dimezza invece di azzerarla.' },
+  'Angelo': { id: 'stones', icon: '🪨', name: 'Amico delle pietre', desc: 'Le rocce e i gradoni non gli costano la moto: lo rallentano e basta.' },
+  'Miti': { id: 'drifter', icon: '⛸️', name: 'Re delle derapate', desc: 'Sul ghiaccio le derapate valgono il 50% in più.' },
+  'Claudio': { id: 'sommelier', icon: '🍷', name: 'Sommelier', desc: 'Il vino dura il doppio e con il vino le birre valgono il triplo.' },
   'Max': { id: 'turbo', icon: '⚡', name: 'Turbo facile', desc: 'Il turbo si carica il 40% più in fretta.' },
-  'Purcello': { id: 'nose', icon: '🍺', name: 'Fiuto da birra', desc: 'Prende le birre anche dalla corsia accanto.' },
-  'Ciprian': { id: 'climb', icon: '⛰', name: 'Salitone', desc: 'In salita non perde velocità, come se tenesse sempre il gas.' },
+  'Purcello': { id: 'nose', icon: '🍑', name: 'Ingroppatore', desc: 'Si attacca a tutto: prende le birre anche dalla corsia accanto.' },
+  'Ciprian': { id: 'climb', icon: '⛰️', name: 'Salitone', desc: 'In salita non perde velocità, come se tenesse sempre il gas.' },
   'Costa': { id: 'amphibious', icon: '🐸', name: 'Anfibio', desc: 'Le pozzanghere non lo rallentano e non gli rompono la combo.' },
   'Linus': { id: 'scrub', icon: '🌀', name: 'Scrubber', desc: 'Due scrub per salto e punti tripli.' },
   'Mirco': { id: 'lion', icon: '🦁', name: 'Giovane leone', desc: 'Parte con una moto in più.' },
-  'Luigi': { id: 'downhill', icon: '⬇️', name: 'Campa giù', desc: 'In discesa va il 25% più forte e fa punti doppi.' },
-  'Renard': { id: 'fox', icon: '🦊', name: 'Volpe', desc: 'I "per un pelo" sono più facili e valgono il triplo.' },
-  'Paletta': { id: 'veteran', icon: '🧓', name: 'Esperienza', desc: '+4 s di tempo massimo e 1 s in più di protezione dopo un urto.' },
+  'Luigi': { id: 'downhill', icon: '🔧', name: 'Spedivellatore', desc: 'In discesa spedivella: va il 25% più forte e fa punti doppi.' },
+  'Renard': { id: 'veteran', icon: '👴', name: 'Il vecchio', desc: '+4 s di tempo massimo e 1 s in più di protezione dopo un urto.' },
+  'Paletta': { id: 'spring', icon: '🐰', name: 'Bunny boy', desc: 'Salta come un coniglio: salti più alti del 15% e più lunghi del 10%.' },
   'Andrea': { id: 'precise', icon: '✴️', name: 'Precisione', desc: 'Salti perfetti molto più facili e pagati il doppio.' },
-  'Brizio': { id: 'grappino', icon: '🔥', name: 'Grappino', desc: 'La grappa dura il doppio e si trova più spesso.' },
-  'Sergio': { id: 'sommelier', icon: '🍷', name: 'Sommelier', desc: 'Il vino dura il doppio e con il vino le birre valgono il triplo.' },
+  'Brizio': { id: 'wheelie', icon: '🤘', name: 'Re dell’impennata', desc: 'Impennate fino a 6 s, punti doppi, Yee-haw a ogni impennata.' },
+  'Sergio': { id: 'schettino', icon: '⚓', name: 'Capitan Schettino', desc: 'Abbandona la nave per primo: dopo ogni botta riparte con 2 s di turbo.' },
   'Alex': { id: 'rocket', icon: '🚀', name: 'Partenza a razzo', desc: 'Parte con il turbo già carico e nei primi 8 s va il 10% più forte.' },
   'Albertone': { id: 'tank', icon: '🐻', name: 'Carrarmato', desc: 'Le botte lo fermano la metà del tempo e la protezione dopo un urto dura 1 s in più.' },
   'Erika': { id: 'angel', icon: '💘', name: 'Ci pensa Giacu', desc: 'La prima botta di ogni giro non le costa la moto: arriva Giacu e la rimette in sella.' },
@@ -75,6 +75,7 @@ function avatarHTML(name, cls = '') {
 const profile = P.profile;
 if (!RIDERS.includes(profile.rider)) profile.rider = RIDERS[0];
 let mode = Math.min(P.MODES.length - 1, Math.max(0, profile.mode | 0));
+if (P.MODES[mode]?.hidden) mode = 0;   // v59 · percorso tolto: si torna al Giro easy
 if (!P.isUnlocked(P.MODES[mode])) mode = 0;
 // ---------- Tracciato del percorso scelto ----------
 let runSeed = 1;
@@ -125,9 +126,12 @@ let bs = {}; // v44 · caratteristiche della moto scelta in officina
 // v46 · Ice Scrofy: derapate sul ghiaccio con le gomme chiodate
 let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
-const TRACK_ART_FILE = { 2: 'angelo-suuuka', 9: 'ice-scrofy', 13: 'anti-gev' };
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=58';
+const TRACK_ART_FILE = { 2: 'angelo-suuuka', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
+const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=59';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
+// v59 · salto di Angelo
+let leap = false, leapState = 0, leapPow = 0, leapPitch = 0, leapW = 0, leapStartT = 0, leapStartKmh = 0, leapDist = 0, leapBest = 0, lastHopAt = -9, leapEndT = 0, leapPerfect = false;
 let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
 const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
 const GEV_SOFT = new Set(['coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
@@ -265,7 +269,15 @@ function hud() {
   $('gas').setAttribute('aria-pressed', String(gas));
   $('gas').textContent = ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? '🔒 GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
   $('gas').classList.toggle('locked', gasLock);
-  $('driftbox').hidden = !ice || !live;
+  if (leap && live) {   // v59 · riquadro del salto: assetto della moto e metri
+    $('driftbox').hidden = false;
+    $('driftlabel').textContent = leapState === 2 ? 'IN VOLO · MUSO SU!' : leapState >= 3 ? 'SALTO' : 'VELOCITÀ DI RINCORSA';
+    $('driftpts').textContent = leapState >= 2 ? (leapState === 2 ? leapDist : leapBest).toFixed(1).replace('.', ',') + ' m' : kmh + ' km/h';
+    $('driftneedle').style.transform = `rotate(${(leapState === 2 ? -leapPitch * 70 : 0).toFixed(1)}deg)`;
+    $('driftbox').classList.toggle('on', leapState === 2);
+    $('driftbox').classList.toggle('sweet', leapState === 2 && Math.abs(leapPitch) < .4);
+    $('driftchain').textContent = leapPerfect ? 'STACCO ★' : '';
+  } else $('driftbox').hidden = !ice || !live;
   if (ice && live) {
     $('driftpts').textContent = driftT > 0 ? '+' + Math.round(driftPend).toLocaleString('it-IT') : Math.round(driftScore).toLocaleString('it-IT');
     $('driftlabel').textContent = driftT > 0 ? 'IN DERAPATA' : 'PUNTI DERAPATA';
@@ -332,6 +344,8 @@ function resetRun() {
   bs = P.currentStats();
   ice = !!P.MODES[mode].ice;
   slalomN = 0; lastFord = lastAnimal = -9; setupGroupGhost();
+  if (P.MODES[mode].ranch) objects.push({ l: -2.6, z: .78, type: 'farm', hit: false });   // v59 · la cascina del Gusta Ranch alla partenza
+  leap = !!P.MODES[mode].leap; leapState = 0; leapPitch = leapW = leapDist = leapBest = 0; lastHopAt = -9; leapEndT = 0; leapPerfect = false;
   gev = !!P.MODES[mode].gev; gevZ = 9; gevThrow = 4.5; gevArm = gevLost = 0; gevGone = false; gevShout = 0; gevSide = 1; gevFine = 0;
   keyL = keyR = btnL = btnR = false; zoneSteer = padSteer = 0; aimPx = null; lastSteerDir = 0; edgeT = 0;
   throttleSlip = overT = noClimbT = 0; wasSweet = gasLock = false;
@@ -347,7 +361,7 @@ function start() {
   resetRun();
   state = 'countdown'; countdown = 3.2; countStep = 4;
   { const md = P.MODES[mode], ti = $('trackintro');   // v58 · cartolina del percorso durante il via
-    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${md.id + 1} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.desc}</small></div>`;
+    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.desc}</small></div>`;
     ti.className = 'trackintro'; void ti.offsetWidth; ti.className = 'trackintro show'; }
   $('overlay').classList.add('hidden');
   setMenu(false);
@@ -380,8 +394,9 @@ function finish(win, reason = '') {
   A.engineStop(); A.stopVoice(); A.musicStop();
   setDisabled(false);
   if (ice) endDrift(true);
-  const timeBonus = win ? Math.round((timeLimit - elapsed) * (ice ? 40 : 100)) : 0;
+  const timeBonus = win && !leap ? Math.round((timeLimit - elapsed) * (ice ? 40 : 100)) : 0;
   if (win) score += lives * 250 + timeBonus;
+  if (leap) score = win ? Math.round(leapBest * 100) + (leapPerfect ? 500 : 0) : 0;   // v59 · al Taglio di Angelo conta solo il salto: 100 punti a metro (+500 stacco perfetto)
   run.timeLeft = win ? Math.floor(timeLimit - elapsed) : 0;
   run.finishTime = win ? elapsed : 0;
   run.timeBonus = timeBonus; run.reason = reason;
@@ -392,7 +407,7 @@ function finish(win, reason = '') {
     run.ghostRecord = true;
   }
   run.position = rivals.length ? racePos() : 0;
-  if (win && run.position === 1) score += 500;
+  if (win && run.position === 1 && !leap) score += 500;
   score = Math.floor(score);
   run.score = score;
   const finished = win ? 1 : 0;
@@ -484,6 +499,8 @@ function takeoff() {
 }
 function hop() {
   if (state !== 'playing') return;
+  lastHopAt = elapsed;
+  if (leap && leapState === 2) return;   // v59 · in volo dal trampolino non si risalta
   if (jump <= 0) takeoff();
   else if (jump < .18) jumpBuffer = .2; // premuto un attimo prima di atterrare: salta appena tocca terra
 }
@@ -797,6 +814,7 @@ function spawnWildSpecial(section) {
   return false;
 }
 function spawnWave() {
+  if (leap) return spawnLeapWave();
   if (ice) return spawnIceWave();
   if (P.MODES[mode].slalom) return spawnSlalomWave();
   if (P.MODES[mode].wild && wave > 1 && spawnWildSpecial(routeAt(course, roadTime * 19.5).id)) return;
@@ -819,7 +837,7 @@ function spawnWave() {
   }
 
   // Rampa: sulla linea buona, con una fila di birre al volo. Le altre corsie sono chiuse.
-  if (section !== 3 && wave > 3 && wave - lastBigLog > 2 && rng() < .13) {
+  if (!md.ranch && section !== 3 && wave > 3 && wave - lastBigLog > 2 && rng() < .13) {
     lastBigLog = wave;
     const l = prevSafe;
     add(l, .08, 'ramp');
@@ -833,7 +851,7 @@ function spawnWave() {
   }
 
   // Tronco di traverso: si passa solo saltando, con birre al volo come premio.
-  if ((section === 0 || section === 2) && wave > 2 && wave - lastBigLog > 3 && rng() < .2 + diff * .04) {
+  if (!md.ranch && (section === 0 || section === 2) && wave > 2 && wave - lastBigLog > 3 && rng() < .2 + diff * .04) {
     lastBigLog = wave;
     add(1, .08, 'bigLog');
     for (let k = -2; k <= 2; k++) {
@@ -869,7 +887,7 @@ function spawnWave() {
 
   // Birre sulla linea buona; in mezzo a volte un bonus (casco, vino, grappa).
   // A volte l'ultima è una bottiglia d'acqua: da saltare o schivare.
-  const waterChance = wave > 2 ? .1 + diff * .03 + (section === 3 ? .1 : 0) : 0;
+  const waterChance = md.ranch ? 0 : wave > 2 ? .1 + diff * .03 + (section === 3 ? .1 : 0) : 0;
   for (let i = 0; i < 3; i++) {
     let type = 'coin';
     if (i === 1 && wave > 3) {
@@ -888,8 +906,69 @@ function spawnWave() {
     add(third, .08, obs());
     if (rng() < .35 + diff * .1) add(other, -.12, obs()); // seconda fila sfalsata
   } else if (rng() < thirdChance + (section === 1 ? .2 : 0)) add(third, .08, obs());
-  if (section !== 3 && rng() < .06) add(third, -.05, 'water'); // acqua "trappola" su un'altra corsia
+  if (!md.ranch && section !== 3 && rng() < .06) add(third, -.05, 'water'); // acqua "trappola" su un'altra corsia
   wave++;
+}
+
+// ---------- v59 · Il taglio di Angelo: rincorsa, trampolino, salto nel vuoto ----------
+function spawnLeapWave() {
+  const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
+  if (leapState === 0 && course > 24) {   // il trampolino su tutta la pista, con le birre per la rincorsa
+    leapState = 1; add(1, .08, 'bigRamp');
+    for (let k = 1; k <= 4; k++) add(1, .08 + k * .07, 'coin');
+    toast('🏔 TRAMPOLINO IN ARRIVO: GAS A MARTELLO E SALTA SUL BORDO!', 'gold'); wave++; return;
+  }
+  if (leapState === 1 && course > 22) return;   // ultimi metri prima del trampolino: pista libera
+  if (leapState === 2) {   // zona di atterraggio: file di rocce, una corsia libera indicata dalle birre
+    const free = Math.floor(rng() * 3);
+    for (let l = 0; l < 3; l++) if (l !== free) add(l, .08, 'rock');
+    add(free, .02, 'coin', { air: true, lift: 1.4 }); wave++; return;
+  }
+  if (leapState >= 3) return;
+  // rincorsa giù dalla montagna: sassi da schivare, birre sulla linea buona
+  let safe = Math.floor(rng() * 3); if (safe === prevSafe && rng() < .5) safe = (safe + 1) % 3; prevSafe = safe;
+  for (let i = 0; i < 3; i++) add(safe, .08 - i * .1, i === 1 && rng() < .12 ? 'grappa' : 'coin');
+  const other = (safe + 1 + Math.floor(rng() * 2)) % 3;
+  add(other, .08, rng() < .7 ? 'rock' : 'step');
+  if (wave > 2 && rng() < .45) add(3 - safe - other, -.06, 'rock');
+  wave++;
+}
+function leapTakeoff() {
+  const perfect = elapsed - lastHopAt < .4;
+  leapStartKmh = Math.max(20, kmh); leapPerfect = perfect;
+  const k = Math.max(0, Math.min(1.4, (leapStartKmh - 30) / 45)) * (perfect ? 1.15 : 1) * (turbo > 0 ? 1.12 : 1);
+  jumpDur = 1.9 + k * 2.0; jumpH = 4 + k * 7; jump = jumpDur; scrubbed = 0;
+  if (wheelie) endWheelie(false);
+  leapState = 2; leapStartT = elapsed; leapPitch = .12; leapW = -.15 - rng() * .15;
+  objects = objects.filter(o => o.type === 'bigRamp');
+  A.sfx.jump(); A.sfx.turbo(); shake = .6; flash('gold');
+  bigCall(perfect ? 'STACCO PERFETTO!' : 'NEL VUOTO!');
+  setTimeout(() => { if (leapState === 2) toast('TIENI IL MUSO SU: GAS O IMPENNA · SCEGLI LA CORSIA SENZA ROCCE', 'gold'); }, 500);
+}
+function leapStep(dt) {
+  if (leapState === 2 && jump > 0) {
+    const up = gas || wheelieHeld;
+    leapW += ((up ? 1.25 : 0) - .62 - Math.sin(elapsed * 2.1) * .25) * dt;
+    leapW *= Math.pow(.6, dt);
+    leapPitch = Math.max(-1.3, Math.min(1.3, leapPitch + leapW * dt));
+    leapDist = (elapsed - leapStartT) * leapStartKmh / 3.6;
+    spawn = Math.min(spawn, .9);
+  }
+  if (leapState === 2 && jump <= 0) {   // atterraggio
+    leapState = 3; leapEndT = elapsed + 2.6;
+    const m = Math.round(leapDist * 10) / 10, upright = Math.abs(leapPitch) < .4;
+    if (upright && crash <= 0) {
+      leapBest = m; run.leap = m;
+      reward(Math.round(m * 120) + (leapPerfect ? 1500 : 0), `IN PIEDI! ${m.toFixed(1).replace('.', ',')} m`, 'perfect');
+      bigCall(`${m.toFixed(1).replace('.', ',')} METRI!`); A.sfx.perfect(); flash('gold');
+    } else {
+      run.leap = 0;
+      if (crash <= 0) { lives--; run.hits++; crash = 1; stun = .9; shake = 1; A.sfx.hit(); flash('hit'); mistake(); }
+      bigCall(upright ? 'ROCCIA!' : 'DI FACCIA NEL FANGO!'); toast('SALTO NULLO: BISOGNA ATTERRARE IN PIEDI', 'red');
+      if (lives <= 0) { hud(); finish(false); return; }
+    }
+  }
+  if (leapState === 3 && elapsed >= leapEndT) { leapState = 4; finish(leapBest > 0); }
 }
 
 // ---------- v57 · Anti-GEV: la jeep delle Guardie Ecologiche Volontarie ----------
@@ -1056,7 +1135,7 @@ function endDrift(ok) {
   if (driftChain === 4) toast('❄ CATENA DI DERAPATE ×1,6', 'blue');
   if (driftChain === 8) toast('❄ CATENA ×2,2 — RE DEL GHIACCIO!', 'gold');
 }
-const driftMult = () => 1 + Math.min(8, driftChain) * .15;
+const driftMult = () => (1 + Math.min(8, driftChain) * .15) * (has('drifter') ? 1.5 : 1);   // v59 · Miti re delle derapate
 // v49 · derapata vera: il GAS si dosa. Tenendolo premuto la ruota dietro slitta sempre di più (angolo che cresce),
 // lasciandolo l'angolo torna giù. Zona verde = punti pieni; troppo traverso → la moto scivola fuori e alla fine TESTACODA.
 // v52 · derapata come sul ghiaccio vero: il GAS fa uscire il posteriore (muso verso l'interno della curva),
@@ -1279,7 +1358,8 @@ function update(dt) {
   if (gasLock) { noClimbT = route.climb > .05 || route.rough > .05 ? 0 : noClimbT + dt; if (noClimbT > 2.5) { gasLock = false; if (!gasDownAt) gas = false; } }
   coachUpdate();
   if (gev) gevStep(dt, diff);
-  if (!ice && !P.MODES[mode].slalom && shortcutsDone < 2 && elapsed > nextShortcut && course > 12 && course < GAME_LENGTH * .8 && route.id !== 3) { nextShortcut = elapsed + 18 + rng() * 10; spawnShortcut(); }
+  if (leap) { leapStep(dt); if (state !== 'playing') return; }
+  if (!ice && !P.MODES[mode].slalom && !P.MODES[mode].ranch && !P.MODES[mode].leap && shortcutsDone < 2 && elapsed > nextShortcut && course > 12 && course < GAME_LENGTH * .8 && route.id !== 3) { nextShortcut = elapsed + 18 + rng() * 10; spawnShortcut(); }
   while (elapsed >= ghostNextSplit) { ghostSplits.push(course); ghostNextSplit += .5; }
   const gc = ghostCourse(elapsed);
   if (gc !== null && !ghostPassed && elapsed > 3 && course > gc + .4) { ghostPassed = true; pop('👻 SUPERATO IL FANTASMA!', 'white'); }
@@ -1350,6 +1430,7 @@ function update(dt) {
       continue;
     }
     if (o.type === 'shortcut') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeShortcut(); return; } continue; }
+    if (o.type === 'bigRamp') { o.collected = true; if (leapState === 1) leapTakeoff(); continue; }
     if (o.type === 'ramp') {
       // Rampa di terra: se ci passi sopra a terra, decolli con un salto lunghissimo.
       if (gap < .5 && jump <= 0 && crash <= 0) {
@@ -1408,6 +1489,10 @@ function update(dt) {
         wet = 1.8 - up.tyres * .2; breakCombo(); run.splashes++; mud(); mistake();
         fxKind = 'splash'; fxSerial++; A.sfx.splash(); flash('blue');
         toast('PLOF! FANGO FINO AL CASCO', 'blue');
+      } else if (invincible <= 0 && has('stones') && (o.type === 'rock' || o.type === 'step' || o.type === 'cairn' || o.type === 'rollRock')) {
+        // v59 · Angelo, amico delle pietre: la roccia lo rallenta ma non gli costa la moto
+        invincible = 1; crash = .5; stun = .5; shake = .5; breakCombo(); mistake(); A.sfx.hit(); fxKind = 'hit'; fxSerial++;
+        toast('🪨 AMICO DELLE PIETRE: SOLO UN BACIO', 'green');
       } else if (invincible <= 0 && has('angel') && !run.angelUsed) {
         // v49 · Erika: la prima botta del giro non costa la moto
         run.angelUsed = true; invincible = 1.6; crash = .6; stun = .4; shake = .7; jump = 0; breakCombo(); mistake();
@@ -1428,6 +1513,7 @@ function update(dt) {
         // v49 · Erika anche su ogni albero di MontaFiga
         if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
         if (navigator.vibrate) try { navigator.vibrate(120); } catch {}
+        if (has('schettino') && lives > 0) { turbo = Math.max(turbo, 2); setTimeout(() => toast('⚓ CAPITAN SCHETTINO ABBANDONA LA NAVE!', 'gold'), 600); }
         if (gev && lives > 0) setTimeout(() => toast(lives === 1 ? '🚨 ULTIMO TENTATIVO! POI È MULTA' : `🚨 TENTATIVI RIMASTI: ${lives}`, 'red'), 700);
         if (lives <= 0) { hud(); if (!run.continued && P.profile.beers >= CONTINUE_COST) offerContinue(); else finish(false); return; }
       }
@@ -1448,7 +1534,8 @@ function update(dt) {
   }
 
   hud();
-  if (course >= GAME_LENGTH) finish(true);
+  if (course >= GAME_LENGTH && !leap) finish(true);
+  else if (leap && course >= GAME_LENGTH && leapState < 2) finish(false, 'time');
   else if (elapsed >= timeLimit) finish(false, 'time');
 }
 
@@ -1491,6 +1578,7 @@ function drawState() {
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
     riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
     livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, parts: P.currentParts(), sight: bs.sight || 0,
+    leapPitch: leap && leapState === 2 ? leapPitch : undefined, leapCam: leap && leapState === 2,
     gev: gev ? { L: 1 + gevSide * 2.15, z: gevZ, arm: gevArm, t: elapsed } : null,
     ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs,
     rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended' || state === 'continue') ? (gGhost && state !== 'ended' ? [...rivals, gGhost.entry] : rivals) : [], weather,
@@ -1610,12 +1698,12 @@ function renderReady() {
       <h1 class="title"><span class="t1">TRANQUILLI,</span><span class="t2">È UN GIRO <em>EASY.</em></span></h1></div>
     </div>
     <div class="profilerow">
-      <button class="pilotchip" id="pilotchip" type="button"><span class="platenum">${String(RIDERS.indexOf(profile.rider) + 1).padStart(2, '0')}</span>${avatarHTML(profile.rider)}<span class="pctext"><small>PILOTA · TOCCA PER CAMBIARE</small><b>${profile.rider}</b><em class="skillline">${sk.icon || ''} ${sk.name || ''}</em></span></button>
+      <button class="pilotchip" id="pilotchip" type="button"><span class="platenum">${String(RIDERS.indexOf(profile.rider) + 1).padStart(2, '0')}</span>${avatarHTML(profile.rider)}<span class="pctext"><small>PILOTA · TOCCA PER CAMBIARE</small><b>${profile.rider}</b><em class="skillline"><span class="noicx">${sk.icon || ''}</span> ${sk.name || ''}</em></span></button>
       <div class="lvlbox"><span class="lvlnum"><small>LIV</small>${info.level}</span><span class="lvltext"><b>${info.grade.toUpperCase()}</b><i><u style="width:${Math.round(info.pct * 100)}%"></u></i><small>${info.into}/${info.need} XP</small></span></div>
     </div>
     <div class="trackhero sky${md.sky ?? 0} ${md.ice ? 'icy' : ''} ${art ? 'hasart' : ''}">
       ${art ? `<img class="trackart" src="${art}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}
-      <div class="thtext"><span class="ps">PS${md.id + 1} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.desc}</small>
+      <div class="thtext"><span class="ps">PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.desc}</small>
       ${md.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(md.layout || layoutFor(md.id))}
       <span class="record">${icon('trophy')} ${best ? `RECORD ${md.id === 3 ? 'DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span></div>
     </div>
@@ -1628,8 +1716,8 @@ function renderReady() {
     <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul></div>
     <div class="mhead tracks">${icon('flag')} CAMBIA PERCORSO <small>scorri →</small></div>
     <div class="modes" role="radiogroup" aria-label="Percorso">
-      ${P.MODES.map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
-        ${ta ? `<img class="modeart" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${m.id + 1}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 LIV ' + m.unlock}</small></button>`; }).join('')}
+      ${P.SHOWN().map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
+        ${ta ? `<img class="modeart" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 LIV ' + m.unlock}</small></button>`; }).join('')}
     </div>
     <div class="menufoot">
       <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
@@ -1685,7 +1773,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   setMenu(true);
   $('card').innerHTML = `
     <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
-    <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
+    <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${leap ? (win ? `${leapBest.toFixed(1).replace('.', ',')} METRI<br><em>IN PIEDI!</em>` : 'SALTO<br><em>NULLO.</em>') : gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
     ${gev && !win ? gevVerbale() : ''}<p class="resulttext">${gev && win ? '<b>Niente verbali, più boccali!</b> ' : ''}${profile.rider} ${gev && !win ? `è stato fermato dalle GEV al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso.` : win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
       ${ice ? iceTable(win) : ''}${run.position && !ice ? `<br>🏁 <b>${run.position}° su ${rivals.length + 1}</b> nel gruppo${run.position === 1 && win ? ' · primo al rifugio +500' : ''}${run.shortcuts ? ' · ' + run.shortcuts + (run.shortcuts > 1 ? ' tagli' : ' taglio') + ' di Angelo' : ''}` : ''}      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1) + 's — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
@@ -1703,7 +1791,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     </div>
     <div class="xpline">+${xpTotal} XP ${res.after.level > res.before.level ? `· <b class="lvup">LIVELLO ${res.after.level}: ${res.after.grade.toUpperCase()}!</b>` : ''}</div>
     ${levelBar(res.after)}
-    ${res.after.level > res.before.level ? P.MODES.filter(m => m.unlock > res.before.level && m.unlock <= res.after.level).map(m => `<div class="unlock track"><i class="ic-holder">🏁</i><span>NUOVO PERCORSO SBLOCCATO: <b>${m.name}</b></span></div>`).join('') : ''}
+    ${res.after.level > res.before.level ? P.SHOWN().filter(m => m.unlock > res.before.level && m.unlock <= res.after.level).map(m => `<div class="unlock track"><i class="ic-holder">🏁</i><span>NUOVO PERCORSO SBLOCCATO: <b>${m.name}</b></span></div>`).join('') : ''}
     ${res.unlocked.map(l => `<div class="unlock"><i style="--a:${l.plastic};--b:${l.accent}"></i><span>NUOVA LIVREA SBLOCCATA: <b>${l.name}</b> · sceglila nel garage</span></div>`).join('')}
     ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}
     <div class="actions">
@@ -1793,9 +1881,9 @@ function renderGroup(back, m = mode) {
   const draw = (d, err) => {
     $('card').innerHTML = `<div class="eyebrow">ENDURO DRINKING TEAM · TUTTI I TELEFONI</div>
       <h1 class="shoptitle">CLASSIFICA<br><em>DEL GRUPPO.</em></h1>
-      <div class="boardtabs gtabs">${P.MODES.map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
+      <div class="boardtabs gtabs">${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
       <div class="kindtabs"><button type="button" class="${groupKind === 'score' ? 'active' : ''}" data-gkind="score">🏆 PUNTI</button><button type="button" class="${groupKind === 'time' ? 'active' : ''}" data-gkind="time">⏱ TEMPI MIGLIORI</button></div>
-      <p class="gsub">PS${m + 1} · ${m === 3 ? 'Sfida del ' + P.todayLabel() + ' (si azzera ogni giorno)' : P.MODES[m].name} · migliori 10, un record a testa</p>
+      <p class="gsub">PS${psOf(P.MODES[m])} · ${m === 3 ? 'Sfida del ' + P.todayLabel() + ' (si azzera ogni giorno)' : P.MODES[m].name} · migliori 10, un record a testa</p>
       ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard ${groupKind === 'time' ? 'timeboard' : ''}">${groupKind === 'time' ? timeListHTML(C.timesFor(d, m), nick) : groupListHTML(d.boards?.[m], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}
       <p class="note">${nick ? `In classifica come <b>${nick}</b>.` : 'Il tuo nome lo scegli alla fine del primo giro.'}</p>
       <div class="actions"><button class="primary" id="gback"><span>INDIETRO</span></button><button class="secondary" id="greload">AGGIORNA</button></div>`;
@@ -1827,7 +1915,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 58;
+const GAME_VERSION = 59;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -1836,7 +1924,7 @@ $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in al
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
   $('ridergrid').innerHTML = RIDERS.map((name, i) => `<button type="button" class="rideroption" data-rider="${name}" aria-pressed="${name === profile.rider}" aria-label="Scegli ${name}">
-    ${avatarHTML(name)}<span class="name">${name.replace('Il ', '')}</span><span class="skill" title="${SKILLS[name]?.desc || ''}">${SKILLS[name]?.icon || ''} ${SKILLS[name]?.name || ''}</span><span class="num">#${String(i + 1).padStart(2, '0')}</span>${RIDER_VOICE[name] ? '<i class="voiced" title="Parla con la sua voce">' + icon('speaker') + '</i>' : ''}</button>`).join('');
+    ${avatarHTML(name)}<span class="name">${name.replace('Il ', '')}</span><span class="skill" title="${SKILLS[name]?.desc || ''}"><span class="noicx">${SKILLS[name]?.icon || ''}</span> ${SKILLS[name]?.name || ''}</span><span class="num">#${String(i + 1).padStart(2, '0')}</span>${RIDER_VOICE[name] ? '<i class="voiced" title="Parla con la sua voce">' + icon('speaker') + '</i>' : ''}</button>`).join('');
   document.querySelectorAll('[data-rider]').forEach(b => b.onclick = () => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;
     profile.rider = b.dataset.rider; P.save(); A.unlock(); if (riderVoice()) { A.preloadRider(riderVoice()); riderLine('start'); } else A.sfx.click();
@@ -1863,7 +1951,7 @@ function renderSide() {
   });
 
   const bm = boardMode ?? mode;
-  $('boardtabs').innerHTML = P.MODES.map(m => `<button type="button" class="${m.id === bm ? 'active' : ''}" data-board="${m.id}">${m.id === 3 ? 'OGGI' : m.short}</button>`).join('');
+  $('boardtabs').innerHTML = P.SHOWN().map(m => `<button type="button" class="${m.id === bm ? 'active' : ''}" data-board="${m.id}">${m.id === 3 ? 'OGGI' : m.short}</button>`).join('');
   document.querySelectorAll('[data-board]').forEach(b => b.onclick = () => { boardMode = Number(b.dataset.board); renderSide(); });
   const group = boardSrc === 'group' && C.enabled();
   document.querySelectorAll('[data-src]').forEach(b => { b.classList.toggle('active', b.dataset.src === (group ? 'group' : 'local')); b.onclick = () => { boardSrc = b.dataset.src; renderSide(); }; });

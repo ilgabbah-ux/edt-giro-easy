@@ -2,8 +2,8 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=58';
-import { VOCI_PILOTI } from './voci-piloti.js?v=58';
+import { VOCI } from './voci.js?v=59';
+import { VOCI_PILOTI } from './voci-piloti.js?v=59';
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -398,9 +398,22 @@ export const STYLES = [
   { name: 'MontaFiga · surf tra gli alberi', bpm: 172, root: 40, prog: [[0, 'M'], [5, 'M'], [0, 'M'], [7, 'M']],
     k: 'x.x...x.x.x...x.', s: '....x.......x...', h: 'xxxxxxxxxxxxxxxx', b: 'x.o.x.o.x.o.x.o.', g: 'x.xxx.xxx.xxx.xx', l: '4.3.2.1.0.1.2.3.', swing: 0 },
   // v57 · Anti-GEV: la canzone vera del GaBbAH. Finché l'MP3 non è caricato suona un rock veloce di riserva.
-  { name: 'Supereroi contro le GEV · Il GaBbAH', file: 'supereroi-contro-le-gev.mp3', bpm: 160, root: 40, prog: [[0, 'M'], [-2, 'M'], [3, 'M'], [5, 'M']],
+  { name: 'Supereroi contro le GEV · Il GaBbAH', file: 'musica/supereroi-contro-le-gev.mp3', bpm: 160, root: 40, prog: [[0, 'M'], [-2, 'M'], [3, 'M'], [5, 'M']],
     k: 'x...x...x...x...', s: '....x.......x...', h: 'x.x.x.x.x.x.x.x.', b: 'x.x.x.x.x.x.x.x.', g: 'x.xxx.xxx.xxx.xx', l: '', swing: 0 },
 ];
+// v59 · canzoni vere del GaBbAH per quasi tutti i percorsi (il ritmo sintetico resta come riserva finché l'MP3 non è caricato)
+STYLES[14] = { ...STYLES[0] };   // Gusta Ranch
+const SONGS = {
+  0: ['vai-ciccio', 'Vai Ciccio · Il GaBbAH'],
+  1: ['lenduro-non-e-reato', 'L’enduro non è reato · Il GaBbAH'],
+  2: ['angelo-potter', 'Angelo Potter · Il GaBbAH'],
+  3: ['enduro-is-not-a-crime', 'Enduro is not a crime · Il GaBbAH'],
+  9: ['suka-suka', 'Suka Suka · Il GaBbAH'],
+  10: ['hell-can-wait', 'Hell can wait · Il GaBbAH'],
+  11: ['kick-up-the-dust', 'Kick up the dust · Il GaBbAH'],
+  14: ['gusta-ranch', 'Gusta Ranch'],
+};
+for (const [i, [f, n]] of Object.entries(SONGS)) STYLES[i] = { ...STYLES[i], file: 'musica/' + f + '.mp3', name: n };
 // v57 · brani registrati (MP3): caricati una volta sola; la canzone riparte da dove si era fermata al giro prima.
 const songBuf = {}, songPos = {};
 async function loadSong(file) {
