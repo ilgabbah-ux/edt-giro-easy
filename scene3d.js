@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=72';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=73';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -196,7 +196,7 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=72`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=73`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
@@ -293,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=72', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=73', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -389,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=72`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=73`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -397,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=72', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=72', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=73', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=73', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -447,19 +447,42 @@ export function createWorld(canvas) {
     bladeGeo.setAttribute('position', new T.Float32BufferAttribute(v, 3));
     bladeGeo.computeVertexNormals();
   }
+  // v73 · ciuffi d'erba veri: tanti fili sottili dipinti su sagome incrociate (al posto dei triangoli)
+  const grassCardTex = (() => {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 256; const x = c.getContext('2d');
+    let sd = 11; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 110; i++) {
+      const bx = 20 + r() * 216, h = 90 + r() * 160, lean = (r() - .5) * 90, w = 2 + r() * 3.5;
+      const g = 95 + r() * 90, col = `rgb(${(g * .62) | 0},${g | 0},${(g * .36) | 0})`;
+      const grd = x.createLinearGradient(0, 256, 0, 256 - h); grd.addColorStop(0, 'rgb(92,104,52)'); grd.addColorStop(.35, col); grd.addColorStop(1, `rgb(${(g * .85) | 0},${(g * 1.05) | 0},${(g * .5) | 0})`);
+      x.fillStyle = grd; x.beginPath(); x.moveTo(bx - w, 256); x.quadraticCurveTo(bx + lean * .4, 256 - h * .6, bx + lean, 256 - h); x.quadraticCurveTo(bx + lean * .4 + w * .4, 256 - h * .6, bx + w, 256); x.fill();
+    }
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; return t;
+  })();
+  const grassCardGeo = (() => {
+    const g = new T.BufferGeometry(), P = [], U = [], I = [];
+    for (let k = 0; k < 3; k++) {
+      const a = k * Math.PI / 3, cx = Math.cos(a) * .32, cz = Math.sin(a) * .32, b = P.length / 3;
+      P.push(-cx, 0, -cz, cx, 0, cz, cx, .62, cz, -cx, .62, -cz); U.push(0, 0, 1, 0, 1, 1, 0, 1); I.push(b, b + 1, b + 2, b, b + 2, b + 3);
+    }
+    g.setAttribute('position', new T.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(U, 2)); g.setIndex(I);
+    g.setAttribute('normal', new T.Float32BufferAttribute(new Array(P.length).fill(0).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
+    return g;
+  })();
+  const grassCardMat = c => new T.MeshLambertMaterial({ color: c, map: grassCardTex, alphaTest: .45, side: T.DoubleSide, emissive: '#2a3316', emissiveIntensity: .5 });
   const TUFTS = 220;
-  const tufts = new T.InstancedMesh(bladeGeo, new T.MeshStandardMaterial({ color: '#ffffff', roughness: .9, side: T.DoubleSide }), TUFTS);
+  const tufts = new T.InstancedMesh(grassCardGeo, grassCardMat('#ffffff'), TUFTS);
   const tuftData = Array.from({ length: TUFTS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 4.9 + Math.pow(rand(), 1.6) * 9, z: rand() * 180, s: .7 + rand() * .8, r: rand() * 6 }));
-  tuftData.forEach((d, i) => tufts.setColorAt(i, new T.Color().setHSL(.2 + rand() * .07, .45, .32 + rand() * .14)));
+  tuftData.forEach((d, i) => tufts.setColorAt(i, new T.Color().setHSL(.2 + rand() * .06, .25, .75 + rand() * .2)));
   tufts.receiveShadow = true; scene.add(tufts);
   // Felci del sottobosco: ciuffi larghi e bassi, verde scuro.
   const FERNS = 110;
-  const ferns = new T.InstancedMesh(bladeGeo, new T.MeshStandardMaterial({ color: '#3f6b35', roughness: .85, side: T.DoubleSide }), FERNS);
+  const ferns = new T.InstancedMesh(grassCardGeo, grassCardMat('#6f9c5a'), FERNS);
   const fernData = Array.from({ length: FERNS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 5 + Math.pow(rand(), 1.4) * 10, z: rand() * 180, s: 1.6 + rand() * 1.4, r: rand() * 6, h: rand() * .9 }));
   scene.add(ferns);
   // Canneti delle pozzanghere: ciuffi alti e sottili.
   const REEDS = 110;
-  const reeds = new T.InstancedMesh(bladeGeo, new T.MeshStandardMaterial({ color: '#b5b05a', roughness: .8, side: T.DoubleSide }), REEDS);
+  const reeds = new T.InstancedMesh(grassCardGeo, grassCardMat('#e0d48a'), REEDS);
   const reedData = Array.from({ length: REEDS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 5.3 + Math.pow(rand(), 1.2) * 11, z: rand() * 180, s: .8 + rand() * .6, r: rand() * 6, h: rand() * .9 }));
   scene.add(reeds);
   const FLOWERS = 120;
@@ -476,7 +499,7 @@ export function createWorld(canvas) {
   const shroomCaps = new T.InstancedMesh(capGeo, mat('#d0301f', .5), SHROOMS);
   const shroomData = Array.from({ length: SHROOMS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 5 + rand() * 4, z: rand() * 180, s: .8 + rand() * 1.2, h: rand() * .9 }));
   scene.add(shroomStems, shroomCaps); shroomStems.visible = shroomCaps.visible = false;
-  const shrubs = new T.InstancedMesh(new T.IcosahedronGeometry(1, 1), mat('#567342'), 100);
+  const shrubs = new T.InstancedMesh(grassCardGeo, grassCardMat('#7f9a62'), 100);   // v73 · cespugli d'erba alta al posto delle palle verdi
   shrubs.receiveShadow = true; scene.add(shrubs);
 
   // Pozzanghere: stagni ai lati, staccionata di legno e balle di fieno nei prati.
@@ -541,8 +564,8 @@ export function createWorld(canvas) {
     });
     for (let i = 0; i < 100; i++) {
       const z = wrapZ(i * 1.81, t), side = i % 2 ? 1 : -1, w = side * (5.1 * trail.width + (i % 4) * .54), size = (.20 + (i % 5) * .055) * (1 - trail.rough * .65);
-      dummy.position.set(center(z, t) + w, ground(z, t, w) + size * .35, z);
-      dummy.rotation.set(i * .1, i * 2, 0); dummy.scale.set(size * 1.8, size * .8, size); put(shrubs, i);
+      dummy.position.set(center(z, t) + w, ground(z, t, w) - .03, z);
+      dummy.rotation.set(0, i * 2, 0); dummy.scale.set(size * 4.2, size * 3.2, size * 4.2); put(shrubs, i);
     }
     pondData.forEach((d, i) => {
       const z = wrapZ(d.z, t), w = d.side * d.off, v = vis(z, [0, 1, 0, 0], d.h);
@@ -648,7 +671,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=72', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=73', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -1612,7 +1635,8 @@ export function createWorld(canvas) {
   const rivalMats = ['plastic', 'accent', 'jersey', 'pants', 'helmet'];
   function makeRival(r) {
     const g = bike.clone(true);
-    const m = { plastic: mat(r.livery.plastic, .35), accent: mat(r.livery.accent, .5), jersey: mat(r.livery.jersey, .6), pants: mat(r.livery.pants, .8), helmet: mat(r.livery.helmet, .35) };
+    const m = { plastic: pmat(r.livery.plastic), accent: pmat(r.livery.accent, .4), jersey: mat(r.livery.jersey, .6), pants: mat(r.livery.pants, .8), helmet: pmat(r.livery.helmet, .25) };
+    if (envTex) for (const k of ['plastic', 'accent', 'helmet']) { m[k].envMap = envTex; m[k].envMapIntensity = .9; }   // v73 · compagni con la stessa vernice lucida del giocatore
     const swap = { [plastic.uuid]: m.plastic, [accent.uuid]: m.accent, [jerseyMat.uuid]: m.jersey, [pantsMat.uuid]: m.pants, [helmetMat.uuid]: m.helmet };
     // nome e numero sulla schiena
     const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d');

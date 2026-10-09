@@ -1210,3 +1210,6 @@ aside#hub { gap: 10px; }
 .duelres .dhead.win { color: var(--y); }
 .duelres .dhead.lose { color: #ff7a5c; }
 .duelres p { margin: 6px 0 8px; font: 600 14px var(--ui); }
+
+/* v73 · menu più corto sul telefono: lo scudo EDT c'è già nella barra in alto */
+@media (max-width: 560px) { .menuhead .menushield { display: none; } .menuhead { gap: 0; } }
