@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=73';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=74';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -196,7 +196,7 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=73`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=74`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
@@ -293,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=73', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=74', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -389,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=73`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=74`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -397,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=73', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=73', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=74', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=74', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -671,7 +671,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=73', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=74', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -834,7 +834,7 @@ export function createWorld(canvas) {
     box(.06, .3, .27, black, chassis, side * .17, 1.0, -.38);
     for (let i = 0; i < 6; i++) box(.07, .012, .25, alloy, chassis, side * .175, .88 + i * .045, -.38);
     // convogliatori del radiatore (portano la grafica laterale)
-    sideShape(s => { s.moveTo(-.66, 1.25); s.quadraticCurveTo(-.48, 1.32, -.24, 1.28); s.lineTo(-.06, 1.2); s.quadraticCurveTo(.02, 1.15, -.05, 1.1); s.lineTo(-.24, 1.0); s.quadraticCurveTo(-.42, .86, -.57, .85); s.quadraticCurveTo(-.71, .87, -.71, 1.02); s.quadraticCurveTo(-.71, 1.19, -.66, 1.25); }, .03, plastic, chassis, side * .255, .014);
+    sideShape(s => { s.moveTo(-.66, 1.25); s.quadraticCurveTo(-.48, 1.32, -.24, 1.28); s.lineTo(-.06, 1.2); s.quadraticCurveTo(.02, 1.15, -.05, 1.1); s.lineTo(-.24, 1.0); s.quadraticCurveTo(-.42, .86, -.57, .85); s.quadraticCurveTo(-.71, .87, -.71, 1.02); s.quadraticCurveTo(-.71, 1.19, -.66, 1.25); }, .026, plastic, chassis, side * .222, .012);   // v74 · convogliatori aderenti al serbatoio (prima sporgevano come ali)
     // fianchetti posteriori
     sideShape(s => { s.moveTo(.02, 1.21); s.lineTo(.7, 1.23); s.quadraticCurveTo(.78, 1.21, .71, 1.13); s.lineTo(.27, .9); s.quadraticCurveTo(.13, .84, .07, .93); s.lineTo(.0, 1.1); s.quadraticCurveTo(-.01, 1.19, .02, 1.21); }, .03, sidePanel, chassis, side * .2, .014);
     // pedane
@@ -991,7 +991,7 @@ export function createWorld(canvas) {
   const decalCanvas = document.createElement('canvas'); decalCanvas.width = 256; decalCanvas.height = 128;
   const sideDecalTex = new T.CanvasTexture(decalCanvas); sideDecalTex.colorSpace = T.SRGBColorSpace;
   const sideDecalMat = new T.MeshStandardMaterial({ map: sideDecalTex, transparent: true, roughness: .5 });
-  for (const side of [-1, 1]) { const pl = mesh(new T.PlaneGeometry(.38, .26), sideDecalMat, chassis); pl.position.set(side * .296, 1.1, -.36); pl.rotation.y = side * Math.PI / 2; pl.castShadow = false; pl.userData.keep = true; pl.name = 'sidedecal'; }
+  for (const side of [-1, 1]) { const pl = mesh(new T.PlaneGeometry(.38, .26), sideDecalMat, chassis); pl.position.set(side * .25, 1.1, -.36); pl.rotation.y = side * Math.PI / 2; pl.castShadow = false; pl.userData.keep = true; pl.name = 'sidedecal'; }
   // v71 · riflessi veri su vernice e metallo: una piccola "stanza luminosa" (cielo, terra, pannelli di luce) trasformata in mappa d'ambiente
   const envTex = (() => {
     try {
@@ -1040,7 +1040,8 @@ export function createWorld(canvas) {
     // v71 · con la livrea "EDT Classica" ogni moto ha i colori di fabbrica delle foto del garage
     const paint = look.paint && (!livery.id || livery.id === 'edt') ? look.paint : null;
     if (paint) {
-      setMap(plastic, paint.pattern ? patternTex(paint.pattern, paint.plastic, paint.ink) : null, paint.plastic);
+      const pt = paint.pattern ? patternTex(paint.pattern, paint.plastic, paint.ink) : null; if (pt) pt.repeat.set(1.25, 1.25);   // grafiche di fabbrica più grandi e leggibili
+      setMap(plastic, pt, paint.plastic);
       accent.color.set(paint.accent); sidePanel.color.set(paint.side); frameMat.color.set(paint.frame);
       if (!parts.seat?.color) seatMat.color.set(paint.seat || '#243138');
       if (paint.rims && (!parts.rims || parts.rims.id === 'silver')) { rimMat.color.set(paint.rims); rimMat.metalness = .55; }
