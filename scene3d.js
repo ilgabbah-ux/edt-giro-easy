@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=70';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=71';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -79,7 +79,9 @@ export function createWorld(canvas) {
     stone = mat('#8d9185'), rubber = mat('#182025'), treadMat = mat('#2b3030'), alloy = mat('#a3b7bb', .3, .7), black = mat('#243138'),
     spring = mat('#e93825', .35), white = mat('#eee8d8', .42), gold = mat('#bc983f', .25, .65);
   // Materiali della livrea (cambiano colore in base alla scelta nel garage).
-  const plastic = mat('#e93825', .35), accent = mat('#fcd326', .5), jerseyMat = mat('#fcd326', .6), pantsMat = mat('#243138', .8), helmetMat = mat('#eee8d8', .35);
+  // v71 · plastiche e casco laccati (vernice trasparente), come le moto vere delle foto del garage
+  const pmat = (c, r = .32) => new T.MeshPhysicalMaterial({ color: c, roughness: r, clearcoat: .8, clearcoatRoughness: .12 });
+  const plastic = pmat('#e93825'), accent = pmat('#fcd326', .4), jerseyMat = mat('#fcd326', .6), pantsMat = mat('#243138', .8), helmetMat = pmat('#eee8d8', .25), sidePanel = pmat('#eee8d8', .35);
   // v44 · accessori dell'officina: materiali propri così si possono ricolorare/mostrare a parte
   const rimMat = mat('#a3b7bb', .3, .7), pipeMat = mat('#a3b7bb', .3, .7), seatMat = mat('#243138', .85), guardMat = mat('#1b1b1b', .5);
   const lampMat = new T.MeshStandardMaterial({ color: '#fffbe8', roughness: .2, emissive: '#fff4c8', emissiveIntensity: 1.2 }), vintageMat = mat('#c9a43a', .3, .7);
@@ -194,13 +196,32 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=70`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=71`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
   }
-  photoTex('trail', 1.6, 34, true, ({ map, normalMap }) => {
-    dirt.map = map; dirt.normalMap = normalMap; dirt.normalScale.set(1.1, 1.1); dirt.bumpMap = null; dirt.needsUpdate = true;
+  photoTex('trail', 4, 90, true, ({ map, normalMap }) => {
+    // v71 · niente effetto "tappeto": sassi in scala vera (ripetizione fitta), seconda lettura della texture a scala diversa
+    // mescolata con una macchia larga (spezza la ripetizione), solchi delle ruote più scuri e bordi che sfumano nell'erba
+    dirt.map = map; dirt.normalMap = normalMap; dirt.normalScale.set(1.25, 1.25); dirt.bumpMap = null;
+    dirt.onBeforeCompile = sh => {
+      sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `
+        vec2 uvA = vMapUv;
+        vec4 tA = texture2D( map, uvA );
+        vec4 tB = texture2D( map, uvA * vec2( .43, .41 ) + vec2( .37, .11 ) );
+        float macro = texture2D( map, uvA * vec2( .031, .017 ) ).g;
+        float m = smoothstep( .3, .7, macro );
+        vec4 sampledDiffuseColor = mix( tA, tB, m );
+        float a = clamp( uvA.x / 4.0, 0.0, 1.0 );
+        float rut = exp( -pow( ( a - .36 ) / .045, 2.0 ) ) + exp( -pow( ( a - .64 ) / .045, 2.0 ) );
+        float edge = smoothstep( .0, .1, a ) * smoothstep( 1.0, .9, a );
+        sampledDiffuseColor.rgb *= ( 1.0 - rut * .3 ) * ( .72 + macro * .56 );
+        sampledDiffuseColor.rgb = mix( sampledDiffuseColor.rgb * vec3( .78, .8, .62 ), sampledDiffuseColor.rgb, edge );
+        diffuseColor *= sampledDiffuseColor;
+      `);
+    };
+    dirt.needsUpdate = true;
     roadMaps.length = 0; roadMaps.push(map, normalMap);
     ['#b8a58f', '#8f7b66', '#e8dccb', '#d8d4ce'].forEach((c, i) => DIRT_COLS[i].set(c));
   });
@@ -272,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=70', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=71', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -368,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=70`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=71`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -376,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=70', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=70', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=71', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=71', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -627,7 +648,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=70', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=71', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -792,7 +813,7 @@ export function createWorld(canvas) {
     // convogliatori del radiatore (portano la grafica laterale)
     sideShape(s => { s.moveTo(-.66, 1.25); s.quadraticCurveTo(-.48, 1.32, -.24, 1.28); s.lineTo(-.06, 1.2); s.quadraticCurveTo(.02, 1.15, -.05, 1.1); s.lineTo(-.24, 1.0); s.quadraticCurveTo(-.42, .86, -.57, .85); s.quadraticCurveTo(-.71, .87, -.71, 1.02); s.quadraticCurveTo(-.71, 1.19, -.66, 1.25); }, .03, plastic, chassis, side * .255, .014);
     // fianchetti posteriori
-    sideShape(s => { s.moveTo(.02, 1.21); s.lineTo(.7, 1.23); s.quadraticCurveTo(.78, 1.21, .71, 1.13); s.lineTo(.27, .9); s.quadraticCurveTo(.13, .84, .07, .93); s.lineTo(.0, 1.1); s.quadraticCurveTo(-.01, 1.19, .02, 1.21); }, .03, white, chassis, side * .2, .014);
+    sideShape(s => { s.moveTo(.02, 1.21); s.lineTo(.7, 1.23); s.quadraticCurveTo(.78, 1.21, .71, 1.13); s.lineTo(.27, .9); s.quadraticCurveTo(.13, .84, .07, .93); s.lineTo(.0, 1.1); s.quadraticCurveTo(-.01, 1.19, .02, 1.21); }, .03, sidePanel, chassis, side * .2, .014);
     // pedane
     rod([side * .1, .62, .13], [side * .29, .63, .13], .024, alloy, chassis);
   }
@@ -831,7 +852,7 @@ export function createWorld(canvas) {
   }
   for (const [y, w] of [[1.17, .42], [1.33, .4]]) { const c = box(w, .05, .13, alloy, front, 0, y, ZF(-.86 + (y - .48) * .3375) + .02); c.rotation.x = .32; }
   sideShape(s => { s.moveTo(ZF(-1.3), 1.03); s.quadraticCurveTo(ZF(-1.0), 1.09, ZF(-.64), 1.04); s.lineTo(ZF(-.52), .99); s.lineTo(ZF(-.56), .96); s.quadraticCurveTo(ZF(-.95), 1.03, ZF(-1.3), .985); s.lineTo(ZF(-1.3), 1.03); }, .18, plastic, front, 0, .016);
-  { const np = frontShape(s => { s.moveTo(-.15, .13); s.quadraticCurveTo(0, .21, .15, .13); s.lineTo(.11, -.15); s.quadraticCurveTo(0, -.2, -.11, -.15); s.lineTo(-.15, .13); }, .02, white, front); np.position.set(...F(0, 1.37, -.70)); np.rotation.x = .3; }
+  { const np = frontShape(s => { s.moveTo(-.15, .13); s.quadraticCurveTo(0, .21, .15, .13); s.lineTo(.11, -.15); s.quadraticCurveTo(0, -.2, -.11, -.15); s.lineTo(-.15, .13); }, .02, sidePanel, front); np.position.set(...F(0, 1.37, -.70)); np.rotation.x = .3; }
   rod(F(0, 1.34, -.56), F(0, 1.46, -.55), .035, alloy, front);
   tube([F(-.48, 1.5, -.5), F(-.3, 1.475, -.55), F(0, 1.465, -.565), F(.3, 1.475, -.55), F(.48, 1.5, -.5)], .022, alloy, front, 24);
   box(.17, .05, .06, accent, front, ...F(0, 1.49, -.565));
@@ -932,6 +953,12 @@ export function createWorld(canvas) {
   // v44 · pezzi opzionali: paramani, faro, espansione del 2 tempi, doppio ammortizzatore vintage, grafiche
   for (const side of [-1, 1]) { const hg = box(.06, .13, .24, guardMat, front, ...F(side * .52, 1.5, -.66)); hg.rotation.y = side * .35; hg.rotation.z = side * -.2; }
   box(.17, .11, .06, lampMat, front, ...F(0, 1.30, -.72));
+  // v71 · T7 BO-anal: cupolino da rally con doppio faro e parabrezza alto (solo su quella moto)
+  const rallyLamp = lampMat.clone(), rallyMat = pmat('#f2f4f8', .3), screenMat = new T.MeshPhysicalMaterial({ color: '#3a4a5a', roughness: .05, metalness: .1, transparent: true, opacity: .45, clearcoat: 1 });
+  { const fa = frontShape(s => { s.moveTo(-.2, -.2); s.lineTo(.2, -.2); s.lineTo(.23, .12); s.quadraticCurveTo(0, .24, -.23, .12); s.lineTo(-.2, -.2); }, .05, rallyMat, front, .02); fa.position.set(...F(0, 1.42, -.735)); fa.rotation.x = .3;
+    const sc = frontShape(s => { s.moveTo(-.17, 0); s.lineTo(.17, 0); s.lineTo(.13, .34); s.quadraticCurveTo(0, .38, -.13, .34); s.lineTo(-.17, 0); }, .012, screenMat, front, .004); sc.position.set(...F(0, 1.6, -.69)); sc.rotation.x = .42;
+    for (const sd of [-1, 1]) box(.09, .07, .03, rallyLamp, front, ...F(sd * .075, 1.36, -.77));
+    for (const sd of [-1, 1]) { const w = sideShape(s => { s.moveTo(-.74, 1.05); s.quadraticCurveTo(-.62, 1.34, -.4, 1.36); s.lineTo(-.2, 1.3); s.lineTo(-.3, 1.08); s.quadraticCurveTo(-.5, .98, -.74, 1.05); }, .03, rallyMat, chassis, sd * .27, .014); } }
   const lampGlow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#fff2c0', transparent: true, opacity: .8, blending: T.AdditiveBlending, depthWrite: false }));
   lampGlow.scale.set(.9, .6, 1); lampGlow.position.set(...F(0, 1.30, -.78)); lampGlow.userData.keep = true; lampGlow.name = 'fxlamp'; front.add(lampGlow);
   const chamberMat = new T.MeshStandardMaterial({ color: '#a3b7bb', roughness: .3, metalness: .7 });
@@ -942,6 +969,20 @@ export function createWorld(canvas) {
   const sideDecalTex = new T.CanvasTexture(decalCanvas); sideDecalTex.colorSpace = T.SRGBColorSpace;
   const sideDecalMat = new T.MeshStandardMaterial({ map: sideDecalTex, transparent: true, roughness: .5 });
   for (const side of [-1, 1]) { const pl = mesh(new T.PlaneGeometry(.38, .26), sideDecalMat, chassis); pl.position.set(side * .296, 1.1, -.36); pl.rotation.y = side * Math.PI / 2; pl.castShadow = false; pl.userData.keep = true; pl.name = 'sidedecal'; }
+  // v71 · riflessi veri su vernice e metallo: una piccola "stanza luminosa" (cielo, terra, pannelli di luce) trasformata in mappa d'ambiente
+  const envTex = (() => {
+    try {
+      const es = new T.Scene();
+      const g = new T.SphereGeometry(10, 32, 16), cols = [];
+      const pos = g.attributes.position;
+      for (let i = 0; i < pos.count; i++) { const y = pos.getY(i) / 10; const c = y > 0 ? new T.Color('#bcd6f0').lerp(new T.Color('#5b8fd0'), y) : new T.Color('#6b5a44').lerp(new T.Color('#2a241c'), -y); cols.push(c.r, c.g, c.b); }
+      g.setAttribute('color', new T.Float32BufferAttribute(cols, 3));
+      es.add(new T.Mesh(g, new T.MeshBasicMaterial({ vertexColors: true, side: T.BackSide })));
+      for (const [x, y, z, w, h, k] of [[0, 8, 0, 9, 9, 2.4], [7, 3, 4, 3, 5, 1.6], [-7, 2.5, -3, 4, 3, 1.1]]) { const p = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: new T.Color(k, k, k * .96), side: T.DoubleSide })); p.position.set(x, y, z); p.lookAt(0, 0, 0); es.add(p); }
+      const pm = new T.PMREMGenerator(renderer); const t = pm.fromScene(es, .02).texture; pm.dispose(); return t;
+    } catch (e) { return null; }
+  })();
+  if (envTex) for (const [m, k] of [[plastic, .9], [accent, .9], [helmetMat, .9], [sidePanel, .9], [alloy, 1.2], [rimMat, 1.2], [pipeMat, 1.3], [gold, 1.1], [frameMat, .8], [engMat, .7], [forkMat, .9], [chamberMat, 1.2], [vintageMat, 1.2], [hubMat, .8], [studMat, 1], [seatMat, .35], [black, .4], [spring, .7], [lensMat, 1.2], [guardMat, .5], [rallyMat, .9], [screenMat, 1.2]]) { m.envMap = envTex; m.envMapIntensity = k; m.needsUpdate = true; }
   for (const g of [...wheels, chassis, front, rider, upper, body, head]) mergeGroup(g);
   const meshesWith = m => { const out = []; bike.traverse(o => { if (o.isMesh && o.material === m) out.push(o); }); return out; };
   let customKey = '';
@@ -973,6 +1014,17 @@ export function createWorld(canvas) {
     const dk = look.boanal && (parts.decal?.id || 'none') === 'none' ? 'boanal' : parts.decal?.id || 'none';
     bike.traverse(o => { if (o.name === 'sidedecal') o.visible = dk !== 'none'; });
     if (dk !== 'none') paintSideDecal(dk, livery.accent || '#fcd326', livery.helmet || '#ffffff');
+    // v71 · con la livrea "EDT Classica" ogni moto ha i colori di fabbrica delle foto del garage
+    const paint = look.paint && (!livery.id || livery.id === 'edt') ? look.paint : null;
+    if (paint) {
+      setMap(plastic, paint.pattern ? patternTex(paint.pattern, paint.plastic, paint.ink) : null, paint.plastic);
+      accent.color.set(paint.accent); sidePanel.color.set(paint.side); frameMat.color.set(paint.frame);
+      if (!parts.seat?.color) seatMat.color.set(paint.seat || '#243138');
+      if (paint.rims && (!parts.rims || parts.rims.id === 'silver')) { rimMat.color.set(paint.rims); rimMat.metalness = .55; }
+    } else { sidePanel.color.set('#eee8d8'); frameMat.color.set('#22272b'); }
+    for (const m of meshesWith(rallyMat)) m.visible = !!look.boanal;
+    for (const m of meshesWith(screenMat)) m.visible = !!look.boanal;
+    for (const m of meshesWith(rallyLamp)) m.visible = !!look.boanal;
     bike.scale.setScalar(look.scale || 1);
   }
 
@@ -1019,6 +1071,11 @@ export function createWorld(canvas) {
     else if (kind === 'fiori') for (let i = 0; i < 26; i++) { const cx = r() * 256, cy = r() * 256, rad = 6 + r() * 5; x.fillStyle = ink; for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; x.beginPath(); x.arc(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad, rad * .6, 0, Math.PI * 2); x.fill(); } x.fillStyle = '#f2c230'; x.beginPath(); x.arc(cx, cy, rad * .45, 0, Math.PI * 2); x.fill(); }
     else if (kind === 'schizzi') for (let i = 0; i < 22; i++) { const cx = r() * 256, cy = r() * 256; blob(cx, cy, 6 + r() * 16, 13); for (let k = 0; k < 5; k++) { x.beginPath(); x.arc(cx + (r() - .5) * 50, cy + (r() - .5) * 50, 1.5 + r() * 3, 0, Math.PI * 2); x.fill(); } }
     else if (kind === 'scacchi') for (let i = 0; i < 8; i++) for (let k = 0; k < 8; k++) if ((i + k) % 2) x.fillRect(i * 32, k * 32, 32, 32);
+    // v71 · grafiche di fabbrica delle moto (come nelle foto del garage)
+    else if (kind === 'fiamme') { for (let i = 0; i < 7; i++) { const y0 = 20 + i * 34; x.beginPath(); x.moveTo(0, y0); for (let k = 0; k <= 8; k++) { const xx = k * 32, a = Math.sin(k * 1.3 + i) * 10; x.quadraticCurveTo(xx + 16, y0 - 22 + a, xx + 32, y0 + a * .4); } x.lineTo(256, y0 + 18); x.lineTo(0, y0 + 16); x.fill(); } }
+    else if (kind === 'mx') { for (let i = 0; i < 6; i++) { const y = r() * 256, w = 14 + r() * 30; x.beginPath(); x.moveTo(-20, y); x.lineTo(150 + r() * 120, y - 40 - r() * 30); x.lineTo(170 + r() * 120, y - 40 - r() * 30 + w); x.lineTo(-20, y + w * 1.4); x.fill(); } x.globalAlpha = .35; for (let i = 0; i < 16; i++) { x.beginPath(); const px = r() * 256, py = r() * 256; x.moveTo(px, py); x.lineTo(px + 40, py - 18); x.lineTo(px + 46, py - 10); x.lineTo(px + 6, py + 8); x.fill(); } x.globalAlpha = 1; }
+    else if (kind === 'tigre') for (let i = 0; i < 14; i++) { const px = i * 20 + r() * 8; x.beginPath(); x.moveTo(px, 0); x.quadraticCurveTo(px + 22, 70 + r() * 40, px + 6, 140); x.quadraticCurveTo(px + 30, 200, px + 10, 256); x.lineTo(px + 18, 256); x.quadraticCurveTo(px + 38, 200, px + 14, 140); x.quadraticCurveTo(px + 30, 70, px + 9, 0); x.fill(); }
+    else if (kind === 'righina') { x.fillRect(0, 96, 256, 40); x.fillStyle = '#ffffff'; x.fillRect(0, 140, 256, 8); }
     const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(2, 2); t.anisotropy = 4;
     patternCache.set(key, t); return t;
   }
