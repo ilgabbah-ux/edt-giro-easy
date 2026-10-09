@@ -1,13 +1,13 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=77';
-import { createWorld } from './scene3d.js?v=77';
-import * as A from './audio.js?v=77';
-import * as P from './progress.js?v=77';
-import { FOTO } from './piloti.js?v=77';
-import { createMud } from './mudfx.js?v=77';
-import { icon, iconize, iconizeEl } from './icons.js?v=77';
-import * as C from './classifica.js?v=77';
-import * as D from './duel.js?v=77';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=78';
+import { createWorld } from './scene3d.js?v=78';
+import * as A from './audio.js?v=78';
+import * as P from './progress.js?v=78';
+import { FOTO } from './piloti.js?v=78';
+import { createMud } from './mudfx.js?v=78';
+import { icon, iconize, iconizeEl } from './icons.js?v=78';
+import * as C from './classifica.js?v=78';
+import * as D from './duel.js?v=78';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -129,7 +129,7 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=77';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=78';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400;
@@ -418,7 +418,8 @@ function start() {
   A.unlock(); A.stopVoice(); A.preloadExtras(); if (riderVoice()) A.preloadRider(riderVoice());
   A.preloadRivals(Object.values(RIDER_VOICE)); A.preloadSong(mode);
   resetRun();
-  state = 'countdown'; countdown = 3.2; countStep = 4;
+  state = 'countdown'; countdown = 3.2; countStep = 4; holePre = holeDone = false;
+  setTimeout(() => { if (state === 'countdown') toast('🚀 TOCCA SALTA AL VIA = PARTENZA A RAZZO', 'gold'); }, 600);
   { const md = P.MODES[mode], ti = $('trackintro');   // v58 · cartolina del percorso durante il via
     ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.desc}</small></div>`;
     ti.className = 'trackintro'; void ti.offsetWidth; ti.className = 'trackintro show'; }
@@ -439,6 +440,7 @@ function startMusic() {
 }
 function go() {
   state = 'playing'; tiltZero = null;   // v62 · lo zero del giroscopio è la posizione al VIA
+  if (holePre) setTimeout(() => { if (state === 'playing' && !holeDone) holeshot(); }, 0);
   $('countdown').className = 'countdown go';
   $('trackintro').className = 'trackintro out';
   $('countdown').textContent = 'VIA!';
@@ -557,8 +559,16 @@ function takeoff() {
   jump = jumpDur; scrubbed = 0; A.sfx.jump();
   if (wheelie) endWheelie(false);
 }
+// v78 · PARTENZA A RAZZO: tocca SALTA proprio al VIA (da mezzo secondo prima a mezzo secondo dopo) = turbo e +150
+let holePre = false, holeDone = false;
+function holeshot() {
+  holeDone = true; holePre = false; turbo = Math.max(turbo, 2.2); score += 150; run.holeshot = 1;
+  A.sfx.turbo(); shake = Math.max(shake, .25); bigCall('PARTENZA A RAZZO!'); pop('+150 PARTENZA', 'gold'); fxKind = 'trick'; fxSerial++;
+}
 function hop() {
+  if (state === 'countdown') { if (countdown < .5 && !holeDone) holePre = true; return; }
   if (state !== 'playing') return;
+  if (!holeDone && elapsed < .5) { holeshot(); return; }
   lastHopAt = elapsed;
   if (leap && leapState === 2) return;   // v59 · in volo dal trampolino non si risalta
   if (jump <= 0) takeoff();
@@ -1417,7 +1427,7 @@ function update(dt) {
   }
   score += dt * 12 * (turbo > 0 ? 2 : 1) * (has('downhill') && route.down > .4 ? 2 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 2 : 1);
   // In mulattiera non si va più veloci: è stretta, sassosa e con ondate più dure.
-  const travelStep = dt * (1 + diff * .35 + elapsed / 100) * speed * 19.5 * (1 - route.rough * .06) * (1 + up.engine * .025) * (1 + (bs.speed || 0)) * (1 + (bs.climb || 0) * Math.max(0, route.grade));
+  const travelStep = dt * (1.1 + diff * .35 + elapsed / 118) * speed * 19.5 * (1 - route.rough * .06) * (1 + up.engine * .025) * (1 + (bs.speed || 0)) * (1 + (bs.climb || 0) * Math.max(0, route.grade));
   roadTime += travelStep / 19.5;
   if (leap && leapState < 2 && dt > 0) leapZRate = travelStep / 55 / dt;
   course = Math.min(GAME_LENGTH, roadTime / courseLength(diff) * GAME_LENGTH);
@@ -1710,7 +1720,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=77" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=78" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -1786,6 +1796,7 @@ function renderReady() {
     </div>
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : A.STYLES[mode].name}</small></span>${icon('chevrons')}</button>
     <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
+    ${C.enabled() ? '<button class="cupbar" id="cupbar" type="button" hidden><span class="cupi">🏆</span><span class="cupt"><small>COPPA DELLA SETTIMANA</small><b id="cuplead">…</b><em id="cupme"></em></span><span class="cupx" id="cupprev"></span></button>' : ''}
     <div class="quickrow">
       <button class="qbtn" id="opengarage" type="button"><span class="qi">🎨</span><b>GARAGE</b><small>livree e moto</small></button>
       <button class="qbtn" id="openshop" type="button"><span class="qi">🔧</span><b>OFFICINA</b><small>${P.profile.beers} 🍺</small></button>
@@ -1818,7 +1829,8 @@ function renderReady() {
   };
   if ($('opengroup')) {
     $('opengroup').onclick = () => { showHub('classifica'); renderGroup(renderReady, mode); };
-    C.load().then(d => { const top = d.boards?.[mode]?.[0]; if ($('grouplead')) $('grouplead').textContent = top ? `1° ${top.n} · ${top.s.toLocaleString('it-IT')}` : 'nessuno ancora: vai!'; }).catch(() => {});
+    C.load().then(d => { const top = d.boards?.[mode]?.[0]; if ($('grouplead')) $('grouplead').textContent = top ? `1° ${top.n} · ${top.s.toLocaleString('it-IT')}` : 'nessuno ancora: vai!'; cupBar(d); }).catch(() => {});
+    if ($('cupbar')) { cupBar(C.cached()); $('cupbar').onclick = () => { A.sfx.click(); showHub('classifica'); renderGroup(renderReady, 'cup'); }; }
   }
   $('testvoci').onclick = () => {
     const names = { vai: 'Vai Ciccio!', success: 'Così si fa!', gas: 'Dai gas!', yeehaw: 'Yee-haw!', campa: 'Campa giù!', fine: 'Fatto' };
@@ -1878,9 +1890,10 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${res.unlocked.map(l => `<div class="unlock"><i style="--a:${l.plastic};--b:${l.accent}"></i><span>NUOVA LIVREA SBLOCCATA: <b>${l.name}</b> · sceglila nel garage</span></div>`).join('')}
     ${duel?.racing ? '<div class="duelres" id="duelres"></div>' : ''}
     ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}
+    <button class="cardprev" id="cardprev" type="button"><img alt="Cartolina del risultato" src="${cardURL || 'data:,'}"><span><b>📸 LA TUA CARTOLINA</b><small>Toccala e mandala nel gruppo WhatsApp: risultato, posizione e link per giocare.</small></span></button>
     <div class="actions">
       <button class="primary big" id="again"><span>UN ALTRO GIRO</span>${icon('chevrons')}</button>
-      <button class="secondary hot" id="shareScore">SFIDA IL GRUPPO</button>
+      <button class="secondary hot" id="shareScore">📸 MANDA LA CARTOLINA</button>
       <button class="secondary shopsec" id="shopres">🔧 OFFICINA</button>
       <button class="secondary" id="menu">MENU</button>
     </div>`;
@@ -1889,8 +1902,9 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   drawDuelResult();
   $('menu').onclick = renderReady;
   $('shopres').onclick = () => renderShop(renderReady);
-  $('shareScore').onclick = () => shareScore(win, res);
-  const bindResult = () => { $('again').onclick = () => { if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); } }; drawDuelResult(); $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
+  $('shareScore').onclick = $('cardprev').onclick = () => shareScore(win, res);
+  cardCtx = { win, res }; refreshCardPreview();
+  const bindResult = () => { $('cardprev').onclick = () => shareScore(win, res); refreshCardPreview(); $('again').onclick = () => { if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); } }; drawDuelResult(); $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
   resultSnapshot = { html: $('card').innerHTML, bind: bindResult };
   const gOK = win && !ice && P.MODES[mode].random !== 'run';
   if ($('groupres')) groupResult({ score, mode, rider: profile.rider, time: win ? (leap ? leapBest : elapsed) : 0, win, g: gOK ? C.encodeGhost([...ghostSplits, GAME_LENGTH]) : '' });
@@ -1921,6 +1935,24 @@ function timeListHTML(list, me = '', m = -1) {
   return list.slice(0, 10).map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.s ? e.s.toLocaleString('it-IT') + ' pt' : ''}</span><b>${jumpB ? '📏' : '⏱'} ${fmt(e.t)}</b></li>`).join('');
 }
 let groupKind = 'score';
+// v78 · Coppa della settimana: punti 10-8-6-5-4-3-2-1 ai primi 8 di ogni percorso (settimana da lunedì a domenica)
+const CUP_PTS = [10, 8, 6, 5, 4, 3, 2, 1];
+function cupDaysLeft() { const d = new Date().getDay(); return d === 0 ? 0 : 7 - d; }
+function cupMine(w, nick = C.getNick()) { if (!w || !nick) return null; const i = w.list.findIndex(e => e.n.toLowerCase() === nick.toLowerCase()); return i >= 0 ? { pos: i + 1, ...w.list[i] } : null; }
+function cupListHTML(list, me = '') {
+  if (!list?.length) return '<li class="empty">Questa settimana nessuno ha ancora corso: la coppa è libera.</li>';
+  const mine = C.cleanNick(me).toLowerCase();
+  return list.slice(0, 15).map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.w ? '🥇×' + e.w + ' · ' : ''}${e.c} ${e.c === 1 ? 'percorso' : 'percorsi'}</span><b>${e.p} pt</b></li>`).join('');
+}
+function cupBar(d) {
+  const bar = $('cupbar'); if (!bar) return;
+  const w = d?.week; if (!w) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const lead = w.list[0], me = cupMine(w), left = cupDaysLeft();
+  $('cuplead').textContent = lead ? `1° ${lead.n} · ${lead.p} pt` : 'nessuno ancora: prendila tu!';
+  $('cupme').textContent = (me ? `tu ${me.pos}° · ${me.p} pt · ` : '') + (left ? `finisce tra ${left} ${left === 1 ? 'giorno' : 'giorni'}` : 'ultimo giorno!');
+  $('cupprev').innerHTML = w.prev ? `<small>VINCITORE SCORSA SETTIMANA</small>👑 ${w.prev.n}` : '';
+}
 // Riquadro nel risultato: invia il punteggio col nome salvato, oppure chiede il nome la prima volta.
 let lastGroupRun = null;
 function groupResult(runInfo) {
@@ -1940,6 +1972,7 @@ function groupResult(runInfo) {
     const best = list.find(e => e.n.toLowerCase() === nick.toLowerCase());
     $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div>
       <p class="gpos">${pos ? `<b>${nick}</b> è <b class="big">${pos}°</b>${best && best.s > runInfo.score ? ` (record ${best.s.toLocaleString('it-IT')})` : ''}` : `<b>${nick}</b>: fuori dai primi 10. Dopo migliora!`}</p>${(() => { const tl = C.timesFor(d, runInfo.mode), ti = tl.findIndex(e => e.n.toLowerCase() === nick.toLowerCase()); const jb = runInfo.mode === C.JUMP_MODE, fm = jb ? C.fmtJump : C.fmtTime; return ti >= 0 ? `<p class="gpos">${jb ? '📏 Salto più lungo' : '⏱ Tempi migliori'}: <b>${ti + 1}°</b> con ${fm(tl[ti].t)}${tl[0] && ti > 0 ? ` (1° ${tl[0].n}: ${fm(tl[0].t)})` : ''}</p>` : ''; })()}
+${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 Coppa della settimana: <b>${me.pos}°</b> con ${me.p} pt${d.week.list[0] && me.pos > 1 ? ` (1° ${d.week.list[0].n}: ${d.week.list[0].p} pt)` : ''}</p>` : ''; })()}
       <ol class="board gboard">${groupListHTML(list.slice(0, 5), nick)}</ol>
       <div class="grow"><button class="secondary" type="button" id="gall">TUTTA LA CLASSIFICA</button><button class="linkbtn" type="button" id="gnick">non sei ${nick}?</button></div>`;
     $('gall').onclick = () => renderGroup(() => renderResultAgain(), runInfo.mode);
@@ -1950,7 +1983,7 @@ function groupResult(runInfo) {
   const { sent, sentAs, ...payload } = runInfo;
   C.submit({ ...payload, name: nick, v: String(GAME_VERSION) }).then(d => {
     runInfo.sent = d; runInfo.sentAs = nick; lastGroupRun = runInfo;
-    show(d); renderSide();
+    show(d); renderSide(); refreshCardPreview();
   }).catch(() => {
     if (!$('groupres')) return;
     $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO</div><p>La classifica non risponde (rete lenta o assente). <b>Punteggio messo da parte</b>: parte da solo appena c'è rete.</p><button class="secondary" type="button" id="gretry">RIPROVA ADESSO</button>`;
@@ -2004,14 +2037,16 @@ function renderGroup(back, m = mode) {
   const draw = (d, err) => {
     $('card').innerHTML = `<div class="eyebrow">ENDURO DRINKING TEAM · TUTTI I TELEFONI</div>
       <h1 class="shoptitle">CLASSIFICA<br><em>DEL GRUPPO.</em></h1>
-      <div class="boardtabs gtabs">${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
-      <div class="kindtabs"><button type="button" class="${groupKind === 'score' ? 'active' : ''}" data-gkind="score">🏆 PUNTI</button><button type="button" class="${groupKind === 'time' ? 'active' : ''}" data-gkind="time">${m === C.JUMP_MODE ? '📏 SALTO PIÙ LUNGO' : '⏱ TEMPI MIGLIORI'}</button></div>
+      <div class="boardtabs gtabs"><button type="button" class="cuptab ${m === 'cup' ? 'active' : ''}" data-gmode="cup">🏆 COPPA</button>${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
+      ${m === 'cup' ? (() => { const w = d?.week, me = cupMine(w, nick); return `<p class="gsub">COPPA DELLA SETTIMANA${w ? ` · dal ${w.from.slice(8)}/${w.from.slice(5, 7)} al ${w.to.slice(8)}/${w.to.slice(5, 7)}` : ''} · si azzera ogni lunedì</p>
+      <p class="note cupnote">In ogni percorso i primi 8 della settimana prendono <b>10-8-6-5-4-3-2-1</b> punti coppa: vince chi ne somma di più. Più percorsi fai, più punti puoi prendere.${w?.prev ? `<br>👑 Vincitore della settimana scorsa: <b>${w.prev.n}</b> (${w.prev.p} pt)` : ''}${me ? `<br>Tu sei <b>${me.pos}°</b> con <b>${me.p} pt</b>.` : ''}</p>
+      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : !d ? '<p class="gwait">Carico la coppa…</p>' : w ? `<ol class="board gboard">${cupListHTML(w.list, nick)}</ol>` : '<p class="gwait">La coppa si accende appena è aggiornato lo script della classifica.</p>'}`; })() : `<div class="kindtabs"><button type="button" class="${groupKind === 'score' ? 'active' : ''}" data-gkind="score">🏆 PUNTI</button><button type="button" class="${groupKind === 'time' ? 'active' : ''}" data-gkind="time">${m === C.JUMP_MODE ? '📏 SALTO PIÙ LUNGO' : '⏱ TEMPI MIGLIORI'}</button></div>
       <p class="gsub">PS${psOf(P.MODES[m])} · ${m === 3 ? 'Sfida del ' + P.todayLabel() + ' (si azzera ogni giorno)' : P.MODES[m].name} · migliori 10, un record a testa</p>
-      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard ${groupKind === 'time' ? 'timeboard' : ''}">${groupKind === 'time' ? timeListHTML(C.timesFor(d, m), nick, m) : groupListHTML(d.boards?.[m], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}
+      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard ${groupKind === 'time' ? 'timeboard' : ''}">${groupKind === 'time' ? timeListHTML(C.timesFor(d, m), nick, m) : groupListHTML(d.boards?.[m], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}`}
       <p class="note">${nick ? `In classifica come <b>${nick}</b>.` : 'Il tuo nome lo scegli alla fine del primo giro.'}</p>
       <div class="actions"><button class="primary" id="gback"><span>INDIETRO</span></button><button class="secondary" id="greload">AGGIORNA</button></div>`;
     iconizeEl($('card'));
-    document.querySelectorAll('[data-gmode]').forEach(b => b.onclick = () => { m = Number(b.dataset.gmode); draw(C.cached()); });
+    document.querySelectorAll('[data-gmode]').forEach(b => b.onclick = () => { m = b.dataset.gmode === 'cup' ? 'cup' : Number(b.dataset.gmode); draw(C.cached()); });
     document.querySelectorAll('[data-gkind]').forEach(b => b.onclick = () => { groupKind = b.dataset.gkind; draw(C.cached()); });
     $('gback').onclick = back;
     $('greload').onclick = () => { draw(null); C.load(true).then(x => draw(x)).catch(() => draw(null, true)); };
@@ -2038,7 +2073,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 77;
+const GAME_VERSION = 78;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2097,7 +2132,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=77" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=78" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2105,7 +2140,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=77" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=78" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- v68 · Sfida 1 contro 1 dal vivo ----------
@@ -2256,46 +2291,77 @@ function loadImage(src) {
   return new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
 }
 // Crea l'immagine del punteggio da mandare nel gruppo.
+// v78 · cartolina del risultato: locandina del percorso, foto del pilota, risultato grande, posizioni (gara, gruppo, coppa) e link
+function cardFacts(win, res) {
+  const md = P.MODES[mode], f = [];
+  if (run.position && !leap) f.push([`${run.position}°`, ice ? `SU ${rivals.length + 1} NELLE DERAPATE` : `SU ${rivals.length + 1} IN GARA`]);
+  const d = lastGroupRun?.sent, nick = C.getNick();
+  if (d && nick) {
+    const gp = C.positionOf(d, md.id, nick); if (gp) f.push([`${gp}°`, 'NEL GRUPPO']);
+    const me = cupMine(d.week, nick); if (me) f.push([`${me.pos}°`, 'COPPA SETTIMANA']);
+  }
+  if (res.isRecord) f.push(['★', 'NUOVO RECORD']);
+  if (f.length < 3) f.push([String(run.caps), 'BIRRE']);
+  if (f.length < 3) f.push([String(run.jumps), 'SALTI']);
+  return f.slice(0, 3);
+}
 async function scoreCard(win, res) {
   const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
-  const x = c.getContext('2d');
+  const x = c.getContext('2d'), md = P.MODES[mode];
   try { await document.fonts?.load('80px Anton'); } catch {}
-  const F = n => n + 'px Anton, Impact, sans-serif';
-  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1d1a17'); g.addColorStop(1, '#0d0f0d'); x.fillStyle = g; x.fillRect(0, 0, W, H);
-  // Logo
+  const F = n => n + 'px Anton, Impact, sans-serif', B = n => `800 ${n}px "Barlow Condensed", Arial Narrow, Arial, sans-serif`;
+  x.fillStyle = '#12110f'; x.fillRect(0, 0, W, H);
+  // locandina del percorso in alto, sfumata nel fondo
+  const art = await loadImage(trackArtOf(md));
+  if (art) { const ah = 820, sc = Math.max(W / art.width, ah / art.height), w = art.width * sc, h = art.height * sc; x.drawImage(art, (W - w) / 2, (ah - h) * .35, w, h); }
+  let g = x.createLinearGradient(0, 380, 0, 860); g.addColorStop(0, '#12110f00'); g.addColorStop(1, '#12110f'); x.fillStyle = g; x.fillRect(0, 380, W, 480);
+  g = x.createLinearGradient(0, 0, 0, 200); g.addColorStop(0, '#000a'); g.addColorStop(1, '#0000'); x.fillStyle = g; x.fillRect(0, 0, W, 200);
+  // logo e prova speciale
   const logo = await loadImage('edt-logo.png');
-  if (logo) { const w = 430, h = w * logo.height / logo.width; x.fillStyle = '#fff'; roundRect(x, W / 2 - w / 2 - 14, 46, w + 28, h + 28, 22); x.fill(); x.drawImage(logo, W / 2 - w / 2, 60, w, h); }
-  // Foto del pilota
-  const cy = 488, R = 112;
+  if (logo) { const w = 250, h = w * logo.height / logo.width; x.fillStyle = '#fff'; roundRect(x, 36, 36, w + 24, h + 24, 18); x.fill(); x.drawImage(logo, 48, 48, w, h); }
+  x.textAlign = 'right'; x.fillStyle = '#ffcf16'; x.font = B(38); x.fillText(`PS${psOf(md)} · ${md.limit} s`, W - 44, 80);
+  x.fillStyle = '#fff'; x.font = F(56); x.fillText((md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name).toUpperCase(), W - 44, 146);
+  // pilota
+  const cy = 760, cx = 190, R = 118;
   const photo = photoURL(profile.rider) ? await loadImage(photoURL(profile.rider)) : null;
-  x.save(); x.beginPath(); x.arc(W / 2, cy, R, 0, Math.PI * 2); x.closePath(); x.fillStyle = '#3a312a'; x.fill(); x.clip();
-  if (photo) x.drawImage(photo, W / 2 - R, cy - R, R * 2, R * 2);
-  else { x.fillStyle = '#ffcf16'; x.font = F(100); x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(profile.rider.replace('Il ', '').slice(0, 2).toUpperCase(), W / 2, cy + 6); x.textBaseline = 'alphabetic'; }
+  x.save(); x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.closePath(); x.fillStyle = '#3a312a'; x.fill(); x.clip();
+  if (photo) x.drawImage(photo, cx - R, cy - R, R * 2, R * 2);
+  else { x.fillStyle = '#ffcf16'; x.font = F(100); x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(profile.rider.replace('Il ', '').slice(0, 2).toUpperCase(), cx, cy + 6); x.textBaseline = 'alphabetic'; }
+  x.restore(); x.lineWidth = 10; x.strokeStyle = '#ffcf16'; x.beginPath(); x.arc(cx, cy, R + 4, 0, Math.PI * 2); x.stroke();
+  x.textAlign = 'left'; x.fillStyle = '#fff3de'; x.font = F(70); x.fillText(profile.rider.toUpperCase(), cx + R + 36, cy - 6);
+  const nick = C.getNick(); x.fillStyle = '#b9ad98'; x.font = B(34); x.fillText((nick && nick.toLowerCase() !== profile.rider.toLowerCase() ? nick + ' · ' : '') + (SKILLS[profile.rider]?.name || 'Enduro Drinking Team'), cx + R + 38, cy + 44);
+  // risultato grande sulla fascia gialla
+  const head = leap ? (win ? leapBest.toFixed(1).replace('.', ',') + ' M' : 'SALTO NULLO') : ice ? Math.round(driftScore).toLocaleString('it-IT') : win ? elapsed.toFixed(1).replace('.', ',') + ' s' : Math.floor(course / GAME_LENGTH * 100) + '%';
+  const sub = leap ? (win ? 'SALTO ATTERRATO IN PIEDI' : 'DI MUSO O SUI PIETRONI') : ice ? 'PUNTI DERAPATA' : win ? 'ARRIVATO AL RIFUGIO' : gev ? 'FERMATO DALLE GEV' : 'DEL PERCORSO, POI È FINITA';
+  const by = 1000;
+  x.save(); x.translate(W / 2, by); x.rotate(-.045); x.fillStyle = '#ffcf16'; x.fillRect(-W, -112, W * 2, 224); x.fillStyle = '#e3301c'; x.fillRect(-W, 112, W * 2, 18);
+  x.textAlign = 'center'; x.fillStyle = '#1b1712'; x.font = F(head.length > 8 ? 130 : 168); x.fillText(head, 0, 50);
+  x.font = B(34); x.fillText(sub + ' · ' + score.toLocaleString('it-IT') + ' PUNTI EDT', 0, 96);
   x.restore();
-  x.lineWidth = 10; x.strokeStyle = '#ffcf16'; x.beginPath(); x.arc(W / 2, cy, R + 3, 0, Math.PI * 2); x.stroke();
-  x.textAlign = 'center';
-  x.fillStyle = '#fff3de'; x.font = F(64); x.fillText(profile.rider.toUpperCase(), W / 2, cy + R + 82);
-  // Fascia gialla con il punteggio
-  const by = 850;
-  x.save(); x.translate(W / 2, by); x.rotate(-.07); x.fillStyle = '#ffcf16'; x.fillRect(-W, -125, W * 2, 250); x.fillStyle = '#e3301c'; x.fillRect(-W, 125, W * 2, 24);
-  x.fillStyle = '#1b1712'; x.font = F(196); x.fillText(score.toLocaleString('it-IT'), 0, 62);
-  x.font = '800 30px monospace'; x.fillText('PUNTI EDT', 0, 106);
-  x.restore();
-  const md = P.MODES[mode];
-  x.font = F(42); x.fillStyle = res.isRecord ? '#ffcf16' : '#fff3de';
-  x.fillText((md.id === 3 ? 'SFIDA DEL GIORNO ' + P.todayLabel() : md.name.toUpperCase()) + (res.isRecord ? ' · NUOVO RECORD!' : ''), W / 2, 1060);
-  x.font = 'bold 32px Arial'; x.fillStyle = '#d9cdb8';
-  x.fillText(`${run.caps} birre · ${run.jumps} salti · ${run.perfect} perfetti · combo ×${run.maxMult}`, W / 2, 1112);
-  x.fillStyle = '#ffcf16'; x.font = F(80);
-  x.fillText(win ? 'CHI MI BATTE?' : 'DOPO MIGLIORA…', W / 2, 1232);
-  x.fillStyle = '#9f9686'; x.font = 'bold 28px Arial'; x.fillText('Giro Easy · Enduro Drinking Team · Sterrare humanum est', W / 2, 1296);
+  // tre caselle: posizione in gara, nel gruppo, coppa (o birre e salti)
+  const facts = cardFacts(win, res), bw = 300, gap = 30, x0 = (W - (bw * 3 + gap * 2)) / 2;
+  facts.forEach(([v, l], i) => { const bx = x0 + i * (bw + gap); x.fillStyle = '#ffffff14'; roundRect(x, bx, 1160, bw, 96, 14); x.fill(); x.textAlign = 'center'; x.fillStyle = '#ffcf16'; x.font = F(50); x.fillText(v, bx + bw / 2, 1214); x.fillStyle = '#d9cdb8'; x.font = B(24); x.fillText(l, bx + bw / 2, 1244); });
+  x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = F(46); x.fillText(win ? 'CHI MI BATTE?' : 'DOPO MIGLIORA…', W / 2, 1306);
+  x.fillStyle = '#9f9686'; x.font = B(26); x.fillText(publicGameURL.replace(/^https?:\/\//, '').replace(/\/$/, ''), W / 2, 1338);
   return new Promise(r => c.toBlob(r, 'image/png'));
+}
+// anteprima della cartolina nella schermata del risultato
+let cardCtx = null, cardURL = '';
+async function refreshCardPreview() {
+  if (!cardCtx || !$('cardprev')) return;
+  try {
+    const blob = await scoreCard(cardCtx.win, cardCtx.res); if (!blob || !$('cardprev')) return;
+    const old = cardURL; cardURL = URL.createObjectURL(blob);
+    const img = $('cardprev').querySelector('img'); if (img) img.src = cardURL;
+    if (old) setTimeout(() => URL.revokeObjectURL(old), 3000);
+  } catch {}
 }
 function roundRect(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
 
 async function shareScore(win, res) {
   const md = P.MODES[mode];
-  const text = `${profile.rider} ha fatto ${score.toLocaleString('it-IT')} punti a Giro Easy EDT (${md.id === 3 ? 'Sfida del ' + P.todayLabel() : md.name})${res.isRecord ? ' — NUOVO RECORD' : ''}. Chi mi batte?`;
+  const what = leap && win ? `ha saltato ${leapBest.toFixed(1).replace('.', ',')} metri` : win && !ice ? `è arrivato al rifugio in ${elapsed.toFixed(1).replace('.', ',')} s (${score.toLocaleString('it-IT')} punti)` : `ha fatto ${score.toLocaleString('it-IT')} punti`;
+  const text = `${profile.rider} ${what} a Giro Easy EDT (${md.id === 3 ? 'Sfida del ' + P.todayLabel() : md.name})${res.isRecord ? ' — NUOVO RECORD' : ''}. Chi mi batte?`;
   if (window.EDT_TEXT_SHARE) { await shareText(text); return; }
   try {
     const blob = await scoreCard(win, res);

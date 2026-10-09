@@ -1218,3 +1218,22 @@ aside#hub { gap: 10px; }
 .label.sub { margin: 12px 0 6px; font: 800 12px var(--ui); letter-spacing: 1.5px; color: var(--y); }
 .garjump { display: flex; gap: 6px; margin: 0 0 6px; flex-wrap: wrap; }
 .garjump a { text-decoration: none; }
+/* v78 · Coppa della settimana nel menu */
+.cupbar { display: flex; align-items: center; gap: 12px; width: 100%; margin: 8px 0 2px; padding: 10px 14px; text-align: left; color: #fff3de; background: linear-gradient(100deg, #3a2c08, #1d1a12 60%); border: 1px solid #ffcf1688; border-radius: 10px; cursor: pointer; }
+.cupbar[hidden] { display: none; }
+.cupbar .cupi { font-size: 30px; filter: drop-shadow(0 0 8px #ffcf1688); }
+.cupbar .cupt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cupbar small { font: 12px var(--display); letter-spacing: 1.5px; color: var(--y); }
+.cupbar b { font: 19px var(--display); letter-spacing: .5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cupbar em { font-style: normal; font-size: 12.5px; color: var(--muted); }
+.cupbar .cupx { text-align: right; font: 15px var(--display); color: #ffe27a; max-width: 38%; }
+.cupbar .cupx small { display: block; font-size: 9.5px; color: var(--muted); letter-spacing: .8px; }
+.cupbar .cupx:empty { display: none; }
+.boardtabs .cuptab { background: #3a2c08; color: var(--y); border-color: #ffcf1688; }
+.boardtabs .cuptab.active { background: var(--y); color: #241b12; }
+.cupnote { line-height: 1.45; }
+/* v78 · anteprima della cartolina del risultato */
+.cardprev { display: flex; align-items: center; gap: 14px; width: 100%; margin: 12px 0 4px; padding: 10px; text-align: left; color: #fff3de; background: #10110ecc; border: 1px dashed #ffcf1688; border-radius: 12px; cursor: pointer; }
+.cardprev img { width: 92px; aspect-ratio: 1080 / 1350; object-fit: cover; border-radius: 6px; background: #2a2620; box-shadow: 0 6px 16px #000a; transform: rotate(-3deg); flex: none; }
+.cardprev b { display: block; font: 18px var(--display); letter-spacing: 1px; color: var(--y); }
+.cardprev small { font-size: 13px; color: var(--muted); line-height: 1.35; }
