@@ -188,6 +188,30 @@ export function createWorld(canvas) {
   const GRASS_COLS = ['#6f8f4f', '#8cbf5f', '#b3ad62', '#868c80'].map(c => new T.Color(c));
   const VERGE_COLS = ['#5f6e3c', '#6d8a45', '#9a8e52', '#767971'].map(c => new T.Color(c));
   const fogBase = { near: 75, far: 205 };
+  // v70 · materiali fotografati dal vero (Poly Haven, CC0): sentiero sassoso, prato con rocce. Se non arrivano resta la grafica disegnata.
+  const roadMaps = [gravel], grassMaps = [grassTex];
+  const texLoader = new T.TextureLoader();
+  function photoTex(name, rx, ry, color, done) {
+    let left = 2; const out = {};
+    const fin = () => { if (--left === 0) done(out); };
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=70`, t => {
+      t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
+      out[k] = t; fin();
+    }, undefined, () => { left = -99; });
+  }
+  photoTex('trail', 1.6, 34, true, ({ map, normalMap }) => {
+    dirt.map = map; dirt.normalMap = normalMap; dirt.normalScale.set(1.1, 1.1); dirt.bumpMap = null; dirt.needsUpdate = true;
+    roadMaps.length = 0; roadMaps.push(map, normalMap);
+    ['#b8a58f', '#8f7b66', '#e8dccb', '#d8d4ce'].forEach((c, i) => DIRT_COLS[i].set(c));
+  });
+  photoTex('meadow', 10, 30, true, ({ map, normalMap }) => {
+    grass.map = map; grass.normalMap = normalMap; grass.normalScale.set(.8, .8); grass.needsUpdate = true;
+    verge.map = map; verge.normalMap = normalMap; verge.needsUpdate = true;
+    grassMaps.length = 0; grassMaps.push(map, normalMap);
+    ['#9db08a', '#b8d39b', '#e2dcb0', '#c0c3bb'].forEach((c, i) => GRASS_COLS[i].set(c));
+    ['#8d9b70', '#a4bd84', '#d6cc9c', '#b4b6ae'].forEach((c, i) => VERGE_COLS[i].set(c));
+  });
+
   function blend(target, cols, w) { target.setRGB(0, 0, 0); for (let i = 0; i < 4; i++) { target.r += cols[i].r * w[i]; target.g += cols[i].g * w[i]; target.b += cols[i].b * w[i]; } }
   function terrain(t) {
     for (const [o, from, to] of [[road, -4.65, 4.65], [left, -70, -5.15], [right, 5.15, 70], [edges[0], -5.15, -4.65], [edges[1], 4.65, 5.15]]) {
@@ -207,8 +231,8 @@ export function createWorld(canvas) {
       }
       a.needsUpdate = true; col.needsUpdate = true; o.geometry.computeVertexNormals();
     }
-    gravel.offset.y = (t * 30 / 200) % 1;
-    grassTex.offset.y = (t * 34 / 200) % 1;
+    for (const m of roadMaps) m.offset.y = (t * m.repeat.y / 200) % 1;
+    for (const m of grassMaps) m.offset.y = (t * m.repeat.y / 200) % 1;
     // Colori del terreno per sezione: terra scura di bosco, fango, ocra di pascolo, pietra.
     const W = trail.w || [1, 0, 0, 0];
     blend(dirt.color, DIRT_COLS, W);
@@ -272,8 +296,10 @@ export function createWorld(canvas) {
     if (on === iceKey) return; iceKey = on; iceMode = on;
     // inverno: latifoglie e larici spogli, abeti con la neve in cima, niente erba
     leafCrowns.visible = larchCrowns.visible = !on;
-    if (!groundMaps) groundMaps = { d: dirt.map, g: grass.map, v: verge.map };
+    if (on) groundMaps = { d: dirt.map, g: grass.map, v: verge.map, dn: dirt.normalMap, gn: grass.normalMap, vn: verge.normalMap };
+    else if (!groundMaps) groundMaps = { d: dirt.map, g: grass.map, v: verge.map, dn: dirt.normalMap, gn: grass.normalMap, vn: verge.normalMap };
     dirt.map = on ? iceTex : groundMaps.d; grass.map = on ? null : groundMaps.g; verge.map = on ? null : groundMaps.v;
+    dirt.normalMap = on ? null : groundMaps.dn; grass.normalMap = on ? null : groundMaps.gn; verge.normalMap = on ? null : groundMaps.vn;
     dirt.needsUpdate = grass.needsUpdate = verge.needsUpdate = true;
     pine.color.set(on ? '#2c4a44' : '#30594c'); pineLight.color.set(on ? '#eef4f7' : '#3e6d56');
     tufts.visible = !on && quality < 2;
