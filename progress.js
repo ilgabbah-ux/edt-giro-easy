@@ -248,7 +248,7 @@ export function todayLabel(d = new Date()) {
   return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
 }
 export function boardKey(mode) {
-  return mode === 3 ? 'd' + todayKey() : String(mode);
+  return mode === 3 ? 'd' + todayKey() : mode === 2 ? 'j2' : String(mode);   // v59 · il Taglio di Angelo ora è una gara di salto: record nuovi
 }
 
 // ---------- Record e classifica ----------
