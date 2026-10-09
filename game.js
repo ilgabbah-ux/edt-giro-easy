@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=64';
-import { createWorld } from './scene3d.js?v=64';
-import * as A from './audio.js?v=64';
-import * as P from './progress.js?v=64';
-import { FOTO } from './piloti.js?v=64';
-import { createMud } from './mudfx.js?v=64';
-import { icon, iconize, iconizeEl } from './icons.js?v=64';
-import * as C from './classifica.js?v=64';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=65';
+import { createWorld } from './scene3d.js?v=65';
+import * as A from './audio.js?v=65';
+import * as P from './progress.js?v=65';
+import { FOTO } from './piloti.js?v=65';
+import { createMud } from './mudfx.js?v=65';
+import { icon, iconize, iconizeEl } from './icons.js?v=65';
+import * as C from './classifica.js?v=65';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -128,7 +128,7 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9;
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-suuuka', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=64';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=65';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400;
@@ -153,18 +153,45 @@ function tiltAngle(e) {
   if (a === -90 || a === 270) return -e.beta;
   return e.gamma;                       // verticale
 }
-window.addEventListener('deviceorientation', e => {
-  if (!tiltOn || e.gamma === null) { tiltSteer = 0; return; }
-  tiltRaw = tiltAngle(e) || 0;
+let tiltSeen = 0, tiltOriSeen = 0;
+function tiltApply(raw) {
+  tiltRaw = raw;
   if (tiltZero === null) tiltZero = tiltRaw;
-  const d = tiltRaw - tiltZero, dead = 3, full = 18;   // 3° di zona morta, sterzata piena a 18°
+  const d = tiltRaw - tiltZero, dead = 3, full = 16;   // 3° di zona morta, sterzata piena a 16°
   tiltSteer = Math.abs(d) < dead ? 0 : Math.max(-1, Math.min(1, (d - Math.sign(d) * dead) / (full - dead)));
+}
+window.addEventListener('deviceorientation', e => {
+  if (e.gamma === null || e.gamma === undefined) return;
+  tiltSeen = tiltOriSeen = performance.now();
+  if (!tiltOn) { tiltSteer = 0; return; }
+  tiltApply(tiltAngle(e) || 0);
 });
+// v65 · riserva: alcuni telefoni non mandano l'orientamento ma solo l'accelerometro (gravità)
+window.addEventListener('devicemotion', e => {
+  const g = e.accelerationIncludingGravity; if (!g || g.x === null || g.x === undefined) return;
+  tiltSeen = performance.now();
+  if (!tiltOn) { tiltSteer = 0; return; }
+  if (performance.now() - tiltOriSeen < 600) return;   // l'orientamento c'è: uso quello
+  const a = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0;
+  const ax = a === 90 ? g.y : (a === -90 || a === 270) ? -g.y : -g.x;
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ? -1 : 1;
+  tiltApply(Math.asin(Math.max(-1, Math.min(1, ios * ax / 9.81))) * 180 / Math.PI);
+});
+// v65 · iPhone: dopo un ricaricamento il permesso ai sensori va richiesto di nuovo con un tocco
+document.addEventListener('pointerdown', () => {
+  if (tiltOn && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function' && performance.now() - tiltSeen > 1000)
+    DeviceOrientationEvent.requestPermission().catch(() => {});
+}, { passive: true });
 async function setTilt(on) {
   if (on && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     try { if (await DeviceOrientationEvent.requestPermission() !== 'granted') { toast('📱 PERMESSO AL GIROSCOPIO NEGATO', 'red'); on = false; } } catch { on = false; }
   }
   tiltOn = on; tiltZero = null; tiltSteer = 0;
+  if (on) setTimeout(() => {   // v65 · se il telefono non manda i sensori lo dico chiaramente
+    if (!tiltOn) return;
+    if (performance.now() - tiltSeen > 1500) toast(window.top !== window ? '📱 QUI I SENSORI SONO BLOCCATI: APRI IL GIOCO DAL SITO ilgabbah-ux.github.io/edt-giro-easy' : '📱 IL TELEFONO NON MANDA I DATI DI INCLINAZIONE (CONTROLLA I PERMESSI DEI SENSORI DI MOVIMENTO)', 'red');
+    else toast('📱 INCLINAZIONE OK: ' + Math.round(tiltRaw) + '°', 'gold');
+  }, 1600);
   try { localStorage.setItem('edt-tilt', on ? '1' : '0'); } catch {}
   return on;
 }
@@ -1673,7 +1700,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=64" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=65" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -1994,7 +2021,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 64;
+const GAME_VERSION = 65;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2053,7 +2080,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=64" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=65" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2061,7 +2088,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=64" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=65" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- Condivisione ----------
