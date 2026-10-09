@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=76';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=77';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -196,7 +196,7 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=76`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=77`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
@@ -293,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=76', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=77', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -389,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=76`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=77`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -397,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=76', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=76', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=77', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=77', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -671,7 +671,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=76', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=77', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -880,8 +880,9 @@ export function createWorld(canvas) {
   { const c = mesh(new T.CylinderGeometry(.13, .14, .05, 28), alloy, chassis); c.rotation.z = Math.PI / 2; c.position.set(.15, .67, -.1); }
   { const c = mesh(new T.CylinderGeometry(.1, .11, .05, 24), alloy, chassis); c.rotation.z = Math.PI / 2; c.position.set(-.15, .65, -.14); }
   { const base = new T.Vector3(0, .8, -.2), ax = new T.Vector3(0, Math.cos(.38), -Math.sin(.38));
-    const cyl = box(.19, .3, .19, engMat, chassis, ...base.clone().addScaledVector(ax, .15).toArray()); cyl.rotation.x = -.38;
-    for (let i = 0; i < 6; i++) { const f = box(.25, .014, .23, alloy, chassis, ...base.clone().addScaledVector(ax, .04 + i * .045).toArray()); f.rotation.x = -.38; }
+    // v77 · cilindro tondo con alette a disco (prima erano parallelepipedi)
+    const cyl = mesh(new T.CylinderGeometry(.092, .1, .3, 24), engMat, chassis); cyl.position.copy(base.clone().addScaledVector(ax, .15)); cyl.rotation.x = -.38;
+    for (let i = 0; i < 6; i++) { const f = mesh(new T.CylinderGeometry(.13 - i * .006, .13 - i * .006, .012, 24), alloy, chassis); f.position.copy(base.clone().addScaledVector(ax, .04 + i * .045)); f.rotation.x = -.38; f.scale.z = .9; }
     const hc = box(.21, .07, .2, black, chassis, ...base.clone().addScaledVector(ax, .33).toArray()); hc.rotation.x = -.38; }
   // paramotore
   sideShape(s => { s.moveTo(-.44, .58); s.quadraticCurveTo(-.4, .42, -.2, .42); s.lineTo(.12, .44); s.lineTo(.15, .52); s.lineTo(-.36, .6); s.lineTo(-.44, .58); }, .27, alloy, chassis, 0, .012);
@@ -947,14 +948,25 @@ export function createWorld(canvas) {
   { const nb = mesh(new T.TorusGeometry(.105, .032, 8, 20), black, body); nb.position.set(...B(0, 2.02, .13)); nb.rotation.x = Math.PI / 2 - .3; }
   const head = new T.Group(); head.position.set(...B(0, 2.17, .035)); body.add(head);
   // v72 · casco da cross in scala vera: calotta, mentoniera sporgente, frontino, maschera con elastico
-  ball(.158, .172, .19, helmetMat, head, 0, -.01, .01);
-  sideShape(s => { s.moveTo(-.04, -.17); s.quadraticCurveTo(-.24, -.17, -.26, -.07); s.lineTo(-.22, -.02); s.quadraticCurveTo(-.14, -.07, -.03, -.04); s.lineTo(-.04, -.17); }, .15, helmetMat, head, 0, .024);
-  box(.04, .03, .04, accent, head, 0, -.09, -.255);
-  sideShape(s => { s.moveTo(-.09, .14); s.lineTo(-.29, .08); s.quadraticCurveTo(-.31, .06, -.28, .055); s.lineTo(-.12, .08); s.lineTo(-.09, .14); }, .17, accent, head, 0, .011);
-  ball(.085, .04, .15, accent, head, 0, .155, .03);
+  // v77 · calotta unica modellata: mentoniera sporgente che nasce dalla calotta, mento stretto, nuca allungata, bordo piatto
+  { const g = new T.SphereGeometry(1, 36, 26), a = g.attributes.position;
+    for (let i = 0; i < a.count; i++) {
+      let x = a.getX(i), y = a.getY(i), z = a.getZ(i);
+      const fr = Math.max(0, -z), u = Math.min(1, Math.max(0, (-y - .08) / .4)), lo = u * u * (3 - 2 * u);
+      z -= .7 * fr * lo; x *= 1 - .22 * fr * lo;
+      if (z < -1.28) z = -1.28 - (z + 1.28) * .15;   // frontale della mentoniera quasi piatto
+      if (y < -.72) y = -.72 + (y + .72) * .35;
+      z += .1 * Math.max(0, z) * Math.max(0, -y);
+      a.setXYZ(i, x * .158, y * .172, z * .19);
+    }
+    g.computeVertexNormals(); const sh = mesh(g, helmetMat, head); sh.position.set(0, -.01, .01); }
+  box(.06, .04, .03, accent, head, 0, -.1, -.252);
+  // frontino curvo (scende ai lati)
+  bendFender(sideShape(s => { s.moveTo(-.1, .15); s.lineTo(-.28, .095); s.quadraticCurveTo(-.3, .08, -.275, .075); s.lineTo(-.13, .1); s.lineTo(-.1, .15); }, .2, accent, head, 0, .006, 6), 2.8);
   { const st = mesh(new T.TorusGeometry(.17, .014, 6, 30), strapMat, head); st.rotation.x = Math.PI / 2; st.position.y = .01; }
-  box(.235, .075, .055, black, head, 0, .01, -.165);
-  box(.19, .052, .02, lensMat, head, 0, .01, -.193);
+  // maschera curva che segue il casco: telaio nero e lente a specchio
+  { const fr = mesh(new T.CylinderGeometry(.186, .186, .078, 28, 1, true, Math.PI - 1.05, 2.1), black, head); fr.position.set(0, .012, .005);
+    const ln = mesh(new T.CylinderGeometry(.19, .19, .05, 28, 1, true, Math.PI - .82, 1.64), lensMat, head); ln.position.set(0, .012, .005); }
   for (const side of [-1, 1]) {
     box(.1, .04, .02, accent, body, ...B(side * .15, 1.58, .33));
     for (let i = 0; i < 3; i++) box(.15, .026, .03, bootTrim, rider, side * .31, .9 + i * .06, .22 - i * .03);
@@ -1005,7 +1017,7 @@ export function createWorld(canvas) {
   decal.position.set(...B(0, 1.80, .318)); decal.rotation.x = .2; decal.userData.keep = true; decal.name = 'decal';
   // v44 · pezzi opzionali: paramani, faro, espansione del 2 tempi, doppio ammortizzatore vintage, grafiche
   for (const side of [-1, 1]) { const hg = box(.06, .13, .24, guardMat, front, ...F(side * .52, 1.5, -.66)); hg.rotation.y = side * .35; hg.rotation.z = side * -.2; }
-  box(.17, .11, .06, lampMat, front, ...F(0, 1.30, -.72));
+  { const hl = mesh(new T.CylinderGeometry(.062, .068, .05, 28), lampMat, front); hl.rotation.x = Math.PI / 2 + .3; hl.scale.set(1.3, 1, 1); hl.position.set(...F(0, 1.30, -.725)); }   // v77 · faro ovale
   // v71 · T7 BO-anal: cupolino da rally con doppio faro e parabrezza alto (solo su quella moto)
   const rallyLamp = lampMat.clone(), rallyMat = pmat('#f2f4f8', .3), screenMat = new T.MeshPhysicalMaterial({ color: '#3a4a5a', roughness: .05, metalness: .1, transparent: true, opacity: .45, clearcoat: 1 });
   { const fa = frontShape(s => { s.moveTo(-.2, -.2); s.lineTo(.2, -.2); s.lineTo(.23, .12); s.quadraticCurveTo(0, .24, -.23, .12); s.lineTo(-.2, -.2); }, .05, rallyMat, front, .02); fa.position.set(...F(0, 1.42, -.735)); fa.rotation.x = .3;
