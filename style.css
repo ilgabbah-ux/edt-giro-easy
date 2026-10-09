@@ -1213,3 +1213,8 @@ aside#hub { gap: 10px; }
 
 /* v73 · menu più corto sul telefono: lo scudo EDT c'è già nella barra in alto */
 @media (max-width: 560px) { .menuhead .menushield { display: none; } .menuhead { gap: 0; } }
+
+/* v75 · garage: livree subito sotto il titolo, poi le moto */
+.label.sub { margin: 12px 0 6px; font: 800 12px var(--ui); letter-spacing: 1.5px; color: var(--y); }
+.garjump { display: flex; gap: 6px; margin: 0 0 6px; flex-wrap: wrap; }
+.garjump a { text-decoration: none; }
