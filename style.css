@@ -1128,3 +1128,12 @@ aside#hub { gap: 10px; }
 .erika.braulio img { width: clamp(96px, 13vw, 150px); border: 3px solid #c9a43a; box-shadow: 0 0 0 1px #000, 0 10px 24px #000b, 0 0 40px #ffcf1655; transform: rotate(-4deg); }
 .erika.braulio .bubble { margin-bottom: 38%; }
 @media (max-width: 900px) { .erika.braulio { bottom: 190px; } .erika.braulio img { width: 96px; } .erika.braulio .bubble { font-size: 17px; white-space: normal; max-width: 150px; } }
+/* v57 · Anti-GEV: il verbale della multa */
+.verbale { position: relative; margin: 10px 0 12px; padding: 12px 14px 14px; background: #f6f1df; color: #1d1d1b; border: 2px solid #1d1d1b; box-shadow: 4px 4px 0 #c81f19; transform: rotate(-1.2deg); font: 600 14px var(--ui); text-align: left; }
+.verbale .vtop { display: flex; flex-direction: column; border-bottom: 2px dashed #1d1d1b55; padding-bottom: 6px; margin-bottom: 6px; }
+.verbale .vtop b { font: italic 800 18px var(--ui); color: #c81f19; letter-spacing: 1px; }
+.verbale .vtop span { font-size: 11px; letter-spacing: 2px; color: #2f6a2a; }
+.verbale .vrow { display: grid; grid-template-columns: 96px 1fr; gap: 8px; padding: 2px 0; }
+.verbale .vrow small { font-size: 10px; letter-spacing: 1.5px; color: #555; padding-top: 3px; }
+.verbale .vfirma { display: block; margin-top: 8px; font: italic 600 13px Georgia, serif; color: #3a3a8a; text-align: right; }
+.verbale::after { content: 'MULTA'; position: absolute; right: 10px; top: 8px; padding: 2px 8px; border: 3px solid #c81f19; color: #c81f19; font: 900 20px var(--display, Impact); transform: rotate(12deg); opacity: .8; }

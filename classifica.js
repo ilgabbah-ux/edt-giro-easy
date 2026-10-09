@@ -18,7 +18,7 @@ let cache = null, cacheAt = 0, inflight = null;
 export const cached = () => cache;
 
 // fetch normale; se il browser lo blocca (es. dentro cornici con regole strette) si prova con JSONP.
-function jsonp(url, ms = 12000) {
+function jsonp(url, ms = 20000) {
   return new Promise((resolve, reject) => {
     const cb = '__edtcb' + Math.random().toString(36).slice(2);
     const s = document.createElement('script');
@@ -35,7 +35,7 @@ async function call(params) {
   const url = API + '?' + new URLSearchParams(params).toString();
   let data;
   try {
-    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 12000);
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 20000);   // v57 · telefono con rete lenta: più pazienza
     const r = await fetch(url, { signal: ctl.signal, redirect: 'follow' }); clearTimeout(t);
     data = await r.json();
   } catch { data = await jsonp(url); }
@@ -52,7 +52,27 @@ export function load(force = false) {
 }
 
 export function submit({ name, score, mode, rider, time, win, v, g }) {
-  return call({ action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round((time || 0) * 10) / 10, win: win ? 1 : 0, v: v || '', g: g || '' });
+  const p = { action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round((time || 0) * 10) / 10, win: win ? 1 : 0, v: v || '', g: g || '' };
+  return call(p).then(d => { flushPending(); return d; }).catch(e => { queue(p); throw e; });
+}
+// v57 · punteggi non inviati (rete assente o lenta): restano sul telefono e partono da soli appena la classifica risponde.
+const PEND_KEY = 'edt-giro-easy-pending';
+function readPending() { try { return JSON.parse(localStorage.getItem(PEND_KEY) || '[]'); } catch { return []; } }
+function writePending(list) { try { localStorage.setItem(PEND_KEY, JSON.stringify(list.slice(-15))); } catch {} }
+function queue(p) { const list = readPending(); if (!list.some(x => x.name === p.name && x.mode === p.mode && x.score === p.score && x.day === p.day)) list.push(p); writePending(list); }
+export const pendingCount = () => readPending().length;
+let flushing = false;
+export async function flushPending() {
+  if (flushing || !enabled()) return 0;
+  const list = readPending(); if (!list.length) return 0;
+  flushing = true; let sent = 0;
+  try {
+    for (const p of list) {
+      try { await call(p); sent++; writePending(readPending().filter(x => !(x.name === p.name && x.mode === p.mode && x.score === p.score && x.day === p.day))); }
+      catch { break; }
+    }
+  } finally { flushing = false; }
+  return sent;
 }
 
 // v48 · fantasma: posizione sul percorso (0-60) ogni secondo, 2 caratteri base36 a campione (valore ×10).

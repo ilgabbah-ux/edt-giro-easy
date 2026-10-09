@@ -2,8 +2,8 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=56';
-import { VOCI_PILOTI } from './voci-piloti.js?v=56';
+import { VOCI } from './voci.js?v=57';
+import { VOCI_PILOTI } from './voci-piloti.js?v=57';
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -245,6 +245,7 @@ export function preloadRivals(names) { if (ensure()) { for (const n of names) de
 export function preloadExtras() { if (ctx) for (const k of Object.keys(EXTRA)) loadExtra(k); }
 
 export const sfx = {
+  whistle() { tone(2850, .09, 'sine', .11); tone(3150, .09, 'sine', .11, .11); tone(2850, .3, 'sine', .11, .22, 3200); },   // v57 · fischietto delle GEV
   cap(mult = 1) { const b = 880 * Math.pow(1.06, mult * 2); tone(b, .07, 'square', .07); tone(b * 1.5, .12, 'triangle', .12, .05); },
   air() { tone(1320, .08, 'square', .07); tone(1760, .16, 'triangle', .12, .06); },
   jump() { noise(.28, 600, .7, .14, 'bandpass', 0, 2200); },
@@ -396,7 +397,42 @@ export const STYLES = [
     k: 'x.......x.......', s: '....x.......x...', h: '..x...x...x...x.', b: 'x...5...x...5.o.', g: '..x.x...x.x...x.', l: '0.1.2...4.3.2...', swing: .1 },
   { name: 'MontaFiga · surf tra gli alberi', bpm: 172, root: 40, prog: [[0, 'M'], [5, 'M'], [0, 'M'], [7, 'M']],
     k: 'x.x...x.x.x...x.', s: '....x.......x...', h: 'xxxxxxxxxxxxxxxx', b: 'x.o.x.o.x.o.x.o.', g: 'x.xxx.xxx.xxx.xx', l: '4.3.2.1.0.1.2.3.', swing: 0 },
+  // v57 · Anti-GEV: la canzone vera del GaBbAH. Finché l'MP3 non è caricato suona un rock veloce di riserva.
+  { name: 'Supereroi contro le GEV · Il GaBbAH', file: 'supereroi-contro-le-gev.mp3', bpm: 160, root: 40, prog: [[0, 'M'], [-2, 'M'], [3, 'M'], [5, 'M']],
+    k: 'x...x...x...x...', s: '....x.......x...', h: 'x.x.x.x.x.x.x.x.', b: 'x.x.x.x.x.x.x.x.', g: 'x.xxx.xxx.xxx.xx', l: '', swing: 0 },
 ];
+// v57 · brani registrati (MP3): caricati una volta sola; la canzone riparte da dove si era fermata al giro prima.
+const songBuf = {}, songPos = {};
+async function loadSong(file) {
+  if (songBuf[file] !== undefined) return songBuf[file];
+  songBuf[file] = null;
+  try {
+    const res = await fetch(file);
+    if (!res.ok) throw new Error(res.status);
+    songBuf[file] = await ctx.decodeAudioData(await res.arrayBuffer());
+  } catch (e) { songBuf[file] = undefined; console.warn('EDT canzone non caricata:', file, e); }
+  return songBuf[file];
+}
+export function preloadSong(styleId) { const st = STYLES[styleId % STYLES.length]; if (st?.file && ensure()) loadSong(st.file); }
+function playSong(m) {
+  const buf = songBuf[m.style.file];
+  if (!buf || music !== m || m.src) return;
+  clearInterval(m.timer); m.timer = 0;   // basta riserva: parte la canzone vera
+  let off = songPos[m.style.file] || 0; if (off > buf.duration - 20) off = 0;
+  const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+  const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(SONG_VOL, ctx.currentTime, .25);
+  src.connect(g); g.connect(musicBus); src.start(ctx.currentTime + .03, off);
+  m.src = src; m.songGain = g; m.songT0 = ctx.currentTime + .03 - off;
+}
+function stopSong(m, fade) {
+  if (!m.src) return;
+  const buf = songBuf[m.style.file];
+  if (buf) songPos[m.style.file] = (ctx.currentTime - m.songT0) % buf.duration;
+  const src = m.src, g = m.songGain; m.src = null;
+  if (fade) { g.gain.setTargetAtTime(0, ctx.currentTime, .3); setTimeout(() => { try { src.stop(); } catch {} }, 1400); }
+  else try { src.stop(); } catch {}
+}
+const SONG_VOL = 1.35;
 let musicBus = null, gtrIn = null, music = null, musicOn = true;
 try { musicOn = localStorage.getItem('edt-music') !== '0'; } catch {}
 export const isMusicOn = () => musicOn;
@@ -491,6 +527,7 @@ export function musicStart(styleId = 0, opts = {}) {
     }
   }, 30);
   music = m;
+  if (style.file) { if (songBuf[style.file]) playSong(m); else loadSong(style.file).then(() => playSong(m)); }
   musicBus.gain.cancelScheduledValues(ctx.currentTime);
   musicBus.gain.setTargetAtTime(musicOn ? MUSIC_VOL : 0, ctx.currentTime, .2);
 }
@@ -498,6 +535,7 @@ export function musicIntensity(x) { if (music) music.intensity = Math.max(0, Mat
 export function musicStop(now = false) {
   if (!music) return;
   const m = music; music = null;
+  stopSong(m, !now);
   if (now) { clearInterval(m.timer); return; }
   musicBus.gain.setTargetAtTime(0, ctx.currentTime, .35);
   setTimeout(() => { clearInterval(m.timer); if (!music && musicBus) musicBus.gain.value = musicOn ? MUSIC_VOL : 0; }, 1500);

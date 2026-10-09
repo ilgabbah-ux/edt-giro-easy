@@ -27,6 +27,10 @@ export const OBSTACLE_HEIGHT = {
   ibex: .95,      // v46 · stambecco (Valle Argentera)
   chamois: .85,   // v46 · camoscio
   marmot: .38,    // v46 · marmotta
+  cone: .52,      // v57 · birillo lanciato dalle GEV
+  tyre: .50,      // v57 · copertone lanciato dalle GEV
+  sign: .92,      // v57 · cartello di divieto lanciato dalle GEV
+  barrier: .80,   // v57 · transenna lanciata dalle GEV
 };
 
 export function jumpHeight(remaining, duration = JUMP_DURATION, height = JUMP_HEIGHT) {

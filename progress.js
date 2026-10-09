@@ -35,6 +35,10 @@ export const MODES = [
     layout: [{ t: 0, len: 6, name: 'FONDOVALLE' }, { t: 1, len: 8, name: 'GUADI DELLA STURA' }, { t: 2, len: 10, name: 'PASCOLI DEGLI STAMBECCHI' }, { t: 1, len: 6, down: 1, name: 'IL GUADO GRANDE' }, { t: 3, len: 10, climb: 1, name: 'VERSO IL COLLE' }, { t: 2, len: 6, down: 1, name: 'DISCESA DEI CAMOSCI' }] },
   { id: 12, short: 'MONTAFIGA', name: 'MontaFiga', desc: 'Uno slalom continuo tra gli alberi. Sterza, sterza, sterza.', difficulty: 1, sky: 1, limit: 55, unlock: 5, slalom: true,
     layout: [{ t: 0, len: 6, name: 'BOSCO FITTO' }, { t: 0, len: 10, name: 'SLALOM DEI FAGGI' }, { t: 0, len: 6, down: 1, name: 'PICCHIATA TRA GLI ABETI' }, { t: 0, len: 10, name: 'LA SELVA' }, { t: 2, len: 6, climb: .6, name: 'STRAPPO NEL BOSCO' }, { t: 0, len: 10, down: 1, name: 'SLALOM FINALE' }] },
+  // v57 · ANTI-GEV: scappa dalle Guardie Ecologiche Volontarie. Dalla jeep ti lanciano ostacoli in pista; finiti i tentativi arriva la multa.
+  { id: 13, short: 'ANTI-GEV', name: 'Anti-GEV', desc: 'Scappa dalle GEV: dalla jeep ti lanciano di tutto in pista. Finisci i tentativi e arriva la multa.', difficulty: 1, sky: 2, limit: 57, unlock: 2, gev: true, dense: -.15,
+    obs: { 0: ['log', 'rock', 'stump', 'root'], 1: ['puddle', 'rock', 'puddle'], 2: ['step', 'rock', 'step'], 3: ['rock', 'step', 'root'] },
+    layout: [{ t: 0, len: 5, name: 'FUGA DAL BAR' }, { t: 0, len: 8, name: 'LA FORESTALE' }, { t: 1, len: 7, down: 1, name: 'IL GRETO DEL FIUME' }, { t: 2, len: 8, name: 'LA SBARRA' }, { t: 0, len: 7, name: 'IL BOSCO DEGLI OPOSSUM' }, { t: 3, len: 9, climb: 1, name: 'LA CRESTA DEL CONIGLIO MANNARO' }, { t: 0, len: 6, down: 1, name: 'SEMINATE! VERSO IL RIFUGIO' }] },
 ];
 export const isUnlocked = (m, level = levelInfo().level) => level >= (m.unlock || 1);
 

@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=56';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=57';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -1007,6 +1007,75 @@ export function createWorld(canvas) {
   const ibexFur = mat('#8a6a48', .9), chamFur = mat('#4a3526', .9), marmotFur = mat('#9a7650', .95);
   const snowMat = mat('#f6f9fb', .7), carrotMat = mat('#f07a1c', .6), scarfMat = mat('#d0242a', .8);
   const gateWhite = mat('#f4f6f8', .5), gateBlue = new T.MeshStandardMaterial({ color: '#1e7fd8', roughness: .6, side: T.DoubleSide }), gateRing = new T.MeshBasicMaterial({ color: '#5fd4ff', transparent: true, opacity: .75, depthWrite: false });
+  const gevOrange = mat('#ff6a10', .5), gevWhite = mat('#f4f4f0', .5), gevBlack = mat('#1d2226', .7), gevRed = mat('#c81f19', .5);
+  // v57 · jeep delle Guardie Ecologiche Volontarie, con la guardia che sbraita dal finestrino col megafono
+  let gevJeep = null;
+  function makeJeep() {
+    const J = new T.Group(), body = new T.Group(); J.add(body);
+    const green = mat('#3f5b2c', .55, .1), dark = mat('#26341c', .7), glassM = new T.MeshStandardMaterial({ color: '#9fc4d0', roughness: .1, metalness: .3, transparent: true, opacity: .55 });
+    const skin = mat('#e0a27e', .7), shirt = mat('#4b6a33', .8), beret = mat('#2f4a22', .8), mega = mat('#f1c21b', .4), chrome = mat('#c9d2d4', .25, .8);
+    box(1.9, .75, 3.9, green, body, 0, .95, 0);                 // scocca
+    box(1.86, .7, 1.9, green, body, 0, 1.6, .35);               // abitacolo
+    box(1.7, .55, .06, glassM, body, 0, 1.68, -.62);            // parabrezza
+    for (const sd of [-1, 1]) box(.05, .45, 1.4, glassM, body, sd * .94, 1.7, .4);
+    box(1.95, .14, .3, dark, body, 0, .62, -2.0); box(1.95, .14, .3, dark, body, 0, .62, 2.0);   // paraurti
+    for (const sd of [-1, 1]) { const l = mesh(new T.CircleGeometry(.13, 16), new T.MeshBasicMaterial({ color: '#fff6c8' }), body); l.position.set(sd * .62, 1.05, -1.96); l.rotation.y = Math.PI; }
+    const grill = box(1.1, .45, .05, dark, body, 0, 1.0, -1.96);
+    // logo GEV sulle portiere
+    const c = document.createElement('canvas'); c.width = 128; c.height = 160; const x = c.getContext('2d');
+    x.fillStyle = '#f2c21b'; x.beginPath(); x.moveTo(10, 8); x.lineTo(118, 8); x.lineTo(118, 96); x.lineTo(64, 152); x.lineTo(10, 96); x.closePath(); x.fill();
+    x.fillStyle = '#2f6a2a'; x.beginPath(); x.moveTo(22, 20); x.lineTo(106, 20); x.lineTo(106, 92); x.lineTo(64, 138); x.lineTo(22, 92); x.closePath(); x.fill();
+    x.fillStyle = '#f2c21b'; x.beginPath(); x.moveTo(64, 30); x.lineTo(84, 74); x.lineTo(44, 74); x.fill();
+    x.font = '900 30px Arial'; x.textAlign = 'center'; x.fillText('GEV', 64, 110);
+    const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+    for (const sd of [-1, 1]) { const d = mesh(new T.PlaneGeometry(.5, .62), new T.MeshBasicMaterial({ map: tx, transparent: true }), body); d.position.set(sd * .96, 1.0, .3); d.rotation.y = sd * Math.PI / 2; d.castShadow = false; }
+    // ruotone
+    const wheels = [];
+    for (const [wx, wz] of [[-.95, -1.3], [.95, -1.3], [-.95, 1.35], [.95, 1.35]]) {
+      const w = new T.Group(); w.position.set(wx, .45, wz); body.add(w);
+      const tr = mesh(new T.CylinderGeometry(.45, .45, .34, 18), rubber, w); tr.rotation.z = Math.PI / 2;
+      const rm = mesh(new T.CylinderGeometry(.24, .24, .36, 12), chrome, w); rm.rotation.z = Math.PI / 2;
+      wheels.push(w);
+    }
+    const spare = mesh(new T.CylinderGeometry(.42, .42, .28, 18), rubber, body); spare.rotation.x = Math.PI / 2; spare.position.set(0, 1.2, 2.1);
+    // lampeggiante arancione sul tetto
+    box(1.7, .06, 1.6, dark, body, 0, 1.97, .35);
+    const beacon = mesh(new T.CylinderGeometry(.11, .13, .16, 12), new T.MeshBasicMaterial({ color: '#ff9a1a' }), body); beacon.position.set(0, 2.08, .1); beacon.castShadow = false;
+    const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ff8a10', transparent: true, opacity: .8, blending: T.AdditiveBlending, depthWrite: false }));
+    glow.scale.set(1.4, 1.4, 1); glow.position.set(0, 2.1, .1); body.add(glow);
+    // la guardia: si sporge dal finestrino verso la pista (lato sinistro della jeep)
+    const guard = new T.Group(); guard.position.set(-.95, 1.55, .05); body.add(guard);
+    ball(.24, .3, .2, shirt, guard, 0, 0, 0);
+    ball(.17, .19, .17, skin, guard, -.08, .38, 0);
+    const bt = ball(.2, .07, .2, beret, guard, -.1, .55, 0); bt.rotation.z = .25;
+    box(.06, .04, .02, mega, guard, -.24, .55, -.05);
+    const arm = new T.Group(); arm.position.set(-.18, .1, -.05); guard.add(arm);
+    rod([0, 0, 0], [-.42, .1, -.12], .065, shirt, arm);
+    ball(.07, .07, .07, skin, arm, -.45, .1, -.13);
+    const horn = mesh(new T.ConeGeometry(.15, .34, 14, 1, true), mega, guard); horn.rotation.z = Math.PI / 2; horn.position.set(-.2, .4, -.22); horn.material.side = T.DoubleSide;
+    const blob = new T.Mesh(new T.PlaneGeometry(2.4, 4.4), new T.MeshBasicMaterial({ color: '#000', alphaMap: glowTex, transparent: true, opacity: .5, depthWrite: false }));
+    blob.rotation.x = -Math.PI / 2; blob.position.y = .03; J.add(blob);
+    J.userData = { body, wheels, arm, beacon, glow, guard };
+    scene.add(J);
+    return J;
+  }
+  function renderJeep(g, t, now, live) {
+    if (!g) { if (gevJeep) gevJeep.visible = false; return; }
+    const J = gevJeep ||= makeJeep(), u = J.userData, z = g.z;
+    J.visible = z < 14 && z > -140;
+    if (!J.visible) return;
+    J.position.set(center(z, t) + (g.L - 1) * spacing(), height(z, t), z);
+    J.rotation.set(0, Math.sin(now / 700) * .04, 0);
+    u.body.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 95) * .012;
+    u.body.position.y = Math.abs(Math.sin(now / 120)) * .05;
+    for (const w of u.wheels) w.rotation.x = -t / .45;
+    const on = Math.floor(now / 220) % 2 === 0;
+    u.glow.material.opacity = on ? .95 : .15; u.beacon.material.color.set(on ? '#ffb02a' : '#7a3a08');
+    // braccio: lancio (si carica indietro e scatta in avanti) oppure dito puntato che si agita
+    u.arm.rotation.set(g.arm > 0 ? (g.arm > .35 ? .9 : -1.2) : Math.sin(now / 140) * .25, 0, g.arm > 0 ? -.4 : Math.sin(now / 90) * .15);
+    u.guard.rotation.z = Math.sin(now / 180) * .08;
+    if (live && Math.random() < .6) emit(J.position.x + (Math.random() - .5), height(z + 2, t) + .2, z + 2.2, (Math.random() - .5) * 2, 1.5 + Math.random() * 2, 3 + Math.random() * 3, .9);
+  }
   function hazardRing(g, r) { const ring = mesh(new T.RingGeometry(r, r + .08, 28), ringMat, g); ring.rotation.x = -Math.PI / 2; ring.position.y = .015; ring.castShadow = false; }
   function makeObstacle(type) {
     if (pools[type]?.length) return pools[type].pop();
@@ -1186,6 +1255,38 @@ export function createWorld(canvas) {
       box(1.56, .1, .12, rampLip, g, 0, .64, -.6);
       for (const sx of [-1, 1]) rod([sx * .8, .0, -.66], [sx * .8, 1.05, -.66], .035, black, g);
       const fl = box(.32, .2, .02, rampLip, g, -.66, .95, -.66); fl.castShadow = false;
+    } else if (type === 'cone') {
+      // v57 · birillo lanciato dalle GEV
+      box(.6, .06, .6, gevBlack, g, 0, .03, 0);
+      mesh(new T.ConeGeometry(.27, .66, 18), gevOrange, g).position.y = .38;
+      for (const [y, r] of [[.3, .2], [.5, .13]]) { const b = mesh(new T.CylinderGeometry(r, r + .03, .07, 18), gevWhite, g); b.position.y = y; }
+      hazardRing(g, .5);
+    } else if (type === 'tyre') {
+      // v57 · copertone di jeep lanciato dalle GEV
+      const t1 = mesh(new T.TorusGeometry(.33, .15, 10, 24), rubber, g); t1.position.y = .48;
+      const hub = mesh(new T.CylinderGeometry(.2, .2, .16, 16), alloy, g); hub.rotation.x = Math.PI / 2; hub.position.y = .48;
+      hazardRing(g, .55);
+    } else if (type === 'sign') {
+      // v57 · cartello di divieto di transito su cavalletto
+      const c = document.createElement('canvas'); c.width = 256; c.height = 256; const x = c.getContext('2d');
+      x.fillStyle = '#d7261e'; x.beginPath(); x.arc(128, 128, 124, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#ffffff'; x.beginPath(); x.arc(128, 128, 92, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#1b1b1b'; x.font = '900 46px Arial'; x.textAlign = 'center'; x.fillText('MOTO', 128, 118); x.font = '900 30px Arial'; x.fillText('VIETATE', 128, 160);
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+      const d = mesh(new T.CircleGeometry(.36, 32), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); d.position.set(0, 1.05, .03); d.castShadow = false;
+      mesh(new T.CylinderGeometry(.37, .37, .03, 32), gevRed, g).rotation.x = Math.PI / 2; g.children[g.children.length - 1].position.set(0, 1.05, 0);
+      rod([0, 0, 0], [0, 1.05, 0], .035, gevBlack, g);
+      for (const a of [0, 2.1, 4.2]) rod([0, .35, 0], [Math.sin(a) * .38, 0, Math.cos(a) * .38], .025, gevBlack, g);
+      hazardRing(g, .55);
+    } else if (type === 'barrier') {
+      // v57 · transenna bianca e rossa
+      const c = document.createElement('canvas'); c.width = 256; c.height = 32; const x = c.getContext('2d');
+      for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#ffffff' : '#d7261e'; x.beginPath(); x.moveTo(i * 32 - 16, 32); x.lineTo(i * 32 + 16, 32); x.lineTo(i * 32 + 32, 0); x.lineTo(i * 32, 0); x.fill(); }
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+      box(1.6, .2, .06, new T.MeshStandardMaterial({ map: tx, roughness: .6 }), g, 0, .66, 0);
+      box(1.6, .12, .05, gevWhite, g, 0, .3, 0);
+      for (const sd of [-1, 1]) { box(.07, .78, .07, gevWhite, g, sd * .72, .39, 0); box(.12, .05, .55, gevBlack, g, sd * .72, .03, 0); }
+      hazardRing(g, .7);
     } else if (type === 'rollRock') {
       const inner = new T.Group(); inner.position.y = .55; g.add(inner); g.userData.roller = inner;
       const r = mesh(detailedRockGeometry, detailedStone, inner); r.position.y = -.55; r.scale.setScalar(.9);
@@ -1569,6 +1670,7 @@ export function createWorld(canvas) {
     }
     updateLimbs();
     renderRivals(s.rivals, t, now, s.state === 'playing');
+    renderJeep(s.gev, t, now, s.state === 'playing');
     lampGlow.material.opacity = .45 + (weatherNow.dusk || 0) * .5 + (weatherNow.fog || 0) * .4;
 
     flame.visible = flameCore.visible = boostAmount > 0 || (s.grappa || 0) > 0;
@@ -1597,6 +1699,7 @@ export function createWorld(canvas) {
       if (o.cross) m.rotation.y = o.cross > 0 ? 0 : Math.PI;
       else if (o.type === 'ibex' || o.type === 'chamois' || o.type === 'marmot') m.rotation.y = 0;
       if (o.lean !== undefined && o.type === 'tree') m.rotation.z = o.lean * .3;
+      if (o.flyT) { m.rotation.z = o.fly * 9; m.rotation.y = o.fly * 5; }   // v57 · gli oggetti lanciati dalle GEV girano in aria
     }
 
     // Terra dalla ruota posteriore: più gas, più terra.

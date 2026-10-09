@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=56';
-import { createWorld } from './scene3d.js?v=56';
-import * as A from './audio.js?v=56';
-import * as P from './progress.js?v=56';
-import { FOTO } from './piloti.js?v=56';
-import { createMud } from './mudfx.js?v=56';
-import { icon, iconize, iconizeEl } from './icons.js?v=56';
-import * as C from './classifica.js?v=56';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=57';
+import { createWorld } from './scene3d.js?v=57';
+import * as A from './audio.js?v=57';
+import * as P from './progress.js?v=57';
+import { FOTO } from './piloti.js?v=57';
+import { createMud } from './mudfx.js?v=57';
+import { icon, iconize, iconizeEl } from './icons.js?v=57';
+import * as C from './classifica.js?v=57';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -124,6 +124,10 @@ let jumpDur = JUMP_DURATION, jumpH = JUMP_HEIGHT;
 let bs = {}; // v44 · caratteristiche della moto scelta in officina
 // v46 · Ice Scrofy: derapate sul ghiaccio con le gomme chiodate
 let slalomN = 0, lastFord = -9, lastAnimal = -9;
+// v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
+let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
+const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
+const GEV_SOFT = new Set(['coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
 // v48 · fantasma del primo nella classifica del gruppo
 let gGhost = null, gGhostPassed = false;
 // v50 · guida libera: la moto va dove la porti (niente più corsie fisse).
@@ -325,6 +329,7 @@ function resetRun() {
   bs = P.currentStats();
   ice = !!P.MODES[mode].ice;
   slalomN = 0; lastFord = lastAnimal = -9; setupGroupGhost();
+  gev = !!P.MODES[mode].gev; gevZ = 9; gevThrow = 4.5; gevArm = gevLost = 0; gevGone = false; gevShout = 0; gevSide = 1; gevFine = 0;
   keyL = keyR = btnL = btnR = false; zoneSteer = padSteer = 0; aimPx = null; lastSteerDir = 0; edgeT = 0;
   throttleSlip = overT = noClimbT = 0; wasSweet = gasLock = false;
   drift = driftT = driftSum = driftPend = driftChain = driftScore = driftBest = driftCount = snowT = bendNow = 0; driftGap = 9; lastWall = -9;
@@ -335,7 +340,7 @@ function start() {
   if (touchDevice) goFull();
   if (!fsOK && isIOS && !standalone && !iosHinted) { iosHinted = true; setTimeout(() => toast('SCHERMO INTERO: CONDIVIDI → AGGIUNGI A HOME'), 4200); }
   A.unlock(); A.stopVoice(); A.preloadExtras(); if (riderVoice()) A.preloadRider(riderVoice());
-  A.preloadRivals(Object.values(RIDER_VOICE));
+  A.preloadRivals(Object.values(RIDER_VOICE)); A.preloadSong(mode);
   resetRun();
   state = 'countdown'; countdown = 3.2; countStep = 4;
   $('overlay').classList.add('hidden');
@@ -360,6 +365,7 @@ function go() {
   setTimeout(() => { if (state !== 'countdown') $('countdown').className = 'countdown'; }, 700);
   toast('VAI CICCIO!'); if (!riderLine('start')) voice('Vai Ciccio!', true);
   if (startBoosts.length) setTimeout(() => toast('🎁 ' + startBoosts.join(' · '), 'green'), 1500);
+  if (gev) { setTimeout(() => { if (state === 'playing') { bigCall('ARRIVANO LE GEV!'); A.sfx.whistle(); } }, 900); setTimeout(() => { if (state === 'playing') toast(`HAI ${lives} TENTATIVI: FINITI QUELLI ARRIVA LA MULTA`, 'red'); }, 2600); }
 }
 
 function finish(win, reason = '') {
@@ -392,9 +398,13 @@ function finish(win, reason = '') {
     drift: ice ? Math.round(driftScore) : 0,
   });
   const res = P.recordRun(run);
+  if (gev && !win) {   // v57 · fermato dalle GEV: multa in birre
+    gevFine = Math.min(20, P.profile.beers); P.profile.beers -= gevFine; P.save(); res.wallet = P.profile.beers;
+  }
   hud();
   $('banner').classList.remove('show');
   renderResult(win, res, reason, timeBonus);
+  if (gev) A.sfx.whistle();
   if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => { if (!riderLine('win')) voice('Sììì, così si fa!', true); }, 900); }
   else A.sfx.lose();
   renderSide();
@@ -875,6 +885,47 @@ function spawnWave() {
   wave++;
 }
 
+// ---------- v57 · Anti-GEV: la jeep delle Guardie Ecologiche Volontarie ----------
+// Tiene il passo a bordo pista e lancia birilli, copertoni, cartelli e transenne sulla tua corsia.
+// Col turbo o con la grappa la semini per qualche secondo; quando prendi una botta ti si avvicina.
+function gevStep(dt, diff) {
+  if (turbo > 0 || grappa > 0) gevLost = 2.5; else gevLost = Math.max(0, gevLost - dt);
+  const tgt = gevLost > 0 ? 34 : crash > 0 ? -5 : -10 + Math.sin(elapsed * .6) * 3;
+  gevZ += (tgt - gevZ) * Math.min(1, dt * (tgt > gevZ ? .8 : .55));
+  if (gevLost > 0 && gevZ > 10 && !gevGone) { gevGone = true; reward(200, 'SEMINATE LE GEV!', 'trick', false); }
+  if (gevZ < -4 && gevGone) { gevGone = false; toast('🚙 LE GEV SONO DI NUOVO QUI!', 'red'); A.sfx.whistle(); }
+  gevArm = Math.max(0, gevArm - dt);
+  gevThrow -= dt;
+  if (gevThrow <= 0) {
+    gevThrow = 1;
+    if (gevZ < -6 && course > 2 && course < GAME_LENGTH * .95) { gevThrowNow(); gevThrow = Math.max(1.8, 3.4 - course * .012 - diff * .25) + rng() * 1.3; }
+  }
+  if (gevZ < -6 && elapsed - gevShout > 8 && rng() < dt * .5) { gevShout = elapsed; toast(pick(GEV_SHOUTS), 'gold'); A.sfx.whistle(); }
+}
+function gevThrowNow() {
+  const target = Math.max(0, Math.min(2, Math.round(px))), zT = .14, zJ = .91 + gevZ / 55;
+  // mai tutte e tre le corsie chiuse: se serve, la fila che c'era su un'altra corsia sparisce e restano le birre
+  const hard = objects.filter(o => !GEV_SOFT.has(o.type) && Math.abs(o.z - zT) < .12);
+  const blocked = new Set(hard.map(o => Math.round(o.lT ?? o.l))); blocked.add(target);
+  if (blocked.size >= 3) {
+    const free = [0, 1, 2].filter(l => l !== target)[Math.floor(rng() * 2)];
+    objects = objects.filter(o => !(hard.includes(o) && Math.round(o.lT ?? o.l) === free));
+    objects.push({ l: free, z: zT, type: 'coin', hit: false });
+  }
+  const type = pick(['cone', 'cone', 'tyre', 'tyre', 'sign', 'barrier']);
+  objects.push({ l: 1 + gevSide * 2.15, z: zJ, type, hit: false, fly: .9, flyT: .9, l0: 1 + gevSide * 2.15, lT: target, z0: zJ, zT, lift: 1.5 });
+  gevArm = .6; run.gevThrows = (run.gevThrows || 0) + 1;
+  toast({ cone: '⚠ BIRILLO IN ARRIVO!', tyre: '⚠ TI TIRANO UN COPERTONE!', sign: '⚠ CARTELLO DI DIVIETO IN PISTA!', barrier: '⚠ TRANSENNA IN ARRIVO!' }[type], 'red');
+}
+function gevVerbale() {
+  const n = String(1000 + Math.floor(Math.random() * 9000));
+  return `<div class="verbale"><div class="vtop"><b>VERBALE N. EDT/${n}</b><span>GUARDIE ECOLOGICHE VOLONTARIE</span></div>
+    <div class="vrow"><small>TRASGRESSORE</small><b>${profile.rider}</b></div>
+    <div class="vrow"><small>VIOLAZIONE</small><b>Fuoristrada con eccesso di divertimento${run.caps ? ` e trasporto di ${run.caps} birre` : ''}</b></div>
+    <div class="vrow"><small>SANZIONE</small><b>${gevFine ? gevFine + ' 🍺 sequestrate' : 'nessuna birra da sequestrare (che tristezza)'}</b></div>
+    <i class="vfirma">Firma della GEV: illeggibile</i></div>`;
+}
+
 // ---------- v41 · Avversari, scorciatoie, meteo ----------
 const RIVAL_LIVERIES = [
   { plastic: '#ff6a13', accent: '#1d2b52', jersey: '#ff7a1f', pants: '#1d2b52', helmet: '#ff7a1f' },
@@ -1220,6 +1271,7 @@ function update(dt) {
   updateGroupGhost();
   if (gasLock) { noClimbT = route.climb > .05 || route.rough > .05 ? 0 : noClimbT + dt; if (noClimbT > 2.5) { gasLock = false; if (!gasDownAt) gas = false; } }
   coachUpdate();
+  if (gev) gevStep(dt, diff);
   if (!ice && !P.MODES[mode].slalom && shortcutsDone < 2 && elapsed > nextShortcut && course > 12 && course < GAME_LENGTH * .8 && route.id !== 3) { nextShortcut = elapsed + 18 + rng() * 10; spawnShortcut(); }
   while (elapsed >= ghostNextSplit) { ghostSplits.push(course); ghostNextSplit += .5; }
   const gc = ghostCourse(elapsed);
@@ -1260,6 +1312,12 @@ function update(dt) {
   const pull = magnet > 0 ? 1.7 : 0;
   for (const o of objects) {
     o.z += travelStep / 55;
+    if (o.fly > 0) {   // v57 · oggetto lanciato dalla jeep delle GEV: vola a parabola fino alla corsia
+      o.z0 += travelStep / 55; o.zT += travelStep / 55; o.fly = Math.max(0, o.fly - dt);
+      const k = 1 - o.fly / o.flyT;
+      o.z = o.z0 + (o.zT - o.z0) * k; o.l = o.l0 + (o.lT - o.l0) * k; o.lift = (1 - k) * 1.5 + 4.4 * k * (1 - k);
+      if (o.fly === 0) { o.lift = 0; o.landed = true; A.sfx.land(); }
+    }
     if (o.roll) o.l = o.lEnd - (.91 - o.z) * o.k;
     if (o.hit || o.z < .91) continue;
     o.hit = true;
@@ -1332,7 +1390,7 @@ function update(dt) {
         run.jumps++;
         const perfect = has('precise') ? phase > .2 && phase < .8 : isPerfectJump(phase);
         const base = o.type === 'rock' || o.type === 'rollRock' || o.type === 'ibex' ? 200 : o.type === 'bigLog' ? 250 : o.type === 'goat' ? 220 : 150;
-        const names = { rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!' };
+        const names = { rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!', cone: 'BIRILLO SALTATO!', tyre: 'COPERTONE SALTATO!', sign: 'DIVIETO IGNORATO!', barrier: 'TRANSENNA VOLATA!' };
         if (perfect) { run.perfect++; A.sfx.perfect(); if (touchDevice && navigator.vibrate) try { navigator.vibrate([10, 40, 10]); } catch {} reward(Math.round(base * (has('precise') ? 2 : 1.5)), 'SALTO PERFETTO!', 'perfect'); flash('gold'); slowmo = .3; slowScale = .45; }
         else reward(base, names[o.type] || 'BEL SALTO!', 'jump');
       } else if (wheelie && (o.type === 'root' || o.type === 'puddle')) {
@@ -1356,11 +1414,12 @@ function update(dt) {
         fxKind = 'hit'; fxSerial++; shake = 1; A.sfx.hit(); flash('hit');
         crash = 1; stun = .9 * (bs.protect ? .7 : 1) * (has('tank') ? .5 : 1); if (has('tank')) invincible += 1; slowmo = .35; slowScale = .4; jump = 0;
         if (wheelie) endWheelie(false);
-        const lines = { rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.' };
+        const lines = { rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
         if (o.type === 'tree') slalomN = 0;
         // v49 · Erika anche su ogni albero di MontaFiga
         if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
         if (navigator.vibrate) try { navigator.vibrate(120); } catch {}
+        if (gev && lives > 0) setTimeout(() => toast(lives === 1 ? '🚨 ULTIMO TENTATIVO! POI È MULTA' : `🚨 TENTATIVI RIMASTI: ${lives}`, 'red'), 700);
         if (lives <= 0) { hud(); if (!run.continued && P.profile.beers >= CONTINUE_COST) offerContinue(); else finish(false); return; }
       }
     } else if (o.type !== 'puddle' && gap < (has('fox') ? .9 : .68) && invincible <= 0 && o.type !== 'bigLog') {
@@ -1423,6 +1482,7 @@ function drawState() {
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
     riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
     livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, parts: P.currentParts(), sight: bs.sight || 0,
+    gev: gev ? { L: 1 + gevSide * 2.15, z: gevZ, arm: gevArm, t: elapsed } : null,
     ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs,
     rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended' || state === 'continue') ? (gGhost && state !== 'ended' ? [...rivals, gGhost.entry] : rivals) : [], weather,
   });
@@ -1531,7 +1591,7 @@ function renderReady() {
   // v53 · menu ordinato: testata, pilota, percorso scelto in evidenza, partenza, azioni rapide, elenco percorsi a scorrimento
   const sk = SKILLS[profile.rider] || {};
   const missions = P.ensureMissions();
-  const trackArt = m => m.ice ? 'img/ice-scrofy.webp' : m.id === 2 ? 'img/angelo-suuuka.webp' : '';
+  const trackArt = m => (m.ice ? 'img/ice-scrofy.webp' : m.gev ? 'img/anti-gev.webp' : m.id === 2 ? 'img/angelo-suuuka.webp' : '') .replace(/webp$/, 'webp?v=57');
   const art = trackArt(md);
   $('card').innerHTML = `
     <div class="menuhead">
@@ -1544,7 +1604,7 @@ function renderReady() {
       <div class="lvlbox"><span class="lvlnum"><small>LIV</small>${info.level}</span><span class="lvltext"><b>${info.grade.toUpperCase()}</b><i><u style="width:${Math.round(info.pct * 100)}%"></u></i><small>${info.into}/${info.need} XP</small></span></div>
     </div>
     <div class="trackhero sky${md.sky ?? 0} ${md.ice ? 'icy' : ''} ${art ? 'hasart' : ''}">
-      ${art ? `<img class="trackart" src="${art}" alt="">` : ''}
+      ${art ? `<img class="trackart" src="${art}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}
       <div class="thtext"><span class="ps">PS${md.id + 1} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.desc}</small>
       ${md.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(md.layout || layoutFor(md.id))}
       <span class="record">${icon('trophy')} ${best ? `RECORD ${md.id === 3 ? 'DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span></div>
@@ -1559,7 +1619,7 @@ function renderReady() {
     <div class="mhead tracks">${icon('flag')} CAMBIA PERCORSO <small>scorri →</small></div>
     <div class="modes" role="radiogroup" aria-label="Percorso">
       ${P.MODES.map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
-        ${ta ? `<img class="modeart" src="${ta}" alt="" loading="lazy">` : ''}<span class="ps">PS${m.id + 1}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 LIV ' + m.unlock}</small></button>`; }).join('')}
+        ${ta ? `<img class="modeart" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${m.id + 1}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 LIV ' + m.unlock}</small></button>`; }).join('')}
     </div>
     <div class="menufoot">
       <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
@@ -1615,9 +1675,9 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   setMenu(true);
   $('card').innerHTML = `
     <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
-    <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
+    <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
-    <p class="resulttext">${profile.rider} ${win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
+    ${gev && !win ? gevVerbale() : ''}<p class="resulttext">${gev && win ? '<b>Niente verbali, più boccali!</b> ' : ''}${profile.rider} ${gev && !win ? `è stato fermato dalle GEV al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso.` : win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
       ${ice ? iceTable(win) : ''}${run.position && !ice ? `<br>🏁 <b>${run.position}° su ${rivals.length + 1}</b> nel gruppo${run.position === 1 && win ? ' · primo al rifugio +500' : ''}${run.shortcuts ? ' · ' + run.shortcuts + (run.shortcuts > 1 ? ' tagli' : ' taglio') + ' di Angelo' : ''}` : ''}      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1) + 's — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
@@ -1709,7 +1769,7 @@ function groupResult(runInfo) {
     show(d); renderSide();
   }).catch(() => {
     if (!$('groupres')) return;
-    $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO</div><p>Niente rete o classifica non raggiungibile: punteggio non inviato.</p><button class="secondary" type="button" id="gretry">RIPROVA</button>`;
+    $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO</div><p>La classifica non risponde (rete lenta o assente). <b>Punteggio messo da parte</b>: parte da solo appena c'è rete.</p><button class="secondary" type="button" id="gretry">RIPROVA ADESSO</button>`;
     $('gretry').onclick = () => groupResult(runInfo);
   });
 }
@@ -1757,7 +1817,11 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 56;
+const GAME_VERSION = 57;
+// v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
+setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
+window.addEventListener('online', () => C.flushPending().catch(() => {}));
+setInterval(() => { if (state !== 'playing' && C.pendingCount()) C.flushPending().catch(() => {}); }, 120000);
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
