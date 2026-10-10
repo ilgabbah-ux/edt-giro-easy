@@ -1250,7 +1250,7 @@ aside#hub { gap: 10px; }
 /* v84 · Dopo migliora: trazione in salita (gas dosato) */
 .tractbox { position: absolute; right: 12px; bottom: 170px; z-index: 3; width: 58px; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
 .tractbox[hidden] { display: none; }
-.tractbox i { position: relative; width: 22px; height: 120px; border-radius: 12px; background: linear-gradient(to top, #e3301c 0 20%, #6a6a5a 20% 35%, #3ee28f 35% 75%, #6a6a5a 75% 86%, #e3301c 86%); border: 2px solid #fff8; box-shadow: 0 2px 10px #0008; }
+.tractbox i { position: relative; width: 22px; height: 120px; border-radius: 12px; background: linear-gradient(to top, #e3301c 0 15%, #6a6a5a 15% 35%, #3ee28f 35% 75%, #6a6a5a 75% 90%, #e3301c 90%); border: 2px solid #fff8; box-shadow: 0 2px 10px #0008; }
 .tractbox i u { position: absolute; left: -7px; right: -7px; height: 5px; bottom: calc(var(--g, .5) * 100% - 2px); background: #fff; border-radius: 3px; box-shadow: 0 0 6px #000; }
 .tractbox b { font: 12px var(--display); letter-spacing: .5px; color: #fff; text-shadow: 0 1px 3px #000; text-align: center; }
 .tractbox.ok b { color: #7dffb6; } .tractbox.spin b, .tractbox.low b, .tractbox.stall b { color: #ff7a5c; }

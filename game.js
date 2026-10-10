@@ -1,13 +1,13 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=84';
-import { createWorld } from './scene3d.js?v=84';
-import * as A from './audio.js?v=84';
-import * as P from './progress.js?v=84';
-import { FOTO } from './piloti.js?v=84';
-import { createMud } from './mudfx.js?v=84';
-import { icon, iconize, iconizeEl } from './icons.js?v=84';
-import * as C from './classifica.js?v=84';
-import * as D from './duel.js?v=84';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=85';
+import { createWorld } from './scene3d.js?v=85';
+import * as A from './audio.js?v=85';
+import * as P from './progress.js?v=85';
+import { FOTO } from './piloti.js?v=85';
+import { createMud } from './mudfx.js?v=85';
+import { icon, iconize, iconizeEl } from './icons.js?v=85';
+import * as C from './classifica.js?v=85';
+import * as D from './duel.js?v=85';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -129,7 +129,7 @@ let bs = {}; // v44 · caratteristiche della moto scelta in officina
 let slalomN = 0, lastFord = -9, lastAnimal = -9, turboReadyT = 0;
 // v84 · Dopo migliora: la salita si fa dosando il gas (trazione); se ti pianti si spinge la moto
 let grip = .5, stallT = 0, stalled = false, pushP = 0, spinMsgAt = -9, tractOn = false;
-let barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
+let wasTract = false, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
 // v84 · Sfida del giorno: una regola diversa ogni giorno, uguale per tutti
 const DAILY_RULES = [
   { id: 'noturbo', icon: '🚫', name: 'NIENTE TURBO', desc: 'Oggi il turbo è rotto: solo gas e manico (i compagni vanno un filo più piano).' },
@@ -147,7 +147,7 @@ const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=84';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=85';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400;
@@ -345,7 +345,7 @@ function hud() {
   $('gas').setAttribute('aria-pressed', String(gas));
   $('gas').textContent = ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? '🔒 GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
   $('gas').classList.toggle('locked', gasLock);
-  { const tb = $('tractbox'); if (tb) { tb.hidden = !(tractOn && state === 'playing'); if (!tb.hidden) { tb.style.setProperty('--g', grip.toFixed(3)); tb.className = 'tractbox ' + (stalled ? 'stall' : grip > .86 ? 'spin' : grip < .2 ? 'low' : grip >= .35 && grip <= .75 ? 'ok' : ''); tb.querySelector('b').textContent = stalled ? 'SPINGI!' : grip > .86 ? 'PATTINA' : grip < .2 ? 'SI PIANTA' : grip >= .35 && grip <= .75 ? 'TRAZIONE' : 'GAS'; } } }
+  { const tb = $('tractbox'); if (tb) { tb.hidden = !(tractOn && state === 'playing'); if (!tb.hidden) { tb.style.setProperty('--g', grip.toFixed(3)); tb.className = 'tractbox ' + (stalled ? 'stall' : grip > .9 ? 'spin' : grip < .15 ? 'low' : grip >= .35 && grip <= .75 ? 'ok' : ''); tb.querySelector('b').textContent = stalled ? 'SPINGI!' : grip > .9 ? 'PATTINA' : grip < .15 ? 'SI PIANTA' : grip >= .35 && grip <= .75 ? 'TRAZIONE' : 'GAS'; } } }
   if (leap && live) {   // v59 · riquadro del salto: assetto della moto e metri
     $('driftbox').hidden = false;
     $('driftlabel').textContent = leapState === 2 ? 'IN VOLO · MUSO SU!' : leapState >= 3 ? 'SALTO' : 'VELOCITÀ DI RINCORSA';
@@ -420,7 +420,7 @@ function resetRun() {
   applyLayout(true);
   bs = P.currentStats();
   ice = !!P.MODES[mode].ice;
-  slalomN = 0; lastFord = lastAnimal = lastTractor = -9; grip = .5; stallT = 0; stalled = false; pushP = 0; tractOn = false; barT = 0; barsLeft = P.MODES[mode].vigne ? 1 : rule('bar') ? 2 : 0; nextBar = 15 + rng() * 8; setupGroupGhost();
+  slalomN = 0; lastFord = lastAnimal = lastTractor = -9; grip = .5; stallT = 0; stalled = false; pushP = 0; tractOn = false; wasTract = false; barT = 0; barsLeft = P.MODES[mode].vigne ? 1 : rule('bar') ? 2 : 0; nextBar = 15 + rng() * 8; setupGroupGhost();
   if (P.MODES[mode].ranch) objects.push({ l: -2.6, z: .78, type: 'farm', hit: false });   // v59 · la cascina del Gusta Ranch alla partenza
   leap = !!P.MODES[mode].leap; canyonX0 = null; leapMul = 1; leapZRate = .5; leapFree = 1; leapState = 0; leapPitch = leapW = leapDist = leapBest = 0; lastHopAt = -9; leapEndT = 0; leapPerfect = false;
   gev = !!P.MODES[mode].gev; gevZ = 9; gevThrow = 4.5; gevArm = gevLost = 0; gevGone = false; gevShout = 0; gevSide = 1; gevFine = 0;
@@ -936,6 +936,8 @@ function spawnWave() {
   if (P.MODES[mode].ranch && spawnRanchSpecial()) return;
   if (ice) return spawnIceWave();
   if (P.MODES[mode].slalom) return spawnSlalomWave();
+  { const rr = routeAt(course, roadTime * 19.5);   // v85 · in salita con la trazione si pensa solo al gas: niente ostacoli, solo birre
+    if (feat('traction') && (rr.climb > .3 || rr.grade > .04) && !leap) { const l = Math.floor(rng() * 3); for (let i = 0; i < 3; i++) objects.push({ l, z: -.08 * i, type: 'coin', hit: false }); wave++; return; } }
   if (P.MODES[mode].wild && wave > 1 && spawnWildSpecial(routeAt(course, roadTime * 19.5).id)) return;
   const r = routeAt(course, roadTime * 19.5), section = r.id, diff = P.MODES[mode].difficulty;
   const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
@@ -1485,11 +1487,13 @@ function update(dt) {
   // v84 · trazione (Dopo migliora): gas sempre aperto = la ruota pattina; poco gas = ti pianti; giusto = vai più forte
   let tractMul = 1;
   tractOn = feat('traction') && (route.climb > .3 || route.grade > .04) && !leap;
+  if (tractOn && !wasTract) objects = objects.filter(o => o.z > .75 || o.type === 'coin' || o.type === 'farm');   // v85 · inizio salita: pista sgombra
+  wasTract = tractOn;
   if (tractOn && !run.tractHint) { run.tractHint = 1; bigCall('SALITA: DOSA IL GAS!'); toast('⛽ APRI E CHIUDI IL GAS: TIENI LA LANCETTA NEL VERDE', 'gold'); }
   if (tractOn && !stalled) {
     grip = Math.max(0, Math.min(1, grip + (gas ? .5 : -.85) * dt));
-    if (grip > .86) { tractMul = .58; if (elapsed - spinMsgAt > 2.5) { spinMsgAt = elapsed; toast('🔥 PATTINA! MOLLA UN FILO IL GAS', 'red'); } }
-    else if (grip < .2) { tractMul = .4; stallT += dt; if (stallT > 1.1) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); toast('👆 TOCCA SALTA PIÙ VOLTE PER SPINGERE LA MOTO', 'gold'); } }
+    if (grip > .9) { tractMul = .58; if (elapsed - spinMsgAt > 2.5) { spinMsgAt = elapsed; toast('🔥 PATTINA! MOLLA UN FILO IL GAS', 'red'); } }
+    else if (grip < .15) { tractMul = .45; stallT += dt; if (stallT > 1.5) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); toast('👆 TOCCA SALTA PIÙ VOLTE PER SPINGERE LA MOTO', 'gold'); } }
     else { stallT = 0; if (grip >= .35 && grip <= .75) { tractMul = 1.08; score += dt * 40; } }
   } else if (!tractOn) { grip += (.5 - grip) * Math.min(1, dt * 2); stallT = 0; stalled = false; }
   if (stalled) tractMul = .04;
@@ -1815,7 +1819,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=84" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=85" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -2177,7 +2181,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 84;
+const GAME_VERSION = 85;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2236,7 +2240,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=84" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=85" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2244,7 +2248,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=84" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=85" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- v68 · Sfida 1 contro 1 dal vivo ----------
