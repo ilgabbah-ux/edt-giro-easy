@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=95';
-import { createWorld } from './scene3d.js?v=95';
-import * as A from './audio.js?v=95';
-import * as P from './progress.js?v=95';
-import { createMud } from './mudfx.js?v=95';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=95';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=95';
-import * as C from './classifica.js?v=95';
-import * as D from './duel.js?v=95';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=96';
+import { createWorld } from './scene3d.js?v=96';
+import * as A from './audio.js?v=96';
+import * as P from './progress.js?v=96';
+import { createMud } from './mudfx.js?v=96';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=96';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=96';
+import * as C from './classifica.js?v=96';
+import * as D from './duel.js?v=96';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=95').then(m => {
+import('./piloti.js?v=96').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -222,7 +222,7 @@ let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos =
 let weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0 }, nextFlash = 5, weatherPlan = [], weatherSaid = '', lastRainMud = 0;
 const curLift = () => jumpHeight(jump, jumpDur, jumpH);
 // Potenziamenti dell'officina (letti a inizio giro) e premi del rifugio.
-let up = { engine: 0, susp: 0, tank: 0, tyres: 0, helmet: 0, nose: 0, balance: 0, grit: 0 }, maxLives = 3, startBoosts = [];
+let up = { engine: 0, susp: 0, tank: 0, tyres: 0, helmet: 0, nose: 0, balance: 0, grit: 0, clutch: 0, ecu: 0, damper: 0, skid: 0, wings: 0, camel: 0, eyes: 0 }, skidLeft = 0, maxLives = 3, startBoosts = [];
 const turboMax = () => 3 + up.tank * .4;
 const comboMax = () => 4.5 + up.grit * .5 + (has('steady') ? 2 : 0) + (bs.combo || 0);
 function breakCombo() { if (has('steady')) { combo = Math.floor(combo / 2); comboTime = combo ? comboMax() : 0; } else combo = comboTime = 0; }
@@ -417,6 +417,7 @@ function resetRun() {
   grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9; lastRiderHit = -99;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
   for (const k of Object.keys(up)) up[k] = P.upgradeLevel(k);
+  skidLeft = up.skid >= 5 ? 2 : up.skid > 0 ? 1 : 0;   // v96 · paramotore
   maxLives = 3 + (up.helmet >= 2 ? 1 : 0) + (up.helmet >= 4 ? 1 : 0) + (has('lion') ? 1 : 0);
   const b = P.takeBoosts(); startBoosts = [];
   if (b.helmet) { maxLives++; startBoosts.push('CASCO DI SCORTA'); }
@@ -576,7 +577,7 @@ function steerStep(dt, route) {
   const acc = (17 - route.rough * 4) * (wet > 0 ? .6 : 1) * (1 + (bs.steer || 0) * .5);
   vx += (want - vx) * Math.min(1, dt * acc);
   px += vx * dt;
-  if (barT > 0) px += Math.sin(elapsed * 4.2) * 1.8 * dt * Math.min(1, barT);   // v84 · dopo la birra la moto balla
+  if (barT > 0) px += Math.sin(elapsed * 4.2) * 1.8 * (1 - up.damper * .12) * dt * Math.min(1, barT);   // v84 · dopo la birra la moto balla
   if (aimPx !== null && Math.abs(aimPx - px) < .02 && Math.abs(vx) < .15) { px += (aimPx - px) * .5; }
   const dir = st || (aimPx !== null && Math.abs(aimPx - px) > .25 ? Math.sign(aimPx - px) : 0);
   scrubCheck(dir);
@@ -596,11 +597,11 @@ function takeoff() {
 // v78 · PARTENZA A RAZZO: tocca SALTA proprio al VIA (da mezzo secondo prima a mezzo secondo dopo) = turbo e +150
 let holePre = false, holeDone = false;
 function holeshot() {
-  holeDone = true; holePre = false; turbo = Math.max(turbo, 2.2); score += 150; run.holeshot = 1;
+  holeDone = true; holePre = false; turbo = Math.max(turbo, 2.2 + up.clutch * .3); score += 150; run.holeshot = 1;
   A.sfx.turbo(); shake = Math.max(shake, .25); bigCall('PARTENZA A RAZZO!'); pop('+150 PARTENZA', 'gold'); fxKind = 'trick'; fxSerial++;
 }
 function hop() {
-  if (state === 'countdown') { if (countdown < .5 && !holeDone) holePre = true; return; }
+  if (state === 'countdown') { if (countdown < .5 + up.clutch * .1 && !holeDone) holePre = true; return; }
   if (state !== 'playing') return;
   if (stalled) {   // v84 · moto piantata in salita: ogni tocco è una spinta
     pushP += .2; shake = Math.max(shake, .2); A.sfx.click?.();
@@ -608,7 +609,7 @@ function hop() {
     else toast('💪 SPINGI! ' + Math.round(pushP * 100) + '%', 'gold');
     return;
   }
-  if (!holeDone && elapsed < .5) { holeshot(); return; }
+  if (!holeDone && elapsed < .5 + up.clutch * .1) { holeshot(); return; }
   lastHopAt = elapsed;
   if (leap && leapState === 2) return;   // v59 · in volo dal trampolino non si risalta
   if (jump <= 0) takeoff();
@@ -1101,11 +1102,12 @@ function leapStep(dt) {
     // v64 · assetto semplice: col gas (o impenna) il muso sale, mollando scende piano. Verde = |muso| < 0,5
     const up = gas || wheelieHeld;
     leapPitch = Math.max(-1.2, Math.min(1.2, leapPitch + (up ? .5 : -.3) * dt));
+    if (P.upgradeLevel('wings')) leapPitch -= leapPitch * Math.min(1, dt * P.upgradeLevel('wings') * .12);   // v96 · ali: si raddrizza da sola
     leapDist = (elapsed - leapStartT) * leapStartKmh / 3.6;
   }
   if (leapState === 2 && jump <= 0) {   // atterraggio
     leapState = 3; leapEndT = elapsed + 2.6;
-    const m = Math.round(leapDist * 10) / 10, upright = Math.abs(leapPitch) < .5, clear = Math.abs(px - leapFree) < .6;
+    const m = Math.round(leapDist * 10) / 10, upright = Math.abs(leapPitch) < .5 + up.wings * .03, clear = Math.abs(px - leapFree) < .6 + up.wings * .06;
     if (upright && clear && crash <= 0) {
       leapBest = m; run.leap = m;
       reward(Math.round(m * 120) + (leapPerfect ? 1500 : 0), `IN PIEDI! ${m.toFixed(1).replace('.', ',')} m`, 'perfect');
@@ -1318,11 +1320,11 @@ function iceStep(dt) {
   scrubCheck(Math.abs(st) > .3 ? Math.sign(st) : 0);
   // muro di neve ai bordi: si rimbalza, si rallenta e la derapata va persa
   if (px < -.42 || px > 2.42) {
-    px = Math.max(-.42, Math.min(2.42, px)); vx = -vx * .25; snowT = .7; throttleSlip *= .3;
+    px = Math.max(-.42, Math.min(2.42, px)); vx = -vx * .25; snowT = .7 * (1 - up.damper * .08); throttleSlip *= .3;
     if (elapsed - lastWall > .8) { lastWall = elapsed; endDrift(false); fxKind = 'snow'; fxSerial++; shake = Math.max(shake, .45); A.sfx.splash(); toast('❄ NEL MURO DI NEVE!', 'blue'); mistake(); if (navigator.vibrate) try { navigator.vibrate(40); } catch {} }
   }
   // testacoda: troppo di traverso troppo a lungo
-  if (Math.abs(drift) > .88 + grip * .06 + Math.max(0, Math.abs(bendNow) - .8) * .35 && jump <= 0) overT += dt; else overT = Math.max(0, overT - dt * 2);
+  if (Math.abs(drift) > .88 + grip * .06 + up.damper * .03 + Math.max(0, Math.abs(bendNow) - .8) * .35 && jump <= 0) overT += dt; else overT = Math.max(0, overT - dt * 2);
   if (overT > .45) {
     overT = 0; endDrift(false); throttleSlip = 0; drift *= .2; stun = .6; snowT = .4; shake = Math.max(shake, .6);
     fxKind = 'snow'; fxSerial++; A.sfx.hit(); toast('🌀 TESTACODA! MOLLA UN PO’ IL GAS', 'red'); mistake();
@@ -1396,7 +1398,7 @@ function updateWeather(dt) {
   }
   for (const k of ['rain', 'fog', 'dusk', 'night']) weather[k] += (target[k] - weather[k]) * Math.min(1, dt * .5);
   // v84 · fulmini nel buio: lampo che illumina tutto e tuono subito dopo
-  weather.flash = Math.max(0, weather.flash - dt * 3);
+  weather.flash = Math.max(0, weather.flash - dt * (3 - up.eyes * .3));
   if (weather.night > .5 && weather.rain > .3) { nextFlash -= dt; if (nextFlash <= 0) { nextFlash = 6 + Math.random() * 5; weather.flash = 1; setTimeout(() => { if (weather.flash < .5) weather.flash = .6; }, 120); setTimeout(() => A.sfx.thunder?.(), 500 + Math.random() * 600); } }
   // sotto la pioggia ogni tanto arriva uno schizzo sull'obiettivo
   if (weather.rain > .5 && weather.night < .5 && elapsed - lastRainMud > 5 + Math.random() * 4) { lastRainMud = elapsed; mud(.22); }
@@ -1519,8 +1521,8 @@ function update(dt) {
   if (tractOn && !stalled) {
     grip = Math.max(0, Math.min(1, grip + (gas ? .5 : -.85) * dt));
     if (grip > .9) { tractMul = .58; if (elapsed - spinMsgAt > 2.5) { spinMsgAt = elapsed; toast('🔥 PATTINA! MOLLA UN FILO IL GAS', 'red'); } }
-    else if (grip < .15) { tractMul = .45; stallT += dt; if (stallT > 1.5) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); toast('👆 TOCCA SALTA PIÙ VOLTE PER SPINGERE LA MOTO', 'gold'); } }
-    else { stallT = 0; if (grip >= .35 && grip <= .75) { tractMul = 1.08; score += dt * 40; } }
+    else if (grip < .15 - up.ecu * .015) { tractMul = .45; stallT += dt; if (stallT > 1.5 + up.ecu * .15) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); toast('👆 TOCCA SALTA PIÙ VOLTE PER SPINGERE LA MOTO', 'gold'); } }
+    else { stallT = 0; if (grip >= .35 - up.ecu * .03 && grip <= .75 + up.ecu * .03) { tractMul = 1.08; score += dt * 40; } }
   } else if (!tractOn) { grip += (.5 - grip) * Math.min(1, dt * 2); stallT = 0; stalled = false; }
   if (stalled) tractMul = .04;
   if (rule('noturbo')) charge = 0;
@@ -1677,7 +1679,7 @@ function update(dt) {
       if (gap < .42 && has('dry')) { o.collected = true; reward(150, 'ACQUA? MAI!', 'trick', false); A.sfx.hit(); }
       else if (gap < .42 && lift < OBSTACLE_HEIGHT.water + .06 && turbo <= 0 && grappa <= 0) {
         o.collected = true; run.waters++; mistake();
-        waterT = 3; earsT = Math.max(earsT, 8); breakCombo(); charge = Math.max(0, charge - 30);
+        waterT = 3 * (1 - up.camel * .15); earsT = Math.max(earsT, 8); if (up.camel < 3) breakCombo(); charge = Math.max(0, charge - 30 * (1 - up.camel * .15));
         fxKind = 'splash'; fxSerial++; A.sfx.water(); A.say('acqua'); flash('blue');
         toast('💧 ACQUA?! ORECCHIE DA CONIGLIO!', 'blue');
       } else if (gap < .42) { o.collected = true; reward(80, lift > .5 ? 'ACQUA SALTATA!' : 'ACQUA SPACCATA!', 'near', false); }
@@ -1712,6 +1714,11 @@ function update(dt) {
         fxKind = 'hit'; fxSerial++; A.sfx.hit(); flash('hit');
         if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika();
         toast('💘 CI PENSA GIACU! MOTO SALVA', 'green');
+      } else if (invincible <= 0 && skidLeft > 0) {
+        // v96 · paramotore: la botta si prende ma la moto resta
+        skidLeft--; invincible = 1.4; crash = .5; stun = .45; shake = .7; jump = 0; breakCombo(); mistake(); A.sfx.hit(); fxKind = 'hit'; fxSerial++; flash('hit');
+        if (ice) endDrift(false);
+        toast('🛡 PARAMOTORE: MOTO SALVA' + (skidLeft ? ' (NE RESTA UNO)' : ''), 'green');
       } else if (invincible <= 0) {
         if (elapsed - lastRiderHit > 5) { lastRiderHit = elapsed; riderLine('hit'); }
         if (ice) endDrift(false);
@@ -1790,7 +1797,7 @@ function drawState() {
     courseScale: GAME_LENGTH / (courseLength(P.MODES[mode].difficulty) * 19.5), objects, invincible, roadTime, wheelPhase, turbo, combo, fxKind, fxSerial,
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
     riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
-    livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, parts: P.currentParts(), sight: bs.sight || 0,
+    livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
     leapPitch: leap && leapState === 2 ? leapPitch : undefined, leapCam: leap && leapState === 2, canyon: leap && canyonX0 !== null ? { x0: canyonX0, len: canyonLen, land: canyonLand } : null,
     gev: gev ? { L: 1 + gevSide * 2.15, z: gevZ, arm: gevArm, t: elapsed } : null,
     ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs,
@@ -1868,7 +1875,7 @@ function renderShop(back, tab = shopTab) {
     <h1 class="shoptitle">${tab === 'ice' ? 'CHIODI PER<br><em>ICE SCROPHY.</em>' : tab === 'bikes' ? 'SCEGLI<br><em>LA MOTO.</em>' : tab === 'parts' ? 'FALLA<br><em>TUA.</em>' : 'POTENZIA<br><em>MOTO E PILOTA.</em>'}</h1>
     <div class="wallet">🍺 <b>${P.profile.beers}</b> birre in cassa<small class="insella">In sella: ${cur.icon} ${cur.name}</small>${Object.keys(P.currentStats()).length ? `<small class="totstat">In gara: ${P.statLabel(P.currentStats())}</small>` : ''}</div>
     <div class="shoptabs">${tabs.map(([k, n]) => `<button type="button" class="${k === tab ? 'active' : ''}" data-tab="${k}">${n}</button>`).join('')}</div>
-    ${tab === 'upg' ? ['MOTO', 'PILOTA'].map(g => `<div class="ugroup">${g}</div><div class="upgs">${P.UPGRADES.filter(u => u.group === g).map(card).join('')}</div>`).join('')
+    ${tab === 'upg' ? ['MOTO', 'PILOTA', 'SPECIALI'].map(g => `<div class="ugroup">${g === 'SPECIALI' ? 'SPECIALI · PER CHI HA FINITO TUTTO' : g}</div><div class="upgs">${P.UPGRADES.filter(u => u.group === g).map(card).join('')}</div>`).join('')
       : tab === 'bikes' ? `<div class="upgs">${P.BIKES.map(bikeCard).join('')}</div><p class="tip">Ogni moto cambia davvero la guida. I potenziamenti valgono per tutte.</p>`
       : tab === 'ice' ? `<div class="upgs">${studs.items.map(studCard).join('')}</div><p class="tip">I chiodi contano solo su Ice Scrofy: <b>grip</b> = la moto tiene la linea e non finisce nel muro di neve; <b>derapata</b> = più punti per ogni traverso.</p>`
       : `${P.PARTS.filter(p => !p.ice).map(partRow).join('')}<p class="tip">Gli accessori si vedono sulla moto (e dietro a questo menu). Una volta comprati restano tuoi.</p>`}
@@ -2206,7 +2213,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 95;
+const GAME_VERSION = 96;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));

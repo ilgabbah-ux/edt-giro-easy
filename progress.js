@@ -125,11 +125,19 @@ export const UPGRADES = [
   { id: 'nose', group: 'PILOTA', icon: '👃', name: 'Fiuto per la birra', desc: 'Prendi birre più lontane, il vino dura di più.', per: '+1 s vino' },
   { id: 'balance', group: 'PILOTA', icon: '🤠', name: 'Equilibrio', desc: 'Impennate più lunghe e più pagate.', per: '+0,5 s impennata' },
   { id: 'grit', group: 'PILOTA', icon: '🔥', name: 'Grinta', desc: 'La combo resiste più a lungo.', per: '+0,5 s combo' },
+  // v96 · officina speciale: per chi ha già finito tutto (prezzi più alti)
+  { id: 'clutch', group: 'SPECIALI', pro: true, icon: '🚀', name: 'Frizione racing', desc: 'Partenza a razzo: finestra più larga e più spinta.', per: '+0,1 s finestra · +0,3 s turbo' },
+  { id: 'ecu', group: 'SPECIALI', pro: true, icon: '🧠', name: 'Mappa centralina', desc: 'Dopo migliora: zona verde della trazione più larga, ti pianti più tardi.', per: '+3% zona verde' },
+  { id: 'damper', group: 'SPECIALI', pro: true, icon: '🎯', name: 'Ammortizzatore di sterzo', desc: 'Ghiaccio: meno testacoda e rimbalzi; dopo la birra al bar la moto balla meno.', per: '+5% stabilità' },
+  { id: 'skid', group: 'SPECIALI', pro: true, icon: '🛡', name: 'Paramotore', desc: 'La prima botta di ogni gara non ti toglie la moto (al livello 5 le prime due).', per: 'livello 5: 2 botte' },
+  { id: 'wings', group: 'SPECIALI', pro: true, icon: '🪽', name: 'Ali di Angelo', desc: 'Angelo Potter: bersaglio d’atterraggio più largo e la moto si raddrizza da sola in volo.', per: '+10% bersaglio' },
+  { id: 'camel', group: 'SPECIALI', pro: true, icon: '🎒', name: 'Sacca d’acqua', desc: 'La bottiglia d’acqua ti rallenta meno; dal livello 3 non perdi la combo.', per: '−15% malus acqua' },
+  { id: 'eyes', group: 'SPECIALI', pro: true, icon: '🦉', name: 'Occhio da notturna', desc: 'Di notte e nella nebbia vedi più lontano; i lampi durano di più.', per: '+6% vista' },
 ];
 export const MAX_UPGRADE = 5;
-const COSTS = [30, 60, 100, 160, 240];
+const COSTS = [30, 60, 100, 160, 240], PRO_COSTS = [150, 250, 350, 450, 500];   // v96 · speciali: ~1.700 birre l'uno
 export function upgradeLevel(id) { return Math.min(MAX_UPGRADE, data.upgrades[id] || 0); }
-export function upgradeCost(id) { const l = upgradeLevel(id); return l >= MAX_UPGRADE ? null : COSTS[l]; }
+export function upgradeCost(id) { const l = upgradeLevel(id); return l >= MAX_UPGRADE ? null : (UPGRADES.find(u => u.id === id)?.pro ? PRO_COSTS : COSTS)[l]; }
 export function buyUpgrade(id) {
   const cost = upgradeCost(id);
   if (cost == null || data.beers < cost) return false;
