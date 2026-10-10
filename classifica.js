@@ -2,14 +2,19 @@
 // I punteggi finiscono nel foglio Google "Giro Easy · Classifica" (Drive → Progetti Claude → Gioco EDT Giro Easy)
 // tramite l'app web Apps Script "Giro Easy Classifica". Un record per nome e per percorso, migliori 10.
 export const API = window.EDT_BOARD_URL || 'https://script.google.com/macros/s/AKfycbxb8Ky6HSkHLF01ZT-ku_oGIVbS9Fl2pFT427gk38hx_mCL_DQn81IqEl3OtTKykeY/exec';
-const NICK_KEY = 'edt-giro-easy-nick';
+const NICK_KEY = 'edt-giro-easy-nick', CODE_KEY = 'edt-giro-easy-code';
+// v89 · codice pilota: il primo telefono che usa un nome lo "prenota" col suo codice; gli altri devono conoscere il codice
+export function getCode() {
+  try { let c = localStorage.getItem(CODE_KEY); if (!c) { c = Array.from({ length: 6 }, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join(''); localStorage.setItem(CODE_KEY, c); } return c; } catch { return ''; }
+}
+export function setCode(c) { c = String(c || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12); if (c.length >= 4) try { localStorage.setItem(CODE_KEY, c); } catch {} return c; }
 
 export const enabled = () => !API.includes('__DEPLOY_ID__');
 
 // v79 · STAGIONI: in classifica contano solo i giri fatti con le regole attuali (velocità, punteggi, tempi massimi).
 // Quando cambia qualcosa che sposta tempi o punti si alza "from" (e il numero della stagione): i giri vecchi
 // restano nel foglio e si vedono nell'archivio. ACTIVE = percorsi nel menu (solo questi danno punti coppa).
-export const SEASON = { n: 6, from: 88 };   // v88 · Ice Scrofy rifatto (curvoni a U, niente ostacoli): stagione nuova
+export const SEASON = { n: 7, from: 89 };   // v89 · MontaFiga, Argentera e Anti-GEV ribilanciati: stagione nuova (d'ora in poi le stagioni cambiano al massimo una volta a settimana)
 export const ACTIVE = '0,1,2,3,9,10,11,12,13,14';
 
 export function dayISO(d = new Date()) {
@@ -64,9 +69,9 @@ let archive = null;
 export const cachedArchive = () => archive;
 export function loadArchive() { return archive ? Promise.resolve(archive) : call({ action: 'top', day: dayISO(), minv: 0 }, false).then(d => (archive = d)); }
 
-export function submit({ name, score, mode, rider, time, win, v, g }) {
-  const p = { action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round((time || 0) * 10) / 10, win: win ? 1 : 0, v: v || '', g: g || '' };
-  return call(p).then(d => { flushPending(); return d; }).catch(e => { queue(p); throw e; });
+export function submit({ name, score, mode, rider, time, win, v, g, b }) {
+  const p = { action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round((time || 0) * 10) / 10, win: win ? 1 : 0, v: v || '', g: g || '', b: b ?? '', k: getCode() };
+  return call(p).then(d => { if (d.taken) return d; flushPending(); return d; }).catch(e => { queue(p); throw e; });
 }
 // v57 · punteggi non inviati (rete assente o lenta): restano sul telefono e partono da soli appena la classifica risponde.
 const PEND_KEY = 'edt-giro-easy-pending';
@@ -81,7 +86,7 @@ export async function flushPending() {
   flushing = true; let sent = 0;
   try {
     for (const p of list) {
-      try { await call(p); sent++; writePending(readPending().filter(x => !(x.name === p.name && x.mode === p.mode && x.score === p.score && x.day === p.day))); }
+      try { const d = await call({ ...p, k: getCode() }); if (!d.taken) sent++; writePending(readPending().filter(x => !(x.name === p.name && x.mode === p.mode && x.score === p.score && x.day === p.day))); }
       catch { break; }
     }
   } finally { flushing = false; }

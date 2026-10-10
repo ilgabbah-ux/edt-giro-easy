@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, iceHeading, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=88';
+import { iceShape, iceBend, iceHeading, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=89';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -196,7 +196,7 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=88`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=89`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
@@ -293,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=88', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=89', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -389,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=88`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=89`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -397,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=88', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=88', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=89', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=89', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -695,7 +695,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=88', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=89', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -1030,7 +1030,8 @@ export function createWorld(canvas) {
     j.upperArm = mesh(new T.CylinderGeometry(.06, .07, 1, 12), jerseyMat, rider); j.upperArm.userData.keep = true;
     j.forearm = mesh(new T.CylinderGeometry(.047, .058, 1, 12), jerseyMat, rider); j.forearm.userData.keep = true;
     j.glove = ball(.055, .05, .07, black, rider); j.glove.userData.keep = true;
-    j.elbowBall = ball(.062, .062, .066, black, rider); j.elbowBall.userData.keep = true;
+    { const cuff = mesh(new T.CylinderGeometry(1.08, 1.08, .55, 14), accent, j.glove); cuff.rotation.x = Math.PI / 2; cuff.position.z = .85; cuff.userData.keep = true; }   // v89 · polsino del guanto
+    j.elbowBall = ball(.066, .066, .07, accent, rider);   // v89 · gomitiere col colore della livrea j.elbowBall.userData.keep = true;
     limbs.push(j);
   }
   const _a = new T.Vector3(), _b = new T.Vector3(), _e = new T.Vector3(), _up = new T.Vector3(0, 1, 0), _d = new T.Vector3();
@@ -1612,7 +1613,7 @@ export function createWorld(canvas) {
       // v46 · porta del ghiaccio: due paletti con le bandierine e lo striscione "DI TRAVERSO!"
       const c = document.createElement('canvas'); c.width = 512; c.height = 112; const x = c.getContext('2d');
       x.fillStyle = '#1e7fd8'; x.fillRect(0, 0, 512, 112); x.fillStyle = '#ffffff'; for (let i = 0; i < 16; i++) x.fillRect(i * 32, i % 2 ? 0 : 100, 32, 12);
-      x.font = 'italic 900 58px Arial'; x.textAlign = 'center'; x.fillText('❄ DI TRAVERSO! ❄', 256, 76);
+      x.font = 'italic 900 58px Arial'; x.textAlign = 'center'; x.fillText('DI TRAVERSO!', 256, 76);
       const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
       for (const sd of [-1, 1]) {
         rod([sd * 1.05, 0, 0], [sd * 1.05, 2.5, 0], .045, gateWhite, g);
@@ -1745,7 +1746,7 @@ export function createWorld(canvas) {
   // Solco della gomma dietro la moto: segue le traiettorie reali tra le corsie.
   const TRACKS = 56;
   const trackMat = new T.MeshBasicMaterial({ color: '#3b2a1a', transparent: true, opacity: .3, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-  const trackGeo = new T.PlaneGeometry(.17, 1); trackGeo.rotateX(-Math.PI / 2);
+  const trackGeo = new T.PlaneGeometry(.2, 1); trackGeo.rotateX(-Math.PI / 2);
   const tracks = new T.InstancedMesh(trackGeo, trackMat, TRACKS); tracks.renderOrder = 1; scene.add(tracks);
   const trackHist = [];
   // v72 · polvere morbida (nuvolette sfumate rivolte alla camera) al posto delle palle grigie trasparenti
@@ -2219,7 +2220,8 @@ export function createWorld(canvas) {
       dummy.rotation.order = 'XYZ';
     }
     tracks.instanceMatrix.needsUpdate = true;
-    trackMat.opacity = iceMode ? .5 : trail.rough > .5 ? .14 : trail.wet > .3 ? .42 : .3;
+    trackMat.color.set(iceMode ? '#5f86a0' : '#3b2a1a');   // v89 · sul ghiaccio i segni dei chiodi sono grigio-azzurri e si vedono
+    trackMat.opacity = iceMode ? .62 : trail.rough > .5 ? .14 : trail.wet > .3 ? .42 : .3;
 
     dustMaterial.color.set(iceMode ? '#f4fbff' : muddy ? '#9a8a74' : '#ceba8c');
     dust.visible = onGround;

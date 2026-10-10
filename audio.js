@@ -2,7 +2,9 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=88';
+// v89 · voci caricate dopo il menu (il gioco si apre prima); chi le usa aspetta vociReady
+let VOCI = {};
+const vociReady = import('./voci.js?v=89').then(m => { VOCI = m.VOCI; }).catch(() => {});
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -79,7 +81,7 @@ export function isEnabled() { return enabled; }
 
 function loadVoices() {
   if (loading) return loading;
-  loading = Promise.all(Object.entries(VOICE_FILES).map(async ([key, url]) => {
+  loading = vociReady.then(() => Promise.all(Object.entries(VOICE_FILES).map(async ([key, url]) => {
     if (VOCI[key]) {
       const bin = atob(VOCI[key]), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -90,7 +92,7 @@ function loadVoices() {
     if (!res.ok) throw Error('audio');
     const buf = await res.arrayBuffer();
     buffers.set(key, await ctx.decodeAudioData(buf));
-  })).catch(e => { loading = null; throw e; });
+  }))).catch(e => { loading = null; throw e; });
   return loading;
 }
 
@@ -152,6 +154,7 @@ const extraState = {};
 async function loadExtra(key) {
   if (extraState[key] !== undefined) return extraState[key];
   extraState[key] = null;
+  await vociReady;
   // Voci incorporate: decodifica diretta, senza rete.
   if (VOCI[key]) {
     try {
@@ -206,7 +209,7 @@ export async function testVoices(onStep) {
 // Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
 // v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio
 let VOCI_PILOTI = {}, vpLoad = null;
-export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=88').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
+export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=89').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
 setTimeout(loadRiderVoices, 2500);
 const riderBuf = new Map();
 export const hasRiderVoice = key => !!VOCI_PILOTI[key];

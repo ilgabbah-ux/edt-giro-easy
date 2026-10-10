@@ -1,18 +1,24 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=88';
-import { createWorld } from './scene3d.js?v=88';
-import * as A from './audio.js?v=88';
-import * as P from './progress.js?v=88';
-import { FOTO } from './piloti.js?v=88';
-import { createMud } from './mudfx.js?v=88';
-import { icon, iconize, iconizeEl } from './icons.js?v=88';
-import * as C from './classifica.js?v=88';
-import * as D from './duel.js?v=88';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=89';
+import { createWorld } from './scene3d.js?v=89';
+import * as A from './audio.js?v=89';
+import * as P from './progress.js?v=89';
+import { createMud } from './mudfx.js?v=89';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=89';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=89';
+import * as C from './classifica.js?v=89';
+import * as D from './duel.js?v=89';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
-try { world = createWorld(canvas); window.__world = world; world.setGustaFace?.(FOTO.gusta); } catch (e) { worldError = e; console.error('3D non disponibile', e); }
+// v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
+let FOTO = {};
+import('./piloti.js?v=89').then(m => {
+  FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
+  document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
+}).catch(() => {});
+try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); }
 // v52 · moto in anteprima nel garage (gira da sola, si può trascinare per girarla)
 let preview = null;
 try { preview = world?.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
@@ -65,7 +71,7 @@ const SKILLS = {
 };
 let skill = '';
 const has = id => skill === id;
-const photoURL = name => PHOTOS[name] ? (FOTO[PHOTOS[name]] || 'piloti/' + PHOTOS[name] + '.jpg') : null;
+const photoURL = name => PHOTOS[name] ? (FOTO[PHOTOS[name]] || null) : null;
 function avatarHTML(name, cls = '') {
   const url = photoURL(name);
   return url
@@ -131,30 +137,20 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9, turboReadyT = 0;
 let grip = .5, stallT = 0, stalled = false, pushP = 0, spinMsgAt = -9, tractOn = false;
 let wasTract = false, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
 // v84 · Sfida del giorno: una regola diversa ogni giorno, uguale per tutti
-const DAILY_RULES = [
-  { id: 'noturbo', icon: '🚫', name: 'NIENTE TURBO', desc: 'Oggi il turbo è rotto: solo gas e manico (i compagni vanno un filo più piano).' },
-  { id: 'jumps', icon: '🦘', name: 'SALTI DOPPI', desc: 'Ogni salto e ogni trick vale il doppio.' },
-  { id: 'rain', icon: '🌧', name: 'DILUVIO', desc: 'Piove dall’inizio alla fine: fango dappertutto.' },
-  { id: 'fog', icon: '🌫', name: 'NEBBIA FITTA', desc: 'Nebbia per tutto il giro: segui le fettucce.' },
-  { id: 'night', icon: '🌑', name: 'NOTTURNA', desc: 'Si corre di notte: si vede solo col faro.' },
-  { id: 'traction', icon: '⛽', name: 'SALITE VERE', desc: 'In salita gas dosato come a Dopo migliora: troppo pattina, poco ti pianti.' },
-  { id: 'bar', icon: '🍺', name: 'GIRO DEI BAR', desc: 'Due soste al bar: birre e punti, ma poi la moto balla.' },
-  { id: 'rush', icon: '⏱', name: 'DI CORSA', desc: 'Tempo limite 4 secondi più corto.' },
-];
 const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RULES.length];
 const rule = id => mode === 3 && dailyRule().id === id;
 const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=88';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=89';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400, canyonLand = 0, leapTurbo = false, leapV = 10;
 let leap = false, leapState = 0, leapPow = 0, leapPitch = 0, leapW = 0, leapStartT = 0, leapStartKmh = 0, leapDist = 0, leapBest = 0, lastHopAt = -9, leapEndT = 0, leapPerfect = false;
 let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
 const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
-const GEV_SOFT = new Set(['bar', 'coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
+const GEV_SOFT = new Set(['gevmark', 'bar', 'coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
 // v48 · fantasma del primo nella classifica del gruppo
 let gGhost = null, gGhostPassed = false;
 // v50 · guida libera: la moto va dove la porti (niente più corsie fisse).
@@ -255,20 +251,34 @@ function cheer(text, force = false, withVoice = false) {
 // ---------- Messaggi a schermo ----------
 // I messaggi scorrono in una colonna a sinistra, sotto il punteggio: la strada al centro resta libera.
 let lastToast = '', lastToastAt = 0;
+// v89 · un avviso alla volta: coda con priorità (rosso > oro > resto), i vecchi scadono
+const toastQ = []; let toastBusy = false;
 function toast(t, kind = '') {
   const now = performance.now();
   if (t === lastToast && now - lastToastAt < 1500) return;
+  if (toastQ.some(q => q.t === t)) return;
   lastToast = t; lastToastAt = now;
+  toastQ.push({ t, kind, at: now, pri: kind === 'red' ? 3 : kind === 'gold' ? 2 : 1 });
+  toastQ.sort((a, b) => b.pri - a.pri || a.at - b.at);
+  if (toastQ.length > 3) toastQ.length = 3;
+  pumpToast();
+}
+function pumpToast() {
+  if (toastBusy) return;
+  const now = performance.now();
+  while (toastQ.length && now - toastQ[0].at > 4500) toastQ.shift();
+  if (!toastQ.length) return;
+  const { t, kind } = toastQ.shift();
   const feed = $('feed');
-  while (feed.childElementCount >= 2) feed.firstElementChild.remove();   // v48 · al massimo 2 avvisi alla volta
+  feed.replaceChildren();
   const el = document.createElement('div');
   el.className = 'msg ' + kind;
   el.innerHTML = iconize(t);
   feed.appendChild(el);
-  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 350); }, 2100);
-  toastTime = 2.2;
+  toastBusy = true; toastTime = 2.2;
+  const hold = toastQ.length ? 1500 : 2100;
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.remove(); toastBusy = false; pumpToast(); }, 300); }, hold);
 }
-// Scritta enorme al centro (Campa giù!): ha un suo livello, non viene coperta dagli altri messaggi.
 function bigCall(text) {
   const el = $('bigcall'); if (!el) return;
   el.textContent = text; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
@@ -335,7 +345,7 @@ function hud() {
   if (!gGhost || !(state === 'playing' || state === 'paused' || state === 'countdown')) $('gghost').hidden = true;
   if (gcHud !== null) { $('ghostmarker').style.left = (gcHud / GAME_LENGTH * 100) + '%'; $('ghostmarker').title = 'Record di ' + ghosts[ghostKey()].rider + ': ' + ghosts[ghostKey()].time.toFixed(1) + 's'; }
   $('trackbar').classList.toggle('behind', state === 'playing' && elapsed / timeLimit > course / GAME_LENGTH);
-  $('kmh').textContent = kmh;
+  $('kmh').textContent = Math.round(kmh * 1.45);   // v89 · scala del tachimetro più realistica (solo visualizzazione)
   const route = routeAt(course, roadTime * 19.5);
   document.querySelectorAll('#trackbar .seg').forEach((el, i) => el.classList.toggle('active', i === route.seg && state !== 'ready'));
   $('tracklabel').textContent = route.name + (wet > 0 ? ' · IMPANTANATO' : route.grade > .05 ? ' · SALITA ' + Math.round(route.grade * 100) + '%' : route.grade < -.05 ? ' · DISCESA ' + Math.round(-route.grade * 100) + '%' : '');
@@ -349,7 +359,7 @@ function hud() {
   if (leap && live) {   // v59 · riquadro del salto: assetto della moto e metri
     $('driftbox').hidden = false;
     $('driftlabel').textContent = leapState === 2 ? 'IN VOLO · MUSO SU!' : leapState >= 3 ? 'SALTO' : 'VELOCITÀ DI RINCORSA';
-    $('driftpts').textContent = leapState >= 2 ? (leapState === 2 ? leapDist : leapBest).toFixed(1).replace('.', ',') + ' m' : kmh + ' km/h';
+    $('driftpts').textContent = leapState >= 2 ? (leapState === 2 ? leapDist : leapBest).toFixed(1).replace('.', ',') + ' m' : Math.round(kmh * 1.45) + ' km/h';
     $('driftneedle').style.transform = `rotate(${(leapState === 2 ? -leapPitch * 70 : 0).toFixed(1)}deg)`;
     $('driftbox').classList.toggle('on', leapState === 2);
     $('driftbox').classList.toggle('sweet', leapState === 2 && Math.abs(leapPitch) < .5);
@@ -415,7 +425,7 @@ function resetRun() {
   if (has('rocket')) charge = 100;
   if (b.grappa) { grappa = 6; startBoosts.push('GRAPPA DEL RIFUGISTA'); }
   if (b.wine) { magnet = 7 + up.nose; startBoosts.push('BOTTIGLIA DI ROSSO'); }
-  run = newRun(); announced = new Set(); shownScore = -1; shownLives = -1; mudFx.clear();
+  toastQ.length = 0; run = newRun(); announced = new Set(); shownScore = -1; shownLives = -1; mudFx.clear();
   rng = duel?.racing ? makeRng(duel.seed) : mode === 3 ? makeRng(P.todayKey()) : makeRng((Date.now() ^ (Math.random() * 1e9)) >>> 0);
   applyLayout(true);
   bs = P.currentStats();
@@ -440,6 +450,8 @@ function start() {
   resetRun();
   state = 'countdown'; countdown = 3.2; countStep = 4; holePre = holeDone = false;
   setTimeout(() => { if (state === 'countdown') toast('🚀 TOCCA SALTA AL VIA = PARTENZA A RAZZO', 'gold'); }, 600);
+  // v89 · primo giro su un percorso: un solo consiglio, quello della sua meccanica, appena dopo il via
+  { const seen = P.profile.seenTracks || (P.profile.seenTracks = {}); if (!seen[mode] && TRACK_INFO[mode]?.consiglio) { seen[mode] = 1; P.save(); const tip = TRACK_INFO[mode].consiglio; setTimeout(() => { if (state === 'playing') { const el = $('tipcard'); if (el) { el.innerHTML = '<small>PRIMO GIRO QUI</small>' + tip; el.className = 'tipcard show'; setTimeout(() => el.className = 'tipcard', 5200); } } }, 3600); } }
   { const md = P.MODES[mode], ti = $('trackintro');   // v58 · cartolina del percorso durante il via
     ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.id === 3 ? dailyRule().icon + ' REGOLA DI OGGI: ' + dailyRule().name + ' — ' + dailyRule().desc : md.desc}</small></div>`;
     ti.className = 'trackintro'; void ti.offsetWidth; ti.className = 'trackintro show'; }
@@ -876,11 +888,12 @@ function spawnSlalomWave() {
   const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
   let g = prevSafe + (rng() < .5 ? -1 : 1);
   if (g < 0) g = 1; if (g > 2) g = 1;
+  if (wave > 6 && prevSafe !== 1 && rng() < .3) g = 2 - prevSafe;   // v89 · ogni tanto il varco salta da un lato all'altro
   if (wave < 2) g = 1;
   prevSafe = g;
   for (let l = 0; l < 3; l++) if (l !== g) add(l, .08, 'tree', { lean: (rng() - .5) * .3 });
   add(g, .08, 'sgap');
-  add(g, .02, 'coin'); if (wave % 2) add(g, -.06, 'coin');   // v81 · MontaFiga: meno birre (dava il doppio dei punti degli altri percorsi)
+  if (wave % 3 !== 2) add(g, .02, 'coin');   // v89 · MontaFiga: birre su due file ogni tre (faceva quasi il doppio dei punti degli altri percorsi)   // v81 · MontaFiga: meno birre (dava il doppio dei punti degli altri percorsi)
   if (wave > 3 && rng() < .07) add(g, -.12, lives < maxLives ? 'helmet' : 'wine');
   wave++;
 }
@@ -1119,7 +1132,7 @@ function gevStep(dt, diff) {
   gevThrow -= dt;
   if (gevThrow <= 0) {
     gevThrow = 1;
-    if (gevZ < -6 && course > 2 && course < GAME_LENGTH * .95) { gevThrowNow(); gevThrow = Math.max(1.8, 3.4 - course * .012 - diff * .25) + rng() * 1.3; }
+    if (gevZ < -6 && course > 2 && course < GAME_LENGTH * .95) { gevThrowNow(); gevThrow = Math.max(2.3, 3.6 - course * .012 - diff * .25) + rng() * 1.3; }
   }
   if (gevZ < -6 && elapsed - gevShout > 8 && rng() < dt * .5) { gevShout = elapsed; toast(pick(GEV_SHOUTS), 'gold'); A.sfx.whistle(); }
 }
@@ -1134,7 +1147,8 @@ function gevThrowNow() {
     objects.push({ l: free, z: zT, type: 'coin', hit: false });
   }
   const type = pick(['cone', 'cone', 'tyre', 'tyre', 'sign', 'barrier']);
-  objects.push({ l: 1 + gevSide * 2.15, z: zJ, type, hit: false, fly: .9, flyT: .9, l0: 1 + gevSide * 2.15, lT: target, z0: zJ, zT, lift: 1.5 });
+  const thrown = { l: 1 + gevSide * 2.15, z: zJ, type, hit: false, fly: .9, flyT: .9, l0: 1 + gevSide * 2.15, lT: target, z0: zJ, zT, lift: 1.5 };
+  objects.push(thrown, { l: target, z: zT, type: 'gevmark', hit: false, of: thrown });   // v89 · cerchio rosso a terra dove cadrà l'oggetto
   gevArm = .6; run.gevThrows = (run.gevThrows || 0) + 1;
   toast({ cone: '⚠ BIRILLO IN ARRIVO!', tyre: '⚠ TI TIRANO UN COPERTONE!', sign: '⚠ CARTELLO DI DIVIETO IN PISTA!', barrier: '⚠ TRANSENNA IN ARRIVO!' }[type], 'red');
 }
@@ -1573,7 +1587,7 @@ function update(dt) {
 
   spawn -= dt * speed;
   if (spawn <= 0) {
-    spawn = ice ? 2.2 - Math.min(.5, course * .006) : P.MODES[mode].slalom ? Math.max(.78, 1.05 - course * .004) : Math.max(.95, (1.8 - diff * .16 - course * .002) * (route.id === 3 ? .8 : 1));
+    spawn = ice ? 2.2 - Math.min(.5, course * .006) : P.MODES[mode].slalom ? Math.max(.72, 1.0 - course * .004) : Math.max(.95, (1.8 - diff * .16 - course * .002) * (route.id === 3 ? .8 : 1));
     spawnWave();
   }
 
@@ -1588,12 +1602,13 @@ function update(dt) {
       if (o.fly === 0) { o.lift = 0; o.landed = true; A.sfx.land(); }
     }
     if (o.roll) o.l = o.lEnd - (.91 - o.z) * o.k;
+    if (o.type === 'gevmark' && o.of) { o.z = o.of.zT; if (!o.of.fly) o.collected = true; }
     if (o.type === 'trincia' && !o.sprayed && o.z > .8 && Math.abs(px - o.l) < 1.5) { o.sprayed = 1; mud(.3); }   // v81 · la trincia spara erba e terra
     if (o.hit || o.z < .91) continue;
     o.hit = true;
     const gap = o.type === 'bigLog' || o.type === 'ford' ? 0 : o.type === 'trincia' ? Math.max(0, Math.abs(px - o.l) - .28) : Math.abs(px - o.l);   // v81 · il trattore è largo
     if (o.type === 'sgap') {
-      if (Math.abs(px - o.l) < .5 && crash <= 0) { slalomN++; run.slaloms = Math.max(run.slaloms || 0, slalomN); reward(20 + Math.min(slalomN, 12) * 5, slalomN >= 5 ? 'SLALOM ×' + slalomN + '!' : 'SLALOM!', 'trick', false); if (slalomN === 10) cheer('SEI UN CANGURO DEL BOSCO!', false, true); }
+      if (Math.abs(px - o.l) < .5 && crash <= 0) { slalomN++; run.slaloms = Math.max(run.slaloms || 0, slalomN); reward(10 + Math.min(slalomN, 10) * 3, slalomN >= 5 ? 'SLALOM ×' + slalomN + '!' : 'SLALOM!', 'trick', false); if (slalomN === 10) cheer('SEI UN CANGURO DEL BOSCO!', false, true); }
       else slalomN = 0;
       o.collected = true; continue;
     }
@@ -1614,9 +1629,9 @@ function update(dt) {
     }
     if (o.type === 'bar') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeBar(); } continue; }
     if (o.type === 'shortcut') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeShortcut(); return; } continue; }
-    if (o.type === 'landpad' || o.type === 'mboard' || (o.type === 'boulder' && leap)) continue;   // v64 · i pietroni si valutano all'atterraggio (corsia)
+    if (o.type === 'landpad' || o.type === 'mboard' || o.type === 'gevmark' || (o.type === 'boulder' && leap)) continue;   // v64 · i pietroni si valutano all'atterraggio (corsia)
     if (o.type === 'speedpad') {   // v67 · scopa volante di Angelo Potter: più velocità per il salto
-      if (Math.abs(px - o.l) < .6) { o.collected = true; leapMul = Math.min(2.2, leapMul + .12); if (turbo <= 0) charge = Math.min(100, charge + 30); A.sfx.turbo(); shake = Math.max(shake, .2); pop('🧹 SCOPA! ' + Math.round(kmh * 1.07) + ' km/h', 'gold'); fxKind = 'trick'; fxSerial++; }
+      if (Math.abs(px - o.l) < .6) { o.collected = true; leapMul = Math.min(2.2, leapMul + .12); if (turbo <= 0) charge = Math.min(100, charge + 30); A.sfx.turbo(); shake = Math.max(shake, .2); pop('🧹 SCOPA! ' + Math.round(kmh * 1.45 * 1.07) + ' km/h', 'gold'); fxKind = 'trick'; fxSerial++; }
       continue;
     }
     if (o.type === 'bigRamp') { o.collected = true; if (leapState === 1) leapTakeoff(); continue; }
@@ -1826,7 +1841,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=88" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=89" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -2031,7 +2046,7 @@ const MODE_LABEL = m => m === 3 ? 'SFIDA ' + P.todayLabel() : P.MODES[m].short;
 function groupListHTML(list, me = '', m = -1) {
   if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
   const mine = C.cleanNick(me).toLowerCase();
-  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
+  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto">🔧${e.b}</small>` : ''}</span><span class="when">${m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
 }
 // v48 · classifica dei tempi migliori al rifugio
 function timeListHTML(list, me = '', m = -1) {
@@ -2080,14 +2095,24 @@ function groupResult(runInfo) {
       <p class="gpos">${pos ? `<b>${nick}</b> è <b class="big">${pos}°</b>${best && best.s > runInfo.score ? ` (record ${best.s.toLocaleString('it-IT')})` : ''}` : `<b>${nick}</b>: fuori dai primi 10. Dopo migliora!`}</p>${(() => { const tl = C.timesFor(d, runInfo.mode), ti = tl.findIndex(e => e.n.toLowerCase() === nick.toLowerCase()); const jb = runInfo.mode === C.JUMP_MODE, fm = jb ? C.fmtJump : C.fmtTime; return ti >= 0 ? `<p class="gpos">${jb ? '📏 Salto più lungo' : '⏱ Tempi migliori'}: <b>${ti + 1}°</b> con ${fm(tl[ti].t)}${tl[0] && ti > 0 ? ` (1° ${tl[0].n}: ${fm(tl[0].t)})` : ''}</p>` : ''; })()}
 ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 Coppa della settimana: <b>${me.pos}°</b> con ${me.p} pt${d.week.list[0] && me.pos > 1 ? ` (1° ${d.week.list[0].n}: ${d.week.list[0].p} pt)` : ''}</p>` : ''; })()}
       <ol class="board gboard">${groupListHTML(list.slice(0, 5), nick, runInfo.mode)}</ol>
-      <div class="grow"><button class="secondary" type="button" id="gall">TUTTA LA CLASSIFICA</button><button class="linkbtn" type="button" id="gnick">non sei ${nick}?</button></div>`;
+      <div class="grow"><button class="secondary" type="button" id="gall">TUTTA LA CLASSIFICA</button><button class="linkbtn" type="button" id="gnick">non sei ${nick}?</button></div>
+      <p class="gcode">🔑 Il tuo codice pilota: <b>${C.getCode()}</b> · ti serve per usare il nome <b>${nick}</b> su un altro telefono.</p>`;
     $('gall').onclick = () => renderGroup(() => renderResultAgain(), runInfo.mode);
     $('gnick').onclick = () => { C.setNick(''); groupResult({ ...runInfo, sent: null }); };
   };
   if (runInfo.sent && runInfo.sentAs === nick) { show(runInfo.sent); return; }
   box.innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div><p class="gwait">Invio il punteggio di <b>${nick}</b>…</p>`;
   const { sent, sentAs, ...payload } = runInfo;
-  C.submit({ ...payload, name: nick, v: String(GAME_VERSION) }).then(d => {
+  C.submit({ ...payload, name: nick, v: String(GAME_VERSION), b: P.UPGRADES.reduce((a, u) => a + P.upgradeLevel(u.id), 0) }).then(d => {
+    if (d.taken) {   // v89 · nome già prenotato da un altro telefono
+      if (!$('groupres')) return;
+      $('groupres').innerHTML = `<div class="ghead">🔒 NOME GIÀ USATO</div><p><b>${nick}</b> è già il nome di un altro pilota del gruppo. Se sei tu, scrivi il tuo <b>codice pilota</b> (lo trovi in classifica sul telefono dove giochi di solito); altrimenti cambia nome.</p>
+        <form class="nickrow" id="codeform"><input id="codein" maxlength="12" autocomplete="off" placeholder="codice pilota"><button class="primary" type="submit"><span>ENTRA</span></button></form>
+        <div class="grow"><button class="linkbtn" type="button" id="gnick2">cambia nome</button></div>`;
+      $('codeform').onsubmit = e => { e.preventDefault(); if (C.setCode($('codein').value).length >= 4) groupResult({ ...runInfo, sent: null }); };
+      $('gnick2').onclick = () => { C.setNick(''); groupResult({ ...runInfo, sent: null }); };
+      return;
+    }
     runInfo.sent = d; runInfo.sentAs = nick; lastGroupRun = runInfo;
     show(d); renderSide(); refreshCardPreview();
   }).catch(() => {
@@ -2100,18 +2125,6 @@ let resultSnapshot = null;
 function renderResultAgain() { if (resultSnapshot) { state = 'ended'; setMenu(true); $('overlay').classList.remove('hidden'); $('card').innerHTML = resultSnapshot.html; resultSnapshot.bind(); } else renderReady(); }
 // Schermata con tutte le classifiche del gruppo, un percorso per scheda.
 // ---------- v61 · Sezione Tracciati: tutti i percorsi con le loro caratteristiche ----------
-const TRACK_INFO = {
-  0: { tipo: 'Il classico tra le vigne', ostacoli: 'Tronchi, radici, ceppi, pozzanghere, gradoni, sassi e capre', speciale: 'Filari di viti, sosta al bar (+500 e 5 birre, ma la moto balla), il taglio delle 16.00', consiglio: 'Al bar passa sotto il tendone, poi correggi lo sbandamento col manubrio.' },
-  1: { tipo: 'Salitoni col gas dosato', ostacoli: 'Più fango, pozze, gradoni, sassi e frane', speciale: 'In salita conta la trazione: tieni la lancetta nel verde. Gas sempre aperto = la ruota pattina; poco gas = ti pianti e devi spingere la moto', consiglio: 'In salita apri e chiudi il gas a ritmo, non tenerlo sempre premuto.' },
-  2: { tipo: 'Gara di salto nel burrone', ostacoli: 'Nessuno in discesa; pietroni nella zona di atterraggio', speciale: 'Scope volanti che danno velocità: più veloce arrivi al bordo, più lontano voli. Classifica anche del salto più lungo', consiglio: 'Prendi tutte le scope tenendo il GAS, poi in volo lancetta nel verde e corsia del bersaglio verde.' },
-  3: { tipo: 'Tracciato del giorno', ostacoli: 'Cambiano ogni giorno', speciale: 'Uguale per tutti, con una regola diversa ogni giorno (niente turbo, salti doppi, diluvio, notturna…): classifica che si azzera a mezzanotte', consiglio: 'Primo giro per imparare il tracciato, secondo per fare il tempo.' },
-  9: { tipo: 'Pista di ghiaccio a curve', ostacoli: 'Nessuno: il pericolo è il muro di neve nei curvoni', speciale: 'Curvoni, esse e tornanti a U: punti derapata e porte da passare di traverso', consiglio: 'GAS in curva per mettere la moto di traverso e controsterza. Monta le gomme chiodate.' },
-  10: { tipo: 'Notte e diluvio', ostacoli: 'Pietraie bagnate, gradoni viscidi, pozze, radici', speciale: 'Buio vero: vedi solo dove arriva il faro, i fulmini illuminano tutto per un attimo. Il fanale LED dell’officina aiuta', consiglio: 'Guarda il cono del faro e approfitta dei lampi per leggere la pista lontana.' },
-  11: { tipo: 'Valle alpina selvaggia', ostacoli: 'Sassi, ometti di pietra, marmotte', speciale: 'Guadi su tutta la pista da saltare e stambecchi, camosci e capre che attraversano', consiglio: 'Al guado salta: se no scarponi pieni d’acqua.' },
-  12: { tipo: 'Slalom nel bosco', ostacoli: 'Alberi in pista: non si saltano, si schivano', speciale: 'Varco che cambia corsia a ogni fila: bonus slalom a catena. A ogni albero preso arriva Erika', consiglio: 'Guarda due file avanti, non quella davanti alla ruota.' },
-  13: { tipo: 'Fuga dalle GEV', ostacoli: 'Birilli, copertoni, cartelli e transenne lanciati dalla jeep', speciale: 'Le moto sono i tentativi: finiti quelli (o il tempo) arriva la multa', consiglio: 'Turbo o grappa per seminare la jeep.' },
-  14: { tipo: 'Fango e trattori', ostacoli: 'Pozzanghere, balle di fieno, ceppi e qualche albero', speciale: 'Il Gusta passa di traverso con il trattore e la trincia: non si salta, si schiva. Partenza dalla cascina sulle colline', consiglio: 'Quando senti arrivare il Gusta, vai sulla corsia delle birre.' },
-};
 function renderTracks(back) {
   if (state !== 'ended') state = 'ready';
   setMenu(true); $('overlay').classList.remove('hidden');
@@ -2188,7 +2201,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 88;
+const GAME_VERSION = 89;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2247,7 +2260,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=88" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=89" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2255,7 +2268,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=88" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=89" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- v68 · Sfida 1 contro 1 dal vivo ----------

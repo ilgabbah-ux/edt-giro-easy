@@ -9,6 +9,9 @@
 //       Classifiche, tempi e coppa contano solo i giri fatti da quella versione in poi, così si confrontano
 //       giri giudicati con lo stesso metro. minv=0 → archivio di tutte le stagioni. Le righe vecchie restano nel foglio.
 //       act = percorsi ancora nel gioco (quelli tolti non danno punti coppa).
+// v89 · NOMI PROTETTI: k = codice pilota del telefono. Il primo che usa un nome lo prenota (foglio "Nomi", solo l'impronta
+//       del codice, non il codice). Chi usa lo stesso nome con un codice diverso non entra in classifica (taken: true).
+//       b = livello della moto (somma dei potenziamenti dell'officina), mostrato accanto al nome.
 const SHEET = 'Punteggi';
 const MODES = 20;           // percorsi 0..19 (9 Ice Scrophy, 10 MotoFogna, 11 Valle Argentera, 12 MontaFiga, 13 Anti-GEV · v57; spazio per quelli futuri)
 const DAILY = 3;            // Sfida del giorno: classifica solo del giorno
@@ -26,6 +29,24 @@ function sheet_() {
     s.setFrozenRows(1);
   }
   return s;
+}
+
+function names_() {
+  const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
+  let s = ss.getSheetByName('Nomi');
+  if (!s) { s = ss.insertSheet('Nomi'); s.getRange(1, 1, 1, 3).setValues([['Nome', 'Impronta codice', 'Dal']]).setFontWeight('bold'); s.setFrozenRows(1); }
+  return s;
+}
+function hash_(k) { return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'edt|' + k)).slice(0, 24); }
+// true = il nome si può usare con questo codice (e se era libero viene prenotato)
+function claim_(name, k) {
+  const s = names_(), last = s.getLastRow(), key = name.toLowerCase();
+  const rows = last > 1 ? s.getRange(2, 1, last - 1, 2).getValues() : [];
+  const row = rows.find(r => String(r[0]) === key);
+  if (row) return !!k && row[1] === hash_(k);
+  if (!k) return true;   // client vecchio su nome libero: passa ma non prenota
+  s.appendRow([key, hash_(k), new Date()]);
+  return true;
 }
 
 function ymd_(v) { return v instanceof Date ? Utilities.formatDate(v, 'Europe/Rome', 'yyyy-MM-dd') : String(v).slice(0, 10); }
@@ -71,7 +92,7 @@ function cup_(rows, from, to, minv, act) {
 function boards_(day, minv, act) {
   const s = sheet_();
   const last = s.getLastRow();
-  const rows = last > 1 ? s.getRange(2, 1, last - 1, 10).getValues() : [];
+  const rows = last > 1 ? s.getRange(2, 1, last - 1, 11).getValues() : [];
   const out = {}, times = {};
   for (let m = 0; m < MODES; m++) {
     const best = {}, bestT = {};
@@ -82,7 +103,7 @@ function boards_(day, minv, act) {
       const sc = Number(r[5]) || 0;
       const tt = Number(r[6]) || 0, won = r[7] === true || r[7] === 'TRUE' || r[7] === 'sì';
       if (won && tt > 0 && (!bestT[k] || tt < bestT[k].t)) bestT[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: tt, w: true, d: ymd_(r[0]) };
-      if (!best[k] || sc > best[k].s) best[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: Number(r[6]) || 0, w: r[7] === true || r[7] === 'TRUE' || r[7] === 'sì', d: ymd_(r[0]), g: String(r[9] || '') };
+      if (!best[k] || sc > best[k].s) best[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: Number(r[6]) || 0, w: r[7] === true || r[7] === 'TRUE' || r[7] === 'sì', d: ymd_(r[0]), g: String(r[9] || ''), b: r[10] === '' || r[10] == null ? null : Number(r[10]) };
     });
     Object.keys(best).forEach(k => { if (bestT[k]) best[k].bt = bestT[k].t; });
     out[m] = Object.values(best).sort((a, b) => b.s - a.s).slice(0, 10);
@@ -103,7 +124,7 @@ function reply_(obj, cb) {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   const day = /^\d{4}-\d{2}-\d{2}$/.test(p.day || '') ? p.day : Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd');
-  let saved = false;
+  let saved = false, taken = false;
   if (p.action === 'add') {
     const name = clean_(p.name, 16);
     const score = Math.round(Number(p.score));
@@ -112,16 +133,19 @@ function doGet(e) {
       const lock = LockService.getScriptLock();
       lock.waitLock(8000);
       try {
+        const k = /^[a-z0-9]{4,12}$/.test(p.k || '') ? p.k : '';
+        if (!claim_(name, k)) { taken = true; throw new Error('taken'); }
         const g = /^[0-9a-z]{2,320}$/.test(p.g || '') ? p.g : '';
         const sh = sheet_();
         if (sh.getRange(1, 10).getValue() === '') sh.getRange(1, 10).setValue('Fantasma').setFontWeight('bold');
-        sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g]);
+        if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Moto').setFontWeight('bold');
+        sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0)))]);
         saved = true;
-      } finally { lock.releaseLock(); }
+      } catch (err) { if (!taken) throw err; } finally { lock.releaseLock(); }
     }
   }
   const minv = Math.max(0, Math.round(Number(p.minv) || 0));
   const act = String(p.act || '').split(',').map(Number).filter(m => m >= 0 && m < MODES && String(p.act).length);
   const b = boards_(day, minv, act.length ? act : ACTIVE);
-  return reply_({ ok: true, saved: saved, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
+  return reply_({ ok: true, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
 }
