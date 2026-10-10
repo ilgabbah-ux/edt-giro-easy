@@ -14,7 +14,7 @@ export const enabled = () => !API.includes('__DEPLOY_ID__');
 // v79 · STAGIONI: in classifica contano solo i giri fatti con le regole attuali (velocità, punteggi, tempi massimi).
 // Quando cambia qualcosa che sposta tempi o punti si alza "from" (e il numero della stagione): i giri vecchi
 // restano nel foglio e si vedono nell'archivio. ACTIVE = percorsi nel menu (solo questi danno punti coppa).
-export const SEASON = { n: 7, from: 91 };   // v89 · MontaFiga, Argentera e Anti-GEV ribilanciati: stagione nuova (d'ora in poi le stagioni cambiano al massimo una volta a settimana)
+export const SEASON = { n: 7, from: 92 };   // v89 · MontaFiga, Argentera e Anti-GEV ribilanciati: stagione nuova (d'ora in poi le stagioni cambiano al massimo una volta a settimana)
 export const ACTIVE = '0,1,2,3,9,10,11,12,13,14';
 
 export function dayISO(d = new Date()) {
@@ -104,8 +104,18 @@ export function jumpsFor(data, mode = JUMP_MODE) {
   return (data?.boards?.[mode] || []).filter(e => e.w && e.t > 0 && e.s % 10 === 7).map(e => ({ ...e, t: e.t })).sort((a, b) => b.t - a.t);
 }
 export const fmtJump = m => (Math.round(m * 10) / 10).toFixed(1).replace('.', ',') + ' m';
+// v92 · Ice Scrofy: classifica dei metri fatti di traverso (nel campo tempo, il più alto vince)
+export const ICE_MODE = 9;
+export const fmtMetres = m => Math.round(m).toLocaleString('it-IT') + ' m';
+export function metresFor(data, mode = ICE_MODE) {
+  if (data?.times?.[mode] && data.iceDesc) return data.times[mode];
+  const best = {};
+  for (const e of data?.boards?.[mode] || []) if (e.t > 0) { const k = e.n.toLowerCase(); if (!best[k] || e.t > best[k].t) best[k] = e; }
+  return Object.values(best).sort((a, b) => b.t - a.t);
+}
 export function timesFor(data, mode) {
   if (mode === JUMP_MODE) return jumpsFor(data, mode);
+  if (mode === ICE_MODE) return metresFor(data, mode);
   if (data?.times?.[mode]) return data.times[mode];
   return (data?.boards?.[mode] || []).filter(e => e.w && (e.bt || e.t)).map(e => ({ ...e, t: e.bt || e.t })).sort((a, b) => a.t - b.t);
 }

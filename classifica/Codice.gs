@@ -14,7 +14,8 @@
 //       b = livello della moto (somma dei potenziamenti dell'officina), mostrato accanto al nome.
 const SHEET = 'Punteggi';
 const MODES = 20;           // percorsi 0..19 (9 Ice Scrophy, 10 MotoFogna, 11 Valle Argentera, 12 MontaFiga, 13 Anti-GEV · v57; spazio per quelli futuri)
-const DAILY = 3;            // Sfida del giorno: classifica solo del giorno
+const DAILY = 3;
+const ICE = 9;              // v92 · Ice Scrofy: nel campo tempo ci sono i metri di derapata            // Sfida del giorno: classifica solo del giorno
 const MAX_SCORE = 250000;
 const CUP = [10, 8, 6, 5, 4, 3, 2, 1];
 const ACTIVE = [0, 1, 2, 3, 9, 10, 11, 12, 13, 14];   // percorsi nel menu (4-8 tolti nella v59)
@@ -102,12 +103,13 @@ function boards_(day, minv, act) {
       const k = String(r[1]).toLowerCase();
       const sc = Number(r[5]) || 0;
       const tt = Number(r[6]) || 0, won = r[7] === true || r[7] === 'TRUE' || r[7] === 'sì';
-      if (won && tt > 0 && (!bestT[k] || tt < bestT[k].t)) bestT[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: tt, w: true, d: ymd_(r[0]) };
+      if (m === ICE && tt > 0 && (!bestT[k] || tt > bestT[k].t)) bestT[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: tt, w: true, d: ymd_(r[0]) };   // v92 · Ice Scrofy: metri di derapata, vince il più alto
+      else if (m !== ICE && won && tt > 0 && (!bestT[k] || tt < bestT[k].t)) bestT[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: tt, w: true, d: ymd_(r[0]) };
       if (!best[k] || sc > best[k].s) best[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: Number(r[6]) || 0, w: r[7] === true || r[7] === 'TRUE' || r[7] === 'sì', d: ymd_(r[0]), g: String(r[9] || ''), b: r[10] === '' || r[10] == null ? null : Number(r[10]) };
     });
     Object.keys(best).forEach(k => { if (bestT[k]) best[k].bt = bestT[k].t; });
     out[m] = Object.values(best).sort((a, b) => b.s - a.s).slice(0, 10);
-    times[m] = Object.values(bestT).sort((a, b) => a.t - b.t).slice(0, 10);   // v48 · classifica dei tempi migliori
+    times[m] = Object.values(bestT).sort((a, b) => m === ICE ? b.t - a.t : a.t - b.t).slice(0, 10);   // v48 · classifica dei tempi migliori
   }
   const mon = monday_(day), sun = new Date(mon.getTime() + 6 * 864e5);
   const pmon = new Date(mon.getTime() - 7 * 864e5), psun = new Date(mon.getTime() - 864e5);
@@ -147,5 +149,5 @@ function doGet(e) {
   const minv = Math.max(0, Math.round(Number(p.minv) || 0));
   const act = String(p.act || '').split(',').map(Number).filter(m => m >= 0 && m < MODES && String(p.act).length);
   const b = boards_(day, minv, act.length ? act : ACTIVE);
-  return reply_({ ok: true, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
+  return reply_({ ok: true, iceDesc: true, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
 }
