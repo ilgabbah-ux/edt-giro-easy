@@ -9,7 +9,7 @@ export const enabled = () => !API.includes('__DEPLOY_ID__');
 // v79 · STAGIONI: in classifica contano solo i giri fatti con le regole attuali (velocità, punteggi, tempi massimi).
 // Quando cambia qualcosa che sposta tempi o punti si alza "from" (e il numero della stagione): i giri vecchi
 // restano nel foglio e si vedono nell'archivio. ACTIVE = percorsi nel menu (solo questi danno punti coppa).
-export const SEASON = { n: 4, from: 85 };   // v81 · tempi massimi, compagni e punti di MontaFiga cambiati: stagione nuova
+export const SEASON = { n: 5, from: 86 };   // v86 · Angelo Potter: turbo e salto cambiati, stagione nuova
 export const ACTIVE = '0,1,2,3,9,10,11,12,13,14';
 
 export function dayISO(d = new Date()) {

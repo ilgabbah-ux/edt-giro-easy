@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=85';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=86';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -172,7 +172,7 @@ export function createWorld(canvas) {
   };
   const canyonRef = t => {   // la quota di riferimento della moto scende piano mentre vola sopra il burrone
     if (!canyon) return 0;
-    const u = t - canyon.x0, L = canyon.len + 12; if (u <= 0) return 0; if (u >= L) return -CANYON_DROP;
+    const u = t - canyon.x0, L = canyon.land || canyon.len + 12; if (u <= 0) return 0; if (u >= L) return -CANYON_DROP;
     const k = u / L; return -CANYON_DROP * k * k;
   };
   const inCanyon = x => canyon && x - canyon.x0 > 1.5 && x - canyon.x0 < canyon.len - 1.5;
@@ -196,7 +196,7 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=85`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=86`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
@@ -293,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=85', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=86', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -389,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=85`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=86`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -397,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=85', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=85', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=86', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=86', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -695,7 +695,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=85', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=86', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -1447,7 +1447,19 @@ export function createWorld(canvas) {
         box(.9, .9, .5, rampWood, g, sd * 1.75, .45, 0);
         for (let k = 0; k < 2; k++) { mesh(new T.CylinderGeometry(.09, .085, .22, 12), beerMat, g).position.set(sd * 1.75 + (k - .5) * .3, 1.02, 0); mesh(new T.CylinderGeometry(.1, .1, .05, 12), foamMat, g).position.set(sd * 1.75 + (k - .5) * .3, 1.15, 0); }
       }
-    } else if (type === 'root') {
+    } else if (type === 'mboard') {
+      // v86 · cartello dei metri sul pendio d'arrivo del Taglio di Angelo
+      const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d');
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+      const board = mesh(new T.PlaneGeometry(2.2, 1.1), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); board.position.y = 2.6; board.castShadow = false;
+      for (const sd of [-1, 1]) box(.12, 2.4, .12, rampWood, g, sd * .9, 1.2, -.05);
+      g.userData.draw = (m, rec) => {
+        x.fillStyle = rec ? '#d0301f' : '#ffcf16'; x.fillRect(0, 0, 256, 128); x.strokeStyle = '#111'; x.lineWidth = 10; x.strokeRect(5, 5, 246, 118);
+        x.fillStyle = rec ? '#fff' : '#111'; x.textAlign = 'center'; x.font = '900 ' + (rec ? 44 : 72) + 'px Arial';
+        if (rec) { x.fillText('RECORD', 128, 56); x.font = '900 44px Arial'; x.fillText(m + ' m', 128, 106); } else x.fillText(m + ' m', 128, 90);
+        tx.needsUpdate = true; g.userData.m = m + (rec ? 'r' : '');
+      };
+
       for (let i = 0; i < 3; i++) { const r = mesh(new T.CylinderGeometry(.08, .13, 1.7, 12), bark, g); r.rotation.z = Math.PI / 2; r.rotation.y = (i - 1) * .17; r.position.set(0, .12 + i * .06, (i - 1) * .23); }
     } else if (type === 'step') {
       box(1.55, .56, .65, detailedStone, g, 0, .28, 0);
@@ -2134,6 +2146,7 @@ export function createWorld(canvas) {
     for (const o of s.objects) {
       let m = obstacleMap.get(o);
       if (!m) { m = makeObstacle(o.type); scene.add(m); obstacleMap.set(o, m); }
+      if (o.type === 'mboard' && m.userData.m !== o.m + (o.rec ? 'r' : '')) m.userData.draw(o.m, o.rec);
       const z = (o.z - .91) * 55;
       let lx = (o.l - 1) * spacing();
       if (o.type === 'coin' && s.magnet > 0 && o.z > .62 && !o.air) lx += ((s.px - 1) * spacing() - lx) * Math.min(1, (o.z - .62) / .29);
@@ -2288,7 +2301,7 @@ export function createWorld(canvas) {
     // v51 · in salita sul telefono in orizzontale la camera resta bassa e guarda più su: si vede la strada che arriva
     camera.position.set(camX + .55 * trail.rough + shakeX, camY + airborne * .3 + trail.climb * (portrait ? .2 : short ? .25 : 1.2) + shakeY, camZ + trail.climb * (short ? .6 : 1.3) - boostAmount * .15);
     camLift += (Math.max(0, lift - 1.1) * .8 - camLift) * .12;
-    leapFollow += ((s.leapCam ? lift * .9 : 0) - leapFollow) * .15; if (leapFollow > .01) { camera.position.y += leapFollow; camera.position.z += leapFollow * .25; }
+    leapFollow += ((s.leapCam ? lift * .9 : 0) - leapFollow) * .15; if (leapFollow > .01) { camera.position.y += leapFollow; camera.position.z += leapFollow * .55; }   // v86 · in volo la camera si allarga: si vede il vuoto
     camera.lookAt(bike.position.x * (portrait ? .4 : .16), lookY + leapFollow * .55 + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : short ? 1.5 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : short ? .45 : .1), lookZ);
     camera.rotateZ(bike.rotation.z * .06);
     if (s.ice) camera.rotateZ(-(s.drift || 0) * .045);   // v49 · la camera segue un filo la derapata
