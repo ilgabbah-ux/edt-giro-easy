@@ -7,9 +7,9 @@ const KEY = 'edt-giro-easy-v15';
 // Percorsi: ognuno ha la sua sequenza di tratti (t: 0 sottobosco, 1 pozzanghere, 2 salitone, 3 mulattiera;
 // climb = in salita, down = in discesa). "unlock" = livello pilota che lo sblocca. "random" = tracciato generato.
 export const MODES = [
-  { id: 0, short: 'EASY', name: 'Giro easy', desc: 'Per prendere confidenza. Forse.', difficulty: 0, sky: 0, limit: 58, unlock: 1,
+  { id: 0, short: 'EASY', name: 'Giro easy', desc: 'Su e giù tra le vigne per prendere confidenza. A metà giro c’è il bar: passaci sotto per una bionda (e poi tieni dritta la moto).', vigne: true, difficulty: 0, sky: 0, limit: 58, unlock: 1,
     layout: [{ t: 0, len: 7.5 }, { t: 0, len: 4.5, down: 1 }, { t: 1, len: 7.5 }, { t: 1, len: 5, down: 1 }, { t: 1, len: 1.5 }, { t: 2, len: 17 }, { t: 3, len: 17 }] },
-  { id: 1, short: 'MIGLIORA', name: 'Dopo migliora!', desc: 'Due salitoni, due mulattiere. Più fango.', difficulty: 1, sky: 1, limit: 58, unlock: 1,
+  { id: 1, short: 'MIGLIORA', name: 'Dopo migliora!', desc: 'Due salitoni da fare col gas dosato: troppo e la ruota pattina, poco e ti pianti (e spingi). Più fango.', traction: true, difficulty: 1, sky: 1, limit: 58, unlock: 1,
     layout: [{ t: 0, len: 6 }, { t: 1, len: 4, down: 1 }, { t: 1, len: 6 }, { t: 2, len: 10 }, { t: 3, len: 8 }, { t: 2, len: 8 }, { t: 3, len: 10 }, { t: 0, len: 4, down: 1 }, { t: 0, len: 4 }] },
   // v59 · Il taglio di Angelo: rincorsa giù dalla montagna, stacco dal trampolino e salto nel vuoto. Vince il salto più lungo atterrato in piedi.
   // v62 · Il taglio di Angelo: discesa dalla montagna senza ostacoli (frecce di spinta), stacco nel vuoto dal bordo e atterraggio tra i pietroni.
@@ -29,7 +29,7 @@ export const MODES = [
   { id: 9, short: 'ICE', name: 'Ice Scrofy', desc: 'Pista di ghiaccio, gomme chiodate. Vince chi derapa di più e meglio.', difficulty: 0, sky: 4, limit: 74, unlock: 1, ice: true,
     layout: [{ t: 0, len: 6, name: 'RETTILINEO GHIACCIATO' }, { t: 0, len: 10, name: 'CURVONI DI SCROPHY' }, { t: 0, len: 6, down: 1, name: 'DISCESA SUL VETRO' }, { t: 0, len: 10, name: 'ESSE DEL LAGO' }, { t: 2, len: 6, climb: .35, name: 'SALITA CHIODATA' }, { t: 0, len: 10, name: 'CURVONI DI SCROPHY' }, { t: 0, len: 6, down: 1, name: 'PICCHIATA FINALE' }] },
   // v46 · tre percorsi nuovi che si sbloccano più avanti
-  { id: 10, short: 'FOGNA', name: 'MotoFogna', desc: 'Bagnatissimo e pieno di pezzi hard e rocce. Solo per manici veri.', difficulty: 2, sky: 5, limit: 55, unlock: 3, rainy: true, dense: .25,
+  { id: 10, short: 'FOGNA', name: 'MotoFogna', desc: 'Di notte sotto il diluvio: si vede solo col faro e i fulmini illuminano tutto per un attimo. Solo per manici veri.', night: true, difficulty: 2, sky: 5, limit: 55, unlock: 3, rainy: true, dense: .25,
     obs: { 0: ['rock', 'rock', 'root', 'log', 'stump'], 1: ['puddle', 'rock', 'puddle', 'step', 'rock'], 2: ['step', 'rock', 'rock', 'step'], 3: ['rock', 'step', 'rock', 'root'] },
     layout: [{ t: 1, len: 5, name: 'IMBOCCO DELLA FOGNA' }, { t: 3, len: 9, wet: 1, name: 'PIETRAIA BAGNATA' }, { t: 1, len: 6, down: 1, name: 'IL CANALE' }, { t: 2, len: 9, wet: 1, name: 'GRADONI VISCIDI' }, { t: 3, len: 10, wet: 1, climb: 1, name: 'IL SIFONE' }, { t: 1, len: 6, name: 'LIQUAME' }, { t: 3, len: 9, wet: 1, name: 'ROCCE HARD' }] },
   { id: 11, short: 'ARGENTERA', name: 'Valle Argentera', desc: 'Guadi da saltare e animali selvatici che attraversano: stambecchi, camosci, marmotte.', difficulty: 1, sky: 0, limit: 57, unlock: 4, wild: true,

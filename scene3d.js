@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=83';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=84';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -196,7 +196,7 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=83`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=84`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
@@ -293,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=83', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=84', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -389,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=83`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=84`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -397,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=83', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=83', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=84', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=84', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -635,6 +635,30 @@ export function createWorld(canvas) {
     paving.instanceMatrix.needsUpdate = wall.instanceMatrix.needsUpdate = cliff.instanceMatrix.needsUpdate = true;
   }
 
+  // v84 · Giro easy tra le vigne: filari di viti ai lati (pali, chiome e grappoli)
+  const VROWS = 8, VPER = 72, VSTEP = 180 / VPER;
+  const vineLeaf = new T.InstancedMesh((() => { const g = new T.IcosahedronGeometry(1, 1); g.scale(.38, .5, 1.6); return g; })(), new T.MeshStandardMaterial({ color: '#58853a', roughness: .9, flatShading: true }), VROWS * VPER);
+  const vinePost = new T.InstancedMesh(new T.BoxGeometry(.08, 1.7, .08), mat('#7a5a3a', .9), VROWS * VPER / 2);
+  const vineGrape = new T.InstancedMesh(new T.IcosahedronGeometry(.16, 0), mat('#4a1d4f', .5), VROWS * VPER / 2);
+  vineLeaf.castShadow = vinePost.castShadow = true; scene.add(vineLeaf, vinePost, vineGrape);
+  vineLeaf.visible = vinePost.visible = vineGrape.visible = false;
+  function vineyard(t, on) {
+    vineLeaf.visible = vinePost.visible = vineGrape.visible = on;
+    if (!on) return;
+    let pi = 0, gi = 0;
+    for (let r = 0; r < VROWS; r++) {
+      const side = r % 2 ? 1 : -1, w = side * (6.2 + Math.floor(r / 2) * 2.3) * (trail.width * .5 + .5);
+      for (let k = 0; k < VPER; k++) {
+        const i = r * VPER + k, z = wrapZ(k * VSTEP + r * .7, t), x = center(z, t) + w, y = ground(z, t, w);
+        dummy.rotation.set(0, Math.sin(i * 3.1) * .06, 0); dummy.position.set(x, y + 1.0, z); dummy.scale.set(1, .9 + (i % 5) * .05, 1); put(vineLeaf, i);
+        dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1);
+        if (k % 2 === 0) { dummy.position.set(x, y + .85, z + .9); put(vinePost, pi++); }
+        else { dummy.position.set(x + side * -.38, y + .62 + (i % 3) * .06, z); dummy.scale.set(1, 1.4, 1); put(vineGrape, gi++); }
+      }
+    }
+    vineLeaf.instanceMatrix.needsUpdate = vinePost.instanceMatrix.needsUpdate = vineGrape.instanceMatrix.needsUpdate = true;
+  }
+
   // ---------- Montagne: due creste con foschia ----------
   const ridges = [];
   function makeRidge(zStart, depth, base, amp, phase, cols) {
@@ -671,7 +695,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=83', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=84', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -1050,6 +1074,10 @@ export function createWorld(canvas) {
     const sc = frontShape(s => { s.moveTo(-.17, 0); s.lineTo(.17, 0); s.lineTo(.13, .34); s.quadraticCurveTo(0, .38, -.13, .34); s.lineTo(-.17, 0); }, .012, screenMat, front, .004); sc.position.set(...F(0, 1.6, -.69)); sc.rotation.x = .42;
     for (const sd of [-1, 1]) box(.09, .07, .03, rallyLamp, front, ...F(sd * .075, 1.36, -.77));
     for (const sd of [-1, 1]) { const w = sideShape(s => { s.moveTo(-.74, 1.05); s.quadraticCurveTo(-.62, 1.34, -.4, 1.36); s.lineTo(-.2, 1.3); s.lineTo(-.3, 1.08); s.quadraticCurveTo(-.5, .98, -.74, 1.05); }, .03, rallyMat, chassis, sd * .27, .014); } }
+  // v84 · faro vero: luce a cono che illumina la strada davanti di notte
+  const headlight = new T.SpotLight('#fff3d6', 0, 38, .5, .55, 1.4); headlight.position.set(...F(0, 1.32, -.78)); front.add(headlight);
+  const headTarget = new T.Object3D(); headTarget.position.set(...F(0, -.6, -14)); front.add(headTarget); headlight.target = headTarget; headlight.visible = false; headlight.name = 'fx';
+  let lampOpt = false;
   const lampGlow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#fff2c0', transparent: true, opacity: .8, blending: T.AdditiveBlending, depthWrite: false }));
   lampGlow.scale.set(.9, .6, 1); lampGlow.position.set(...F(0, 1.30, -.78)); lampGlow.userData.keep = true; lampGlow.name = 'fxlamp'; front.add(lampGlow);
   const chamberMat = new T.MeshStandardMaterial({ color: '#a3b7bb', roughness: .3, metalness: .7 });
@@ -1095,7 +1123,7 @@ export function createWorld(canvas) {
     for (const m of meshesWith(guardMat)) m.visible = !!parts.guards?.color;
     const lamp = parts.light?.id === 'led' || parts.light?.id === 'boanal' || !!look.vintage || !!look.boanal;
     for (const m of meshesWith(lampMat)) m.visible = lamp;
-    lampGlow.visible = lamp;
+    lampGlow.visible = lamp; lampOpt = lamp;
     for (const m of meshesWith(chamberMat)) m.visible = !!look.twoStroke;
     for (const m of meshesWith(vintageMat)) m.visible = !!look.vintage;
     for (const m of meshesWith(seatMat)) m.visible = !look.trial;
@@ -1402,6 +1430,23 @@ export function createWorld(canvas) {
       const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffd400', transparent: true, opacity: .55, blending: T.AdditiveBlending, depthWrite: false }));
       glow.scale.set(3.2, 1.6, 1); glow.position.set(0, 2.62, .2); g.add(glow);
       for (const sd of [-1, 1]) { const arrow = mesh(new T.ConeGeometry(.18, .4, 4), rampLip, g); arrow.rotation.x = -Math.PI / 2; arrow.position.set(sd * .6, .25, -.5); }
+    } else if (type === 'bar') {
+      // v84 · sosta al bar del Giro easy: arco con tendone a righe, insegna e bancone con le birre
+      const c = document.createElement('canvas'); c.width = 512; c.height = 160; const x = c.getContext('2d');
+      x.fillStyle = '#1d5a2c'; x.fillRect(0, 0, 512, 160); x.strokeStyle = '#ffd36a'; x.lineWidth = 10; x.strokeRect(6, 6, 500, 148);
+      x.fillStyle = '#ffd36a'; x.font = '900 78px Arial'; x.textAlign = 'center'; x.fillText('BAR', 256, 86);
+      x.fillStyle = '#ffffff'; x.font = '900 32px Arial'; x.fillText('BIRRA FRESCA AL VOLO', 256, 134);
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+      for (const sd of [-1, 1]) box(.16, 3.1, .16, rampWood, g, sd * 1.05, 1.55, 0);
+      const red = mat('#d0301f', .7), white = mat('#f4f0e6', .7);
+      for (let i = 0; i < 6; i++) { const st = box(.4, .1, 1.1, i % 2 ? white : red, g, -1 + i * .4, 3.2, .1); st.rotation.x = -.35; }
+      const sign = mesh(new T.PlaneGeometry(1.9, .6), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); sign.position.set(0, 2.55, .12); sign.castShadow = false;
+      const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffd36a', transparent: true, opacity: .5, blending: T.AdditiveBlending, depthWrite: false }));
+      glow.scale.set(3.2, 1.6, 1); glow.position.set(0, 2.55, .2); g.add(glow);
+      for (const sd of [-1, 1]) {
+        box(.9, .9, .5, rampWood, g, sd * 1.75, .45, 0);
+        for (let k = 0; k < 2; k++) { mesh(new T.CylinderGeometry(.09, .085, .22, 12), beerMat, g).position.set(sd * 1.75 + (k - .5) * .3, 1.02, 0); mesh(new T.CylinderGeometry(.1, .1, .05, 12), foamMat, g).position.set(sd * 1.75 + (k - .5) * .3, 1.15, 0); }
+      }
     } else if (type === 'root') {
       for (let i = 0; i < 3; i++) { const r = mesh(new T.CylinderGeometry(.08, .13, 1.7, 12), bark, g); r.rotation.z = Math.PI / 2; r.rotation.y = (i - 1) * .17; r.position.set(0, .12 + i * .06, (i - 1) * .23); }
     } else if (type === 'step') {
@@ -1873,7 +1918,21 @@ export function createWorld(canvas) {
     sun.intensity = p.lightI * (1 - rain * .5 - fog * .3 - dusk * .35);
     hemi.intensity = p.hemiI * (1 - rain * .2 - dusk * .3);
     renderer.toneMappingExposure = p.exposure * (1 - dusk * .12 - rain * .05);
+    // v84 · notte (MotoFogna): buio vero, si vede solo col faro; i fulmini illuminano tutto per un attimo
+    const night = w?.night || 0, flash = w?.flash || 0;
+    if (night > 0) {
+      skyUniforms.uTop.value.lerp(NIGHT.top, night * .95); skyUniforms.uHorizon.value.lerp(NIGHT.hor, night * .9); skyUniforms.uSun.value.lerp(NIGHT.top, night);
+      scene.fog.color.lerp(NIGHT.fog, night * .9);
+      sun.intensity *= 1 - night * .9; hemi.intensity *= 1 - night * .78;
+      renderer.toneMappingExposure *= 1 - night * .2;
+    }
+    if (flash > 0) {
+      skyUniforms.uTop.value.lerp(FLASH, flash * .8); skyUniforms.uHorizon.value.lerp(FLASH, flash * .9); scene.fog.color.lerp(FLASH, flash * .6);
+      hemi.intensity += flash * 5; sun.intensity += flash * 3; renderer.toneMappingExposure *= 1 + flash * .5;
+    }
+    headlight.intensity = night * 55 + (w?.fog || 0) * night * 10; headlight.visible = night > .02;
   }
+  const NIGHT = { top: new T.Color('#05070d'), hor: new T.Color('#141a26'), fog: new T.Color('#0b0e14') }, FLASH = new T.Color('#dfe8ff');
 
   // ---------- Qualità adattiva: se il telefono fatica, alleggerisce ----------
   let frameAvg = 16, frames = 0, quality = 0, lastNow = performance.now();
@@ -1977,7 +2036,7 @@ export function createWorld(canvas) {
     const live = s.state === 'playing' || s.state === 'paused' || s.state === 'countdown';
     const boostAmount = live ? (s.turbo || 0) : 0;
     trail = routeAt(s.elapsed || 0, t);
-    terrain(t); instances(t); muleScenery(t); vergeDetails(t);
+    terrain(t); instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne);
     weatherNow = s.weather || weatherNow;
     applyWeather(s.weather, s.sight || 0);
     ambient(fdt, t, trail.w, live);
@@ -2063,6 +2122,7 @@ export function createWorld(canvas) {
     renderRivals(s.rivals, t, now, s.state === 'playing');
     renderJeep(s.gev, t, now, s.state === 'playing');
     lampGlow.material.opacity = .45 + (weatherNow.dusk || 0) * .5 + (weatherNow.fog || 0) * .4;
+    lampGlow.visible = lampOpt || (weatherNow.night || 0) > .1;   // v84 · di notte il faro è sempre acceso
 
     flame.visible = flameCore.visible = boostAmount > 0 || (s.grappa || 0) > 0;
     flameMat.color.set(boostAmount > 0 ? '#ffb12b' : '#3fa9ff');
@@ -2237,7 +2297,7 @@ export function createWorld(canvas) {
     if (pano.visible) {   // v61 · il fondale segue la camera; si attenua con nebbia e pioggia
       pano.position.set(camera.position.x, camera.position.y - 14 + PANO_H * .1, camera.position.z);
       panoMat.opacity += ((1 - (weatherNow.fog || 0) * .7 - (weatherNow.rain || 0) * .25) - panoMat.opacity) * .05;
-      panoMat.color.setScalar(1 - (weatherNow.dusk || 0) * .35 - (weatherNow.rain || 0) * .2);
+      panoMat.color.setScalar(Math.min(1.25, (1 - (weatherNow.dusk || 0) * .35 - (weatherNow.rain || 0) * .2) * (1 - (weatherNow.night || 0) * .62) + (weatherNow.flash || 0) * .9));   // v84 · di notte il fondale si spegne, col lampo si accende
     }
     sun.target.position.set(bike.position.x, 0, -6);
     const L = PRESETS[presetIndex] || PRESETS[0];
