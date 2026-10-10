@@ -989,11 +989,14 @@ export function createWorld(canvas) {
   for (const side of [-1, 1]) {
     ball(.095, .06, .105, black, body, ...B(side * .19, 1.95, .15));
     // stivali: gambale e piede sagomati
-    rod([side * .33, 1.08, .08], [side * .31, .86, .2], .072, white, rider);
-    sideShape(s => { s.moveTo(-.04, .74); s.lineTo(.26, .74); s.quadraticCurveTo(.29, .8, .26, .88); s.lineTo(.12, .9); s.quadraticCurveTo(-.02, .86, -.04, .74); }, .11, black, rider, side * .31, .02);
+    // v94 · gamba sotto il ginocchio in un gruppo che ruota sul ginocchio: in derapata la gamba interna esce verso il ghiaccio
+    const legPivot = new T.Group(); legPivot.position.set(side * .33, 1.08, .08); rider.add(legPivot);
+    const legIn = new T.Group(); legIn.position.set(-side * .33, -1.08, -.08); legPivot.add(legIn);
+    rod([side * .33, 1.08, .08], [side * .31, .86, .2], .072, white, legIn);
+    sideShape(s => { s.moveTo(-.04, .74); s.lineTo(.26, .74); s.quadraticCurveTo(.29, .8, .26, .88); s.lineTo(.12, .9); s.quadraticCurveTo(-.02, .86, -.04, .74); }, .11, black, legIn, side * .31, .02);
     joints.push({
-      side,
-      hip: anchor(upper, side * .16, 1.43, .27), knee: anchor(rider, side * .35, 1.12, .07),
+      side, legPivot, legIn, out: 0,
+      hip: anchor(upper, side * .16, 1.43, .27), knee: anchor(legIn, side * .35, 1.12, .07),
       shoulder: anchor(body, ...B(side * .23, 1.97, .09)), grip: anchor(front, ...F(side * .43, 1.49, -.53)),
     });
   }
@@ -1021,8 +1024,9 @@ export function createWorld(canvas) {
     const ln = mesh(new T.CylinderGeometry(.19, .19, .05, 28, 1, true, Math.PI - .82, 1.64), lensMat, head); ln.position.set(0, .012, .005); }
   for (const side of [-1, 1]) {
     box(.1, .04, .02, accent, body, ...B(side * .15, 1.58, .33));
-    for (let i = 0; i < 3; i++) box(.15, .026, .03, bootTrim, rider, side * .31, .9 + i * .06, .22 - i * .03);
-    ball(.075, .095, .07, accent, rider, side * .345, 1.13, .03);
+    const lg = joints.find(j => j.side === side).legIn;
+    for (let i = 0; i < 3; i++) box(.15, .026, .03, bootTrim, lg, side * .31, .9 + i * .06, .22 - i * .03);
+    ball(.075, .095, .07, accent, lg, side * .345, 1.13, .03);
   }
   // Arti dinamici: cilindri unitari orientati ogni fotogramma tra due giunti.
   const unitCyl = r => new T.CylinderGeometry(r, r, 1, 12);
@@ -1893,7 +1897,7 @@ export function createWorld(canvas) {
       const lx = (r.lx - 1) * spacing();
       m.g.position.set(center(z, t) + lx, height(z, t) + (r.lift || 0) + Math.abs(Math.sin(now / 90 + m.phase)) * .02, z);
       const rYaw = iceMode ? -iceBend(t + r.gap) * .45 - (r.lean || 0) * .12 : -(r.lean || 0) * .05;
-      m.g.rotation.set(0, rYaw, Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));
+      m.g.rotation.set(0, rYaw, iceMode ? Math.max(-.6, Math.min(.6, rYaw * 1.1)) : Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));   // v94 · anche i compagni piegati in derapata
       m.pitch.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 160 + m.phase) * .015;
       m.pitch.position.y = 0;
       for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475;
@@ -2104,9 +2108,12 @@ export function createWorld(canvas) {
     dyn.steer += (Math.max(-.38, Math.min(.38, -vx * .11)) - dyn.steer) * Math.min(1, fdt * 14);
     bike.position.set((s.px - 1) * spacing(), lift + .06 * Math.abs(trail.grade) + noseDown, 0);
     { const gy = height(0, t), air = Math.max(0, bike.position.y - gy); blob.visible = !s.leap || air < 6; blob.position.set(bike.position.x, gy + .035, .02); const k = 1 + air * .35; blob.scale.set(k, 1, k); blobMat.opacity = .5 / (1 + air * .9); }
-    bike.rotation.z = lean;
     // v46 · sul ghiaccio la moto va di traverso (il posteriore scivola) e il pilota controsterza
     dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : -vx * .045)) - dyn.yaw) * Math.min(1, fdt * 10);
+    // v94 · derapata vera: moto piegata dentro la curva (fino a ~40°), pilota più dritto della moto, gamba interna fuori
+    const iceLeanT = s.ice && s.jump <= 0 && crash <= 0 ? Math.max(-.7, Math.min(.7, dyn.yaw * .85)) : 0;
+    dyn.iceLean = (dyn.iceLean || 0) + (iceLeanT - (dyn.iceLean || 0)) * Math.min(1, fdt * 7);
+    bike.rotation.z = lean + dyn.iceLean;
     bike.rotation.y = dyn.yaw + whip * .55;
     front.rotation.y = s.ice ? Math.max(-.55, Math.min(.55, (s.drift || 0) * .7)) : dyn.steer + (s.jump > 0 ? whip * -.3 : 0);
     const blink = Math.floor(s.invincible * 12) % 2 === 0;
@@ -2118,8 +2125,15 @@ export function createWorld(canvas) {
     const bounce = crash > 0 ? Math.sin((1 - crash) * Math.PI) * .32 : 0;
     upper.position.set(lean * -.08, dyn.stand * .17 - Math.max(0, comp) * .9 + bounce, -dyn.stand * .07 - boostAmount * .015);
     body.rotation.x = -.12 * dyn.stand - grade * .2 - boostAmount * .05 - (s.gas ? .08 : 0) - dyn.pitch * .45 + crash * .5 + (s.wheelie ? .32 : 0);
-    body.rotation.z = lean * .35 - whip * .3 + (crash > 0 ? Math.sin(crash * 20) * crash * .3 : 0);
-    head.rotation.y = dyn.steer * .9;
+    body.rotation.z = lean * .35 - dyn.iceLean * .45 - whip * .3 + (crash > 0 ? Math.sin(crash * 20) * crash * .3 : 0);
+    head.rotation.y = dyn.steer * .9 + dyn.iceLean * .9;   // lo sguardo va verso l'uscita della curva
+    { const inner = dyn.iceLean > 0 ? -1 : 1, deep = Math.min(1, Math.max(0, (Math.abs(dyn.iceLean) - .12) / .3));
+      for (const j of limbs) {
+        const tgt = s.ice && s.driftOn && s.jump <= 0 && j.side === inner ? deep : 0;
+        j.out += (tgt - j.out) * Math.min(1, fdt * (tgt > j.out ? 9 : 6));
+        j.legPivot.position.set(j.side * (.33 + .12 * j.out), 1.08 - .1 * j.out, .08 - .42 * j.out);
+        j.legPivot.rotation.set(1.45 * j.out, 0, j.side * .55 * j.out);   // stivale avanti, verso la ruota davanti, e in fuori
+      } }
     head.rotation.x = -(body.rotation.x + grade + dyn.pitch) * .55;
     dyn.brake = Math.max(0, (dyn.brake || 0) - fdt * 2.5);
     brakeLightMat.emissiveIntensity = Math.max(.3 + dyn.brake * 2.2, (weatherNow.dusk || 0) * 1.6 + (weatherNow.fog || 0) * 1.2);
@@ -2178,11 +2192,11 @@ export function createWorld(canvas) {
     // Terra dalla ruota posteriore: più gas, più terra.
     const onGround = s.state === 'playing' && s.jump <= 0;
     const muddy = trail.wet > .3 || s.wet > 0;
-    partMat.color.set(iceMode ? '#eaf6ff' : muddy ? '#5b4630' : trail.rough > .5 ? '#8f8f88' : '#9b7f56');
+    partMat.color.set(iceMode ? '#a9c4d8' : muddy ? '#5b4630' : trail.rough > .5 ? '#8f8f88' : '#9b7f56');
     if (onGround && iceMode && s.driftOn) {
       // ghiaccio grattato dai chiodi: spruzzo laterale bianco durante la derapata
       const n = 2 + Math.round(Math.abs(s.drift || 0) * 5);
-      for (let i = 0; i < n; i++) { const dir = Math.sign(s.drift || 1); emit(bike.position.x + dir * .5, .2, 1.0, dir * (3 + Math.random() * 3), 1.5 + Math.random() * 2.2, 2 + Math.random() * 3, .7 + Math.random() * .6); }
+      for (let i = 0; i < n * 2; i++) { const dir = Math.sign(s.drift || 1); emit(bike.position.x + dir * (.45 + Math.random() * .3), .15, .95 + Math.random() * .2, dir * (3.5 + Math.random() * 4), 1.2 + Math.random() * 2.6, 3 + Math.random() * 4, .9 + Math.random() * .9); }   // v94 · scia di schegge di ghiaccio dalla ruota dietro
     }
     if (s.snowHit > .6) for (let i = 0; i < 6; i++) emit(bike.position.x + (Math.random() - .5), .4, (Math.random() - .5), (Math.random() - .5) * 7, 3 + Math.random() * 4, (Math.random() - .3) * 4, 1.5);
     if (onGround) {
