@@ -1748,6 +1748,22 @@ export function createWorld(canvas) {
   parts.castShadow = false; scene.add(parts);
   const pData = Array.from({ length: PARTS }, () => ({ life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, s: 1 }));
   let pNext = 0, emitAcc = 0;
+  // v95 · nuvoletta di neve sollevata dalla ruota dietro in derapata (sprite morbidi che si allargano e svaniscono)
+  const PUFFS = 16, puffs = [];
+  for (let i = 0; i < PUFFS; i++) { const sp = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#a9bccb', transparent: true, opacity: 0, depthWrite: false })); sp.visible = false; scene.add(sp); puffs.push({ sp, life: 0, vx: 0, vy: 0, vz: 0 }); }
+  let puffNext = 0, puffAcc = 0;
+  function puff(x, y, z, vx, vy, vz) { const p = puffs[puffNext]; puffNext = (puffNext + 1) % PUFFS; Object.assign(p, { life: 1, vx, vy, vz }); p.sp.position.set(x, y, z); p.sp.visible = true; }
+  function updatePuffs(dt) {
+    for (const p of puffs) {
+      if (p.life <= 0) continue;
+      p.life -= dt * 1.3;
+      if (p.life <= 0) { p.sp.visible = false; continue; }
+      p.sp.position.x += p.vx * dt; p.sp.position.y += p.vy * dt; p.sp.position.z += p.vz * dt;
+      p.vx *= 1 - dt * 1.5; p.vy *= 1 - dt * 1.5;
+      const k = 1 - p.life, sc = .9 + k * 3.4;
+      p.sp.scale.set(sc * 1.4, sc, 1); p.sp.material.opacity = .95 * Math.min(1, p.life * 1.6) * Math.min(1, k * 6);
+    }
+  }
   function emit(x, y, z, vx, vy, vz, s = 1) { const p = pData[pNext]; pNext = (pNext + 1) % PARTS; Object.assign(p, { life: 1, x, y, z, vx, vy, vz, s }); }
 
   // Solco della gomma dietro la moto: segue le traiettorie reali tra le corsie.
@@ -2193,10 +2209,16 @@ export function createWorld(canvas) {
     const onGround = s.state === 'playing' && s.jump <= 0;
     const muddy = trail.wet > .3 || s.wet > 0;
     partMat.color.set(iceMode ? '#a9c4d8' : muddy ? '#5b4630' : trail.rough > .5 ? '#8f8f88' : '#9b7f56');
+    updatePuffs(fdt);
+    if (onGround && iceMode && s.driftOn && Math.abs(s.drift || 0) > .25) {
+      puffAcc += fdt * (8 + Math.abs(s.drift) * 10);
+      while (puffAcc > 1) { puffAcc--; const dir = -Math.sign(s.drift || 1);   // il posteriore esce dal lato opposto al muso
+        puff(bike.position.x + dir * (.35 + Math.random() * .3), height(1, t) + .35, 1.05 + Math.random() * .3, dir * (1.6 + Math.random() * 1.4), .5 + Math.random() * .6, 2.5 + Math.random() * 2); }
+    }
     if (onGround && iceMode && s.driftOn) {
       // ghiaccio grattato dai chiodi: spruzzo laterale bianco durante la derapata
       const n = 2 + Math.round(Math.abs(s.drift || 0) * 5);
-      for (let i = 0; i < n * 2; i++) { const dir = Math.sign(s.drift || 1); emit(bike.position.x + dir * (.45 + Math.random() * .3), .15, .95 + Math.random() * .2, dir * (3.5 + Math.random() * 4), 1.2 + Math.random() * 2.6, 3 + Math.random() * 4, .9 + Math.random() * .9); }   // v94 · scia di schegge di ghiaccio dalla ruota dietro
+      for (let i = 0; i < n * 2; i++) { const dir = -Math.sign(s.drift || 1); emit(bike.position.x + dir * (.45 + Math.random() * .3), .15, .95 + Math.random() * .2, dir * (3.5 + Math.random() * 4), 1.2 + Math.random() * 2.6, 3 + Math.random() * 4, .9 + Math.random() * .9); }   // v94 · scia di schegge di ghiaccio dalla ruota dietro
     }
     if (s.snowHit > .6) for (let i = 0; i < 6; i++) emit(bike.position.x + (Math.random() - .5), .4, (Math.random() - .5), (Math.random() - .5) * 7, 3 + Math.random() * 4, (Math.random() - .3) * 4, 1.5);
     if (onGround) {
