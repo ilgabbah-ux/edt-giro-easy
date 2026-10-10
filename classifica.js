@@ -14,7 +14,7 @@ export const enabled = () => !API.includes('__DEPLOY_ID__');
 // v79 · STAGIONI: in classifica contano solo i giri fatti con le regole attuali (velocità, punteggi, tempi massimi).
 // Quando cambia qualcosa che sposta tempi o punti si alza "from" (e il numero della stagione): i giri vecchi
 // restano nel foglio e si vedono nell'archivio. ACTIVE = percorsi nel menu (solo questi danno punti coppa).
-export const SEASON = { n: 7, from: 89 };   // v89 · MontaFiga, Argentera e Anti-GEV ribilanciati: stagione nuova (d'ora in poi le stagioni cambiano al massimo una volta a settimana)
+export const SEASON = { n: 7, from: 91 };   // v89 · MontaFiga, Argentera e Anti-GEV ribilanciati: stagione nuova (d'ora in poi le stagioni cambiano al massimo una volta a settimana)
 export const ACTIVE = '0,1,2,3,9,10,11,12,13,14';
 
 export function dayISO(d = new Date()) {

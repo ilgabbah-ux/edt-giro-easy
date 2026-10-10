@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=90';
-import { createWorld } from './scene3d.js?v=90';
-import * as A from './audio.js?v=90';
-import * as P from './progress.js?v=90';
-import { createMud } from './mudfx.js?v=90';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=90';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=90';
-import * as C from './classifica.js?v=90';
-import * as D from './duel.js?v=90';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=91';
+import { createWorld } from './scene3d.js?v=91';
+import * as A from './audio.js?v=91';
+import * as P from './progress.js?v=91';
+import { createMud } from './mudfx.js?v=91';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=91';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=91';
+import * as C from './classifica.js?v=91';
+import * as D from './duel.js?v=91';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=90').then(m => {
+import('./piloti.js?v=91').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -135,7 +135,7 @@ let bs = {}; // v44 · caratteristiche della moto scelta in officina
 let slalomN = 0, lastFord = -9, lastAnimal = -9, turboReadyT = 0;
 // v84 · Dopo migliora: la salita si fa dosando il gas (trazione); se ti pianti si spinge la moto
 let grip = .5, stallT = 0, stalled = false, pushP = 0, spinMsgAt = -9, tractOn = false;
-let wasTract = false, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
+let wasTract = false, lastWaveFlash = -9, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
 // v84 · Sfida del giorno: una regola diversa ogni giorno, uguale per tutti
 const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RULES.length];
 const rule = id => mode === 3 && dailyRule().id === id;
@@ -143,7 +143,7 @@ const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=90';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=91';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400, canyonLand = 0, leapTurbo = false, leapV = 10;
@@ -430,7 +430,7 @@ function resetRun() {
   applyLayout(true);
   bs = P.currentStats();
   ice = !!P.MODES[mode].ice;
-  slalomN = 0; lastFord = lastAnimal = lastTractor = -9; grip = .5; stallT = 0; stalled = false; pushP = 0; tractOn = false; wasTract = false; barT = 0; barsLeft = P.MODES[mode].vigne ? 1 : rule('bar') ? 2 : 0; nextBar = 15 + rng() * 8; setupGroupGhost();
+  slalomN = 0; lastFord = lastAnimal = lastTractor = -9; grip = .5; stallT = 0; stalled = false; pushP = 0; tractOn = false; wasTract = false; lastWaveFlash = -9; barT = 0; barsLeft = P.MODES[mode].vigne ? 1 : rule('bar') ? 2 : 0; nextBar = 15 + rng() * 8; setupGroupGhost();
   if (P.MODES[mode].ranch) objects.push({ l: -2.6, z: .78, type: 'farm', hit: false });   // v59 · la cascina del Gusta Ranch alla partenza
   leap = !!P.MODES[mode].leap; canyonX0 = null; canyonLand = 0; leapTurbo = false; leapMul = 1; leapZRate = .5; leapFree = 1; leapState = 0; leapPitch = leapW = leapDist = leapBest = 0; lastHopAt = -9; leapEndT = 0; leapPerfect = false;
   gev = !!P.MODES[mode].gev; gevZ = 9; gevThrow = 4.5; gevArm = gevLost = 0; gevGone = false; gevShout = 0; gevSide = 1; gevFine = 0;
@@ -1038,6 +1038,8 @@ function spawnWave() {
     if (rng() < .35 + diff * .1) add(other, -.12, obs()); // seconda fila sfalsata
   } else if (rng() < thirdChance + (section === 1 ? .2 : 0)) add(third, .08, obs());
   if (!md.ranch && section !== 3 && rng() < .06) add(third, -.05, 'water'); // acqua "trappola" su un'altra corsia
+  // v91 · di notte un lampo illumina la fila nuova appena compare in fondo (al massimo uno ogni 2 s)
+  if (weather.night > .5 && elapsed - lastWaveFlash > 2) { lastWaveFlash = elapsed; weather.flash = Math.max(weather.flash, .8); nextFlash = Math.max(nextFlash, 3); setTimeout(() => A.sfx.thunder?.(), 350 + Math.random() * 500); }
   wave++;
 }
 
@@ -1393,9 +1395,9 @@ function updateWeather(dt) {
   for (const k of ['rain', 'fog', 'dusk', 'night']) weather[k] += (target[k] - weather[k]) * Math.min(1, dt * .5);
   // v84 · fulmini nel buio: lampo che illumina tutto e tuono subito dopo
   weather.flash = Math.max(0, weather.flash - dt * 3);
-  if (weather.night > .5 && weather.rain > .3) { nextFlash -= dt; if (nextFlash <= 0) { nextFlash = 4 + Math.random() * 5; weather.flash = 1; setTimeout(() => { if (weather.flash < .5) weather.flash = .6; }, 120); setTimeout(() => A.sfx.thunder?.(), 500 + Math.random() * 600); } }
+  if (weather.night > .5 && weather.rain > .3) { nextFlash -= dt; if (nextFlash <= 0) { nextFlash = 6 + Math.random() * 5; weather.flash = 1; setTimeout(() => { if (weather.flash < .5) weather.flash = .6; }, 120); setTimeout(() => A.sfx.thunder?.(), 500 + Math.random() * 600); } }
   // sotto la pioggia ogni tanto arriva uno schizzo sull'obiettivo
-  if (weather.rain > .5 && elapsed - lastRainMud > 5 + Math.random() * 4) { lastRainMud = elapsed; mud(.22); }
+  if (weather.rain > .5 && weather.night < .5 && elapsed - lastRainMud > 5 + Math.random() * 4) { lastRainMud = elapsed; mud(.22); }
 }
 
 // ---------- v45 · Seconda possibilità e allenatore per il primo giro ----------
@@ -1766,7 +1768,7 @@ function erika() {
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   clearTimeout(erikaTimer); erikaTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
-function mud(intensity = 1) { mudFx.splash(intensity); }
+function mud(intensity = 1) { mudFx.splash(intensity * (weather.night > .5 ? .4 : 1)); }   // v91 · di notte meno fango sullo schermo: si deve vedere la pista
 function mudOld() {
   const layer = $('mud');
   layer.innerHTML = '';
@@ -1842,7 +1844,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=90" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=91" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -2202,7 +2204,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 90;
+const GAME_VERSION = 91;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2261,7 +2263,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=90" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=91" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2269,7 +2271,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=90" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=91" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- v68 · Sfida 1 contro 1 dal vivo ----------
@@ -2580,4 +2582,4 @@ if (/debug/.test(location.hash)) {
 // Aggancio per i test automatici (non usato dal gioco).
 window.__edt = { get state() { return state; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get barT() { return barT; }, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
-  get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, erika, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
+  get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
