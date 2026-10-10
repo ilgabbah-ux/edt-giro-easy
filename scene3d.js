@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=80';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=81';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -196,7 +196,7 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=80`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=81`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
@@ -293,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=80', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=81', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -389,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=80`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=81`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -397,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=80', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=80', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=81', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=81', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -671,7 +671,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=80', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=81', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -1259,6 +1259,7 @@ export function createWorld(canvas) {
   const waterCap = mat('#1e6fd9', .4), waterLabel = mat('#ffffff', .6);
   const dangerRing = new T.MeshBasicMaterial({ color: '#ff3b30', transparent: true, opacity: .6, side: T.DoubleSide, depthWrite: false });
   const hayObs = mat('#dcb553', .95), twine = mat('#8f6a2c', .9), goatWhite = mat('#ece6da', .85), goatDark = mat('#3b332c', .8), hornMat = mat('#9c8a6a', .6);
+  const tractorGreen = mat('#2f7d32', .45), tractorYellow = mat('#f2c230', .4), mulchOrange = mat('#e86a1c', .45), cabGlass = new T.MeshStandardMaterial({ color: '#9fc4d8', roughness: .1, metalness: .2, transparent: true, opacity: .45 });   // v81 · trattore del Gusta
   // Bottiglie al tornio: profilo (raggio, altezza).
   const lathe = (pts, seg = 18) => new T.LatheGeometry(pts.map(([r, y]) => new T.Vector2(r, y)), seg);
   const WINE_BOTTLE = lathe([[0, 0], [.13, 0], [.135, .04], [.135, .5], [.11, .58], [.05, .66], [.045, .82], [.052, .84], [0, .85]]);
@@ -1487,6 +1488,32 @@ export function createWorld(canvas) {
       else for (const z of [-.05, .05]) { const c = new T.CatmullRomCurve3([new T.Vector3(.5, .98, z), new T.Vector3(.52, 1.18, z), new T.Vector3(.44, 1.24, z)]); mesh(new T.TubeGeometry(c, 8, .022, 6), goatDark, inner); box(.02, .12, .05, goatDark, inner, .58, .9, z * 1.6); }
       rod([-.44, .7, 0], [-.52, .76, 0], .03, fur, inner);
       hazardRing(g, .62);
+    } else if (type === 'trincia') {
+      // v81 · trattore del Gusta con la trincia: muso verso +x (attraversa la pista), ruote grandi dietro, trincia arancione che gira
+      const inner = new T.Group(); inner.scale.setScalar(1.35); g.add(inner); g.userData.inner = inner;
+      const green = tractorGreen, dark = goatDark;
+      box(1.5, .55, .7, green, inner, .15, .75, 0);                       // cofano e corpo
+      box(.5, .3, .62, green, inner, .78, .7, 0);                          // muso
+      box(.06, .26, .5, black, inner, 1.04, .7, 0);                        // griglia
+      box(.62, .7, .78, cabGlass, inner, -.38, 1.38, 0);                   // cabina
+      box(.72, .06, .86, green, inner, -.38, 1.76, 0);                     // tetto
+      rod([.5, 1.0, .2], [.5, 1.62, .2], .045, black, inner);              // marmitta
+      for (const z of [-.47, .47]) {
+        const rw = mesh(new T.CylinderGeometry(.62, .62, .34, 22), rubber, inner); rw.rotation.x = Math.PI / 2; rw.position.set(-.45, .62, z);
+        const rh = mesh(new T.CylinderGeometry(.34, .34, .36, 16), tractorYellow, inner); rh.rotation.x = Math.PI / 2; rh.position.set(-.45, .62, z);
+        const fw = mesh(new T.CylinderGeometry(.36, .36, .26, 18), rubber, inner); fw.rotation.x = Math.PI / 2; fw.position.set(.7, .36, z * .92);
+        const fh = mesh(new T.CylinderGeometry(.18, .18, .28, 12), tractorYellow, inner); fh.rotation.x = Math.PI / 2; fh.position.set(.7, .36, z * .92);
+      }
+      // trincia dietro, larga quanto il trattore, con il rullo a mazze che gira
+      box(.5, .5, 1.5, mulchOrange, inner, -1.25, .42, 0);
+      const roller = new T.Group(); roller.position.set(-1.25, .26, 0); inner.add(roller); g.userData.roller = roller;
+      for (let i = 0; i < 6; i++) { const b = box(.08, .3, 1.3, dark, roller, 0, 0, 0); b.rotation.x = 0; b.rotation.z = i * Math.PI / 3; }
+      // cartello col nome sopra la cabina
+      const sc = document.createElement('canvas'); sc.width = 256; sc.height = 72; const sx = sc.getContext('2d');
+      sx.fillStyle = '#1d3d12'; sx.fillRect(0, 0, 256, 72); sx.fillStyle = '#ffd23a'; sx.font = 'italic 900 44px Arial'; sx.textAlign = 'center'; sx.fillText('GUSTA', 128, 52);
+      const st = new T.CanvasTexture(sc); st.colorSpace = T.SRGBColorSpace;
+      const sign = new T.Sprite(new T.SpriteMaterial({ map: st, depthWrite: false })); sign.scale.set(1.4, .4, 1); sign.position.set(-.38, 2.15, 0); inner.add(sign);
+      hazardRing(g, 1.1);
     } else if (type === 'marmot') {
       // v46 · marmotta in piedi a fischiare
       ball(.2, .26, .18, marmotFur, g, 0, .26, 0);

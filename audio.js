@@ -2,7 +2,7 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=80';
+import { VOCI } from './voci.js?v=81';
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -206,7 +206,7 @@ export async function testVoices(onStep) {
 // Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
 // v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio
 let VOCI_PILOTI = {}, vpLoad = null;
-export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=80').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
+export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=81').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
 setTimeout(loadRiderVoices, 2500);
 const riderBuf = new Map();
 export const hasRiderVoice = key => !!VOCI_PILOTI[key];
@@ -251,6 +251,7 @@ export function preloadRivals(names) { if (ensure()) { for (const n of names) de
 export function preloadExtras() { if (ctx) for (const k of Object.keys(EXTRA)) loadExtra(k); }
 
 export const sfx = {
+  horn() { tone(196, .32, 'sawtooth', .11); tone(247, .32, 'sawtooth', .09); tone(196, .45, 'sawtooth', .11, .42); tone(247, .45, 'sawtooth', .09, .42); },   // v81 · clacson del trattore del Gusta
   whistle() { tone(2850, .09, 'sine', .11); tone(3150, .09, 'sine', .11, .11); tone(2850, .3, 'sine', .11, .22, 3200); },   // v57 · fischietto delle GEV
   cap(mult = 1) { const b = 880 * Math.pow(1.06, mult * 2); tone(b, .07, 'square', .07); tone(b * 1.5, .12, 'triangle', .12, .05); },
   air() { tone(1320, .08, 'square', .07); tone(1760, .16, 'triangle', .12, .06); },

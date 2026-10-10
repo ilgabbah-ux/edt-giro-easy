@@ -1245,3 +1245,5 @@ aside#hub { gap: 10px; }
 /* v80 · abilità del pilota su due righe invece di tagliarla con i puntini */
 .pctext .skillline { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-overflow: clip; }
 @media (max-width: 420px) { .profilerow .pilotchip .skillline { font-size: 12px; } .pctext small { white-space: normal; } }
+/* v81 · il Gusta che arriva con la trincia */
+.erika.gustapop img { border-radius: 50%; aspect-ratio: 1; object-fit: cover; border-color: #6fbf3a; transform: rotate(3deg); }

@@ -9,7 +9,7 @@ const KEY = 'edt-giro-easy-v15';
 export const MODES = [
   { id: 0, short: 'EASY', name: 'Giro easy', desc: 'Per prendere confidenza. Forse.', difficulty: 0, sky: 0, limit: 58, unlock: 1,
     layout: [{ t: 0, len: 7.5 }, { t: 0, len: 4.5, down: 1 }, { t: 1, len: 7.5 }, { t: 1, len: 5, down: 1 }, { t: 1, len: 1.5 }, { t: 2, len: 17 }, { t: 3, len: 17 }] },
-  { id: 1, short: 'MIGLIORA', name: 'Dopo migliora!', desc: 'Due salitoni, due mulattiere. Più fango.', difficulty: 1, sky: 1, limit: 55, unlock: 1,
+  { id: 1, short: 'MIGLIORA', name: 'Dopo migliora!', desc: 'Due salitoni, due mulattiere. Più fango.', difficulty: 1, sky: 1, limit: 58, unlock: 1,
     layout: [{ t: 0, len: 6 }, { t: 1, len: 4, down: 1 }, { t: 1, len: 6 }, { t: 2, len: 10 }, { t: 3, len: 8 }, { t: 2, len: 8 }, { t: 3, len: 10 }, { t: 0, len: 4, down: 1 }, { t: 0, len: 4 }] },
   // v59 · Il taglio di Angelo: rincorsa giù dalla montagna, stacco dal trampolino e salto nel vuoto. Vince il salto più lungo atterrato in piedi.
   // v62 · Il taglio di Angelo: discesa dalla montagna senza ostacoli (frecce di spinta), stacco nel vuoto dal bordo e atterraggio tra i pietroni.
@@ -29,7 +29,7 @@ export const MODES = [
   { id: 9, short: 'ICE', name: 'Ice Scrofy', desc: 'Pista di ghiaccio, gomme chiodate. Vince chi derapa di più e meglio.', difficulty: 0, sky: 4, limit: 74, unlock: 1, ice: true,
     layout: [{ t: 0, len: 6, name: 'RETTILINEO GHIACCIATO' }, { t: 0, len: 10, name: 'CURVONI DI SCROPHY' }, { t: 0, len: 6, down: 1, name: 'DISCESA SUL VETRO' }, { t: 0, len: 10, name: 'ESSE DEL LAGO' }, { t: 2, len: 6, climb: .35, name: 'SALITA CHIODATA' }, { t: 0, len: 10, name: 'CURVONI DI SCROPHY' }, { t: 0, len: 6, down: 1, name: 'PICCHIATA FINALE' }] },
   // v46 · tre percorsi nuovi che si sbloccano più avanti
-  { id: 10, short: 'FOGNA', name: 'MotoFogna', desc: 'Bagnatissimo e pieno di pezzi hard e rocce. Solo per manici veri.', difficulty: 2, sky: 5, limit: 52, unlock: 3, rainy: true, dense: .25,
+  { id: 10, short: 'FOGNA', name: 'MotoFogna', desc: 'Bagnatissimo e pieno di pezzi hard e rocce. Solo per manici veri.', difficulty: 2, sky: 5, limit: 55, unlock: 3, rainy: true, dense: .25,
     obs: { 0: ['rock', 'rock', 'root', 'log', 'stump'], 1: ['puddle', 'rock', 'puddle', 'step', 'rock'], 2: ['step', 'rock', 'rock', 'step'], 3: ['rock', 'step', 'rock', 'root'] },
     layout: [{ t: 1, len: 5, name: 'IMBOCCO DELLA FOGNA' }, { t: 3, len: 9, wet: 1, name: 'PIETRAIA BAGNATA' }, { t: 1, len: 6, down: 1, name: 'IL CANALE' }, { t: 2, len: 9, wet: 1, name: 'GRADONI VISCIDI' }, { t: 3, len: 10, wet: 1, climb: 1, name: 'IL SIFONE' }, { t: 1, len: 6, name: 'LIQUAME' }, { t: 3, len: 9, wet: 1, name: 'ROCCE HARD' }] },
   { id: 11, short: 'ARGENTERA', name: 'Valle Argentera', desc: 'Guadi da saltare e animali selvatici che attraversano: stambecchi, camosci, marmotte.', difficulty: 1, sky: 0, limit: 57, unlock: 4, wild: true,
@@ -42,8 +42,8 @@ export const MODES = [
     obs: { 0: ['log', 'rock', 'stump', 'root'], 1: ['puddle', 'rock', 'puddle'], 2: ['step', 'rock', 'step'], 3: ['rock', 'step', 'root'] },
     layout: [{ t: 0, len: 5, name: 'FUGA DAL BAR' }, { t: 0, len: 8, name: 'LA FORESTALE' }, { t: 1, len: 7, down: 1, name: 'IL GRETO DEL FIUME' }, { t: 2, len: 8, name: 'LA SBARRA' }, { t: 0, len: 7, name: 'IL BOSCO DEGLI OPOSSUM' }, { t: 3, len: 9, climb: 1, name: 'LA CRESTA DEL CONIGLIO MANNARO' }, { t: 0, len: 6, down: 1, name: 'SEMINATE! VERSO IL RIFUGIO' }] },
   // v59 · Gusta Ranch: si parte dalla cascina sulle colline. Solo fango, pozzanghere e alberi da schivare.
-  { id: 14, short: 'GUSTA', name: 'Gusta Ranch', desc: 'Si parte dalla cascina sulle colline: solo fango, pozzanghere e alberi da schivare. Ignoranza pura.', difficulty: 1, sky: 1, limit: 56, unlock: 1, ranch: true,
-    obs: { 0: ['tree', 'tree', 'puddle', 'tree'], 1: ['puddle', 'puddle', 'tree', 'puddle'], 2: ['tree', 'puddle', 'tree'], 3: ['tree', 'puddle', 'tree'] },
+  { id: 14, short: 'GUSTA', name: 'Gusta Ranch', desc: 'Si parte dalla cascina sulle colline: fango, balle di fieno e il Gusta che passa con la trincia a dare fastidio. Ignoranza pura.', difficulty: 1, sky: 1, limit: 56, unlock: 1, ranch: true,
+    obs: { 0: ['hay', 'tree', 'puddle', 'stump'], 1: ['puddle', 'puddle', 'hay', 'puddle'], 2: ['tree', 'puddle', 'hay', 'stump'], 3: ['hay', 'puddle', 'tree'] },   // v81 · meno alberi (quelli sono di MontaFiga), più fieno e ceppi
     layout: [{ t: 0, len: 6, name: 'LA CASCINA' }, { t: 1, len: 8, wet: 1, name: 'IL FANGAIO' }, { t: 0, len: 8, wet: 1, name: 'BOSCO DEL RANCH' }, { t: 1, len: 7, down: 1, wet: 1, name: 'DISCESA NELLA MOTA' }, { t: 0, len: 8, wet: 1, name: 'GLI ALBERI DEL GUSTA' }, { t: 1, len: 8, wet: 1, name: 'IGNORANZA PURA' }, { t: 0, len: 5, down: 1, name: 'RITORNO AL FALÒ' }] },
 ];
 // v59 · percorsi tolti dal menu (restano nell'elenco per non mescolare record e classifiche già salvati)
