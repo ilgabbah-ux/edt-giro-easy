@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=79';
+import { iceShape, iceBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=80';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -196,7 +196,7 @@ export function createWorld(canvas) {
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
-    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=79`, t => {
+    for (const [k, suf] of [['map', 'd'], ['normalMap', 'n']]) texLoader.load(`img/tex/${name}_${suf}.webp?v=80`, t => {
       t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; if (color) t.colorSpace = T.SRGBColorSpace; if (k === 'map') t.colorSpace = T.SRGBColorSpace; else t.colorSpace = T.NoColorSpace;
       out[k] = t; fin();
     }, undefined, () => { left = -99; });
@@ -293,7 +293,7 @@ export function createWorld(canvas) {
   const valleyMat = new T.MeshLambertMaterial({ map: valleyTex, fog: false, color: '#d8dccf' });
   const valley = new T.Mesh(new T.PlaneGeometry(420, 1), valleyMat); valley.rotation.x = -Math.PI / 2; valley.visible = false; valley.receiveShadow = false; scene.add(valley);
   const wallMat = new T.MeshLambertMaterial({ map: rockTex, fog: false, side: T.DoubleSide });
-  texLoader.load('img/tex/rockwall_d.webp?v=79', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
+  texLoader.load('img/tex/rockwall_d.webp?v=80', t => { t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; wallMat.map = t; wallMat.needsUpdate = true; rockTexPhoto = t; });
   let rockTexPhoto = null;
   const farWall = new T.Mesh(new T.PlaneGeometry(420, 1), wallMat); farWall.visible = false; scene.add(farWall);
   function placeCanyon(t) {
@@ -389,7 +389,7 @@ export function createWorld(canvas) {
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
-  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=79`, t => {
+  for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?v=80`, t => {
     t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; m.material.map = t; m.material.needsUpdate = true; m.userData.ok = true;
     if (firA.userData.ok && firB.userData.ok) { firOK = true; firA.visible = firB.visible = true; trunks.visible = crowns.visible = tops.visible = false; }
   });
@@ -397,8 +397,8 @@ export function createWorld(canvas) {
   const larchCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LARCH), leafCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY);
   for (const m of [larchCards, leafCards]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
   let larchOK = false, leafOK = false;
-  texLoader.load('img/tex/fir_gold.webp?v=79', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
-  texLoader.load('img/tex/fir_rust.webp?v=79', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
+  texLoader.load('img/tex/fir_gold.webp?v=80', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = true; larchTrunks.visible = larchCrowns.visible = false; });
+  texLoader.load('img/tex/fir_rust.webp?v=80', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = true; birchTrunks.visible = leafCrowns.visible = false; });
 
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
@@ -451,10 +451,10 @@ export function createWorld(canvas) {
   const grassCardTex = (() => {
     const c = document.createElement('canvas'); c.width = 256; c.height = 256; const x = c.getContext('2d');
     let sd = 11; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
-    for (let i = 0; i < 110; i++) {
-      const bx = 20 + r() * 216, h = 90 + r() * 160, lean = (r() - .5) * 90, w = 2 + r() * 3.5;
+    for (let i = 0; i < 64; i++) {   // v80 · meno fili e altezze più varie: da lontano non sembrano più blocchetti
+      const bx = 14 + r() * 228, h = 40 + Math.pow(r(), .7) * 210, lean = (r() - .5) * 110, w = 1.6 + r() * 3;
       const g = 95 + r() * 90, col = `rgb(${(g * .62) | 0},${g | 0},${(g * .36) | 0})`;
-      const grd = x.createLinearGradient(0, 256, 0, 256 - h); grd.addColorStop(0, 'rgb(92,104,52)'); grd.addColorStop(.35, col); grd.addColorStop(1, `rgb(${(g * .85) | 0},${(g * 1.05) | 0},${(g * .5) | 0})`);
+      const grd = x.createLinearGradient(0, 256, 0, 256 - h); grd.addColorStop(0, 'rgb(118,128,66)'); grd.addColorStop(.35, col); grd.addColorStop(1, `rgb(${(g * .85) | 0},${(g * 1.05) | 0},${(g * .5) | 0})`);
       x.fillStyle = grd; x.beginPath(); x.moveTo(bx - w, 256); x.quadraticCurveTo(bx + lean * .4, 256 - h * .6, bx + lean, 256 - h); x.quadraticCurveTo(bx + lean * .4 + w * .4, 256 - h * .6, bx + w, 256); x.fill();
     }
     const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; return t;
@@ -469,7 +469,7 @@ export function createWorld(canvas) {
     g.setAttribute('normal', new T.Float32BufferAttribute(new Array(P.length).fill(0).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
     return g;
   })();
-  const grassCardMat = c => new T.MeshLambertMaterial({ color: c, map: grassCardTex, alphaTest: .45, side: T.DoubleSide, emissive: '#2a3316', emissiveIntensity: .5 });
+  const grassCardMat = c => new T.MeshLambertMaterial({ color: c, map: grassCardTex, alphaTest: .45, side: T.DoubleSide, emissive: '#3a4520', emissiveIntensity: .55 });
   const TUFTS = 220;
   const tufts = new T.InstancedMesh(grassCardGeo, grassCardMat('#ffffff'), TUFTS);
   const tuftData = Array.from({ length: TUFTS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 4.9 + Math.pow(rand(), 1.6) * 9, z: rand() * 180, s: .7 + rand() * .8, r: rand() * 6 }));
@@ -671,7 +671,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
-    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=79', t => {
+    new T.TextureLoader().load('img/pano-' + mode + '.webp?v=80', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
     }, undefined, () => { panoTex[mode] = null; });
@@ -775,6 +775,31 @@ export function createWorld(canvas) {
   })();
   const knobGeo = new RoundedBoxGeometry(.07, .05, .075, 1, .014);
   const hubMat = mat('#2c3236', .35, .6);
+  // v80 · unisce in un solo pezzo tutti i figli di un gruppo che hanno lo stesso materiale (tasselli, raggi…):
+  // stesso aspetto, molti meno oggetti da disegnare per fotogramma (prima ogni ruota erano ~110 pezzi).
+  function mergeByMaterial(root, min = 3) {
+    const groups = new Map();
+    for (const o of root.children) if (o.isMesh && !o.isInstancedMesh && !o.userData.keep && !o.name && !o.children.length) { if (!groups.has(o.material)) groups.set(o.material, []); groups.get(o.material).push(o); }
+    for (const [m, list] of groups) {
+      if (list.length < min) continue;
+      const parts = list.map(o => { o.updateMatrix(); const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); g.applyMatrix4(o.matrix); return g; });
+      const n = parts.reduce((t, g) => t + g.attributes.position.count, 0);
+      const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2);
+      let off = 0;
+      for (const g of parts) {
+        const c = g.attributes.position.count;
+        pos.set(g.attributes.position.array, off * 3);
+        if (g.attributes.normal) nor.set(g.attributes.normal.array, off * 3);
+        if (g.attributes.uv) uv.set(g.attributes.uv.array, off * 2);
+        off += c; g.dispose();
+      }
+      const geo = new T.BufferGeometry();
+      geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setAttribute('normal', new T.BufferAttribute(nor, 3)); geo.setAttribute('uv', new T.BufferAttribute(uv, 2));
+      geo.computeBoundingSphere();
+      for (const o of list) root.remove(o);
+      mesh(geo, m, root);
+    }
+  }
   function wheel(parent, x, y, z) {
     const root = new T.Group(); root.position.set(x, y, z); parent.add(root);
     mesh(tyreGeo, rubber, root);
@@ -791,6 +816,7 @@ export function createWorld(canvas) {
       for (const off of rows) { const k = mesh(knobGeo, treadMat, root); k.position.set(off, Math.cos(a) * .487, Math.sin(a) * .487); k.rotation.x = a; }
       for (const side of [-1, 1]) { const k = mesh(knobGeo, treadMat, root); k.scale.set(.7, .8, .8); k.position.set(side * .118, Math.cos(a + .12) * .455, Math.sin(a + .12) * .455); k.rotation.set(a + .12, 0, side * .5); }
     }
+    mergeByMaterial(root);
     wheels.push(root); return root;
   }
   // Pezzi sagomati: un profilo laterale (z, y) estruso lungo x e smussato, centrato su x.
@@ -1623,7 +1649,12 @@ export function createWorld(canvas) {
   const tracks = new T.InstancedMesh(trackGeo, trackMat, TRACKS); tracks.renderOrder = 1; scene.add(tracks);
   const trackHist = [];
   // v72 · polvere morbida (nuvolette sfumate rivolte alla camera) al posto delle palle grigie trasparenti
-  const dustMaterial = new T.MeshBasicMaterial({ color: '#ceba8c', alphaMap: glowTex, transparent: true, opacity: .2, depthWrite: false, fog: true });
+  const dustMaterial = new T.MeshBasicMaterial({ color: '#ceba8c', alphaMap: glowTex, transparent: true, opacity: .13, depthWrite: false, fog: true });
+  // v80 · ombra morbida sotto la moto: la tiene "appoggiata" sul sentiero (si allarga e sbiadisce in salto)
+  const blobTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); const g = x.createRadialGradient(64, 64, 4, 64, 64, 62); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(.55, 'rgba(0,0,0,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new T.CanvasTexture(c); })();
+  const blobMat = new T.MeshBasicMaterial({ map: blobTex, transparent: true, opacity: .5, depthWrite: false, fog: false, toneMapped: false });
+  const blobGeo = new T.PlaneGeometry(1.05, 2.5); blobGeo.rotateX(-Math.PI / 2);
+  const blob = new T.Mesh(blobGeo, blobMat); blob.renderOrder = 1; scene.add(blob);
   const dust = new T.InstancedMesh(new T.PlaneGeometry(1, 1), dustMaterial, 24); dust.frustumCulled = false; dust.renderOrder = 2; scene.add(dust);
 
   const sparkMaterial = new T.MeshBasicMaterial({ color: '#ffdb43', transparent: true, opacity: .9, depthWrite: false, blending: T.AdditiveBlending });
@@ -1953,6 +1984,7 @@ export function createWorld(canvas) {
     const lean = Math.max(-.48, Math.min(.48, -vx * .15)) + whip * .35 + (crash > 0 ? Math.sin(crash * 25) * crash * .4 : 0);
     dyn.steer += (Math.max(-.38, Math.min(.38, -vx * .11)) - dyn.steer) * Math.min(1, fdt * 14);
     bike.position.set((s.px - 1) * spacing(), lift + .06 * Math.abs(trail.grade) + noseDown, 0);
+    { const gy = height(0, t), air = Math.max(0, bike.position.y - gy); blob.visible = !s.leap || air < 6; blob.position.set(bike.position.x, gy + .035, .02); const k = 1 + air * .35; blob.scale.set(k, 1, k); blobMat.opacity = .5 / (1 + air * .9); }
     bike.rotation.z = lean;
     // v46 · sul ghiaccio la moto va di traverso (il posteriore scivola) e il pilota controsterza
     dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : -vx * .045)) - dyn.yaw) * Math.min(1, fdt * 10);
@@ -2077,8 +2109,8 @@ export function createWorld(canvas) {
     dust.visible = onGround;
     for (let i = 0; i < 24; i++) {
       const age = (s.roadTime * 1.7 + i / 24) % 1;
-      dummy.position.set(bike.position.x + Math.sin(i * 23) * (.12 + age * .8), height(1 + age * 3.2, t) + .12 + age * .3, 1.05 + age * 3.4);
-      dummy.quaternion.copy(camera.quaternion); dummy.rotateZ(i * 1.7); const sz = (.18 + age * .75) * (1 - age * age * .5); dummy.scale.set(sz, sz, sz); dummy.updateMatrix(); dust.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(bike.position.x + Math.sin(i * 23) * (.1 + age * .9), height(1 + age * 3.2, t) + .1 + age * .18, 1.25 + age * 3.4);
+      dummy.quaternion.copy(camera.quaternion); dummy.rotateZ(i * 1.7); const sz = age < .07 ? 0 : (.1 + age * .6) * (1 - age * age * .7); dummy.scale.set(sz * 1.5, sz * .7, sz); dummy.updateMatrix(); dust.setMatrixAt(i, dummy.matrix);   // v80 · polvere bassa e schiacciata, non più bolle
     }
     dust.instanceMatrix.needsUpdate = true;
 

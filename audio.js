@@ -2,8 +2,7 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=79';
-import { VOCI_PILOTI } from './voci-piloti.js?v=79';
+import { VOCI } from './voci.js?v=80';
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -205,10 +204,15 @@ export async function testVoices(onStep) {
 }
 // ---------- Battute dei piloti (voci registrate su ElevenLabs) ----------
 // Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
+// v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio
+let VOCI_PILOTI = {}, vpLoad = null;
+export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=80').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
+setTimeout(loadRiderVoices, 2500);
 const riderBuf = new Map();
 export const hasRiderVoice = key => !!VOCI_PILOTI[key];
 function decodeRider(key) {
   if (riderBuf.has(key)) return riderBuf.get(key);
+  if (!vpLoad || !Object.keys(VOCI_PILOTI).length) return loadRiderVoices().then(() => Object.keys(VOCI_PILOTI).length ? decodeRider(key) : null);
   if (!ctx || !VOCI_PILOTI[key]) return Promise.resolve(null);
   const p = (async () => {
     const bin = atob(VOCI_PILOTI[key]), bytes = new Uint8Array(bin.length);
@@ -220,6 +224,7 @@ function decodeRider(key) {
 }
 export function preloadRider(id) { if (ensure()) for (const k of ['start', 'hit', 'win']) decodeRider(id + '_' + k); }
 export async function sayRider(key) {
+  if (!Object.keys(VOCI_PILOTI).length) await loadRiderVoices();
   if (!enabled || !ensure() || !VOCI_PILOTI[key]) return false;
   dbg('pilota ' + key);
   if (ctx.state !== 'running') { try { const a = new Audio('data:audio/mpeg;base64,' + VOCI_PILOTI[key]); a.play().catch(() => {}); } catch {} return true; }
@@ -231,6 +236,7 @@ export async function sayRider(key) {
 // v41 · battute degli avversari ("Suuuka!") e di Angelo sul taglio: non interrompono una voce già in corso
 // e, se manca la clip del pilota, usano quella generica.
 export async function sayRival(key) {
+  if (!Object.keys(VOCI_PILOTI).length) await loadRiderVoices();
   if (!enabled || !ensure()) return false;
   const k = VOCI_PILOTI[key] ? key : key.endsWith('_suka') && VOCI_PILOTI.suka ? 'suka' : null;
   if (!k) { if (key.includes('suka')) { tone(320, .5, 'sawtooth', .1, 0, 180); } return false; }
