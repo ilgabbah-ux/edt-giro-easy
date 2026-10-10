@@ -177,11 +177,33 @@ export function paceFor(route, gas, turbo, wet) {
     (1 + Math.max(0, -route.grade) * .45);
 }
 
-// v48 · Ice Scrophy: tracciato pieno di curve (due onde sovrapposte, curve strette e "esse").
-// iceShape = spostamento laterale della pista; iceBend = curvatura normalizzata (-1..1, + = spinge verso destra).
-const IA1 = 3.2, IF1 = .04, IA2 = .9, IF2 = .075, IK = IA1 * IF1 * IF1 + IA2 * IF2 * IF2;
-export function iceShape(x) { return Math.sin(x * IF1) * IA1 + Math.sin(x * IF2) * IA2; }
-export function iceBend(x) { return (IA1 * IF1 * IF1 * Math.sin(x * IF1) + IA2 * IF2 * IF2 * Math.sin(x * IF2)) / IK; }
+// v88 · Ice Scrofy: solo curve. Una sequenza di curvoni, esse e tornanti a U (curvatura lunga e forte) da fare in derapata.
+// iceBend = curvatura normalizzata (+ = spinge verso destra, 1 ≈ le vecchie curve più strette, 1,6 = tornante).
+// iceShape = spostamento laterale (doppio integrale della curvatura); iceHeading = la sua pendenza (la camera la segue).
+const IK = .0102;
+const ICE_SEGS = [   // [lunghezza, curvatura]
+  [45, 0], [55, .8], [40, -.8], [30, 0], [110, 1.6], [25, 0], [45, -1], [45, 1], [45, -1], [25, 0],
+  [120, -1.6], [30, 0], [60, 1.2], [20, 0], [60, -1.2], [25, 0], [95, 1.5], [15, 0], [95, -1.5], [30, 0],
+  [40, .9], [40, -.9], [40, .9], [25, 0], [130, 1.6], [30, 0], [70, -1.3], [70, 1.3], [25, 0], [120, -1.6], [35, 0],
+];
+const ICE_STEP = .5, ICE_X0 = -400, ICE_N = 7200;
+const iceK = new Float32Array(ICE_N), iceH = new Float64Array(ICE_N), iceP = new Float64Array(ICE_N);
+(() => {
+  const tot = ICE_SEGS.reduce((a, s) => a + s[0], 0), RAMP = 14;
+  const kAt = x => {   // curvatura con raccordi morbidi tra un tratto e l'altro
+    let u = ((x % tot) + tot) % tot, i = 0;
+    while (u >= ICE_SEGS[i][0]) { u -= ICE_SEGS[i][0]; i = (i + 1) % ICE_SEGS.length; }
+    const cur = ICE_SEGS[i][1], prev = ICE_SEGS[(i - 1 + ICE_SEGS.length) % ICE_SEGS.length][1];
+    if (u >= RAMP) return cur;
+    const w = u / RAMP, sm = w * w * (3 - 2 * w); return prev + (cur - prev) * sm;
+  };
+  for (let i = 0; i < ICE_N; i++) iceK[i] = kAt(ICE_X0 + i * ICE_STEP);
+  for (let i = 1; i < ICE_N; i++) { iceH[i] = iceH[i - 1] - iceK[i] * IK * ICE_STEP; iceP[i] = iceP[i - 1] + iceH[i] * ICE_STEP; }
+})();
+const iceIdx = x => { const f = (x - ICE_X0) / ICE_STEP; const i = Math.max(0, Math.min(ICE_N - 2, Math.floor(f))); return [i, Math.max(0, Math.min(1, f - i))]; };
+export function iceBend(x) { const [i, f] = iceIdx(x); return iceK[i] + (iceK[i + 1] - iceK[i]) * f; }
+export function iceShape(x) { const [i, f] = iceIdx(x); return iceP[i] + (iceP[i + 1] - iceP[i]) * f; }
+export function iceHeading(x) { const [i, f] = iceIdx(x); return iceH[i] + (iceH[i + 1] - iceH[i]) * f; }
 
 // Generatore pseudo-casuale riproducibile (per la Sfida del giorno).
 export function makeRng(seed) {

@@ -1,13 +1,13 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=87';
-import { createWorld } from './scene3d.js?v=87';
-import * as A from './audio.js?v=87';
-import * as P from './progress.js?v=87';
-import { FOTO } from './piloti.js?v=87';
-import { createMud } from './mudfx.js?v=87';
-import { icon, iconize, iconizeEl } from './icons.js?v=87';
-import * as C from './classifica.js?v=87';
-import * as D from './duel.js?v=87';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=88';
+import { createWorld } from './scene3d.js?v=88';
+import * as A from './audio.js?v=88';
+import * as P from './progress.js?v=88';
+import { FOTO } from './piloti.js?v=88';
+import { createMud } from './mudfx.js?v=88';
+import { icon, iconize, iconizeEl } from './icons.js?v=88';
+import * as C from './classifica.js?v=88';
+import * as D from './duel.js?v=88';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -147,7 +147,7 @@ const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=87';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=88';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400, canyonLand = 0, leapTurbo = false, leapV = 10;
@@ -868,11 +868,7 @@ function spawnIceWave() {
   prevSafe = safe;
   if (wave > 0 && rng() < .55) add(safe, .08, 'gate');
   for (let i = 0; i < 3; i++) add(safe, (wave > 0 && i === 0 ? .0 : .08) - i * .1, i === 1 && wave > 3 && lives < maxLives && rng() < .08 ? 'helmet' : 'coin');
-  if (wave > 1) {
-    const other = (safe + 1 + Math.floor(rng() * 2)) % 3;
-    add(other, .08, rng() < .5 ? 'snowman' : 'hay');
-    if (wave > 4 && rng() < .3) add(3 - safe - other, -.06, rng() < .5 ? 'snowman' : 'hay');
-  }
+  // v88 · niente ostacoli: sul ghiaccio si derapa e basta (il pericolo è il muro di neve nei curvoni)
   wave++;
 }
 // v46 · MontaFiga: slalom continuo tra gli alberi, il varco si sposta di una corsia a ogni fila.
@@ -1180,7 +1176,7 @@ function setupRace() {
   if (ice) {
     // sul ghiaccio niente pioggia: al massimo nebbia o il sole che cala dietro al lago
     weatherPlan = [{ kind: rng() < .5 ? 'fog' : 'dusk', from: at, to: at + 18 }];
-    const targets = [17000, 13600, 10500];   // v50 · guida libera: ≈ 9.000 · 6.800 · 4.800 punti a fine gara
+    const targets = [23000, 18400, 14200];   // v88 · curvoni a U: si derapa di più, anche i compagni   // v50 · guida libera: ≈ 9.000 · 6.800 · 4.800 punti a fine gara
     rivals.forEach((r, i) => { r.drift = 0; r.dTarget = targets[i] * (.92 + rng() * .16); r.driftAhead = false; r.slip = 3 + rng() * 6; });
   }
   weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0 }; weatherSaid = ''; nextFlash = 4 + rng() * 4;
@@ -1288,6 +1284,7 @@ const driftMult = () => (1 + Math.min(8, driftChain) * .15) * (has('drifter') ? 
 function iceStep(dt) {
   const grip = Math.min(.8, bs.grip || 0);
   bendNow = iceBend(roadTime * 19.5);   // + = la curva spinge verso destra
+  { const ahead = iceBend(roadTime * 19.5 + 40); if (Math.abs(ahead) > 1.45 && elapsed - (run.uCallAt ?? -99) > 6) { run.uCallAt = elapsed; bigCall('TORNANTE A ' + (ahead > 0 ? 'SINISTRA' : 'DESTRA') + '!'); toast('↩ CURVONE A U: ENTRA DI TRAVERSO E TIENI IL GAS', 'blue'); } }   // v88
   if (gas && jump <= 0 && crash <= 0) throttleSlip = Math.min(1, throttleSlip + dt * (.9 + (bs.drift || 0) * .3));
   else throttleSlip = Math.max(0, throttleSlip - dt * (1.6 + grip * .8));
   let st = steerNow(); if (st) aimPx = null;
@@ -1306,7 +1303,7 @@ function iceStep(dt) {
     if (elapsed - lastWall > .8) { lastWall = elapsed; endDrift(false); fxKind = 'snow'; fxSerial++; shake = Math.max(shake, .45); A.sfx.splash(); toast('❄ NEL MURO DI NEVE!', 'blue'); mistake(); if (navigator.vibrate) try { navigator.vibrate(40); } catch {} }
   }
   // testacoda: troppo di traverso troppo a lungo
-  if (Math.abs(drift) > .88 + grip * .06 && jump <= 0) overT += dt; else overT = Math.max(0, overT - dt * 2);
+  if (Math.abs(drift) > .88 + grip * .06 + Math.max(0, Math.abs(bendNow) - .8) * .35 && jump <= 0) overT += dt; else overT = Math.max(0, overT - dt * 2);
   if (overT > .45) {
     overT = 0; endDrift(false); throttleSlip = 0; drift *= .2; stun = .6; snowT = .4; shake = Math.max(shake, .6);
     fxKind = 'snow'; fxSerial++; A.sfx.hit(); toast('🌀 TESTACODA! MOLLA UN PO’ IL GAS', 'red'); mistake();
@@ -1829,7 +1826,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=87" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=88" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -2108,7 +2105,7 @@ const TRACK_INFO = {
   1: { tipo: 'Salitoni col gas dosato', ostacoli: 'Più fango, pozze, gradoni, sassi e frane', speciale: 'In salita conta la trazione: tieni la lancetta nel verde. Gas sempre aperto = la ruota pattina; poco gas = ti pianti e devi spingere la moto', consiglio: 'In salita apri e chiudi il gas a ritmo, non tenerlo sempre premuto.' },
   2: { tipo: 'Gara di salto nel burrone', ostacoli: 'Nessuno in discesa; pietroni nella zona di atterraggio', speciale: 'Scope volanti che danno velocità: più veloce arrivi al bordo, più lontano voli. Classifica anche del salto più lungo', consiglio: 'Prendi tutte le scope tenendo il GAS, poi in volo lancetta nel verde e corsia del bersaglio verde.' },
   3: { tipo: 'Tracciato del giorno', ostacoli: 'Cambiano ogni giorno', speciale: 'Uguale per tutti, con una regola diversa ogni giorno (niente turbo, salti doppi, diluvio, notturna…): classifica che si azzera a mezzanotte', consiglio: 'Primo giro per imparare il tracciato, secondo per fare il tempo.' },
-  9: { tipo: 'Pista di ghiaccio a curve', ostacoli: 'Pupazzi di neve e balle di fieno', speciale: 'Vince chi derapa di più e meglio: punti derapata, porte da passare di traverso', consiglio: 'GAS in curva per mettere la moto di traverso e controsterza. Monta le gomme chiodate.' },
+  9: { tipo: 'Pista di ghiaccio a curve', ostacoli: 'Nessuno: il pericolo è il muro di neve nei curvoni', speciale: 'Curvoni, esse e tornanti a U: punti derapata e porte da passare di traverso', consiglio: 'GAS in curva per mettere la moto di traverso e controsterza. Monta le gomme chiodate.' },
   10: { tipo: 'Notte e diluvio', ostacoli: 'Pietraie bagnate, gradoni viscidi, pozze, radici', speciale: 'Buio vero: vedi solo dove arriva il faro, i fulmini illuminano tutto per un attimo. Il fanale LED dell’officina aiuta', consiglio: 'Guarda il cono del faro e approfitta dei lampi per leggere la pista lontana.' },
   11: { tipo: 'Valle alpina selvaggia', ostacoli: 'Sassi, ometti di pietra, marmotte', speciale: 'Guadi su tutta la pista da saltare e stambecchi, camosci e capre che attraversano', consiglio: 'Al guado salta: se no scarponi pieni d’acqua.' },
   12: { tipo: 'Slalom nel bosco', ostacoli: 'Alberi in pista: non si saltano, si schivano', speciale: 'Varco che cambia corsia a ogni fila: bonus slalom a catena. A ogni albero preso arriva Erika', consiglio: 'Guarda due file avanti, non quella davanti alla ruota.' },
@@ -2191,7 +2188,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 87;
+const GAME_VERSION = 88;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2250,7 +2247,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=87" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=88" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2258,7 +2255,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=87" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=88" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- v68 · Sfida 1 contro 1 dal vivo ----------

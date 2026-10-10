@@ -26,7 +26,7 @@ export const MODES = [
   { id: 8, hidden: true, short: 'MORTE', name: 'Il giro della morte (easy)', desc: 'Tutto, tutto in salita, tutto insieme.', difficulty: 2, sky: 2, limit: 55, unlock: 4,
     layout: [{ t: 0, len: 4, down: 1 }, { t: 1, len: 6 }, { t: 2, len: 10 }, { t: 3, len: 10, climb: 1 }, { t: 1, len: 5, down: 1 }, { t: 2, len: 10 }, { t: 3, len: 8, climb: 1 }, { t: 3, len: 7 }] },
   // v46 · Ice Scrofy: pista di ghiaccio, gomme chiodate. Vince chi derapa di più e meglio (la classifica è a punti derapata).
-  { id: 9, short: 'ICE', name: 'Ice Scrofy', desc: 'Pista di ghiaccio, gomme chiodate. Vince chi derapa di più e meglio.', difficulty: 0, sky: 4, limit: 74, unlock: 1, ice: true,
+  { id: 9, short: 'ICE', name: 'Ice Scrofy', desc: 'Pista di ghiaccio, gomme chiodate, niente ostacoli: solo curvoni, esse e tornanti a U. Vince chi derapa di più e meglio.', difficulty: 0, sky: 4, limit: 74, unlock: 1, ice: true,
     layout: [{ t: 0, len: 6, name: 'RETTILINEO GHIACCIATO' }, { t: 0, len: 10, name: 'CURVONI DI SCROPHY' }, { t: 0, len: 6, down: 1, name: 'DISCESA SUL VETRO' }, { t: 0, len: 10, name: 'ESSE DEL LAGO' }, { t: 2, len: 6, climb: .35, name: 'SALITA CHIODATA' }, { t: 0, len: 10, name: 'CURVONI DI SCROPHY' }, { t: 0, len: 6, down: 1, name: 'PICCHIATA FINALE' }] },
   // v46 · tre percorsi nuovi che si sbloccano più avanti
   { id: 10, short: 'FOGNA', name: 'MotoFogna', desc: 'Di notte sotto il diluvio: si vede solo col faro e i fulmini illuminano tutto per un attimo. Solo per manici veri.', night: true, difficulty: 2, sky: 5, limit: 55, unlock: 3, rainy: true, dense: .25,
