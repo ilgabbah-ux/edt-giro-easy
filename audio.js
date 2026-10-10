@@ -4,7 +4,7 @@
 
 // v89 · voci caricate dopo il menu (il gioco si apre prima); chi le usa aspetta vociReady
 let VOCI = {};
-const vociReady = import('./voci.js?v=89').then(m => { VOCI = m.VOCI; }).catch(() => {});
+const vociReady = import('./voci.js?v=90').then(m => { VOCI = m.VOCI; }).catch(() => {});
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -209,7 +209,7 @@ export async function testVoices(onStep) {
 // Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
 // v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio
 let VOCI_PILOTI = {}, vpLoad = null;
-export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=89').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
+export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=90').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
 setTimeout(loadRiderVoices, 2500);
 const riderBuf = new Map();
 export const hasRiderVoice = key => !!VOCI_PILOTI[key];

@@ -1265,3 +1265,5 @@ aside#hub { gap: 10px; }
 .tipcard { position: absolute; left: 50%; top: 22%; z-index: 6; width: min(320px, 82vw); transform: translate(-50%, -10px); opacity: 0; pointer-events: none; background: #0b0c09e8; border: 2px solid var(--y); border-radius: 10px; padding: 10px 14px; color: #fff; font: 800 15px/1.25 var(--ui); text-align: center; transition: opacity .3s, transform .3s; box-shadow: 0 8px 30px #000a; }
 .tipcard small { display: block; color: var(--y); font: 12px var(--display); letter-spacing: 1px; margin-bottom: 4px; }
 .tipcard.show { opacity: 1; transform: translate(-50%, 0); }
+/* v90 · consiglio del primo giro dentro la cartolina del via */
+.trackintro .titip { margin-top: 5px; padding: 5px 8px; background: #ffcf1622; border-left: 3px solid var(--y); font: italic 800 13px/1.25 var(--ui); color: #fff; text-transform: none; }
