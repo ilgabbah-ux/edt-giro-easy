@@ -1,13 +1,13 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=86';
-import { createWorld } from './scene3d.js?v=86';
-import * as A from './audio.js?v=86';
-import * as P from './progress.js?v=86';
-import { FOTO } from './piloti.js?v=86';
-import { createMud } from './mudfx.js?v=86';
-import { icon, iconize, iconizeEl } from './icons.js?v=86';
-import * as C from './classifica.js?v=86';
-import * as D from './duel.js?v=86';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=87';
+import { createWorld } from './scene3d.js?v=87';
+import * as A from './audio.js?v=87';
+import * as P from './progress.js?v=87';
+import { FOTO } from './piloti.js?v=87';
+import { createMud } from './mudfx.js?v=87';
+import { icon, iconize, iconizeEl } from './icons.js?v=87';
+import * as C from './classifica.js?v=87';
+import * as D from './duel.js?v=87';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -147,10 +147,10 @@ const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
 const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=86';
+const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?v=87';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
-let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400, canyonLand = 0, leapTurbo = false;
+let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400, canyonLand = 0, leapTurbo = false, leapV = 10;
 let leap = false, leapState = 0, leapPow = 0, leapPitch = 0, leapW = 0, leapStartT = 0, leapStartKmh = 0, leapDist = 0, leapBest = 0, lastHopAt = -9, leapEndT = 0, leapPerfect = false;
 let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
 const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
@@ -1057,6 +1057,7 @@ function leapTakeoff() {
   leapStartKmh = Math.max(20, kmh * (leapTurbo ? .8 : 1));   // v86 · il turbo allunga il salto, ma senza raddoppiarlo
   const k = Math.max(0, Math.min(1.6, (leapStartKmh - 35) / 50)) * (perfect ? 1.12 : 1) * (leapTurbo ? 1.1 : 1);   // v86 · stacco col turbo acceso
   const v = Math.max(8, leapZRate * 55) * .42;   // unità di mondo al secondo in volo (scorrimento rallentato)
+  leapV = v;   // v87 · in volo il mondo scorre a velocità fissa: si arriva sempre dove previsto, anche se il turbo finisce a metà volo
   jumpDur = Math.max(2.2 + k * 2.2, 30 / v);
   jumpH = 3.5 + k * 5.5; jump = jumpDur; scrubbed = 0;
   // v86 · burrone di larghezza fissa: chi salta di più atterra più in là sul pendio, oltre i cartelli dei metri
@@ -1528,7 +1529,7 @@ function update(dt) {
   }
   score += dt * 12 * (turbo > 0 ? 2 : 1) * (has('downhill') && route.down > .4 ? 2 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 2 : 1);
   // In mulattiera non si va più veloci: è stretta, sassosa e con ondate più dure.
-  const travelStep = dt * (1.1 + diff * .35 + elapsed / 118) * speed * 19.5 * (1 - route.rough * .06) * (1 + up.engine * .025) * (1 + (bs.speed || 0)) * (1 + (bs.climb || 0) * Math.max(0, route.grade));
+  const travelStep = leap && leapState === 2 ? dt * leapV : dt * (1.1 + diff * .35 + elapsed / 118) * speed * 19.5 * (1 - route.rough * .06) * (1 + up.engine * .025) * (1 + (bs.speed || 0)) * (1 + (bs.climb || 0) * Math.max(0, route.grade));
   roadTime += travelStep / 19.5;
   if (leap && leapState < 2 && dt > 0) leapZRate = travelStep / 55 / dt;
   course = Math.min(GAME_LENGTH, roadTime / courseLength(diff) * GAME_LENGTH);
@@ -1828,7 +1829,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=86" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?v=87" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -2190,7 +2191,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 86;
+const GAME_VERSION = 87;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2249,7 +2250,7 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=86" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?v=87" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -2257,7 +2258,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=86" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?v=87" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- v68 · Sfida 1 contro 1 dal vivo ----------

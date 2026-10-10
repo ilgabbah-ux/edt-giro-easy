@@ -2,7 +2,7 @@
 // Audio: incitamenti MP3 (mai sovrapposti), motore sintetizzato ed effetti.
 // Tutto parte dopo il primo tocco dell'utente, come richiedono i browser.
 
-import { VOCI } from './voci.js?v=86';
+import { VOCI } from './voci.js?v=87';
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -206,7 +206,7 @@ export async function testVoices(onStep) {
 // Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
 // v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio
 let VOCI_PILOTI = {}, vpLoad = null;
-export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=86').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
+export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=87').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
 setTimeout(loadRiderVoices, 2500);
 const riderBuf = new Map();
 export const hasRiderVoice = key => !!VOCI_PILOTI[key];
