@@ -1267,3 +1267,28 @@ aside#hub { gap: 10px; }
 .tipcard.show { opacity: 1; transform: translate(-50%, 0); }
 /* v90 · consiglio del primo giro dentro la cartolina del via */
 .trackintro .titip { margin-top: 5px; padding: 5px 8px; background: #ffcf1622; border-left: 3px solid var(--y); font: italic 800 13px/1.25 var(--ui); color: #fff; text-transform: none; }
+/* v96 · podio del lunedì */
+.podium { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: #000c; padding: 16px; animation: msgin .3s both; }
+.podbox { width: min(420px, 100%); background: linear-gradient(160deg, #1d2018, #10120e); border: 2px solid var(--y); border-radius: 14px; padding: 18px 16px; text-align: center; color: #fff; box-shadow: 0 20px 60px #000; }
+.podbox > small { display: block; color: var(--y); font: 12px var(--display); letter-spacing: 2px; }
+.podtitle { display: block; font: 40px/1 var(--display); margin: 4px 0 14px; }
+.podsteps { display: flex; align-items: flex-end; justify-content: center; gap: 8px; margin-bottom: 12px; }
+.pstep { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; background: #2a2e22; border-radius: 10px 10px 0 0; padding: 10px 4px; }
+.pstep.p1 { padding-bottom: 34px; background: linear-gradient(#5a4a10, #2a2e22); }
+.pstep.p2 { padding-bottom: 18px; } .pstep.p3 { padding-bottom: 6px; }
+.pstep .avatar { width: 52px; height: 52px; } .pstep.p1 .avatar { width: 66px; height: 66px; }
+.pstep b { font: 800 14px var(--ui); text-transform: uppercase; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pstep em { font: 12px var(--display); color: var(--y); font-style: normal; } .pstep span { font-size: 24px; }
+.pstep.me { outline: 2px solid #3ee28f; }
+.podbox p { font: 600 13px/1.3 var(--ui); color: #d8cfbb; margin: 0 0 12px; }
+/* v96 · missioni della settimana e statistiche */
+.wkhead { margin: 10px 0 4px; font: 12px var(--display); letter-spacing: 1px; color: var(--y); }
+.missions ul.weekly li.done { opacity: .6; } .missions ul.weekly li.done .mtext { color: #7dffb6; }
+.statsbtn { display: block; margin: 8px 0 0; }
+.weeklydone > div { border-left-color: #3ee28f !important; }
+.statsbox { max-height: 90vh; overflow: auto; }
+.statgrid { list-style: none; padding: 0; margin: 0 0 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; text-align: left; }
+.statgrid li { display: grid; grid-template-columns: 22px 1fr; grid-template-rows: auto auto; background: #ffffff0d; border-radius: 8px; padding: 6px 8px; }
+.statgrid i { grid-row: span 2; font-style: normal; font-size: 18px; align-self: center; }
+.statgrid span { font: 600 11px var(--ui); color: #b9ad98; } .statgrid b { font: 18px var(--display); color: #fff; }
+.statbest { list-style: none; padding: 0; margin: 0 0 12px; text-align: left; } .statbest li { display: flex; justify-content: space-between; padding: 4px 2px; border-bottom: 1px solid #ffffff14; font: 600 13px var(--ui); } .statbest b { color: var(--y); }

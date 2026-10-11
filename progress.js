@@ -302,7 +302,39 @@ export function missionXp(m) {
 }
 
 // Chiude un giro: aggiorna totali, missioni, record, classifica ed esperienza.
+// v96 · MISSIONI DELLA SETTIMANA: 3 sfide uguali per tutti, cambiano il lunedì, pagano tante birre
+const WEEKLY_POOL = [
+  { id: 'drift500', text: 'Ice Scrofy: almeno 500 m di derapata in un giro', beers: 220, ok: r => r.mode === 9 && (r.driftM || 0) >= 500 },
+  { id: 'leap150', text: 'Angelo Potter: atterra in piedi oltre 150 m', beers: 250, ok: r => r.mode === 2 && (r.leap || 0) >= 150 },
+  { id: 'fogna0', text: 'MotoFogna: arriva al rifugio senza botte', beers: 300, ok: r => r.mode === 10 && r.finishTime > 0 && !r.hits },
+  { id: 'slalom15', text: 'MontaFiga: slalom ×15 di fila', beers: 220, ok: r => r.mode === 12 && (r.slaloms || 0) >= 15 },
+  { id: 'bar1', text: 'Giro easy: passa dal bar e vinci la gara', beers: 200, ok: r => r.mode === 0 && (r.bars || 0) > 0 && r.position === 1 },
+  { id: 'hole', text: 'Partenza a razzo e primo all’arrivo (qualsiasi percorso)', beers: 200, ok: r => r.holeshot && r.position === 1 },
+  { id: 'gev0', text: 'Anti-GEV: arriva al rifugio senza perdere moto', beers: 250, ok: r => r.mode === 13 && r.finishTime > 0 && !r.hits },
+  { id: 'mud1', text: 'Dopo migliora: arriva primo', beers: 220, ok: r => r.mode === 1 && r.position === 1 },
+  { id: 'arg55', text: 'Valle Argentera: al rifugio in meno di 55 s', beers: 250, ok: r => r.mode === 11 && r.finishTime > 0 && r.finishTime < 55 },
+  { id: 'ranch1', text: 'Gusta Ranch: vinci la gara', beers: 200, ok: r => r.mode === 14 && r.position === 1 },
+];
+export function weekKey(d = new Date()) { const x = new Date(d); const dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dow); return x.getFullYear() * 10000 + (x.getMonth() + 1) * 100 + x.getDate(); }
+export function weeklyMissions() {
+  const wk = weekKey(); if (!data.weekly || data.weekly.wk !== wk) data.weekly = { wk, done: {} };
+  let seed = wk; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const pool = WEEKLY_POOL.slice(), out = [];
+  while (out.length < 3) out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+  return out.map(m => ({ id: m.id, text: m.text, beers: m.beers, done: !!data.weekly.done[m.id], ok: m.ok }));
+}
+// v96 · statistiche di sempre del pilota
+export function stats() { return data.stats || (data.stats = {}); }
 export function recordRun(run) {
+  { const st = stats();   // v96 · totali di sempre
+    st.runs = (st.runs || 0) + 1; st.wins = (st.wins || 0) + (run.position === 1 ? 1 : 0); st.podi = (st.podi || 0) + (run.position && run.position <= 3 ? 1 : 0);
+    st.finished = (st.finished || 0) + (run.finishTime > 0 ? 1 : 0); st.caps = (st.caps || 0) + (run.caps || 0); st.jumps = (st.jumps || 0) + (run.jumps || 0);
+    st.km = (st.km || 0) + (run.km || 0); st.driftM = (st.driftM || 0) + (run.driftM || 0); st.hits = (st.hits || 0) + (run.hits || 0);
+    st.holeshots = (st.holeshots || 0) + (run.holeshot ? 1 : 0); st.bars = (st.bars || 0) + (run.bars || 0); st.turbos = (st.turbos || 0) + (run.turbos || 0);
+    st.bestLeap = Math.max(st.bestLeap || 0, run.leap || 0); st.bestDrift = Math.max(st.bestDrift || 0, run.driftM || 0); st.bestSlalom = Math.max(st.bestSlalom || 0, run.slaloms || 0);
+    st.best = st.best || {}; if (run.finishTime > 0 && run.mode !== 2 && run.mode !== 9 && (!st.best[run.mode] || run.finishTime < st.best[run.mode])) st.best[run.mode] = +run.finishTime.toFixed(1); }
+  const weeklyDone = [];
+  for (const m of weeklyMissions()) if (!m.done && m.ok(run)) { data.weekly.done[m.id] = true; data.beers += m.beers; weeklyDone.push(m); stats().weekly = (stats().weekly || 0) + 1; }
   const before = levelInfo();
   data.totals.runs = (data.totals.runs || 0) + 1;
   data.totals.caps = (data.totals.caps || 0) + run.caps;
@@ -350,5 +382,5 @@ export function recordRun(run) {
 
   ensureMissions();
   save();
-  return { completed, isRecord, previousBest, scoreXp, missionsXp, before, after, unlocked, position, beersEarned, prize, wallet: data.beers };
+  return { weeklyDone, completed, isRecord, previousBest, scoreXp, missionsXp, before, after, unlocked, position, beersEarned, prize, wallet: data.beers };
 }

@@ -113,7 +113,9 @@ function boards_(day, minv, act) {
   }
   const mon = monday_(day), sun = new Date(mon.getTime() + 6 * 864e5);
   const pmon = new Date(mon.getTime() - 7 * 864e5), psun = new Date(mon.getTime() - 864e5);
-  const week = { from: iso_(mon), to: iso_(sun), list: cup_(rows, iso_(mon), iso_(sun), minv, act).slice(0, 15), prev: cup_(rows, iso_(pmon), iso_(psun), minv, act)[0] || null };
+  // v96 · la settimana scorsa si giudica con tutti i suoi giri (anche se nel frattempo è iniziata una stagione nuova): podio dei primi 3
+  const prev3 = cup_(rows, iso_(pmon), iso_(psun), 0, act).slice(0, 3);
+  const week = { from: iso_(mon), to: iso_(sun), list: cup_(rows, iso_(mon), iso_(sun), minv, act).slice(0, 15), prev: prev3[0] || null, prev3: prev3, prevFrom: iso_(pmon) };
   return { out: out, times: times, week: week };
 }
 

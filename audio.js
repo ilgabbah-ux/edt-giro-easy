@@ -314,15 +314,27 @@ function shaperCurve(k = 6) {
   return c;
 }
 const GEARS = [0, .42, .72, 1.02, 1.34, 1.7, 9];   // soglie di velocità per marcia (1ª…6ª)
+// v96 · ogni moto ha il suo motore: tono (rate), "corpo" (body), colpo allo scarico (bark), ruvidità (k) e aspirazione (nz)
+const ENGINE_PROFILES = {
+  edt250: { rate: 1, body: 900, bark: 180, barkG: 5, k: 4, drive: 1, nz: 1 },
+  gp125: { rate: 1.65, body: 1500, bark: 330, barkG: 3, k: 7, drive: .9, nz: 1.8 },     // 2 tempi piccolo: stridulo
+  trial: { rate: .9, body: 700, bark: 150, barkG: 4, k: 3, drive: .8, nz: .8 },
+  ts300: { rate: 1.3, body: 1300, bark: 260, barkG: 7, k: 8, drive: 1.2, nz: 1.6 },     // 2 tempi cattivo
+  mulo450: { rate: .72, body: 650, bark: 115, barkG: 9, k: 5, drive: 1.5, nz: .9 },    // 4 tempi grosso: cupo e pieno
+  vintage: { rate: .82, body: 560, bark: 135, barkG: 6, k: 3, drive: 1.1, nz: 1.5 },   // vecchia gloria: rauca
+  boanal: { rate: 1.08, body: 1150, bark: 200, barkG: 9, k: 6, drive: 1.7, nz: 1.2 },  // la più potente
+};
+let EP = ENGINE_PROFILES.edt250;
+export function setEngineProfile(id) { EP = ENGINE_PROFILES[id] || ENGINE_PROFILES.edt250; if (engine) { engine.shaper.curve = shaperCurve(EP.k); engine.bark.gain.value = EP.barkG; } }
 export function engineStart() {
   if (!enabled || !ensure() || engine) return;
   if (!engineBuf) engineBuf = makeEngineBuffer();
   const t = ctx.currentTime;
   const src = ctx.createBufferSource(); src.buffer = engineBuf; src.loop = true; src.playbackRate.value = .5;
   const drive = ctx.createGain(); drive.gain.value = 1.4;
-  const shaper = ctx.createWaveShaper(); shaper.curve = shaperCurve(4); shaper.oversample = '2x';
+  const shaper = ctx.createWaveShaper(); shaper.curve = shaperCurve(EP.k); shaper.oversample = '2x';
   const body = ctx.createBiquadFilter(); body.type = 'lowpass'; body.frequency.value = 900; body.Q.value = 1.2;
-  const bark = ctx.createBiquadFilter(); bark.type = 'peaking'; bark.frequency.value = 180; bark.gain.value = 5; bark.Q.value = 1.4;
+  const bark = ctx.createBiquadFilter(); bark.type = 'peaking'; bark.frequency.value = EP.bark; bark.gain.value = EP.barkG; bark.Q.value = 1.4;
   const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 38;
   const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(.2, t + .35);
   src.connect(drive); drive.connect(shaper); shaper.connect(bark); bark.connect(body); body.connect(hp); hp.connect(g); g.connect(duckBus);
@@ -332,7 +344,7 @@ export function engineStart() {
   const ng = ctx.createGain(); ng.gain.value = .0;
   nz.connect(nf); nf.connect(ng); ng.connect(g);
   src.start(); nz.start();
-  engine = { src, drive, body, bark, g, nf, ng, nz, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
+  engine = { src, drive, shaper, body, bark, g, nf, ng, nz, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
   engineUpdate(.2, false, false, false);
 }
 export function engineUpdate(speed, gas, turbo, airborne) {
@@ -352,13 +364,13 @@ export function engineUpdate(speed, gas, turbo, airborne) {
   if (speed < .05) target = .5;                     // minimo
   e.rpm += (target - e.rpm) * (airborne ? .08 : .14);
   const load = e.shiftT > 0 ? .35 : (gas || turbo ? 1 : .72) * (airborne ? .6 : 1);
-  e.src.playbackRate.setTargetAtTime(e.rpm, t, .04);
-  e.body.frequency.setTargetAtTime(500 + e.rpm * 900 * load + (turbo ? 900 : 0), t, .05);
-  e.bark.frequency.setTargetAtTime(110 + e.rpm * 70, t, .08);
-  e.drive.gain.setTargetAtTime(.9 + load * 1.8, t, .05);
+  e.src.playbackRate.setTargetAtTime(e.rpm * EP.rate, t, .04);
+  e.body.frequency.setTargetAtTime((500 + e.rpm * 900 * load) * EP.body / 900 + (turbo ? 900 : 0), t, .05);
+  e.bark.frequency.setTargetAtTime((110 + e.rpm * 70) * EP.bark / 180, t, .08);
+  e.drive.gain.setTargetAtTime((.9 + load * 1.8) * EP.drive, t, .05);
   e.g.gain.setTargetAtTime((.11 + load * .1) * (e.shiftT > 0 ? .55 : 1), t, .04);
   e.nf.frequency.setTargetAtTime(900 + e.rpm * 1300, t, .1);
-  e.ng.gain.setTargetAtTime(.012 + e.rpm * .018 + (turbo ? .03 : 0), t, .1);
+  e.ng.gain.setTargetAtTime((.012 + e.rpm * .018) * EP.nz + (turbo ? .03 : 0), t, .1);
   // rilascio del gas a giri alti: scoppiettii allo scarico
   e.popT -= 1 / 60;
   if (e.lastGas && !gas && e.rpm > 1.4 && e.popT <= 0) { e.popT = .8; for (let i = 0; i < 3; i++) noise(.035, 400 + Math.random() * 300, 2, .16, 'bandpass', .05 + i * (.06 + Math.random() * .05)); }

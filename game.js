@@ -329,7 +329,7 @@ function hud() {
   $('boost').classList.toggle('ready', charge >= 100 && turbo <= 0 && state === 'playing');
   $('boostlabel').textContent = turbo > 0 ? 'GAAAS! ×2' : charge >= 100 ? 'TURBO PRONTO' : 'TURBO ' + Math.floor(charge) + '%';
   $('jump').classList.toggle('airborne', jump > 0);
-  $('game').classList.toggle('boosting', state === 'playing' && turbo > 0);
+  $('game').classList.toggle('boosting', state === 'playing' && (turbo > 0 || (has('sprint') && course > GAME_LENGTH * .75)));   // v96 · anche lo sprint finale di Maggie
   $('game').classList.toggle('magnet', state === 'playing' && magnet > 0);
   $('game').classList.toggle('grappa', state === 'playing' && grappa > 0);
   $('game').classList.toggle('watery', state === 'playing' && waterT > 0);
@@ -462,7 +462,7 @@ function start() {
   $('pops').innerHTML = '';
   $('pause').innerHTML = icon('pause'); $('pause').setAttribute('aria-label', 'Pausa');
   setDisabled(true);
-  A.engineStart();
+  (A.setEngineProfile(P.currentBike().id), A.engineStart());
   startMusic();
   hud();
 }
@@ -515,6 +515,7 @@ function finish(win, reason = '') {
     dailyFinish: finished && mode === 3 ? 1 : 0,
     drift: ice ? Math.round(driftScore) : 0,
   });
+  run.km = Math.round(roadTime * 19.5) / 1000;   // v96 · per le statistiche
   const res = P.recordRun(run);
   if (gev && !win) {   // v57 · fermato dalle GEV: multa in birre
     gevFine = Math.min(20, P.profile.beers); P.profile.beers -= gevFine; P.save(); res.wallet = P.profile.beers;
@@ -546,7 +547,7 @@ function pause() {
   } else if (state === 'paused') {
     if (touchDevice) goFull();
     state = countdown > 0 ? 'countdown' : 'playing';
-    A.engineStart(); startMusic();
+    (A.setEngineProfile(P.currentBike().id), A.engineStart()); startMusic();
     $('overlay').classList.add('hidden');
     $('pause').innerHTML = icon('pause'); $('pause').setAttribute('aria-label', 'Pausa');
     hud();
@@ -671,7 +672,7 @@ $('sound').onclick = () => {
   const on = !A.isEnabled();
   A.unlock(); A.setEnabled(on); profile.sound = on; P.save();
   syncSound();
-  if (on) { A.sfx.click(); if (state === 'playing') A.engineStart(); } else A.engineStop();
+  if (on) { A.sfx.click(); if (state === 'playing') (A.setEngineProfile(P.currentBike().id), A.engineStart()); } else A.engineStop();
 };
 function syncSound() {
   const on = A.isEnabled();
@@ -1433,7 +1434,7 @@ function doContinue() {
   run.continued = true; lives = 1; invincible = 3; crash = 0; stun = 0; shownLives = -1;
   objects = objects.filter(o => o.z > .95 || o.z < .5);
   $('overlay').classList.add('hidden');
-  state = 'playing'; A.engineStart(); startMusic(); if (touchDevice) goFull();
+  state = 'playing'; (A.setEngineProfile(P.currentBike().id), A.engineStart()); startMusic(); if (touchDevice) goFull();
   toast('⛑ DI NUOVO IN SELLA! NON SPRECARLA', 'green'); hud();
 }
 // Primo giro in assoluto: consigli grandi al centro, uno alla volta.
@@ -1527,6 +1528,7 @@ function update(dt) {
   if (stalled) tractMul = .04;
   if (rule('noturbo')) charge = 0;
   if (barT > 0) barT = Math.max(0, barT - dt);
+  if (has('sprint') && course > GAME_LENGTH * .75 && !run.sprintCall && state === 'playing') { run.sprintCall = 1; bigCall('SPRINT FINALE!'); toast('💨 ULTIMO QUARTO: +10% VELOCITÀ E PUNTI DOPPI', 'gold'); A.sfx.turbo(); A.sayRider?.('maggie_sprint'); }   // v96
   const speed = tractMul * paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
   // Discesa: "Campa giù!"
   if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); }
@@ -1934,9 +1936,9 @@ function renderReady() {
       <button class="qbtn" id="opengarage" type="button"><span class="qi">🎨</span><b>GARAGE</b><small>livree e moto</small></button>
       <button class="qbtn" id="openshop" type="button"><span class="qi">🔧</span><b>OFFICINA</b><small>${P.profile.beers} 🍺</small></button>
       ${C.enabled() ? '<button class="qbtn" id="opengroup" type="button"><span class="qi">🏆</span><b>CLASSIFICA</b><small id="grouplead">del gruppo</small></button>' : ''}
-      <button class="qbtn" id="openmissions" type="button" aria-expanded="false"><span class="qi">🏁</span><b>MISSIONI</b><small>${missions.length} attive</small></button>
+      <button class="qbtn" id="openmissions" type="button" aria-expanded="false"><span class="qi">🏁</span><b>MISSIONI</b><small>${missions.length} attive · 🗓 ${P.weeklyMissions().filter(m => m.done).length}/3</small></button>
     </div>
-    <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul></div>
+    <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul><button class="linkbtn statsbtn" type="button" id="openstats">📊 LE TUE STATISTICHE DI SEMPRE ›</button><div class="wkhead">🗓 MISSIONI DELLA SETTIMANA · uguali per tutti, cambiano il lunedì</div><ul class="weekly">${P.weeklyMissions().map(m => `<li class="${m.done ? 'done' : ''}"><span class="mtext">${m.done ? '✔ ' : ''}${m.text}</span><span class="mxp">+${m.beers} 🍺</span></li>`).join('')}</ul></div>
     <div class="mhead tracks">${icon('flag')} CAMBIA PERCORSO <button class="linkbtn alltracks" id="alltracks" type="button">📋 TUTTI I TRACCIATI ›</button></div>
     <div class="modes" role="radiogroup" aria-label="Percorso">
       ${P.SHOWN().map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
@@ -1947,6 +1949,7 @@ function renderReady() {
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}
     </div>
     <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare</span></p>`;
+  if ($('openstats')) $('openstats').onclick = () => { A.sfx.click(); showStats(); };
   $('openmissions').onclick = () => { const box = $('missionbox'), open = box.hidden; box.hidden = !open; $('openmissions').setAttribute('aria-expanded', String(open)); $('openmissions').classList.toggle('on', open); A.sfx.click(); };
   requestAnimationFrame(() => { const act = document.querySelector('.modes .mode.active'); if (act) act.parentElement.scrollLeft = act.offsetLeft - act.parentElement.clientWidth / 2 + act.offsetWidth / 2; });
   iconizeEl($('card'));
@@ -2012,6 +2015,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
       <div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>
       <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
     </div>
+    ${res.weeklyDone?.length ? `<div class="donelist weeklydone">${res.weeklyDone.map(c => `<div><span>🗓 MISSIONE DELLA SETTIMANA: ${c.text}</span><b>+${c.beers} 🍺</b></div>`).join('')}</div>` : ''}
     ${res.completed.length ? `<div class="donelist">${res.completed.map(c => `<div><span>✔ ${c.text}</span><b>+${c.xp} XP</b></div>`).join('')}</div>` : ''}
     <div class="loot">
       <div class="beerline">🍺 <b>+${res.beersEarned}</b> birre portate al rifugio <small>in cassa: ${res.wallet} 🍺</small></div>
@@ -2058,7 +2062,7 @@ const MODE_LABEL = m => m === 3 ? 'SFIDA ' + P.todayLabel() : P.MODES[m].short;
 function groupListHTML(list, me = '', m = -1) {
   if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
   const mine = C.cleanNick(me).toLowerCase();
-  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto">🔧${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
+  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${crownOf(e.n)}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto">🔧${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
 }
 // v48 · classifica dei tempi migliori al rifugio
 function timeListHTML(list, me = '', m = -1) {
@@ -2085,7 +2089,41 @@ function cupBar(d) {
   $('cuplead').textContent = lead ? `1° ${lead.n} · ${lead.p} pt` : 'nessuno ancora: prendila tu!';
   $('cupme').textContent = (me ? `tu ${me.pos}° · ${me.p} pt · ` : '') + (left ? `finisce tra ${left} ${left === 1 ? 'giorno' : 'giorni'}` : 'ultimo giorno!');
   $('cupprev').innerHTML = w.prev ? `<small>VINCITORE SCORSA SETTIMANA</small>👑 ${w.prev.n}` : '';
+  showPodium(w);
 }
+// v96 · statistiche di sempre del pilota
+function showStats() {
+  const st = P.stats(), f = n => Math.round(n || 0).toLocaleString('it-IT');
+  const rows = [['🏁', 'Gare', f(st.runs)], ['🥇', 'Vittorie', f(st.wins)], ['🏆', 'Podi', f(st.podi)], ['🛖', 'Arrivi al rifugio', f(st.finished)],
+    ['🛣', 'Chilometri', (st.km || 0).toFixed(1).replace('.', ',') + ' km'], ['🦘', 'Salti', f(st.jumps)], ['🍺', 'Birre raccolte', f(st.caps)], ['⚡', 'Turbo usati', f(st.turbos)],
+    ['🚀', 'Partenze a razzo', f(st.holeshots)], ['🍻', 'Soste al bar', f(st.bars)], ['💥', 'Botte prese', f(st.hits)], ['🗓', 'Missioni settimanali', f(st.weekly)],
+    ['🌀', 'Metri di derapata (totale)', f(st.driftM) + ' m'], ['❄', 'Derapata più lunga in un giro', f(st.bestDrift) + ' m'], ['📏', 'Salto più lungo', (st.bestLeap || 0).toFixed(1).replace('.', ',') + ' m'], ['🌲', 'Slalom più lungo', '×' + f(st.bestSlalom)]];
+  const best = Object.entries(st.best || {}).map(([m, t]) => `<li><span>${P.MODES[m]?.name || m}</span><b>⏱ ${String(t).replace('.', ',')} s</b></li>`).join('');
+  const el = document.createElement('div'); el.className = 'podium'; el.id = 'statsbox';
+  el.innerHTML = `<div class="podbox statsbox"><small>${profile.rider.toUpperCase()}${C.getNick() ? ' · ' + C.getNick() : ''}</small><b class="podtitle">STATISTICHE</b>
+    <ul class="statgrid">${rows.map(r => `<li><i>${r[0]}</i><span>${r[1]}</span><b>${r[2]}</b></li>`).join('')}</ul>
+    ${best ? `<div class="wkhead">⏱ TEMPI MIGLIORI AL RIFUGIO</div><ul class="statbest">${best}</ul>` : ''}
+    ${st.runs ? '' : '<p>Si contano da questa versione in poi: fai un giro!</p>'}
+    <button class="primary" type="button" id="statsok"><span>CHIUDI</span></button></div>`;
+  document.body.appendChild(el); $('statsok').onclick = () => el.remove();
+}
+// v96 · podio del lunedì: alla prima apertura della settimana i primi 3 della coppa appena finita
+function showPodium(w) {
+  if (!w?.prev3?.length || state !== 'ready') return;
+  let seen = ''; try { seen = localStorage.getItem('edt-podio') || ''; } catch {}
+  if (seen === w.from) return;
+  try { localStorage.setItem('edt-podio', w.from); } catch {}
+  const order = [1, 0, 2].filter(i => w.prev3[i]), me = C.getNick().toLowerCase();
+  const el = document.createElement('div'); el.className = 'podium'; el.id = 'podium';
+  el.innerHTML = `<div class="podbox"><small>COPPA DELLA SETTIMANA SCORSA</small><b class="podtitle">IL PODIO</b>
+    <div class="podsteps">${order.map(i => { const e = w.prev3[i]; return `<div class="pstep p${i + 1} ${e.n.toLowerCase() === me ? 'me' : ''}">${RIDERS.includes(e.r) ? avatarHTML(e.r) : '<i class="noav"></i>'}<b>${e.n}</b><em>${e.p} pt</em><span>${['🥇', '🥈', '🥉'][i]}</span></div>`; }).join('')}</div>
+    <p>${w.prev3[0].n} porta la 👑 accanto al nome per tutta la settimana. Nuova coppa: si riparte da zero!</p>
+    <button class="primary" type="button" id="podok"><span>VAI!</span></button></div>`;
+  document.body.appendChild(el);
+  A.sfx.perfect?.();
+  $('podok').onclick = () => el.remove();
+}
+const crownOf = n => { const p = C.cached()?.week?.prev; return p && n && p.n.toLowerCase() === String(n).toLowerCase() ? ' 👑' : ''; };
 // Riquadro nel risultato: invia il punteggio col nome salvato, oppure chiede il nome la prima volta.
 let lastGroupRun = null;
 function groupResult(runInfo) {
@@ -2590,5 +2628,5 @@ if (/debug/.test(location.hash)) {
 
 // Aggancio per i test automatici (non usato dal gioco).
 window.__edt = { get state() { return state; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
-  get objects() { return objects; }, get barT() { return barT; }, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
+  get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
