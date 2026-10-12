@@ -15,7 +15,9 @@
 const SHEET = 'Punteggi';
 const MODES = 20;           // percorsi 0..19 (9 Ice Scrophy, 10 MotoFogna, 11 Valle Argentera, 12 MontaFiga, 13 Anti-GEV · v57; spazio per quelli futuri)
 const DAILY = 3;
-const ICE = 9;              // v92 · Ice Scrofy: nel campo tempo ci sono i metri di derapata            // Sfida del giorno: classifica solo del giorno
+const ICE = 9;
+const CAP = { 0: 150000, 1: 150000, 2: 60000, 3: 160000, 9: 120000, 10: 170000, 11: 150000, 12: 150000, 13: 160000, 14: 150000 };   // v96 · punteggio massimo credibile per percorso
+function minvOf_(p) { return Math.max(0, Math.round(Number(p.minv) || 0)); }              // v92 · Ice Scrofy: nel campo tempo ci sono i metri di derapata            // Sfida del giorno: classifica solo del giorno
 const MAX_SCORE = 250000;
 const CUP = [10, 8, 6, 5, 4, 3, 2, 1];
 const ACTIVE = [0, 1, 2, 3, 9, 10, 11, 12, 13, 14];   // percorsi nel menu (4-8 tolti nella v59)
@@ -133,7 +135,11 @@ function doGet(e) {
     const name = clean_(p.name, 16);
     const score = Math.round(Number(p.score));
     const mode = Math.round(Number(p.mode));
-    if (name && score > 0 && score <= MAX_SCORE && mode >= 0 && mode < MODES) {
+    // v96 · controlli di buon senso contro i giri truccati: punteggio, tempo, metri e versione devono essere credibili
+    const tm = Number(p.time) || 0, vv = Number(p.v) || 0;
+    const plausible = vv >= minvOf_(p) && score <= (CAP[mode] || 150000) &&
+      (mode === 2 ? tm <= 400 : mode === ICE ? tm <= 1600 : (p.win !== '1' || tm >= 38));
+    if (name && score > 0 && score <= MAX_SCORE && mode >= 0 && mode < MODES && plausible) {
       const lock = LockService.getScriptLock();
       lock.waitLock(8000);
       try {
