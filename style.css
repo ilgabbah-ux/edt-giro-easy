@@ -1320,3 +1320,9 @@ aside#hub { gap: 10px; }
 .overtake .orow > * { flex: 1; }
 .overtake .wabtn { margin-top: 0; }
 .overtake .ox { position: absolute; top: 6px; right: 8px; border: 0; background: none; color: #fff; font-size: 18px; cursor: pointer; }
+.trackintro em.tivar { display: block; margin: 2px 0 4px; color: #7fd4ff; font-style: normal; font-weight: 900; font-size: 12px; letter-spacing: .03em; }
+.flashchip { position: absolute; left: 16px; bottom: 168px; z-index: 3; max-width: 62%; padding: 6px 10px; border-radius: 10px; background: #000a; border: 2px solid #7fd4ff; color: #fff; font: 800 12px/1.2 system-ui, sans-serif; pointer-events: none; }
+.flashchip[hidden] { display: none; }
+.flashchip b { margin-left: 6px; color: #7fd4ff; }
+.flashchip.done { border-color: #ffcf16; } .flashchip.done b { color: #ffcf16; }
+.trackintro em.tiflash { display: block; margin: 2px 0 4px; color: #ffcf16; font-style: normal; font-weight: 900; font-size: 12px; }

@@ -91,7 +91,17 @@ function layoutFor(m, fresh = false) {
   const md = P.MODES[m];
   if (md.random === 'daily') return randomLayout(makeRng(P.todayKey() * 7 + 13));
   if (md.random === 'run') { if (fresh) runSeed = (Date.now() ^ (Math.random() * 1e9)) >>> 0; return randomLayout(makeRng(runSeed)); }
-  return md.layout;
+  return variantLayout(md.layout, variantOf(m));
+}
+// v97 · VARIANTE DELLA SETTIMANA: ogni lunedì i percorsi fissi cambiano ordine dei tratti e curve (uguale per tutti)
+const VARIANT_NAMES = ['A', 'B', 'C'];
+function variantOf(m) { const md = P.MODES[m]; if (!md?.layout || md.ice || md.leap || md.random) return 0; return ((P.weekKey() % 9973) + m * 31) % 3; }
+function variantLayout(layout, v) {
+  if (!v || !layout || layout.length < 3) return layout;
+  const first = layout[0], rest = layout.slice(1);
+  if (v === 1) return [first, ...rest.slice().reverse()];
+  const k = Math.ceil(rest.length / 2), rot = rest.slice(k).concat(rest.slice(0, k));
+  return [first, ...rot.map(x => (x.t === 0 || x.t === 1) && !x.climb ? { ...x, down: x.down ? 0 : 1 } : x)];
 }
 const SEG_SHORT = ['BOSCO', 'POZZE', 'SALITA', 'MULA'];
 function renderTrackbar() {
@@ -106,12 +116,13 @@ function stripHTML(layout) {
   const tot = layout.reduce((a, x) => a + x.len, 0);
   return `<span class="strip">${layout.map(x => `<i class="s${x.t}${x.climb && x.t !== 2 ? ' up' : ''}${x.down ? ' down' : ''}" style="flex:${(x.len / tot * 100).toFixed(1)}"></i>`).join('')}</span>`;
 }
-const ghostKey = () => P.MODES[mode].leap ? null : P.MODES[mode].random === 'daily' ? 'd' + P.todayKey() : P.MODES[mode].random ? null : String(mode);
+const ghostKey = () => P.MODES[mode].leap ? null : P.MODES[mode].random === 'daily' ? 'd' + P.todayKey() : P.MODES[mode].random ? null : String(mode) + (variantOf(mode) ? 'v' + variantOf(mode) : '');
 let state = 'ready';
 let lane = 1, px = 1, jump = 0, jumpBuffer = 0, elapsed = 0, score = 0, lives = 3, objects = [], spawn = 0, invincible = 0, last = 0, roadTime = 0;
 let toastTime = 0, gas = false, wet = 0, routePhase = -1, countdown = 0, countStep = 0;
 let combo = 0, comboTime = 0, charge = 0, turbo = 0, magnet = 0, wave = 0, prevSafe = 1, lastBigLog = -9, fxSerial = 0, fxKind = 'coin';
 let lean = 0, bodyLean = 0, suspension = 0, springVelocity = 0, wheelPhase = 0, whip = 0, scrubbed = 0, shake = 0, speedNow = 1;
+let timeOfDay = '';
 let rng = Math.random, run = null, announced = new Set(), missionCheck = 0, lastCheer = -10;
 // v16: percorso a distanza con tempo massimo, moto con dinamica laterale, caduta e rallentatore.
 // Fantasma del record: dove eri, secondo per secondo, nel tuo giro migliore arrivato al rifugio.
@@ -150,7 +161,7 @@ let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400,
 let leap = false, leapState = 0, leapPow = 0, leapPitch = 0, leapW = 0, leapStartT = 0, leapStartKmh = 0, leapDist = 0, leapBest = 0, lastHopAt = -9, leapEndT = 0, leapPerfect = false;
 let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
 const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
-const GEV_SOFT = new Set(['gevmark', 'bar', 'coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
+const GEV_SOFT = new Set(['forkShort', 'forkSafe', 'gevmark', 'bar', 'coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
 // v48 · fantasma del primo nella classifica del gruppo
 let gGhost = null, gGhostPassed = false;
 // v50 · guida libera: la moto va dove la porti (niente più corsie fisse).
@@ -456,7 +467,7 @@ function start() {
   let firstTip = '';
   { const seen = P.profile.seenTracks || (P.profile.seenTracks = {}); if (!seen[mode] && TRACK_INFO[mode]?.consiglio) { seen[mode] = 1; P.save(); firstTip = TRACK_INFO[mode].consiglio; countdown += 2.5; } }   // 2,5 s in più prima del 3-2-1 per leggerlo
   { const md = P.MODES[mode], ti = $('trackintro');   // v58 · cartolina del percorso durante il via
-    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.id === 3 ? dailyRule().icon + ' REGOLA DI OGGI: ' + dailyRule().name + ' — ' + dailyRule().desc : md.desc}</small>${gGhost ? `<em class="tighost">👻 CORRI CONTRO IL FANTASMA DI ${gGhost.name.toUpperCase()} (1° NEL GRUPPO${gGhost.time ? ' · ' + C.fmtTime(gGhost.time) : ''})</em>` : ''}${firstTip ? `<em class="titip">💡 PRIMO GIRO QUI: ${firstTip}</em>` : ''}</div>`;
+    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b>${variantOf(md.id) ? `<em class="tivar">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</em>` : ''}${timeOfDay ? `<em class="tivar">${timeOfDay}</em>` : ''}${runPlan?.flash ? `<em class="tiflash">🎯 SFIDA LAMPO: ${runPlan.flash.text} (+${FLASH_BEERS} 🍺)</em>` : ''}<small>${md.id === 3 ? dailyRule().icon + ' REGOLA DI OGGI: ' + dailyRule().name + ' — ' + dailyRule().desc : md.desc}</small>${gGhost ? `<em class="tighost">👻 CORRI CONTRO IL FANTASMA DI ${gGhost.name.toUpperCase()} (1° NEL GRUPPO${gGhost.time ? ' · ' + C.fmtTime(gGhost.time) : ''})</em>` : ''}${firstTip ? `<em class="titip">💡 PRIMO GIRO QUI: ${firstTip}</em>` : ''}</div>`;
     ti.className = 'trackintro'; void ti.offsetWidth; ti.className = 'trackintro show'; }
   $('overlay').classList.add('hidden');
   setMenu(false);
@@ -486,6 +497,8 @@ function go() {
 }
 
 function finish(win, reason = '') {
+  if (win && state === 'playing') { course = GAME_LENGTH; checkFlash(); }   // v97 · la sfida lampo 'seconda metà pulita' si chiude all'arrivo
+  if ($('flashchip')) $('flashchip').hidden = true;
   if (duel?.racing) { duel.me = { s: Math.round(score), w: win ? 1 : 0, tm: +elapsed.toFixed(2), c: +course.toFixed(2), j: leap ? leapBest : 0 }; D.send({ t: 'end', ...duel.me }); }
   state = 'ended';
   A.engineStop(); A.stopVoice(); A.musicStop();
@@ -638,7 +651,7 @@ function stopWheelieInput() { wheelieHeld = false; }
 // Errori (urti e pozzanghere): dopo più di 3, orecchie da coniglio fino al rifugio.
 // Orecchie da coniglio fino al rifugio al 3° errore (urti, pozzanghere, acqua) o quando resta l'ultima moto.
 function mistake() {
-  errors++; run.errors = errors;
+  errors++; run.errors = errors; if (course > GAME_LENGTH / 2) run.errors2 = (run.errors2 || 0) + 1;
   if (!earsPermanent && (errors >= 3 || lives === 1)) {
     earsPermanent = true; A.sfx.ears();
     setTimeout(() => toast(lives === 1 ? '🐰 ULTIMA MOTO: ORECCHIE DA CONIGLIO!' : '🐰 TRE ERRORI: ORECCHIE DA CONIGLIO!', 'pink'), 900);
@@ -925,8 +938,8 @@ function spawnWildSpecial(section) {
 }
 // v81 · Gusta Ranch: il Gusta passa con il trattore e la trincia di traverso alla pista, a dare fastidio
 let lastTractor = -9;
-function spawnRanchSpecial() {
-  if (wave < 2 || wave - lastTractor < 4 || rng() > .42) return false;
+function spawnRanchSpecial(force = false) {
+  if (!force && (wave < 2 || wave - lastTractor < 4 || rng() > .42)) return false;
   const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
   lastTractor = wave;
   const lEnd = Math.floor(rng() * 3), dir = rng() < .5 ? 1 : -1, k = dir * 1.9 / .83;
@@ -944,11 +957,130 @@ function gustaPop() {
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   clearTimeout(gustaTimer); gustaTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
+
+// ---------- v97 · GIRO SEMPRE DIVERSO: imprevisti, bivi, tratti flow e pietraia, sfida lampo ----------
+let runPlan = null, forkPath = null;
+const FLASH_POOL = [
+  { id: 'jumps', text: 'Fai 6 salti', goal: 6, val: () => run.jumps },
+  { id: 'combo', text: 'Arriva a combo ×5', goal: 5, val: () => run.maxMult },
+  { id: 'climbcaps', text: 'Prendi 5 birre in salita', goal: 5, val: () => run.climbCaps || 0 },
+  { id: 'air', text: 'Prendi 3 birre al volo', goal: 3, val: () => run.airCaps },
+  { id: 'short', text: 'Prendi la pietraia a un bivio', goal: 1, val: () => run.forkShort || 0 },
+  { id: 'clean2', text: 'Seconda metà del giro senza errori', goal: 1, val: () => course >= GAME_LENGTH - .3 && !run.errors2 ? 1 : 0 },
+];
+const FLASH_BEERS = 15;
+function makeRunPlan() {
+  const md = P.MODES[mode], plan = { events: [], forks: [], zones: [], flash: null, flashDone: false };
+  forkPath = null; $('flashchip')?.classList.remove('done');
+  if (md.ice || md.leap || md.slalom) return plan;
+  const pool = FLASH_POOL.filter(f => f.id !== 'climbcaps' || layoutSegments().some(g => g.climb > .3));
+  plan.flash = pool[Math.floor(rng() * pool.length)];
+  if (md.gev) { plan.flash = pool.find(f => f.id === 'combo'); return plan; }
+  const kinds = ['gregge', 'albero', 'frana', 'pioggia'];
+  if (!md.ranch) kinds.push('trattore');
+  if (!md.wild) kinds.push('guado');
+  if (feat('night') || md.rainy) kinds.splice(kinds.indexOf('pioggia'), 1);
+  const n = 2 + (rng() < .5 ? 1 : 0);
+  for (let i = 0; i < n; i++) { const k = kinds.splice(Math.floor(rng() * kinds.length), 1)[0]; plan.events.push({ kind: k, at: 9 + (i + .2 + rng() * .6) * (40 / n) }); }
+  const near = (at, d) => plan.events.some(e => Math.abs(e.at - at) < d) || plan.forks.some(f => Math.abs(f.at - at) < d + 4) || plan.zones.some(z => at > z.from - d && at < z.to + d);
+  const nf = 1 + (rng() < .45 ? 1 : 0);
+  for (let i = 0; i < nf; i++) { let at = 0, tries = 0; do { at = 15 + rng() * 32; } while (++tries < 40 && near(at, 5)); if (!near(at, 5) || !i) plan.forks.push({ at }); }
+  plan.forks.sort((a, b) => a.at - b.at);
+  for (const kind of ['flow', 'pietraia']) { let at = 0, tries = 0; do { at = 11 + rng() * 40; } while (++tries < 40 && near(at, 4)); plan.zones.push({ kind, from: at, to: at + 4 + rng() * 1.5, said: false }); }
+  return plan;
+}
+function spawnEvent(kind) {
+  const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
+  const beer = l => { add(l, .02, 'coin'); add(l, -.08, 'coin'); prevSafe = l; };
+  if (kind === 'pioggia') { weatherPlan.push({ kind: 'rain', from: elapsed, to: elapsed + 14 }); toast('🌧 ACQUAZZONE IMPROVVISO! FANGO OVUNQUE', 'blue'); return false; }
+  if (kind === 'trattore') return spawnRanchSpecial(true);
+  if (kind === 'guado') {
+    add(1, .08, 'ford');
+    for (let k = -2; k <= 2; k++) { const dz = k * .05, lift = 2.05 * Math.max(0, Math.cos(dz / .5 / JUMP_DURATION * Math.PI)) + .1; add(prevSafe, .08 - dz, 'coin', { air: true, lift: Math.max(.35, lift) }); }
+    toast('🌊 GUADO IMPROVVISO! SALTA O TI BAGNI I PIEDI', 'blue'); wave++; return true;
+  }
+  if (kind === 'gregge') {
+    const free = Math.floor(rng() * 3), dir = rng() < .5 ? 1 : -1; let i = 0;
+    for (let l = 0; l < 3; l++) if (l !== free) { const k = dir * 2 / .83; add(l - (.91 - .08) * k, .08 - i * .07, 'goat', { roll: true, lEnd: l, k, cross: dir }); i++; }
+    beer(free); toast('🐐 GREGGE IN PISTA! PASSA DOVE C’È LA BIRRA', 'gold'); wave++; return true;
+  }
+  if (kind === 'albero') {
+    const free = Math.floor(rng() * 3);
+    for (let l = 0; l < 3; l++) if (l !== free) { add(l, .08, 'tree', { lean: (l - free) * .4 }); add(l, -.06, 'log'); }
+    beer(free); toast('🌲 ALBERO CADUTO! UNA SOLA CORSIA LIBERA', 'red'); wave++; return true;
+  }
+  if (kind === 'frana') {
+    for (let i = 0; i < 2; i++) { const lEnd = Math.floor(rng() * 3), k = 3.2 / .83; add(lEnd - (.91 - .08) * k, .08 - i * .16, 'rollRock', { roll: true, lEnd, k }); }
+    toast('⛰ FRANA! DUE SASSI IN ARRIVO', 'red'); wave++; return true;
+  }
+  return false;
+}
+function spawnFork() {
+  const shortL = rng() < .5 ? 0 : 2, safeL = 2 - shortL;
+  objects = objects.filter(o => o.z > .3 || o.z < -.4 || o.type === 'coin');
+  objects.push({ l: shortL, z: .04, type: 'forkShort', hit: false }, { l: safeL, z: .04, type: 'forkSafe', hit: false });
+  const side = l => l === 0 ? 'SINISTRA' : 'DESTRA';
+  toast(`🔀 BIVIO! ${side(shortL)}: PIETRAIA CORTA · ${side(safeL)}: STRADA LUNGA CON LE BIRRE`, 'gold');
+  wave++;
+}
+function takeFork(kind) {
+  for (const o of objects) if (o.type === 'forkShort' || o.type === 'forkSafe') o.collected = true;
+  forkPath = { kind, until: course + 5 };
+  objects = objects.filter(o => o.z > .8);
+  if (kind === 'short') { run.forkShort = (run.forkShort || 0) + 1; bigCall('🪨 PIETRAIA CORTA!'); A.sfx.near(); }
+  else { bigCall('🍺 STRADA LUNGA'); A.sfx.beer(); }
+}
+function spawnRockWave(dense) {
+  const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
+  let free = prevSafe + (rng() < .5 ? -1 : 1); if (free < 0) free = 1; if (free > 2) free = 1; prevSafe = free;
+  for (let l = 0; l < 3; l++) if (l !== free) { add(l, .08, 'rock'); if (dense && rng() < .5) add(l, -.04, 'rock'); }
+  add(free, .06, 'coin'); wave++;
+}
+function spawnFlowWave() {
+  const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
+  const l = prevSafe;
+  add(l, .08, 'ramp');
+  for (let k = 1; k <= 4; k++) add(l, .08 - k * .055, 'coin', { air: true, lift: Math.max(.6, Math.sin(Math.min(1, k / 5) * Math.PI) * 2.6 + .1) });
+  wave++;
+}
+function spawnBeerLine() {
+  const l = prevSafe = (prevSafe + (rng() < .5 ? 0 : rng() < .5 ? 1 : 2)) % 3;
+  for (let i = 0; i < 3; i++) objects.push({ l, z: .08 - i * .1, type: 'coin', hit: false });
+  wave++;
+}
+// pianificazione del giro, chiamata da spawnWave: true = l'ondata l'ha già fatta lei
+function planWave() {
+  if (!runPlan) return false;
+  if (forkPath) {
+    if (course >= forkPath.until) {
+      if (forkPath.kind === 'short') { const jw = courseLength(P.MODES[mode].difficulty) * 19.5 * .045; roadTime += jw / 19.5; for (const r of rivals) r.gap -= jw; score += 300; pop('⏱ PIETRAIA SUPERATA: SEI PIÙ AVANTI! +300', 'gold'); }
+      forkPath = null;
+    } else { if (forkPath.kind === 'short') spawnRockWave(true); else spawnBeerLine(); return true; }
+  }
+  if (runPlan.forks.length && course >= runPlan.forks[0].at) { runPlan.forks.shift(); spawnFork(); return true; }
+  if (runPlan.events.length && course >= runPlan.events[0].at) { const ev = runPlan.events.shift(); if (spawnEvent(ev.kind)) return true; }
+  const zone = runPlan.zones.find(z => course >= z.from && course < z.to);
+  if (zone) {
+    if (!zone.said) { zone.said = true; toast(zone.kind === 'flow' ? '🌊 TRATTO FLOW: DOSSI E SALTI IN FILA' : '🪨 PIETRAIA TECNICA: OCCHIO ALLE LINEE', zone.kind === 'flow' ? 'green' : 'red'); }
+    if (zone.kind === 'flow') spawnFlowWave(); else spawnRockWave(false);
+    return true;
+  }
+  return false;
+}
+function checkFlash() {
+  const f = runPlan?.flash; if (!f || runPlan.flashDone) return;
+  const v = f.val(), ch = $('flashchip');
+  if (ch) { ch.hidden = state !== 'playing'; ch.innerHTML = `🎯 ${f.text}<b>${Math.min(v, f.goal)}/${f.goal}</b>`; }
+  if (v >= f.goal) { runPlan.flashDone = true; run.caps += FLASH_BEERS; run.flash = f.text; flash('gold'); A.sfx.perfect?.(); bigCall('🎯 SFIDA LAMPO!'); toast(`🎯 SFIDA LAMPO FATTA: ${f.text.toUpperCase()} · +${FLASH_BEERS} 🍺`, 'gold'); if (ch) ch.classList.add('done'); }
+}
+function duelNoPlan() { return false; }
 function spawnWave() {
   if (leap) return spawnLeapWave();
   if (P.MODES[mode].ranch && spawnRanchSpecial()) return;
   if (ice) return spawnIceWave();
   if (P.MODES[mode].slalom) return spawnSlalomWave();
+  if (!P.MODES[mode].gev && !duelNoPlan() && planWave()) { checkFlash(); return; }
+  checkFlash();
   { const rr = routeAt(course, roadTime * 19.5);   // v85 · in salita con la trazione si pensa solo al gas: niente ostacoli, solo birre
     if (feat('traction') && (rr.climb > .3 || rr.grade > .04) && !leap) { const l = Math.floor(rng() * 3); for (let i = 0; i < 3; i++) objects.push({ l, z: -.08 * i, type: 'coin', hit: false }); wave++; return; } }
   if (P.MODES[mode].wild && wave > 1 && spawnWildSpecial(routeAt(course, roadTime * 19.5).id)) return;
@@ -1193,6 +1325,13 @@ function setupRace() {
   if (rule('rain')) weatherPlan = [{ kind: 'rain', from: 0, to: 999 }];
   if (rule('fog')) weatherPlan = [{ kind: 'fog', from: 0, to: 999 }];
   if (feat('night')) weatherPlan.push({ kind: 'night', from: 0, to: 999 });   // v84 · MotoFogna (e la notturna del giorno)
+  // v97 · ora e meteo diversi a ogni giro: tramonto o nebbia del mattino a caso, così lo stesso percorso cambia faccia
+  timeOfDay = '';
+  if (!P.MODES[mode].ice && !P.MODES[mode].leap && !feat('night') && !P.MODES[mode].rainy && mode !== 3 && !weatherPlan.length) {
+    const r = rng();
+    if (r < .22) { weatherPlan.push({ kind: 'dusk', from: 0, to: 999 }); timeOfDay = '🌅 GIRO AL TRAMONTO'; }
+    else if (r < .38) { weatherPlan.push({ kind: 'fog', from: 0, to: 12 + rng() * 10 }); timeOfDay = '🌫 NEBBIA DEL MATTINO'; }
+  }
   if (rule('noturbo')) rivals.forEach(r => r.skill *= .96);
   if (ice) {
     // sul ghiaccio niente pioggia: al massimo nebbia o il sole che cala dietro al lago
@@ -1200,6 +1339,7 @@ function setupRace() {
     const targets = [23000, 18400, 14200];   // v88 · curvoni a U: si derapa di più, anche i compagni   // v50 · guida libera: ≈ 9.000 · 6.800 · 4.800 punti a fine gara
     rivals.forEach((r, i) => { r.drift = 0; r.dTarget = targets[i] * (.92 + rng() * .16); r.driftAhead = false; r.slip = 3 + rng() * 6; });
   }
+  runPlan = makeRunPlan();
   weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0, lamp: feat('frontali') ? 1 : 0 }; weatherSaid = ''; nextFlash = 4 + rng() * 4;
   for (const w of weatherPlan) if (w.from === 0 && w.kind !== 'dusk') weather[w.kind] = 1;   // v84 · meteo da inizio gara: già pieno al via
 }
@@ -1644,6 +1784,7 @@ function update(dt) {
     }
     if (o.type === 'bar') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeBar(); } continue; }
     if (o.type === 'shortcut') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeShortcut(); return; } continue; }
+    if (o.type === 'forkShort' || o.type === 'forkSafe') { if (Math.abs(px - o.l) < .6 && crash <= 0 && !o.collected) takeFork(o.type === 'forkShort' ? 'short' : 'safe'); continue; }
     if (o.type === 'landpad' || o.type === 'mboard' || o.type === 'gevmark' || (o.type === 'boulder' && leap)) continue;   // v64 · i pietroni si valutano all'atterraggio (corsia)
     if (o.type === 'speedpad') {   // v67 · scopa volante di Angelo Potter: più velocità per il salto
       if (Math.abs(px - o.l) < .6) { o.collected = true; leapMul = Math.min(2.2, leapMul + .12); if (turbo <= 0) charge = Math.min(100, charge + 30); A.sfx.turbo(); shake = Math.max(shake, .2); pop('🧹 SCOPA! ' + Math.round(kmh * 1.45 * 1.07) + ' km/h', 'gold'); fxKind = 'trick'; fxSerial++; }
@@ -1666,6 +1807,7 @@ function update(dt) {
         if (gap < .5 && lift > .8) { o.collected = true; run.caps++; run.airCaps++; A.sfx.air(); reward(150 * val, 'BIRRA AL VOLO!', 'coin'); }
       } else if (gap < .4 + up.nose * .05 || gap < pull || (has('nose') && gap < 1.05)) {
         o.collected = true; run.caps++; A.sfx.beer(); reward(100 * val, combo >= 2 ? 'COMBO!' : 'BIRRA!');
+        if (routeAt(course, roadTime * 19.5).climb > .3) run.climbCaps = (run.climbCaps || 0) + 1;
       }
     } else if (o.type === 'helmet' || o.type === 'wine' || o.type === 'grappa') {
       if (gap < .5 || gap < pull) {
@@ -1808,7 +1950,7 @@ function drawState() {
     livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
     leapPitch: leap && leapState === 2 ? leapPitch : undefined, leapCam: leap && leapState === 2, canyon: leap && canyonX0 !== null ? { x0: canyonX0, len: canyonLen, land: canyonLand } : null,
     gev: gev ? { L: 1 + gevSide * 2.15, z: gevZ, arm: gevArm, t: elapsed } : null,
-    ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs,
+    ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs, variant: variantOf(mode),
     rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended' || state === 'continue') ? (gGhost && state !== 'ended' ? [...rivals, gGhost.entry] : rivals) : [], weather,
   });
 }
@@ -2034,7 +2176,7 @@ function renderReady() {
     <div class="trackhero sky${md.sky ?? 0} ${md.ice ? 'icy' : ''} ${art ? 'hasart' : ''}">
       ${art ? `<img class="trackart" src="${art}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}
       <div class="thtext"><span class="ps">PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.id === 3 ? `<span class="dayrule">${dailyRule().icon} REGOLA DI OGGI: ${dailyRule().name}</span> ${dailyRule().desc}` : md.desc}</small>
-      ${md.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(md.layout || layoutFor(md.id))}
+      ${md.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(layoutFor(md.id))}
       <span class="record">${icon('trophy')} ${best ? `RECORD ${md.id === 3 ? 'DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span></div>
     </div>
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : A.STYLES[mode].name}</small></span>${icon('chevrons')}</button>
@@ -2790,7 +2932,7 @@ if (/debug/.test(location.hash)) {
 // Aggancio per i test automatici (non usato dal gioco).
 window.__edt = { get state() { return state; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
-  get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, replay: startReplay, recFake() { recClock += 1 / 30; replayBuf.push({ t: recClock, s: cloneSnap(drawState()) }); while (replayBuf[0].t < recClock - REPLAY_SEC) replayBuf.shift(); }, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
+  get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, get runPlan() { return runPlan; }, get forkPath() { return forkPath; }, replay: startReplay, recFake() { recClock += 1 / 30; replayBuf.push({ t: recClock, s: cloneSnap(drawState()) }); while (replayBuf[0].t < recClock - REPLAY_SEC) replayBuf.shift(); }, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
 
 // v96 · i comandi di prova (__edt) esistono solo in locale o con ?dev=1: dal sito pubblico non si possono usare per truccare i giri
 { const DEV = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || /[?&]dev=1(&|$)/.test(location.search);

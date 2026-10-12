@@ -159,7 +159,8 @@ export function createWorld(canvas) {
   let trail = { grade: 0, width: 1, rough: 0, climb: 0, wet: 0 };
   const spacing = () => 2.5 * trail.width;
   let iceMode = false, iceKey = null, groundMaps = null;
-  const center = (z, t) => iceMode ? (iceShape(t - z) - iceShape(t) + iceHeading(t) * z) * 2 : Math.sin((t - z) * .021) * 3.8 - Math.sin(t * .021) * 3.8 + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;   // v88 · sul ghiaccio la vista segue la direzione della pista: si vede solo la curva
+  let curveA = 3.8, curveF = .021;   // v97 · curve diverse per la variante della settimana
+  const center = (z, t) => iceMode ? (iceShape(t - z) - iceShape(t) + iceHeading(t) * z) * 2 : Math.sin((t - z) * curveF) * curveA - Math.sin(t * curveF) * curveA + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;   // v88 · sul ghiaccio la vista segue la direzione della pista: si vede solo la curva
   // v64 · burrone del Taglio di Angelo: la montagna finisce e il terreno sprofonda (la moto resta alla quota del bordo)
   let canyon = null;
   const CANYON_D = 52, CANYON_DROP = 14;   // profondità del burrone e quanto più in basso si atterra
@@ -508,9 +509,12 @@ export function createWorld(canvas) {
   // Pozzanghere: stagni ai lati, staccionata di legno e balle di fieno nei prati.
   const PONDS = 14;
   const pondMat = new T.MeshStandardMaterial({ color: '#4f8fa0', roughness: .05, metalness: .35, transparent: true, opacity: .9 });
-  const ponds = new T.InstancedMesh(new T.CircleGeometry(1, 24), pondMat, PONDS);
-  const pondData = Array.from({ length: PONDS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 9 + rand() * 9, z: i * 12.8 + rand() * 4, sx: 2.5 + rand() * 3, sz: 3 + rand() * 4, h: rand() * .7 }));
-  ponds.receiveShadow = true; scene.add(ponds);
+  // v97 · stagni a forma irregolare (non più ovali allungati) con la riva di fango bagnato
+  const pondBlob = k => { const sh = new T.Shape(), N = 40; for (let i = 0; i <= N; i++) { const a = i / N * Math.PI * 2, r = 1 + k + .16 * Math.sin(a * 3 + 1) + .09 * Math.sin(a * 5 + 2) + .05 * Math.sin(a * 9); const x = Math.cos(a) * r, y = Math.sin(a) * r * .85; i ? sh.lineTo(x, y) : sh.moveTo(x, y); } return new T.ShapeGeometry(sh); };
+  const ponds = new T.InstancedMesh(pondBlob(0), pondMat, PONDS);
+  const pondShore = new T.InstancedMesh(pondBlob(.22), new T.MeshStandardMaterial({ color: '#4a3b2b', roughness: .6 }), PONDS);
+  const pondData = Array.from({ length: PONDS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 9 + rand() * 9, z: i * 12.8 + rand() * 4, sx: 2.4 + rand() * 2.6, sz: 2.2 + rand() * 2.4, h: rand() * .7 }));
+  ponds.receiveShadow = true; pondShore.receiveShadow = true; scene.add(ponds, pondShore);
   const FENCE = 44;
   const posts = new T.InstancedMesh(new T.BoxGeometry(.13, 1.1, .13), bark, FENCE);
   const rails = new T.InstancedMesh(new T.BoxGeometry(.06, .09, 1), mat('#8a6a46', .9), FENCE * 2);
@@ -574,6 +578,7 @@ export function createWorld(canvas) {
       const z = wrapZ(d.z, t), w = d.side * d.off, v = vis(z, [0, 1, 0, 0], d.h);
       dummy.position.set(center(z, t) + w, ground(z, t, w) + .04, z);
       dummy.rotation.set(-Math.PI / 2, 0, i); dummy.scale.set(d.sx * v, d.sz * v, 1); put(ponds, i);
+      dummy.position.y -= .025; put(pondShore, i);
     });
     for (let i = 0; i < FENCE; i++) {
       const z = wrapZ(i * 4.1, t), z2 = z - 4.1, w = 6.4 * trail.width, v = vis(z, [0, 1, .15, 0], .35);
@@ -604,7 +609,7 @@ export function createWorld(canvas) {
       dummy.position.set(x, y + 2.37 * v, z); put(shrineRoof, i);
       dummy.position.set(x - .2 * v, y + 1.5 * v, z - .26 * v); put(shrineNiche, i);
     }
-    for (const m of [tufts, ferns, reeds, flowers, shroomStems, shroomCaps, shrubs, ponds, posts, rails, hays, cairns, shrineBody, shrineRoof, shrineNiche]) m.instanceMatrix.needsUpdate = true;
+    for (const m of [tufts, ferns, reeds, flowers, shroomStems, shroomCaps, shrubs, ponds, pondShore, posts, rails, hays, cairns, shrineBody, shrineRoof, shrineNiche]) m.instanceMatrix.needsUpdate = true;
   }
 
   // Mulattiera: lastricato, muretto a secco e pareti di roccia.
@@ -1348,7 +1353,31 @@ export function createWorld(canvas) {
 
   const rampDirt = mat('#7b5a38', .95), rampWood = mat('#b98a52', .8), rampLip = new T.MeshStandardMaterial({ color: '#ffd400', roughness: .6, emissive: '#3a2f00', emissiveIntensity: .25 });
   const obstacleMap = new Map(), pools = {};
-  const fordWater = new T.MeshStandardMaterial({ color: '#5d8fa3', roughness: .08, metalness: .2, transparent: true, opacity: .88 }), fordFoam = mat('#eef6f7', .6);
+  // v97 · acqua del guado con la corrente disegnata (la texture scorre di traverso alla pista)
+  const fordTex = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d');
+    x.fillStyle = '#3f6e6c'; x.fillRect(0, 0, 256, 128);
+    for (let i = 0; i < 70; i++) { const y = Math.random() * 128, len = 30 + Math.random() * 90, a = .08 + Math.random() * .22; x.strokeStyle = `rgba(230,245,250,${a})`; x.lineWidth = 1 + Math.random() * 2.5; x.beginPath(); const x0 = Math.random() * 256; x.moveTo(x0, y); x.bezierCurveTo(x0 + len * .3, y - 3, x0 + len * .6, y + 3, x0 + len, y); x.stroke(); }
+    for (let i = 0; i < 40; i++) { x.fillStyle = `rgba(20,50,60,${.15 + Math.random() * .2})`; x.beginPath(); x.ellipse(Math.random() * 256, Math.random() * 128, 6 + Math.random() * 18, 2 + Math.random() * 4, 0, 0, 7); x.fill(); }
+    const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(3, 1); t.colorSpace = T.SRGBColorSpace; return t; })();
+  const fordWater = new T.MeshStandardMaterial({ map: fordTex, color: '#c4ddd6', roughness: .05, metalness: .3, transparent: true, opacity: .86 }), fordFoam = mat('#eef6f7', .6);
+  const fordFoamT = new T.MeshStandardMaterial({ color: '#f2f8f9', roughness: .5, transparent: true, opacity: .75, depthWrite: false });
+  const fordBank = mat('#3f3226', .55), mossStone = mat('#6d7a55', .9);
+  for (const m of [fordWater, fordFoamT, fordBank]) { m.polygonOffset = true; m.polygonOffsetFactor = -4; m.polygonOffsetUnits = -4; }   // sempre sopra il terreno, anche dove la mesh del suolo sale
+  let fordGeoCache = null;
+  function fordGeos() {
+    if (fordGeoCache) return fordGeoCache;
+    const edge = (x, sgn, k) => { const taper = 1 - .6 * Math.pow(Math.max(0, Math.abs(x) - .4) / .1, 2); return sgn * (2.1 + k + .45 * Math.sin(x * 14 + sgn * 1.3) + .22 * Math.sin(x * 37 + 2 * sgn) + .08 * Math.sin(x * 91)) * taper + 2.2 * Math.sin(x * 7.5) + .8 * Math.sin(x * 17); };   // torrente che arriva dal prato, serpeggia e riparte   // largo in pista, si stringe ai lati e serpeggia
+    const shape = k => { const sh = new T.Shape(), N = 60; sh.moveTo(-.5, edge(-.5, -1, k));
+      for (let i = 1; i <= N; i++) { const x = -.5 + i / N; sh.lineTo(x, edge(x, -1, k)); }
+      for (let i = N; i >= 0; i--) { const x = -.5 + i / N; sh.lineTo(x, edge(x, 1, k)); }
+      const g = new T.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); return g; };
+    const foam = (() => { const parts = []; for (const sgn of [-1, 1]) { const sh = new T.Shape(), N = 60; sh.moveTo(-.5, edge(-.5, sgn, -.02));
+      for (let i = 1; i <= N; i++) { const x = -.5 + i / N; sh.lineTo(x, edge(x, sgn, -.02)); }
+      for (let i = N; i >= 0; i--) { const x = -.5 + i / N; sh.lineTo(x, edge(x, sgn, -.1 - .04 * Math.sin(x * 37))); }
+      const g = new T.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); parts.push(g); } return mergeGeometries(parts); })();
+    const wake = (() => { const sh = new T.Shape(); sh.moveTo(-.1, 0); sh.quadraticCurveTo(.2, .18, 1, .05); sh.lineTo(1, -.05); sh.quadraticCurveTo(.2, -.18, -.1, 0); const g = new T.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); g.scale(.25, 1, 1); return g; })();
+    return (fordGeoCache = { water: shape(0), bank: shape(.55), foam, wake });
+  }
   const ibexFur = mat('#8a6a48', .9), chamFur = mat('#4a3526', .9), marmotFur = mat('#9a7650', .95);
   const snowMat = mat('#f6f9fb', .7), carrotMat = mat('#f07a1c', .6), scarfMat = mat('#d0242a', .8);
   const gateWhite = mat('#f4f6f8', .5), gateBlue = new T.MeshStandardMaterial({ color: '#1e7fd8', roughness: .6, side: T.DoubleSide }), gateRing = new T.MeshBasicMaterial({ color: '#5fd4ff', transparent: true, opacity: .75, depthWrite: false });
@@ -1457,6 +1486,18 @@ export function createWorld(canvas) {
       const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffd400', transparent: true, opacity: .55, blending: T.AdditiveBlending, depthWrite: false }));
       glow.scale.set(3.2, 1.6, 1); glow.position.set(0, 2.62, .2); g.add(glow);
       for (const sd of [-1, 1]) { const arrow = mesh(new T.ConeGeometry(.18, .4, 4), rampLip, g); arrow.rotation.x = -Math.PI / 2; arrow.position.set(sd * .6, .25, -.5); }
+    } else if (type === 'forkShort' || type === 'forkSafe') {
+      // v97 · bivio: due cartelli su pali, pietraia corta (rischio) o strada lunga con le birre
+      const sh = type === 'forkShort', c = document.createElement('canvas'); c.width = 512; c.height = 200; const x = c.getContext('2d');
+      x.fillStyle = sh ? '#c8321f' : '#1f6b34'; x.fillRect(0, 0, 512, 200); x.strokeStyle = '#fff'; x.lineWidth = 10; x.strokeRect(6, 6, 500, 188);
+      x.fillStyle = '#fff'; x.font = '900 64px Arial'; x.textAlign = 'center'; x.fillText(sh ? 'PIETRAIA' : 'STRADA LUNGA', 256, 86);
+      x.font = '900 40px Arial'; x.fillText(sh ? '⏱ CORTA · DURA' : '🍺 PULITA · BIRRE', 256, 150);
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+      for (const sd of [-1, 1]) box(.14, 3.3, .14, rampWood, g, sd * 1.05, 1.65, 0);
+      const sign = mesh(new T.PlaneGeometry(2.5, .98), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); sign.position.set(0, 2.85, .08); sign.castShadow = false;
+      const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: sh ? '#ff6a4a' : '#5dff8a', transparent: true, opacity: .45, blending: T.AdditiveBlending, depthWrite: false })); glow.scale.set(3.6, 1.8, 1); glow.position.set(0, 2.85, .2); g.add(glow);
+      const arrow = mesh(new T.ConeGeometry(.22, .5, 4), sh ? mat('#c8321f', .6) : mat('#1f6b34', .6), g); arrow.rotation.x = -Math.PI / 2; arrow.position.set(0, .3, -.6);
+      if (sh) for (let i = 0; i < 4; i++) { const r = mesh(new T.IcosahedronGeometry(.18 + i * .04, 0), stone, g); r.position.set(-.9 + i * .6, .12, -1.2 - (i % 2) * .5); }
     } else if (type === 'bar') {
       // v84 · sosta al bar del Giro easy: arco con tendone a righe, insegna e bancone con le birre
       const c = document.createElement('canvas'); c.width = 512; c.height = 160; const x = c.getContext('2d');
@@ -1564,10 +1605,19 @@ export function createWorld(canvas) {
       }
     } else if (type === 'ford') {
       // v46 · guado: torrente che attraversa tutta la pista, con sassi e schiuma
-      const inner = new T.Group(); g.add(inner); g.userData.inner = inner;
-      const w = mesh(new T.BoxGeometry(1, .05, 1.5), fordWater, inner); w.position.y = .03; w.receiveShadow = true;
-      for (const z of [-.8, .8]) { const b = mesh(new T.BoxGeometry(1, .07, .14), fordFoam, inner); b.position.set(0, .05, z); }
-      for (let i = 0; i < 7; i++) { const r = mesh(new T.IcosahedronGeometry(.13 + (i % 3) * .05, 0), stone, g); r.position.set((i - 3) * 1.15 + Math.sin(i * 7) * .3, .06, Math.cos(i * 5) * .5); }
+      // v97 · guado vero: bordi irregolari, sponde di fango bagnato, corrente che scorre, sassi affioranti con la schiuma a valle
+      const inner = new T.Group(); g.add(inner); g.userData.inner = inner;   // allargato su tutta la pista (solo in x)
+      g.rotation.y = (Math.random() - .5) * .3;   // il torrente non taglia mai la pista a squadra
+      const G = fordGeos();
+      const bank = mesh(G.bank, fordBank, inner); bank.position.y = .06; bank.receiveShadow = true; bank.castShadow = false;
+      const w = mesh(G.water, fordWater, inner); w.position.y = .09; w.receiveShadow = true; w.castShadow = false;
+      const f = mesh(G.foam, fordFoamT, inner); f.position.y = .1; f.castShadow = false;
+      const seed = Math.random() * 100;
+      for (let i = 0; i < 22; i++) {
+        const x = (i - 11) * .62 + Math.sin(seed + i * 7.3) * .3, z = Math.sin(seed * .7 + i * 3.1) * 1.5 + (i % 5 === 0 ? (i % 2 ? 1.9 : -1.9) : 0), sz = .09 + Math.abs(Math.sin(seed + i * 2.2)) * .16;
+        const r = mesh(new T.IcosahedronGeometry(sz, 1), i % 4 ? stone : mossStone, g); r.scale.set(1.25, .55, 1); r.position.set(x, .07 + sz * .12, z); r.rotation.y = i;
+        if (i % 2 === 0) { const fm = mesh(G.wake, fordFoamT, g); fm.position.set(x + sz * 1.6, .1, z); fm.scale.set(sz * 6, 1, sz * 4); fm.castShadow = false; }
+      }
     } else if (type === 'ibex' || type === 'chamois') {
       // v46 · stambecco (corna grandi a falce) e camoscio (corna a uncino, maschera bianca e nera)
       const ib = type === 'ibex', fur = ib ? ibexFur : chamFur, sc = ib ? 1.1 : .95;
@@ -2093,6 +2143,7 @@ export function createWorld(canvas) {
   }
 
   function render(s) {
+    curveA = [3.8, 4.9, 3.1][s.variant || 0]; curveF = [.021, .027, .016][s.variant || 0];
     const now = performance.now(), fdt = Math.min(.07, s.dt || (now - lastRender) / 1000); lastRender = now;
     adaptQuality();
     applyPreset(s.preset ?? 0);
@@ -2189,6 +2240,7 @@ export function createWorld(canvas) {
     head.rotation.x = -(body.rotation.x + grade + dyn.pitch) * .55;
     dyn.brake = Math.max(0, (dyn.brake || 0) - fdt * 2.5);
     brakeLightMat.emissiveIntensity = Math.max(.3 + dyn.brake * 2.2, (weatherNow.dusk || 0) * 1.6 + (weatherNow.fog || 0) * 1.2);
+    fordTex.offset.x = (now / 1000 * .22) % 1;   // v97 · la corrente del guado scorre
     const spin = t / .475;
     frontWheel.rotation.x = -spin;
     rearWheel.rotation.x = -spin - (boostAmount > 2.2 ? (now / 40) : 0);
@@ -2234,7 +2286,7 @@ export function createWorld(canvas) {
       }
       if (m.userData.roller) m.userData.roller.rotation.z = -o.z * 26;
       if (o.type === 'bigLog') { const len = spacing() * 2 + 2.2; m.userData.inner.scale.x = len; }
-      if (o.type === 'ford') m.userData.inner.scale.x = spacing() * 2 + 4.5;
+      if (o.type === 'ford') m.userData.inner.scale.x = spacing() * 2 + 30;   // v97 · il torrente continua nel prato
       if (o.cross) m.rotation.y = o.cross > 0 ? 0 : Math.PI;
       else if (o.type === 'ibex' || o.type === 'chamois' || o.type === 'marmot') m.rotation.y = 0;
       if (o.lean !== undefined && o.type === 'tree') m.rotation.z = o.lean * .3;
