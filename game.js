@@ -1970,7 +1970,7 @@ function renderShop(back, tab = shopTab) {
   const parts = P.currentParts();
   const partRow = p => `<div class="ugroup">${p.name}</div><div class="chips">${p.items.map(it => {
     const owned = P.ownsPart(p.slot, it.id), on = parts[p.slot].id === it.id, can = owned || P.profile.beers >= it.price;
-    return `<button type="button" class="chip ${on ? 'on' : ''} ${it.boanal ? 'boanal' : ''}" data-part="${p.slot}:${it.id}" ${!on && !can ? 'disabled' : ''}>${it.color ? `<i style="background:${it.color}"></i>` : ''}<span>${it.name}${it.stats ? `<em class="chipstat">${P.statLabel(it.stats)}</em>` : ''}</span><small>${on ? '✔' : owned ? 'USA' : it.price + ' 🍺'}</small></button>`;
+    return `<button type="button" class="chip ${on ? 'on' : ''} ${it.boanal || it.factory ? 'boanal' : ''}" data-part="${p.slot}:${it.id}" ${!on && !can ? 'disabled' : ''}>${it.color ? `<i style="background:${it.color}"></i>` : ''}<span>${it.name}${it.stats ? `<em class="chipstat">${P.statLabel(it.stats)}</em>` : ''}</span><small>${on ? '✔' : owned ? 'USA' : it.price + ' 🍺'}</small></button>`;
   }).join('')}</div>`;
   const studs = P.PARTS.find(p => p.slot === 'studs');
   const studCard = it => {

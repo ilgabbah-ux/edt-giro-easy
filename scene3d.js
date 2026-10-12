@@ -976,7 +976,7 @@ export function createWorld(canvas) {
   flameCore.rotation.x = -Math.PI / 2; flameCore.position.set(.31, 1.18, 1.1); flameCore.userData.keep = true; flameCore.name = 'fx'; chassis.add(flameCore);
 
   // Pilota: gambe sulle pedane (fisse), busto che si alza, braccia e cosce che si adattano.
-  const rider = new T.Group(); chassis.add(rider);
+  const rider = new T.Group(); rider.name = 'rider'; chassis.add(rider);
   const upper = new T.Group(); rider.add(upper);
   ball(.18, .14, .17, pantsMat, upper, 0, 1.41, .27);   // v72 · proporzioni da pilota vero (prima era tutto gonfio)
   const body = new T.Group(); body.position.set(0, 1.42, .25); upper.add(body);
@@ -1017,6 +1017,15 @@ export function createWorld(canvas) {
   // v97 · casco da cross modellato in Blender: calotta con mentoniera a becco, frontino nervato, maschera con elastico, grafica nel colore della livrea
   { const hg = new T.Group(); hg.position.set(0, -.01, .01); head.add(hg);
     for (const [m, mt] of [['helmet', helmetMat], ['accent', accent], ['black', black], ['lens', lensMat]]) mesh(partGeo('helmet', m), mt, hg); }
+  // v97 · action cam sul casco: cinese, GoPro, Action360 EDT (il top, su un'asticella con due obiettivi)
+  const camModels = {};
+  { const camBlack = mat('#151515', .4), camGrey = mat('#4a4d50', .5), camLens = new T.MeshStandardMaterial({ color: '#0c1a22', roughness: .05, metalness: .8 }), camGold = mat('#f2c230', .3, .4);
+    const mk = id => { const g = new T.Group(); g.name = 'fxcam'; g.position.set(0, .178, -.035); g.visible = false; head.add(g); camModels[id] = g; return g; };
+    { const g = mk('cinese'); box(.052, .036, .042, camGrey, g, 0, .02, 0); const l = mesh(new T.CylinderGeometry(.011, .011, .012, 12), camLens, g); l.rotation.x = Math.PI / 2; l.position.set(.012, .02, -.026); }
+    { const g = mk('gopro'); box(.046, .042, .034, camBlack, g, 0, .024, 0); const l = mesh(new T.CylinderGeometry(.013, .014, .014, 14), camLens, g); l.rotation.x = Math.PI / 2; l.position.set(.01, .026, -.022); box(.014, .006, .006, mat('#e8e8e8', .4), g, -.012, .044, -.012); }
+    { const g = mk('action360'); mesh(new T.CylinderGeometry(.005, .005, .07, 8), camBlack, g).position.y = .035; box(.03, .05, .026, camBlack, g, 0, .09, 0); box(.032, .008, .028, camGold, g, 0, .118, 0);
+      for (const sd of [-1, 1]) { const l = mesh(new T.SphereGeometry(.011, 12, 8), camLens, g); l.position.set(0, .094, sd * .014); } }
+  }
   for (const side of [-1, 1]) {
     box(.1, .04, .02, accent, body, ...B(side * .15, 1.58, .33));
     const lg = joints.find(j => j.side === side).legIn;
@@ -1116,18 +1125,19 @@ export function createWorld(canvas) {
     if (kind === 'stripes') { x.fillStyle = a; x.fillRect(0, 34, 256, 22); x.fillStyle = b; x.fillRect(0, 62, 256, 10); x.fillStyle = a; x.fillRect(0, 78, 256, 6); }
     else if (kind === 'flames') { x.fillStyle = '#ff6a13'; for (let i = 0; i < 6; i++) { x.beginPath(); x.moveTo(0, 30 + i * 12); x.quadraticCurveTo(120 + i * 18, 10 + i * 14, 250 - i * 22, 40 + i * 10); x.quadraticCurveTo(140, 70 + i * 6, 0, 60 + i * 12); x.fill(); } x.fillStyle = '#ffd400'; for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(0, 50 + i * 12); x.quadraticCurveTo(100 + i * 12, 40 + i * 12, 180 - i * 20, 60 + i * 8); x.quadraticCurveTo(100, 80, 0, 74 + i * 10); x.fill(); } }
     else if (kind === 'boanal') { const gr = x.createLinearGradient(0, 20, 0, 110); gr.addColorStop(0, '#fff2b0'); gr.addColorStop(.5, '#f2c230'); gr.addColorStop(1, '#a8770c'); x.fillStyle = '#111'; x.fillRect(0, 22, 256, 84); x.fillStyle = gr; x.font = 'italic 900 52px Arial'; x.textAlign = 'center'; x.fillText('BO-anal', 128, 72); x.font = '900 18px Arial'; x.fillText('SPECIAL PARTS', 128, 98); }
+    else if (kind === 'factory') { x.fillStyle = '#151515'; x.fillRect(0, 26, 256, 76); x.fillStyle = '#f2c230'; x.fillRect(0, 26, 256, 6); x.fillRect(0, 96, 256, 6); x.font = 'italic 900 40px Arial'; x.textAlign = 'center'; x.fillText('EDT FACTORY', 128, 80); }
     else if (kind === 'edt') { x.fillStyle = b; x.font = 'italic 900 78px Arial'; x.textAlign = 'center'; x.lineWidth = 8; x.strokeStyle = '#111'; x.strokeText('EDT', 128, 96); x.fillText('EDT', 128, 96); }
     sideDecalTex.needsUpdate = true;
   }
   function applyCustom(look = {}, parts = {}, livery = {}) {
-    const key = JSON.stringify([look, parts.rims?.id, parts.pipe?.id, parts.guards?.id, parts.seat?.id, parts.decal?.id, parts.light?.id, parts.studs?.id, livery.id]);
+    const key = JSON.stringify([look, parts.rims?.id, parts.pipe?.id, parts.guards?.id, parts.seat?.id, parts.decal?.id, parts.light?.id, parts.studs?.id, parts.cam?.id, livery.id]);
     if (key === customKey) return; customKey = key;
     rimMat.color.set(parts.rims?.color || '#a3b7bb'); rimMat.metalness = parts.rims?.id === 'black' ? .3 : .7;
     pipeMat.color.set(parts.pipe?.color || '#a3b7bb'); chamberMat.color.copy(pipeMat.color); pipeMat.metalness = chamberMat.metalness = parts.pipe?.id === 'carbon' ? .2 : .75; pipeMat.roughness = chamberMat.roughness = parts.pipe?.id === 'chrome' ? .08 : .3;
     seatMat.color.set(parts.seat?.color || '#243138');
     if (parts.guards?.color) guardMat.color.set(parts.guards.color);
     for (const m of meshesWith(guardMat)) m.visible = !!parts.guards?.color;
-    const lamp = parts.light?.id === 'led' || parts.light?.id === 'boanal' || !!look.vintage || !!look.boanal;
+    const lamp = parts.light?.id === 'led' || parts.light?.id === 'boanal' || parts.light?.id === 'factory' || !!look.vintage || !!look.boanal || !!look.rally;
     for (const m of meshesWith(lampMat)) m.visible = lamp;
     lampGlow.visible = lamp; lampOpt = lamp;
     for (const m of meshesWith(chamberMat)) m.visible = !!look.twoStroke;
@@ -1148,9 +1158,10 @@ export function createWorld(canvas) {
       if (!parts.seat?.color) seatMat.color.set(paint.seat || '#243138');
       if (paint.rims && (!parts.rims || parts.rims.id === 'silver')) { rimMat.color.set(paint.rims); rimMat.metalness = .55; }
     } else { sidePanel.color.set('#eee8d8'); frameMat.color.set('#22272b'); }
-    for (const m of meshesWith(rallyMat)) m.visible = !!look.boanal;
-    for (const m of meshesWith(screenMat)) m.visible = !!look.boanal;
-    for (const m of meshesWith(rallyLamp)) m.visible = !!look.boanal;
+    for (const m of meshesWith(rallyMat)) m.visible = !!(look.boanal || look.rally);
+    for (const m of meshesWith(screenMat)) m.visible = !!(look.boanal || look.rally);
+    for (const m of meshesWith(rallyLamp)) m.visible = !!(look.boanal || look.rally);
+    for (const [k, g] of Object.entries(camModels)) g.visible = (parts.cam?.id || 'none') === k;   // v97 · action cam sul casco
     bike.scale.setScalar(look.scale || 1);
   }
 
@@ -1844,7 +1855,7 @@ export function createWorld(canvas) {
     x.font = '900 25px Arial'; x.fillText(r.name.toUpperCase(), 128, 106, 240);
     const dt = new T.CanvasTexture(c); dt.colorSpace = T.SRGBColorSpace;
     g.traverse(o => {
-      if (o.name === 'fx') o.visible = false;
+      if (o.name === 'fx' || o.name === 'fxcam') o.visible = false;
       if (o.isMesh && o.name === 'decal') o.material = new T.MeshStandardMaterial({ map: dt, roughness: 1 });
       else if (o.isMesh && swap[o.material.uuid]) o.material = swap[o.material.uuid];
       if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; }

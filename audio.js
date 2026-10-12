@@ -323,6 +323,9 @@ const ENGINE_PROFILES = {
   mulo450: { rate: .72, body: 650, bark: 115, barkG: 9, k: 5, drive: 1.5, nz: .9 },    // 4 tempi grosso: cupo e pieno
   vintage: { rate: .82, body: 560, bark: 135, barkG: 6, k: 3, drive: 1.1, nz: 1.5 },   // vecchia gloria: rauca
   boanal: { rate: 1.08, body: 1150, bark: 200, barkG: 9, k: 6, drive: 1.7, nz: 1.2 },  // la più potente
+  electric: { rate: 2.4, body: 2600, bark: 60, barkG: .5, k: 1, drive: .35, nz: .15 },   // v97 · elettrica: fischio, niente scoppi
+  dakar: { rate: .78, body: 700, bark: 125, barkG: 8, k: 4, drive: 1.4, nz: 1 },        // rally 450: cupa e lunga
+  factory: { rate: 1.35, body: 1400, bark: 280, barkG: 8, k: 8, drive: 1.6, nz: 1.4 },   // ufficiale: due tempi tirato
 };
 let EP = ENGINE_PROFILES.edt250;
 export function setEngineProfile(id) { EP = ENGINE_PROFILES[id] || ENGINE_PROFILES.edt250; if (engine) { engine.shaper.curve = shaperCurve(EP.k); engine.bark.gain.value = EP.barkG; } }
