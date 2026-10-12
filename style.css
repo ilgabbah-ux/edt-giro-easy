@@ -1332,3 +1332,8 @@ aside#hub { gap: 10px; }
 .card::after { content: ''; display: block; height: calc(72px + env(safe-area-inset-bottom, 0px)); }
 .game:fullscreen .card { max-height: calc(100dvh - 28px); }
 @supports (height: 100dvh) { .overlay .card { max-height: min(100%, calc(100dvh - 24px)); } }
+/* v99 · classifica leggibile anche sopra la neve e il cielo chiaro: righe con fondo scuro, testo piccolo più grande e chiaro */
+.board li { background: #0d0e0bd9; }
+.board li.top1 { background: linear-gradient(90deg, #4a3d0ff2, #1a170cf2); }
+.board li.me { background: #2a2410f2; }
+.board li .when { font: 700 11.5px var(--ui); color: #ece5cf; text-shadow: 0 1px 2px #000; }
