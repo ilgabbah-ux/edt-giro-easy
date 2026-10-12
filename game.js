@@ -496,6 +496,8 @@ function go() {
   if (gev) { setTimeout(() => { if (state === 'playing') { bigCall('ARRIVANO LE GEV!'); A.sfx.whistle(); } }, 900); setTimeout(() => { if (state === 'playing') toast(`HAI ${lives} TENTATIVI: FINITI QUELLI ARRIVA LA MULTA`, 'red'); }, 2600); }
 }
 
+// v98 · finestre in primo piano (video, podio, sorpasso): dentro il gioco, che sul telefono e a schermo intero copre il resto della pagina
+function topLayer() { return document.fullscreenElement || document.webkitFullscreenElement || $('game') || document.body; }
 function finish(win, reason = '') {
   if (win && state === 'playing') { course = GAME_LENGTH; checkFlash(); }   // v97 · la sfida lampo 'seconda metà pulita' si chiude all'arrivo
   if ($('flashchip')) $('flashchip').hidden = true;
@@ -2041,7 +2043,7 @@ function offerVideo(file, info) {
     <video src="${url}" autoplay loop muted playsinline></video>
     <button class="primary" type="button" id="vidshare"><span>📲 MANDALO NEL GRUPPO</span></button>
     <div class="grow"><a class="linkbtn" id="vidsave" href="${url}" download="${file.name}">salva sul telefono</a><button class="linkbtn" type="button" id="vidclose">chiudi</button></div></div>`;
-  document.body.appendChild(el);
+  topLayer().appendChild(el);
   $('vidclose').onclick = () => { el.remove(); URL.revokeObjectURL(url); };
   $('vidshare').onclick = async () => {
     // v98 · prima il solo video (+ testo), che Android e WhatsApp accettano; se il telefono rifiuta: salva il video e apre WhatsApp col messaggio pronto
@@ -2362,7 +2364,7 @@ function showStats() {
     ${best ? `<div class="wkhead">⏱ TEMPI MIGLIORI AL RIFUGIO</div><ul class="statbest">${best}</ul>` : ''}
     ${st.runs ? '' : '<p>Si contano da questa versione in poi: fai un giro!</p>'}
     <button class="primary" type="button" id="statsok"><span>CHIUDI</span></button></div>`;
-  document.body.appendChild(el); $('statsok').onclick = () => el.remove();
+  topLayer().appendChild(el); $('statsok').onclick = () => el.remove();
 }
 // v96 · podio del lunedì: alla prima apertura della settimana i primi 3 della coppa appena finita
 function showPodium(w) {
@@ -2376,7 +2378,7 @@ function showPodium(w) {
     <div class="podsteps">${order.map(i => { const e = w.prev3[i]; return `<div class="pstep p${i + 1} ${e.n.toLowerCase() === me ? 'me' : ''}">${RIDERS.includes(e.r) ? avatarHTML(e.r) : '<i class="noav"></i>'}<b>${e.n}</b><em>${e.p} pt</em><span>${['🥇', '🥈', '🥉'][i]}</span></div>`; }).join('')}</div>
     <p>${w.prev3[0].n} porta la 👑 accanto al nome per tutta la settimana. Nuova coppa: si riparte da zero!</p>
     <button class="primary" type="button" id="podok"><span>VAI!</span></button></div>`;
-  document.body.appendChild(el);
+  topLayer().appendChild(el);
   A.sfx.perfect?.();
   $('podok').onclick = () => el.remove();
 }
@@ -2428,7 +2430,7 @@ function checkOvertakes(d) {
     <p>😱 ${hit.who ? `<b>${hit.who}</b> ti ha superato` : 'Sei uscito dai primi 10'} su <b>${trackName(hit.m)}</b></p>
     <small>${hit.pos ? `Ora sei ${hit.pos}° nella classifica del gruppo.` : 'Torna in classifica!'}</small>
     <div class="orow"><a class="wabtn" href="${waLink(text)}" target="_blank" rel="noopener">📲 RISPONDI NEL GRUPPO</a><button class="primary" type="button" id="otgo"><span>▶ RIPRENDITELO</span></button></div>`;
-  document.body.appendChild(el);
+  topLayer().appendChild(el);
   $('otx').onclick = () => el.remove();
   $('otgo').onclick = () => { el.remove(); if (P.isUnlocked(P.MODES[hit.m])) { mode = hit.m; profile.mode = mode; P.save(); renderReady(); } };
 }
@@ -2901,7 +2903,7 @@ function installHelp() {
   const el = document.createElement('div');
   el.id = 'installhelp'; el.className = 'installhelp';
   el.innerHTML = `<div class="ihcard"><div class="eyebrow"><span class="ebar"></span>GIRO EASY COME UN'APP</div><h3>Installa il gioco</h3><ol>${steps.map(x => '<li>' + x + '</li>').join('')}</ol><p>Dopo lo trovi tra le app e si apre a schermo intero. Non serve installare per giocare: premi <b>ACCENDI LA MOTO</b> e il gioco va da solo a tutto schermo.</p><button class="primary" type="button" id="ihclose"><span>HO CAPITO</span></button></div>`;
-  document.body.appendChild(el);
+  topLayer().appendChild(el);
   el.onclick = e => { if (e.target === el) closeInstallHelp(); };
   $('ihclose').onclick = closeInstallHelp;
 }

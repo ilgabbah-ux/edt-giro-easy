@@ -1326,3 +1326,5 @@ aside#hub { gap: 10px; }
 .flashchip b { margin-left: 6px; color: #7fd4ff; }
 .flashchip.done { border-color: #ffcf16; } .flashchip.done b { color: #ffcf16; }
 .trackintro em.tiflash { display: block; margin: 2px 0 4px; color: #ffcf16; font-style: normal; font-weight: 900; font-size: 12px; }
+/* v98 · finestre sopra a tutto, anche dentro il gioco a tutto schermo */
+.podium, .overtake { z-index: 2000; }
