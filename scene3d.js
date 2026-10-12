@@ -1912,8 +1912,10 @@ export function createWorld(canvas) {
       if (!m.g.visible) continue;
       const lx = (r.lx - 1) * spacing();
       m.g.position.set(center(z, t) + lx, height(z, t) + (r.lift || 0) + Math.abs(Math.sin(now / 90 + m.phase)) * .02, z);
-      const rYaw = iceMode ? -iceBend(t + r.gap) * .45 - (r.lean || 0) * .12 : -(r.lean || 0) * .05;
-      m.g.rotation.set(0, rYaw, iceMode ? Math.max(-.6, Math.min(.6, rYaw * 1.1)) : Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));   // v94 · anche i compagni piegati in derapata
+      // v96 · sul ghiaccio i compagni seguono la direzione della pista nel punto in cui sono, col muso dentro la curva e piegati verso l'interno
+      const rBend = iceMode ? iceBend(t + r.gap) : 0, rHead = iceMode ? -Math.atan((center(z - .6, t) - center(z + .6, t)) / 1.2) : 0;
+      const rYaw = iceMode ? rHead + rBend * .35 - (r.lean || 0) * .12 : -(r.lean || 0) * .05;
+      m.g.rotation.set(0, rYaw, iceMode ? Math.max(-.6, Math.min(.6, rBend * .45)) : Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));   // v94 · anche i compagni piegati in derapata
       m.pitch.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 160 + m.phase) * .015;
       m.pitch.position.y = 0;
       for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475;
