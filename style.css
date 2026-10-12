@@ -1328,3 +1328,7 @@ aside#hub { gap: 10px; }
 .trackintro em.tiflash { display: block; margin: 2px 0 4px; color: #ffcf16; font-style: normal; font-weight: 900; font-size: 12px; }
 /* v98 · finestre sopra a tutto, anche dentro il gioco a tutto schermo */
 .podium, .overtake { z-index: 2000; }
+/* v99 · sul telefono l'ultimo tasto (INDIETRO, MENU…) finiva sotto la barra del browser: spazio in fondo alle schede */
+.card::after { content: ''; display: block; height: calc(72px + env(safe-area-inset-bottom, 0px)); }
+.game:fullscreen .card { max-height: calc(100dvh - 28px); }
+@supports (height: 100dvh) { .overlay .card { max-height: min(100%, calc(100dvh - 24px)); } }

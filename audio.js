@@ -4,7 +4,7 @@
 
 // v89 · voci caricate dopo il menu (il gioco si apre prima); chi le usa aspetta vociReady
 let VOCI = {};
-const vociReady = import('./voci.js?v=98').then(m => { VOCI = m.VOCI; }).catch(() => {});
+const vociReady = import('./voci.js?v=99').then(m => { VOCI = m.VOCI; }).catch(() => {});
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -209,7 +209,7 @@ export async function testVoices(onStep) {
 // Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
 // v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio
 let VOCI_PILOTI = {}, vpLoad = null;
-export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=98').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
+export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=99').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
 setTimeout(loadRiderVoices, 2500);
 const riderBuf = new Map();
 export const hasRiderVoice = key => !!VOCI_PILOTI[key];
@@ -440,6 +440,7 @@ const SONGS = {
   14: ['gusta-ranch', 'Gusta Ranch'],
 };
 for (const [i, [f, n]] of Object.entries(SONGS)) STYLES[i] = { ...STYLES[i], file: 'musica/' + f + '.mp3', name: n };
+STYLES[15] = { ...STYLES[10] };   // v99 · Notturna con le frontali: stessa musica di MotoFogna
 // v57 · brani registrati (MP3): caricati una volta sola; la canzone riparte da dove si era fermata al giro prima.
 const songBuf = {}, songPos = {};
 async function loadSong(file) {
