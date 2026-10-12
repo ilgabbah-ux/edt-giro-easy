@@ -45,6 +45,10 @@ export const MODES = [
   { id: 14, short: 'GUSTA', name: 'Gusta Ranch', desc: 'Si parte dalla cascina sulle colline: fango, balle di fieno e il Gusta che passa con la trincia a dare fastidio. Ignoranza pura.', difficulty: 1, sky: 1, limit: 56, unlock: 1, ranch: true,
     obs: { 0: ['hay', 'tree', 'puddle', 'stump'], 1: ['puddle', 'puddle', 'hay', 'puddle'], 2: ['tree', 'puddle', 'hay', 'stump'], 3: ['hay', 'puddle', 'tree'] },   // v81 · meno alberi (quelli sono di MontaFiga), più fieno e ceppi
     layout: [{ t: 0, len: 6, name: 'LA CASCINA' }, { t: 1, len: 8, wet: 1, name: 'IL FANGAIO' }, { t: 0, len: 8, wet: 1, name: 'BOSCO DEL RANCH' }, { t: 1, len: 7, down: 1, wet: 1, name: 'DISCESA NELLA MOTA' }, { t: 0, len: 8, wet: 1, name: 'GLI ALBERI DEL GUSTA' }, { t: 1, len: 8, wet: 1, name: 'IGNORANZA PURA' }, { t: 0, len: 5, down: 1, name: 'RITORNO AL FALÒ' }] },
+  // v97 · Notturna con le frontali: buio pesto, niente lampi. Vedi solo dove guarda il casco, i compagni sono lucine nel bosco.
+  { id: 15, short: 'FRONTALI', name: 'Notturna con le frontali', desc: 'Buio pesto nel bosco, niente lampi: vedi solo dove punta la frontale del casco, che segue la curva. I compagni li riconosci dalle lucine.', night: true, frontali: true, difficulty: 2, sky: 1, limit: 58, unlock: 5, dense: .02,
+    obs: { 0: ['root', 'rock', 'log', 'stump'], 1: ['puddle', 'root', 'rock'], 2: ['step', 'rock', 'root', 'log'], 3: ['rock', 'step', 'stump', 'root'] },
+    layout: [{ t: 0, len: 5, name: 'PARTENZA AL BUIO' }, { t: 0, len: 9, name: 'IL BOSCO NERO' }, { t: 1, len: 6, down: 1, name: 'DISCESA DEI GUFI' }, { t: 3, len: 9, name: 'LA PIETRAIA' }, { t: 2, len: 9, climb: .6, name: 'SALITA DELLE LUCCIOLE' }, { t: 0, len: 8, name: 'IL SENTIERO DEI CINGHIALI' }, { t: 1, len: 6, down: 1, name: 'RIENTRO AL RIFUGIO' }] },
 ];
 // v59 · percorsi tolti dal menu (restano nell'elenco per non mescolare record e classifiche già salvati)
 export const SHOWN = () => MODES.filter(m => !m.hidden);

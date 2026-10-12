@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=96';
-import { createWorld } from './scene3d.js?v=96';
-import * as A from './audio.js?v=96';
-import * as P from './progress.js?v=96';
-import { createMud } from './mudfx.js?v=96';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=96';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=96';
-import * as C from './classifica.js?v=96';
-import * as D from './duel.js?v=96';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=97';
+import { createWorld } from './scene3d.js?v=97';
+import * as A from './audio.js?v=97';
+import * as P from './progress.js?v=97';
+import { createMud } from './mudfx.js?v=97';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=97';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=97';
+import * as C from './classifica.js?v=97';
+import * as D from './duel.js?v=97';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=96').then(m => {
+import('./piloti.js?v=97').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -342,7 +342,7 @@ function hud() {
   $('pacemarker').style.left = Math.min(100, elapsed / timeLimit * 100) + '%';
   const gcHud = state === 'playing' || state === 'paused' ? ghostCourse(elapsed) : null;
   $('ghostmarker').hidden = gcHud === null;
-  if (!gGhost || !(state === 'playing' || state === 'paused' || state === 'countdown')) $('gghost').hidden = true;
+  if (!gGhost || !(state === 'playing' || state === 'paused' || state === 'countdown')) { $('gghost').hidden = true; $('ghostchip').hidden = true; }
   if (gcHud !== null) { $('ghostmarker').style.left = (gcHud / GAME_LENGTH * 100) + '%'; $('ghostmarker').title = 'Record di ' + ghosts[ghostKey()].rider + ': ' + ghosts[ghostKey()].time.toFixed(1) + 's'; }
   $('trackbar').classList.toggle('behind', state === 'playing' && elapsed / timeLimit > course / GAME_LENGTH);
   $('kmh').textContent = Math.round(kmh * 1.45);   // v89 · scala del tachimetro più realistica (solo visualizzazione)
@@ -413,6 +413,7 @@ function resetRun() {
   gas = false; wet = 0; routePhase = -1; lane = px = 1; jump = jumpBuffer = elapsed = score = spawn = invincible = 0; lives = 3; objects = [];
   combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
   lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
+  replayBuf = []; recClock = 0; recLast = 0; replay = null;
   ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
   grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9; lastRiderHit = -99;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
@@ -455,7 +456,7 @@ function start() {
   let firstTip = '';
   { const seen = P.profile.seenTracks || (P.profile.seenTracks = {}); if (!seen[mode] && TRACK_INFO[mode]?.consiglio) { seen[mode] = 1; P.save(); firstTip = TRACK_INFO[mode].consiglio; countdown += 2.5; } }   // 2,5 s in più prima del 3-2-1 per leggerlo
   { const md = P.MODES[mode], ti = $('trackintro');   // v58 · cartolina del percorso durante il via
-    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.id === 3 ? dailyRule().icon + ' REGOLA DI OGGI: ' + dailyRule().name + ' — ' + dailyRule().desc : md.desc}</small>${firstTip ? `<em class="titip">💡 PRIMO GIRO QUI: ${firstTip}</em>` : ''}</div>`;
+    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.id === 3 ? dailyRule().icon + ' REGOLA DI OGGI: ' + dailyRule().name + ' — ' + dailyRule().desc : md.desc}</small>${gGhost ? `<em class="tighost">👻 CORRI CONTRO IL FANTASMA DI ${gGhost.name.toUpperCase()} (1° NEL GRUPPO${gGhost.time ? ' · ' + C.fmtTime(gGhost.time) : ''})</em>` : ''}${firstTip ? `<em class="titip">💡 PRIMO GIRO QUI: ${firstTip}</em>` : ''}</div>`;
     ti.className = 'trackintro'; void ti.offsetWidth; ti.className = 'trackintro show'; }
   $('overlay').classList.add('hidden');
   setMenu(false);
@@ -1041,7 +1042,7 @@ function spawnWave() {
   } else if (rng() < thirdChance + (section === 1 ? .2 : 0)) add(third, .08, obs());
   if (!md.ranch && section !== 3 && rng() < .06) add(third, -.05, 'water'); // acqua "trappola" su un'altra corsia
   // v91 · di notte un lampo illumina la fila nuova appena compare in fondo (al massimo uno ogni 2 s)
-  if (weather.night > .5 && elapsed - lastWaveFlash > 2) { lastWaveFlash = elapsed; weather.flash = Math.max(weather.flash, .8); nextFlash = Math.max(nextFlash, 3); setTimeout(() => A.sfx.thunder?.(), 350 + Math.random() * 500); }
+  if (weather.night > .5 && !weather.lamp && elapsed - lastWaveFlash > 2) { lastWaveFlash = elapsed; weather.flash = Math.max(weather.flash, .8); nextFlash = Math.max(nextFlash, 3); setTimeout(() => A.sfx.thunder?.(), 350 + Math.random() * 500); }
   wave++;
 }
 
@@ -1199,7 +1200,7 @@ function setupRace() {
     const targets = [23000, 18400, 14200];   // v88 · curvoni a U: si derapa di più, anche i compagni   // v50 · guida libera: ≈ 9.000 · 6.800 · 4.800 punti a fine gara
     rivals.forEach((r, i) => { r.drift = 0; r.dTarget = targets[i] * (.92 + rng() * .16); r.driftAhead = false; r.slip = 3 + rng() * 6; });
   }
-  weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0 }; weatherSaid = ''; nextFlash = 4 + rng() * 4;
+  weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0, lamp: feat('frontali') ? 1 : 0 }; weatherSaid = ''; nextFlash = 4 + rng() * 4;
   for (const w of weatherPlan) if (w.from === 0 && w.kind !== 'dusk') weather[w.kind] = 1;   // v84 · meteo da inizio gara: già pieno al via
 }
 function rivalSay(r) {
@@ -1252,7 +1253,7 @@ function setupGroupGhost() {
   const top = (C.cached()?.boards?.[mode] || []).find(e => e.g && e.g.length > 8);
   if (!top) return;
   const pts = C.decodeGhost(top.g); if (pts.length < 5) return;
-  gGhost = { name: top.n, pts, rider: top.r, entry: { name: '👻 ' + top.n.toUpperCase(), ghost: true, gap: 0, lane: 1, lx: 1, lean: 0, number: Math.max(1, RIDERS.indexOf(top.r) + 1), livery: { plastic: '#f2c230', accent: '#ffffff', jersey: '#f2c230', pants: '#202020', helmet: '#ffffff' } } };
+  gGhost = { name: top.n, pts, rider: top.r, time: top.bt || top.t || 0, entry: { name: '👻 ' + top.n.toUpperCase(), ghost: true, gap: 0, lane: 1, lx: 1, lean: 0, number: Math.max(1, RIDERS.indexOf(top.r) + 1), livery: { plastic: '#f2c230', accent: '#ffffff', jersey: '#f2c230', pants: '#202020', helmet: '#ffffff' } } };
 }
 function groupGhostCourse(t) {
   if (!gGhost) return null;
@@ -1265,7 +1266,12 @@ function updateGroupGhost() {
   const gc = groupGhostCourse(elapsed), e = gGhost.entry;
   const before = e.lx;
   e.gap = (gc - course) / GAME_LENGTH * courseLength(P.MODES[mode].difficulty) * 19.5;
-  e.lx = 1 + Math.sin(elapsed * .45 + 1) * .85; e.lean = (e.lx - before) * 60;
+  e.lx = 1 + Math.sin(elapsed * .3 + 1) * .7; e.lean = (e.lx - before) * 60;
+  // v97 · distacco in secondi dal fantasma: quando lui era nel punto dove sei tu adesso
+  { const p = gGhost.pts; let a = 0; while (a < p.length - 1 && p[a + 1] < course) a++;
+    const tg = a >= p.length - 1 ? p.length - 1 : a + Math.max(0, Math.min(1, (course - p[a]) / Math.max(.001, p[a + 1] - p[a])));
+    const gap = elapsed - tg, ch = $('ghostchip');
+    if (elapsed > 1.5) { ch.hidden = false; ch.className = 'ghostchip ' + (gap > 0 ? 'behind' : 'ahead'); ch.innerHTML = `👻 ${gGhost.name.toUpperCase()}<b>${gap > 0 ? '+' : '−'}${Math.abs(gap).toFixed(1).replace('.', ',')} s</b>`; } }
   if (!gGhostPassed && elapsed > 3 && course > gc + .3) { gGhostPassed = true; pop('👻 HAI PASSATO IL FANTASMA DI ' + gGhost.name.toUpperCase() + '!', 'gold'); A.sfx.near(); }
   if (gGhostPassed && course < gc - 1.5) { gGhostPassed = false; pop('👻 ' + gGhost.name.toUpperCase() + ' TI HA RIPRESO', 'small'); }
   $('gghost').hidden = false; $('gghost').style.left = Math.min(100, gc / GAME_LENGTH * 100) + '%'; $('gghost').title = 'Fantasma di ' + gGhost.name + ' (1° nel gruppo)';
@@ -1806,13 +1812,115 @@ function drawState() {
     rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended' || state === 'continue') ? (gGhost && state !== 'ended' ? [...rivals, gGhost.entry] : rivals) : [], weather,
   });
 }
-function draw() { world?.render(drawState()); }
+function draw() { const s = drawState(); world?.render(s); if (state === 'playing') recordReplay(s); }
+
+// v97 · REPLAY: gli ultimi 10 secondi del giro (fotografie dello stato a 30 al secondo), da rivedere e da mandare come video
+const REPLAY_SEC = 10;
+let replayBuf = [], recClock = 0, recLast = 0, replay = null;
+function cloneSnap(s) {
+  return { ...s, objects: (s.objects || []).map(o => ({ ...o })), rivals: (s.rivals || []).map(r => ({ ...r })), gev: s.gev && { ...s.gev }, canyon: s.canyon && { ...s.canyon }, weather: s.weather && { ...s.weather }, parts: s.parts && { ...s.parts } };
+}
+function recordReplay(s) {
+  const now = performance.now() / 1000;
+  if (now - recLast < 1 / 30) return;
+  recClock += Math.min(now - recLast, .1); recLast = now;
+  replayBuf.push({ t: recClock, s: cloneSnap(s) });
+  while (replayBuf.length && replayBuf[0].t < recClock - REPLAY_SEC) replayBuf.shift();
+}
+const replayReady = () => replayBuf.length > 30;
+function startReplay(rec = false) {
+  if (!replayReady() || replay) return;
+  replay = { t: replayBuf[0].t, i: 0, speed: 1, rec: rec ? makeRecorder() : null };
+  if (rec && !replay.rec) { replay = null; toast('📵 QUESTO TELEFONO NON SA REGISTRARE IL VIDEO', 'red'); return; }
+  $('overlay').classList.add('hidden');
+  const b = $('replaybar'); b.hidden = false; b.classList.toggle('rec', !!rec);
+  $('rpslow').hidden = !!rec; $('rpslow').textContent = '🐢 RALLENTA';
+  $('rplabel').textContent = rec ? '● REC' : '🎬 REPLAY';
+  A.sfx.click?.();
+}
+function replayStep(dt) {
+  const r = replay; r.t += dt * r.speed;
+  while (r.i < replayBuf.length - 1 && replayBuf[r.i + 1].t <= r.t) r.i++;
+  const snap = replayBuf[r.i].s;
+  world?.render(snap);
+  if (r.rec) r.rec.frame();
+  $('rpfill').style.width = Math.min(100, (r.t - replayBuf[0].t) / (replayBuf[replayBuf.length - 1].t - replayBuf[0].t) * 100) + '%';
+  if (r.i >= replayBuf.length - 1) endReplay();
+}
+function endReplay(cancel = false) {
+  const r = replay; if (!r) return;
+  replay = null; $('replaybar').hidden = true;
+  if (r.rec) r.rec.stop(cancel);
+  renderResultAgain();
+}
+// video: la scena 3D più una fascia EDT, disegnate su una tela 2D che il telefono registra
+function makeRecorder() {
+  if (!window.MediaRecorder || !canvas.captureStream) return null;
+  const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  const type = types.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch { return false; } });
+  if (!type) return null;
+  const W = Math.min(720, canvas.width), H = Math.round(W * canvas.height / canvas.width) & ~1;
+  const c2 = document.createElement('canvas'); c2.width = W; c2.height = H;
+  const g = c2.getContext('2d');
+  const stream = c2.captureStream(30), chunks = [];
+  let mr; try { mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 3500000 }); } catch { return null; }
+  mr.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  const info = lastVideoInfo();
+  mr.start(250);
+  let cancelled = false;
+  mr.onstop = () => { if (cancelled || !chunks.length) return; const ext = type.includes('mp4') ? 'mp4' : 'webm'; offerVideo(new File(chunks, 'giro-easy-replay.' + ext, { type: type.split(';')[0] }), info); };
+  return {
+    frame() {
+      g.drawImage(canvas, 0, 0, W, H);
+      const fh = Math.round(H * .13), fs = Math.round(fh * .34);
+      const gr = g.createLinearGradient(0, H - fh * 1.6, 0, H); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.8)');
+      g.fillStyle = gr; g.fillRect(0, H - fh * 1.6, W, fh * 1.6);
+      g.fillStyle = '#ffcf16'; g.font = `900 ${fs}px Anton, Impact, sans-serif`; g.textBaseline = 'alphabetic';
+      g.fillText('EDT · GIRO EASY', fs * .6, H - fh * .55);
+      g.fillStyle = '#fff'; g.font = `700 ${Math.round(fs * .62)}px system-ui, sans-serif`;
+      g.fillText(info.line, fs * .6, H - fh * .12);
+      g.fillStyle = '#e3301c'; g.beginPath(); g.arc(W - fs * 2.9, fs * 1.05, fs * .22, 0, 7); g.fill();
+      g.fillStyle = '#fff'; g.font = `900 ${Math.round(fs * .6)}px system-ui, sans-serif`; g.fillText('REPLAY', W - fs * 2.5, fs * 1.25);
+    },
+    stop(cancel) { cancelled = cancel; try { mr.stop(); } catch {} },
+  };
+}
+function lastVideoInfo() {
+  const md = P.MODES[mode], who = C.getNick() || profile.rider;
+  const res = ice ? Math.round(driftM) + ' m di traverso' : leap ? C.fmtJump(leapBest || 0) : run.finishTime ? run.finishTime.toFixed(1).replace('.', ',') + ' s' : score.toLocaleString('it-IT') + ' punti';
+  return { line: `${who} · ${md.id === 3 ? 'Sfida del giorno' : md.name} · ${res}`, text: `🎬 ${who} su ${md.id === 3 ? 'Sfida del giorno' : md.name}: ${res}. Guarda che giro! Prova a fare meglio 👉 ` };
+}
+let replayFile = null;
+function offerVideo(file, info) {
+  replayFile = { file, info };
+  const el = document.createElement('div'); el.className = 'podium vidready'; el.id = 'vidready';
+  const url = URL.createObjectURL(file);
+  el.innerHTML = `<div class="podbox"><small>IL TUO REPLAY</small><b class="podtitle">VIDEO PRONTO</b>
+    <video src="${url}" autoplay loop muted playsinline></video>
+    <button class="primary" type="button" id="vidshare"><span>📲 MANDALO NEL GRUPPO</span></button>
+    <div class="grow"><a class="linkbtn" id="vidsave" href="${url}" download="${file.name}">salva sul telefono</a><button class="linkbtn" type="button" id="vidclose">chiudi</button></div></div>`;
+  document.body.appendChild(el);
+  $('vidclose').onclick = () => { el.remove(); URL.revokeObjectURL(url); };
+  $('vidshare').onclick = async () => {
+    const data = { files: [file], title: 'Giro Easy · EDT', text: info.text + publicGameURL };
+    if (navigator.canShare?.(data)) { try { await navigator.share(data); } catch {} }
+    else { $('vidsave').click(); toast('💾 VIDEO SALVATO: ALLEGALO NEL GRUPPO WHATSAPP', 'green'); }
+  };
+}
+document.addEventListener('click', e => {
+  const id = e.target.closest?.('button')?.id;
+  if (id === 'replaybtn') startReplay(false);
+  else if (id === 'replayvid') startReplay(true);
+  else if (id === 'rpclose') endReplay(true);
+  else if (id === 'rpslow' && replay) { replay.speed = replay.speed === 1 ? .4 : 1; $('rpslow').textContent = replay.speed === 1 ? '🐢 RALLENTA' : '▶ VELOCITÀ NORMALE'; }
+});
 
 function frame(t) {
   // v43 · fino a 15 fotogrammi al secondo il gioco va alla stessa velocità (prima sotto i 25 rallentava)
   const dt = Math.min(.066, (t - last) / 1000 || 0);
   last = t;
   pollPad();
+  if (replay) { replayStep(dt); mudFx.update(dt); requestAnimationFrame(frame); return; }
   update(dt);
   mudFx.update(dt);
   if (state === 'ready' || state === 'ended') roadTime += dt * .25; // il sentiero scorre piano dietro ai menu
@@ -1965,7 +2073,7 @@ function renderReady() {
   };
   if ($('opengroup')) {
     $('opengroup').onclick = () => { showHub('classifica'); renderGroup(renderReady, mode); };
-    C.load().then(d => { const top = d.boards?.[mode]?.[0]; if ($('grouplead')) $('grouplead').textContent = top ? `1° ${top.n} · ${top.s.toLocaleString('it-IT')}` : 'nessuno ancora: vai!'; cupBar(d); }).catch(() => {});
+    C.load().then(d => { const top = d.boards?.[mode]?.[0]; if ($('grouplead')) $('grouplead').textContent = top ? `1° ${top.n} · ${top.s.toLocaleString('it-IT')}` : 'nessuno ancora: vai!'; cupBar(d); setTimeout(() => checkOvertakes(d), 400); }).catch(() => {});
     if ($('cupbar')) { cupBar(C.cached()); $('cupbar').onclick = () => { A.sfx.click(); showHub('classifica'); renderGroup(renderReady, 'cup'); }; }
   }
   $('testvoci').onclick = () => {
@@ -2031,6 +2139,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     <div class="actions">
       <button class="primary big" id="again"><span>UN ALTRO GIRO</span>${icon('chevrons')}</button>
       <button class="secondary hot" id="shareScore">📸 MANDA LA CARTOLINA</button>
+      ${replayReady() ? '<button class="secondary replaybtn" id="replaybtn" type="button">🎬 RIVEDI GLI ULTIMI 10 s</button><button class="secondary replaybtn hot" id="replayvid" type="button">🎥 FAI IL VIDEO PER IL GRUPPO</button>' : ''}
       <button class="secondary shopsec" id="shopres">🔧 OFFICINA</button>
       <button class="secondary" id="menu">MENU</button>
     </div>`;
@@ -2124,6 +2233,57 @@ function showPodium(w) {
   $('podok').onclick = () => el.remove();
 }
 const crownOf = n => { const p = C.cached()?.week?.prev; return p && n && p.n.toLowerCase() === String(n).toLowerCase() ? ' 👑' : ''; };
+// v97 · WhatsApp: messaggio pronto quando superi qualcuno, e avviso nel menu quando qualcuno supera te
+const waLink = text => 'https://wa.me/?text=' + encodeURIComponent(text);
+const trackName = m => m === 3 ? 'la Sfida del giorno' : P.MODES[m].name;
+function waBrag(d, runInfo, nick, beforeList) {
+  const list = (d.boards?.[runInfo.mode] || []).map(e => e.n), me = nick.toLowerCase();
+  const pos = list.findIndex(n => n.toLowerCase() === me) + 1, oldPos = beforeList.findIndex(n => n.toLowerCase() === me) + 1;
+  if (!pos || (oldPos && pos >= oldPos)) return;
+  // chi era davanti a me prima e ora è dietro
+  const passed = list.slice(pos).filter(n => { const i = beforeList.findIndex(b => b.toLowerCase() === n.toLowerCase()); return i >= 0 && (!oldPos || i < oldPos - 1); });
+  if (!passed.length || !$('groupres')) return;
+  const v = passed[0], pts = runInfo.score.toLocaleString('it-IT');
+  const text = pos === 1 ? `👑 ${nick} ha appena preso il 1° posto su ${trackName(runInfo.mode)} a Giro Easy con ${pts} punti! ${v}, sei dietro: vieni a riprendertelo 👉 ${publicGameURL}`
+    : `🏁 ${nick} ha superato ${passed.join(', ')} su ${trackName(runInfo.mode)} a Giro Easy: ora è ${pos}° con ${pts} punti. Chi lo ferma? 👉 ${publicGameURL}`;
+  const a = document.createElement('a'); a.className = 'wabtn'; a.href = waLink(text); a.target = '_blank'; a.rel = 'noopener';
+  a.textContent = `📲 DILLO AL GRUPPO: HAI SUPERATO ${v.toUpperCase()}${passed.length > 1 ? ' E ALTRI ' + (passed.length - 1) : ''}`;
+  $('groupres').appendChild(a);
+  myPositions(d, true);
+}
+// posizioni salvate sul telefono, per accorgersi al prossimo avvio se qualcuno ti è passato davanti
+const MYPOS_KEY = 'edt-mypos';
+function myPositions(d, save) {
+  const nick = C.getNick().toLowerCase(); if (!nick || !d?.boards) return null;
+  let old = {}; try { old = JSON.parse(localStorage.getItem(MYPOS_KEY) || '{}') || {}; } catch {}
+  const now = {};
+  for (const m of C.ACTIVE.split(',').map(Number)) { const list = (d.boards[m] || []).map(e => e.n); const i = list.findIndex(n => n.toLowerCase() === nick); if (i >= 0) now[m] = list.slice(0, i); }
+  if (save) try { localStorage.setItem(MYPOS_KEY, JSON.stringify(now)); } catch {}
+  return { old, now };
+}
+function checkOvertakes(d) {
+  if (state !== 'ready' || $('podium') || $('overtake')) return;
+  const r = myPositions(d, false); if (!r) return;
+  let hit = null;
+  for (const m in r.old) {
+    const before = r.old[m].map(n => n.toLowerCase()), above = r.now[m];
+    const newcomers = above ? above.filter(n => !before.includes(n.toLowerCase())) : [];
+    if (newcomers.length) { hit = { m: +m, who: newcomers[0], pos: above.length + 1 }; break; }
+    if (!above && r.old[m]) { hit = { m: +m, who: null, pos: 0 }; break; }
+  }
+  myPositions(d, true);
+  if (!hit || !P.MODES[hit.m]) return;
+  const nick = C.getNick();
+  const text = hit.who ? `😤 ${hit.who} mi ha superato su ${trackName(hit.m)} a Giro Easy… goditela finché dura, me lo riprendo! 👉 ${publicGameURL}` : `😤 Mi hanno buttato fuori dai primi 10 su ${trackName(hit.m)} a Giro Easy. Non finisce qui! 👉 ${publicGameURL}`;
+  const el = document.createElement('div'); el.className = 'overtake'; el.id = 'overtake';
+  el.innerHTML = `<button class="ox" type="button" id="otx" aria-label="Chiudi">✕</button>
+    <p>😱 ${hit.who ? `<b>${hit.who}</b> ti ha superato` : 'Sei uscito dai primi 10'} su <b>${trackName(hit.m)}</b></p>
+    <small>${hit.pos ? `Ora sei ${hit.pos}° nella classifica del gruppo.` : 'Torna in classifica!'}</small>
+    <div class="orow"><a class="wabtn" href="${waLink(text)}" target="_blank" rel="noopener">📲 RISPONDI NEL GRUPPO</a><button class="primary" type="button" id="otgo"><span>▶ RIPRENDITELO</span></button></div>`;
+  document.body.appendChild(el);
+  $('otx').onclick = () => el.remove();
+  $('otgo').onclick = () => { el.remove(); if (P.isUnlocked(P.MODES[hit.m])) { mode = hit.m; profile.mode = mode; P.save(); renderReady(); } };
+}
 // Riquadro nel risultato: invia il punteggio col nome salvato, oppure chiede il nome la prima volta.
 let lastGroupRun = null;
 function groupResult(runInfo) {
@@ -2153,6 +2313,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
   if (runInfo.sent && runInfo.sentAs === nick) { show(runInfo.sent); return; }
   box.innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div><p class="gwait">Invio il punteggio di <b>${nick}</b>…</p>`;
   const { sent, sentAs, ...payload } = runInfo;
+  const beforeList = (C.cached()?.boards?.[runInfo.mode] || []).map(e => e.n);
   C.submit({ ...payload, name: nick, v: String(GAME_VERSION), b: P.UPGRADES.reduce((a, u) => a + P.upgradeLevel(u.id), 0) }).then(d => {
     if (d.taken) {   // v89 · nome già prenotato da un altro telefono
       if (!$('groupres')) return;
@@ -2164,7 +2325,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
       return;
     }
     runInfo.sent = d; runInfo.sentAs = nick; lastGroupRun = runInfo;
-    show(d); renderSide(); refreshCardPreview();
+    show(d); renderSide(); refreshCardPreview(); waBrag(d, runInfo, nick, beforeList);
   }).catch(() => {
     if (!$('groupres')) return;
     $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO</div><p>La classifica non risponde (rete lenta o assente). <b>Punteggio messo da parte</b>: parte da solo appena c'è rete.</p><button class="secondary" type="button" id="gretry">RIPROVA ADESSO</button>`;
@@ -2251,7 +2412,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 96;
+const GAME_VERSION = 97;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2629,7 +2790,7 @@ if (/debug/.test(location.hash)) {
 // Aggancio per i test automatici (non usato dal gioco).
 window.__edt = { get state() { return state; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
-  get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
+  get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, replay: startReplay, recFake() { recClock += 1 / 30; replayBuf.push({ t: recClock, s: cloneSnap(drawState()) }); while (replayBuf[0].t < recClock - REPLAY_SEC) replayBuf.shift(); }, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
 
 // v96 · i comandi di prova (__edt) esistono solo in locale o con ?dev=1: dal sito pubblico non si possono usare per truccare i giri
 { const DEV = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || /[?&]dev=1(&|$)/.test(location.search);

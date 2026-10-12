@@ -20,7 +20,7 @@ const CAP = { 0: 150000, 1: 150000, 2: 60000, 3: 160000, 9: 120000, 10: 170000, 
 function minvOf_(p) { return Math.max(0, Math.round(Number(p.minv) || 0)); }              // v92 · Ice Scrofy: nel campo tempo ci sono i metri di derapata            // Sfida del giorno: classifica solo del giorno
 const MAX_SCORE = 250000;
 const CUP = [10, 8, 6, 5, 4, 3, 2, 1];
-const ACTIVE = [0, 1, 2, 3, 9, 10, 11, 12, 13, 14];   // percorsi nel menu (4-8 tolti nella v59)
+const ACTIVE = [0, 1, 2, 3, 9, 10, 11, 12, 13, 14, 15];   // percorsi nel menu (4-8 tolti nella v59)
 
 function sheet_() {
   const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');

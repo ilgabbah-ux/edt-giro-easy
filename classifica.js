@@ -15,7 +15,7 @@ export const enabled = () => !API.includes('__DEPLOY_ID__');
 // Quando cambia qualcosa che sposta tempi o punti si alza "from" (e il numero della stagione): i giri vecchi
 // restano nel foglio e si vedono nell'archivio. ACTIVE = percorsi nel menu (solo questi danno punti coppa).
 export const SEASON = { n: 8, from: 96 };   // v96 · lunedì 12/10: potenziamenti speciali dell'officina, stagione nuova
-export const ACTIVE = '0,1,2,3,9,10,11,12,13,14';
+export const ACTIVE = '0,1,2,3,9,10,11,12,13,14,15';
 
 export function dayISO(d = new Date()) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');

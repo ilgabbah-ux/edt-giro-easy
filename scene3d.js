@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=96';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=97';
 import * as T from './three.module.min.js';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
@@ -1084,6 +1084,11 @@ export function createWorld(canvas) {
   // v84 · faro vero: luce a cono che illumina la strada davanti di notte
   const headlight = new T.SpotLight('#fff3d6', 0, 38, .5, .55, 1.4); headlight.position.set(...F(0, 1.32, -.78)); front.add(headlight);
   const headTarget = new T.Object3D(); headTarget.position.set(...F(0, -.6, -14)); front.add(headTarget); headlight.target = headTarget; headlight.visible = false; headlight.name = 'fx';
+  // v97 · frontale sul casco (Notturna con le frontali): segue lo sguardo, cioè lo sterzo
+  const headLamp = new T.SpotLight('#fff4dc', 0, 48, .34, .55, 1.25); headLamp.position.set(0, .09, -.17); head.add(headLamp);
+  const headLampT = new T.Object3D(); headLampT.position.set(0, -2.1, -14); head.add(headLampT); headLamp.target = headLampT; headLamp.visible = false; headLamp.name = 'fx';
+  const headLampGlow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#fff4dc', transparent: true, opacity: .95, blending: T.AdditiveBlending, depthWrite: false }));
+  headLampGlow.scale.set(.32, .22, 1); headLampGlow.position.set(0, .09, -.19); headLampGlow.visible = false; headLampGlow.name = 'fx'; head.add(headLampGlow);
   let lampOpt = false;
   const lampGlow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#fff2c0', transparent: true, opacity: .8, blending: T.AdditiveBlending, depthWrite: false }));
   lampGlow.scale.set(.9, .6, 1); lampGlow.position.set(...F(0, 1.30, -.78)); lampGlow.userData.keep = true; lampGlow.name = 'fxlamp'; front.add(lampGlow);
@@ -1892,11 +1897,16 @@ export function createWorld(canvas) {
     tag.parent?.remove(tag); root.add(tag);
     const blob = new T.Mesh(new T.PlaneGeometry(1.3, 2.7), new T.MeshBasicMaterial({ color: '#000', alphaMap: glowTex, transparent: true, opacity: .45, depthWrite: false }));
     blob.rotation.x = -Math.PI / 2; blob.position.y = .03; root.add(blob);
-    const model = { g: root, pitch: body, wheels: wheelsOut, tag, phase: Math.random() * 10, ghost: !!r.ghost };
+    // v97 · frontale dei compagni: lucina sul casco e chiazza di luce sul sentiero davanti
+    const rLamp = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#fff2cc', transparent: true, opacity: .95, blending: T.AdditiveBlending, depthWrite: false }));
+    rLamp.scale.set(.75, .55, 1); rLamp.position.set(0, 2.05, -.25); rLamp.visible = false; root.add(rLamp);
+    const rPool = new T.Mesh(new T.PlaneGeometry(2.6, 6), new T.MeshBasicMaterial({ color: '#ffe7b0', alphaMap: glowTex, transparent: true, opacity: .32, blending: T.AdditiveBlending, depthWrite: false }));
+    rPool.rotation.x = -Math.PI / 2; rPool.position.set(0, .05, -4.2); rPool.visible = false; root.add(rPool);
+    const model = { g: root, pitch: body, wheels: wheelsOut, tag, phase: Math.random() * 10, ghost: !!r.ghost, lamp: [rLamp, rPool] };
     if (r.ghost) {
       // v48 · fantasma del primo in classifica: moto e pilota trasparenti e dorati, senza ombra
       blob.visible = false;
-      root.traverse(o => { if (o.isMesh && o !== blob) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .38; o.material.depthWrite = false; if (o.material.emissive) { o.material.emissive.set('#f2c230'); o.material.emissiveIntensity = .35; } o.castShadow = false; } });
+      root.traverse(o => { if (o.isMesh && o !== blob) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .5; o.material.depthWrite = false; if (o.material.emissive) { o.material.emissive.set('#f2c230'); o.material.emissiveIntensity = .6; } o.castShadow = false; } });
     }
     scene.add(root);
     return model;
@@ -1909,6 +1919,7 @@ export function createWorld(canvas) {
       if (!m) { m = makeRival(r); rivalModels.set(r.name, m); }
       const z = -r.gap;
       m.g.visible = z < 11 && z > -175;
+      if (m.lamp) for (const o of m.lamp) o.visible = !!weatherNow.lamp;
       if (!m.g.visible) continue;
       const lx = (r.lx - 1) * spacing();
       m.g.position.set(center(z, t) + lx, height(z, t) + (r.lift || 0) + Math.abs(Math.sin(now / 90 + m.phase)) * .02, z);
@@ -1969,7 +1980,16 @@ export function createWorld(canvas) {
       hemi.intensity += flash * 9; sun.intensity += flash * 5; renderer.toneMappingExposure *= 1 + flash * .9;   // v91 · lampo più forte: si vede tutta la pista
     }
     headlight.intensity = night * 55 + (w?.fog || 0) * night * 10; headlight.visible = night > .02;
-    reflMat.opacity = Math.min(1, night * .9); ringMat.opacity = .55 + night * .4;   // v91 · di notte ostacoli e cerchi a terra si vedono
+    reflMat.opacity = Math.min(1, night * .9); ringMat.opacity = .55 + night * .4;
+    const lamp = w?.lamp || 0;   // v97 · notturna con le frontali: buio pesto, la luce vera è quella sul casco
+    if (lamp) {
+      skyUniforms.uTop.value.set('#010205'); skyUniforms.uHorizon.value.set('#05070b'); skyUniforms.uSun.value.set('#010205'); skyUniforms.uCloud.value.set('#0a0c12'); skyUniforms.uClouds.value = .35;
+      scene.fog.color.set('#020304'); scene.fog.near = 6; scene.fog.far = 62;
+      sun.intensity *= .15; hemi.intensity *= .22;
+      headlight.intensity = 14; reflMat.opacity = .28; ringMat.opacity = .35;
+    }
+    headLamp.visible = headLampGlow.visible = lamp > 0; headLamp.intensity = lamp * 120;
+    for (const r of ridges) r.material.color.setScalar(lamp ? .07 : 1);   // v91 · di notte ostacoli e cerchi a terra si vedono
   }
   const NIGHT = { top: new T.Color('#05070d'), hor: new T.Color('#141a26'), fog: new T.Color('#0b0e14') }, FLASH = new T.Color('#dfe8ff');
 
@@ -2358,7 +2378,7 @@ export function createWorld(canvas) {
     if (pano.visible) {   // v61 · il fondale segue la camera; si attenua con nebbia e pioggia
       pano.position.set(camera.position.x, camera.position.y - 14 + PANO_H * .1, camera.position.z);
       panoMat.opacity += ((1 - (weatherNow.fog || 0) * .7 - (weatherNow.rain || 0) * .25) - panoMat.opacity) * .05;
-      panoMat.color.setScalar(Math.min(1.25, (1 - (weatherNow.dusk || 0) * .35 - (weatherNow.rain || 0) * .2) * (1 - (weatherNow.night || 0) * .62) + (weatherNow.flash || 0) * .9));   // v84 · di notte il fondale si spegne, col lampo si accende
+      panoMat.color.setScalar(Math.min(1.25, (1 - (weatherNow.dusk || 0) * .35 - (weatherNow.rain || 0) * .2) * (1 - (weatherNow.night || 0) * .62) * (1 - (weatherNow.lamp || 0) * .88) + (weatherNow.flash || 0) * .9));   // v84 · di notte il fondale si spegne, col lampo si accende
     }
     sun.target.position.set(bike.position.x, 0, -6);
     const L = PRESETS[presetIndex] || PRESETS[0];
