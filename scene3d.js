@@ -2,6 +2,7 @@
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=97';
 import * as T from './three.module.min.js';
+import { RIDER_PARTS } from './pilota3d.js?v=97';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
@@ -985,6 +986,16 @@ export function createWorld(canvas) {
   { const back = mesh(new T.CapsuleGeometry(.12, .22, 6, 14), jerseyMat, body); back.position.set(...B(0, 1.66, .25)); back.scale.set(1.35, 1, .7); back.rotation.x = -.3; }
   const anchor = (parent, x, y, z) => { const o = new T.Object3D(); o.position.set(x, y, z); parent.add(o); return o; };
   const joints = [];
+  // v97 · pezzi modellati in Blender (casco, maschera, stivali): geometrie compresse in pilota3d.js
+  const partGeo = (() => { const cache = {}; return (part, m) => {
+    const k = part + '/' + m; if (cache[k]) return cache[k];
+    const [nv, ni, b64] = RIDER_PARTS[part][m], bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
+    const pos = new Int16Array(bin.slice(0, nv * 6)), nor = new Int8Array(bin.slice(nv * 6, nv * 9)), idx = new Uint16Array(bin.slice(nv * 9, nv * 9 + ni * 2));
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.BufferAttribute(Float32Array.from(pos, v => v / 8192), 3));
+    g.setAttribute('normal', new T.BufferAttribute(Float32Array.from(nor, v => v / 127), 3));
+    g.setIndex(new T.BufferAttribute(idx, 1)); g.computeBoundingSphere();
+    return (cache[k] = g); }; })();
   const strapMat = mat('#313b39', .75), bootTrim = mat('#b6b7a8', .5), lensMat = new T.MeshStandardMaterial({ color: '#2a8fc4', roughness: .08, metalness: .7, emissive: '#0b3550', emissiveIntensity: .4 });
   for (const side of [-1, 1]) {
     ball(.095, .06, .105, black, body, ...B(side * .19, 1.95, .15));
@@ -992,8 +1003,8 @@ export function createWorld(canvas) {
     // v94 · gamba sotto il ginocchio in un gruppo che ruota sul ginocchio: in derapata la gamba interna esce verso il ghiaccio
     const legPivot = new T.Group(); legPivot.position.set(side * .33, 1.08, .08); rider.add(legPivot);
     const legIn = new T.Group(); legIn.position.set(-side * .33, -1.08, -.08); legPivot.add(legIn);
-    rod([side * .33, 1.08, .08], [side * .31, .86, .2], .072, white, legIn);
-    sideShape(s => { s.moveTo(-.04, .74); s.lineTo(.26, .74); s.quadraticCurveTo(.29, .8, .26, .88); s.lineTo(.12, .9); s.quadraticCurveTo(-.02, .86, -.04, .74); }, .11, black, legIn, side * .31, .02);
+    { const boot = new T.Group(); boot.position.set(side * .31, .74, .15); boot.rotation.x = -.3; boot.scale.set(-side, 1.06, 1); legIn.add(boot);   // v97 · stivale da cross modellato in Blender: gambale, piede, suola, parastinco e 4 fibbie
+      for (const [m, mt] of [['boot', white], ['sole', black], ['accent', accent], ['buckle', alloy]]) mesh(partGeo('boot', m), mt, boot); }
     joints.push({
       side, legPivot, legIn, out: 0,
       hip: anchor(upper, side * .16, 1.43, .27), knee: anchor(legIn, side * .35, 1.12, .07),
@@ -1003,29 +1014,12 @@ export function createWorld(canvas) {
   { const nb = mesh(new T.TorusGeometry(.105, .032, 8, 20), black, body); nb.position.set(...B(0, 2.02, .13)); nb.rotation.x = Math.PI / 2 - .3; }
   const head = new T.Group(); head.position.set(...B(0, 2.17, .035)); body.add(head);
   // v72 · casco da cross in scala vera: calotta, mentoniera sporgente, frontino, maschera con elastico
-  // v77 · calotta unica modellata: mentoniera sporgente che nasce dalla calotta, mento stretto, nuca allungata, bordo piatto
-  { const g = new T.SphereGeometry(1, 36, 26), a = g.attributes.position;
-    for (let i = 0; i < a.count; i++) {
-      let x = a.getX(i), y = a.getY(i), z = a.getZ(i);
-      const fr = Math.max(0, -z), u = Math.min(1, Math.max(0, (-y - .08) / .4)), lo = u * u * (3 - 2 * u);
-      z -= .7 * fr * lo; x *= 1 - .22 * fr * lo;
-      if (z < -1.28) z = -1.28 - (z + 1.28) * .15;   // frontale della mentoniera quasi piatto
-      if (y < -.72) y = -.72 + (y + .72) * .35;
-      z += .1 * Math.max(0, z) * Math.max(0, -y);
-      a.setXYZ(i, x * .158, y * .172, z * .19);
-    }
-    g.computeVertexNormals(); const sh = mesh(g, helmetMat, head); sh.position.set(0, -.01, .01); }
-  box(.06, .04, .03, accent, head, 0, -.1, -.252);
-  // frontino curvo (scende ai lati)
-  bendFender(sideShape(s => { s.moveTo(-.1, .15); s.lineTo(-.28, .095); s.quadraticCurveTo(-.3, .08, -.275, .075); s.lineTo(-.13, .1); s.lineTo(-.1, .15); }, .2, accent, head, 0, .006, 6), 2.8);
-  { const st = mesh(new T.TorusGeometry(.17, .014, 6, 30), strapMat, head); st.rotation.x = Math.PI / 2; st.position.y = .01; }
-  // maschera curva che segue il casco: telaio nero e lente a specchio
-  { const fr = mesh(new T.CylinderGeometry(.186, .186, .078, 28, 1, true, Math.PI - 1.05, 2.1), black, head); fr.position.set(0, .012, .005);
-    const ln = mesh(new T.CylinderGeometry(.19, .19, .05, 28, 1, true, Math.PI - .82, 1.64), lensMat, head); ln.position.set(0, .012, .005); }
+  // v97 · casco da cross modellato in Blender: calotta con mentoniera a becco, frontino nervato, maschera con elastico, grafica nel colore della livrea
+  { const hg = new T.Group(); hg.position.set(0, -.01, .01); head.add(hg);
+    for (const [m, mt] of [['helmet', helmetMat], ['accent', accent], ['black', black], ['lens', lensMat]]) mesh(partGeo('helmet', m), mt, hg); }
   for (const side of [-1, 1]) {
     box(.1, .04, .02, accent, body, ...B(side * .15, 1.58, .33));
     const lg = joints.find(j => j.side === side).legIn;
-    for (let i = 0; i < 3; i++) box(.15, .026, .03, bootTrim, lg, side * .31, .9 + i * .06, .22 - i * .03);
     ball(.075, .095, .07, accent, lg, side * .345, 1.13, .03);
   }
   // Arti dinamici: cilindri unitari orientati ogni fotogramma tra due giunti.
@@ -1056,7 +1050,7 @@ export function createWorld(canvas) {
       const sh = rider.worldToLocal(j.shoulder.getWorldPosition(_a));
       const grip = rider.worldToLocal(j.grip.getWorldPosition(_b));
       // Gomito: a metà tra spalla e mano, spinto in fuori e verso l'alto (posizione d'attacco).
-      _e.copy(sh).lerp(grip, .5); _e.x += j.side * .13; _e.y += .06;
+      _e.copy(sh).lerp(grip, .5); _e.x += j.side * .19; _e.y += .11;   // v97 · gomiti alti e larghi, come i piloti veri
       const reach = sh.distanceTo(grip); _e.z += Math.max(0, .62 - reach) * .4;
       placeLimb(j.upperArm, sh, _e); placeLimb(j.forearm, _e, grip);
       j.glove.position.copy(grip); j.elbowBall.position.copy(_e);
@@ -2162,7 +2156,7 @@ export function createWorld(canvas) {
     dyn.stand += (standTarget - dyn.stand) * Math.min(1, fdt * 6);
     const bounce = crash > 0 ? Math.sin((1 - crash) * Math.PI) * .32 : 0;
     upper.position.set(lean * -.08, dyn.stand * .17 - Math.max(0, comp) * .9 + bounce, -dyn.stand * .07 - boostAmount * .015);
-    body.rotation.x = -.12 * dyn.stand - grade * .2 - boostAmount * .05 - (s.gas ? .08 : 0) - dyn.pitch * .45 + crash * .5 + (s.wheelie ? .32 : 0);
+    body.rotation.x = -.08 - .3 * dyn.stand - grade * .2 - boostAmount * .05 - (s.gas ? .06 : 0) - dyn.pitch * .45 + crash * .5 + (s.wheelie ? .32 : 0);
     body.rotation.z = lean * .35 - dyn.iceLean * .45 - whip * .3 + (crash > 0 ? Math.sin(crash * 20) * crash * .3 : 0);
     head.rotation.y = dyn.steer * .9 + dyn.iceLean * .9;   // lo sguardo va verso l'uscita della curva
     { const inner = dyn.iceLean > 0 ? -1 : 1, deep = Math.min(1, Math.max(0, (Math.abs(dyn.iceLean) - .12) / .3));
