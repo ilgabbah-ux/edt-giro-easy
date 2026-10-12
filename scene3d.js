@@ -948,8 +948,13 @@ export function createWorld(canvas) {
   const brakeLightMat = new T.MeshStandardMaterial({ color: '#fc441f', roughness: .3, emissive: '#ff2a00', emissiveIntensity: .3 });
   box(.15, .05, .04, brakeLightMat, chassis, 0, 1.19, 1.16);
   // scarico 4 tempi: collettore curvo e silenziatore
-  tube([[.05, .97, -.4], [.12, .8, -.47], [.21, .71, -.3], [.25, .78, 0], [.28, .95, .3], [.29, 1.04, .45]], .033, alloy, chassis, 40);
-  rod([.29, 1.04, .43], [.31, 1.17, 1.06], .075, pipeMat, chassis); rod([.31, 1.17, 1.05], [.315, 1.18, 1.13], .052, black, chassis);
+  const exhaustParts = [tube([[.05, .97, -.4], [.12, .8, -.47], [.21, .71, -.3], [.25, .78, 0], [.28, .95, .3], [.29, 1.04, .45]], .033, alloy, chassis, 40),
+    rod([.29, 1.04, .43], [.31, 1.17, 1.06], .075, pipeMat, chassis), rod([.31, 1.17, 1.05], [.315, 1.18, 1.13], .052, black, chassis)];
+  // v97 · elettrica: pacco batterie al posto del motore (niente scarico)
+  const battMat = mat('#2b3640', .45, .35), battGreen = new T.MeshStandardMaterial({ color: '#19c37d', roughness: .35, emissive: '#0c6b42', emissiveIntensity: .6 });
+  for (const m of exhaustParts) m.userData.keep = true;   // fuori dall'unione delle geometrie: si devono poter nascondere
+  const battery = new T.Group(); chassis.add(battery); battery.visible = false;
+  box(.25, .3, .5, battMat, battery, 0, .68, -.1); box(.256, .035, .5, battGreen, battery, 0, .74, -.1); box(.2, .05, .2, mat('#14181c', .6), battery, 0, .85, -.05); battery.traverse(o => { if (o.isMesh) o.userData.keep = true; });
   // forcella a steli rovesciati, piastre, parafango, tabella e manubrio
   for (const side of [-1, 1]) {
     const zAt = y => ZF(-.86 + (y - .48) * .3375);
@@ -1118,6 +1123,7 @@ export function createWorld(canvas) {
   })();
   if (envTex) for (const [m, k] of [[plastic, .9], [accent, .9], [helmetMat, .9], [sidePanel, .9], [alloy, 1.2], [rimMat, 1.2], [pipeMat, 1.3], [gold, 1.1], [frameMat, .8], [engMat, .7], [forkMat, .9], [chamberMat, 1.2], [vintageMat, 1.2], [hubMat, .8], [studMat, 1], [seatMat, .35], [black, .4], [spring, .7], [lensMat, 1.2], [guardMat, .5], [rallyMat, .9], [screenMat, 1.2]]) { m.envMap = envTex; m.envMapIntensity = k; m.needsUpdate = true; }
   for (const g of [...wheels, chassis, front, rider, upper, body, head]) mergeGroup(g);
+  let electricNow = false;
   const meshesWith = m => { const out = []; bike.traverse(o => { if (o.isMesh && o.material === m) out.push(o); }); return out; };
   let customKey = '';
   function paintSideDecal(kind, a, b) {
@@ -1140,7 +1146,10 @@ export function createWorld(canvas) {
     const lamp = parts.light?.id === 'led' || parts.light?.id === 'boanal' || parts.light?.id === 'factory' || !!look.vintage || !!look.boanal || !!look.rally;
     for (const m of meshesWith(lampMat)) m.visible = lamp;
     lampGlow.visible = lamp; lampOpt = lamp;
-    for (const m of meshesWith(chamberMat)) m.visible = !!look.twoStroke;
+    for (const m of meshesWith(chamberMat)) m.visible = !!look.twoStroke && !look.electric;
+    electricNow = !!look.electric; battery.visible = electricNow;
+    for (const m of exhaustParts) if (m) m.visible = !electricNow;
+    for (const m of meshesWith(engMat)) m.visible = !electricNow;
     for (const m of meshesWith(vintageMat)) m.visible = !!look.vintage;
     for (const m of meshesWith(seatMat)) m.visible = !look.trial;
     const st = parts.studs?.id || 'none';
@@ -2198,7 +2207,7 @@ export function createWorld(canvas) {
     lampGlow.material.opacity = .45 + (weatherNow.dusk || 0) * .5 + (weatherNow.fog || 0) * .4;
     lampGlow.visible = lampOpt || (weatherNow.night || 0) > .1;   // v84 · di notte il faro è sempre acceso
 
-    flame.visible = flameCore.visible = boostAmount > 0 || (s.grappa || 0) > 0;
+    flame.visible = flameCore.visible = !electricNow && (boostAmount > 0 || (s.grappa || 0) > 0);
     flameMat.color.set(boostAmount > 0 ? '#ffb12b' : '#3fa9ff');
     if (flame.visible) { const f = .8 + Math.random() * .5; flame.scale.set(1, f, 1); flameCore.scale.set(1, f * .9, 1); }
 
