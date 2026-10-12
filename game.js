@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=97';
-import { createWorld } from './scene3d.js?v=97';
-import * as A from './audio.js?v=97';
-import * as P from './progress.js?v=97';
-import { createMud } from './mudfx.js?v=97';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=97';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=97';
-import * as C from './classifica.js?v=97';
-import * as D from './duel.js?v=97';
+import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=98';
+import { createWorld } from './scene3d.js?v=98';
+import * as A from './audio.js?v=98';
+import * as P from './progress.js?v=98';
+import { createMud } from './mudfx.js?v=98';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=98';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=98';
+import * as C from './classifica.js?v=98';
+import * as D from './duel.js?v=98';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=97').then(m => {
+import('./piloti.js?v=98').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -1998,7 +1998,7 @@ function endReplay(cancel = false) {
 // video: la scena 3D più una fascia EDT, disegnate su una tela 2D che il telefono registra
 function makeRecorder() {
   if (!window.MediaRecorder || !canvas.captureStream) return null;
-  const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  const types = ['video/mp4;codecs=avc1.42E01E', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
   const type = types.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch { return false; } });
   if (!type) return null;
   const W = Math.min(720, canvas.width), H = Math.round(W * canvas.height / canvas.width) & ~1;
@@ -2044,9 +2044,15 @@ function offerVideo(file, info) {
   document.body.appendChild(el);
   $('vidclose').onclick = () => { el.remove(); URL.revokeObjectURL(url); };
   $('vidshare').onclick = async () => {
-    const data = { files: [file], title: 'Giro Easy · EDT', text: info.text + publicGameURL };
-    if (navigator.canShare?.(data)) { try { await navigator.share(data); } catch {} }
-    else { $('vidsave').click(); toast('💾 VIDEO SALVATO: ALLEGALO NEL GRUPPO WHATSAPP', 'green'); }
+    // v98 · prima il solo video (+ testo), che Android e WhatsApp accettano; se il telefono rifiuta: salva il video e apre WhatsApp col messaggio pronto
+    const text = info.text + publicGameURL;
+    for (const data of [{ files: [file], text }, { files: [file] }]) {
+      if (!navigator.share || !navigator.canShare?.(data)) continue;
+      try { await navigator.share(data); return; } catch (e) { if (e?.name === 'AbortError') return; }
+    }
+    $('vidsave').click();
+    toast('💾 VIDEO SALVATO: SCEGLI IL GRUPPO E ALLEGALO DALLA GALLERIA', 'green');
+    setTimeout(() => { const a = document.createElement('a'); a.href = waLink(text); a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }, 1200);
   };
 }
 document.addEventListener('click', e => {
@@ -2554,7 +2560,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 97;
+const GAME_VERSION = 98;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
