@@ -2126,8 +2126,8 @@ function renderShop(back, tab = shopTab) {
   const studCard = it => {
     const owned = P.ownsPart('studs', it.id), on = parts.studs.id === it.id, can = owned || P.profile.beers >= it.price;
     const g = it.stats?.grip || 0, d = it.stats?.drift || 0;
-    return `<div class="upg bikecard ${on ? 'max' : ''} ${it.boanal ? 'boanal' : ''}"><span class="ui">${it.boanal ? '💎' : it.id === 'none' ? '🛞' : '❄'}</span>
-      <span class="ut"><b>${it.name}</b><small>${it.desc || ''}</small><div class="bstats"><span class="bs"><small>GRIP</small><span class="bar"><span class="fill ${g ? 'up' : ''}" style="width:${Math.max(8, Math.round(g / .72 * 100))}%"></span></span></span><span class="bs"><small>DERAPATA</small><span class="bar"><span class="fill ${d ? 'up' : ''}" style="width:${Math.max(8, Math.round(d / .5 * 100))}%"></span></span></span></div></span>
+    return `<div class="upg bikecard ${on ? 'max' : ''} ${it.boanal || it.factory ? 'boanal' : ''}"><span class="ui">${it.factory ? '🏁' : it.boanal ? '💎' : it.id === 'none' ? '🛞' : '❄'}</span>
+      <span class="ut"><b>${it.name}</b><small>${it.desc || ''}</small><div class="bstats"><span class="bs"><small>GRIP</small><span class="bar"><span class="fill ${g ? 'up' : ''}" style="width:${Math.min(100, Math.max(8, Math.round(g / .8 * 100)))}%"></span></span></span><span class="bs"><small>DERAPATA</small><span class="bar"><span class="fill ${d ? 'up' : ''}" style="width:${Math.min(100, Math.max(8, Math.round(d / .62 * 100)))}%"></span></span></span></div></span>
       <button type="button" class="buy" data-part="studs:${it.id}" ${on || !can ? 'disabled' : ''}>${on ? 'MONTATI' : owned ? 'MONTA' : it.price + ' 🍺'}</button></div>`;
   };
   const tabs = [['upg', '🔧 POTENZIAMENTI'], ['bikes', '🏍 MOTO'], ['parts', '🎨 ACCESSORI'], ['ice', '❄ CHIODI']];

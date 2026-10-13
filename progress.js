@@ -210,7 +210,8 @@ export const PARTS = [
     { id: 'puntine', name: 'Puntine da disegno', price: 90, color: '#e8452c', desc: 'Prese dalla bacheca del bar. Colorate e cattive.', stats: { grip: .28, drift: .12 } },
     { id: 'gusta', name: 'Gusta Grip', price: 170, color: '#e2b13c', desc: 'Mordono il ghiaccio come Gusta morde il panino.', stats: { grip: .42, drift: .22 } },
     { id: 'icefury', name: 'Ice Fury', price: 280, color: '#5fd4ff', desc: 'Il top: traversi infiniti senza perdere la linea.', stats: { grip: .58, drift: .35 } },
-    { id: 'boanal', name: 'BO-anal Special', price: 420, color: '#f2c230', boanal: true, desc: 'BO-anal Special Parts: chiodi d’oro. Grip totale e punti derapata a pioggia.', stats: { grip: .72, drift: .5 } } ] },
+    { id: 'boanal', name: 'BO-anal Special', price: 420, color: '#f2c230', boanal: true, desc: 'BO-anal Special Parts: chiodi d’oro. Grip totale e punti derapata a pioggia.', stats: { grip: .72, drift: .5 } },
+    { id: 'factory', name: 'Factory EDT', price: 650, color: '#f2c230', factory: true, desc: 'I chiodi ufficiali della squadra, neri e oro: il massimo del grip e derapate da applausi. Un gradino sopra i BO-anal.', stats: { grip: .8, drift: .62 } } ] },
 ];
 data.bike ||= 'edt250'; data.owned ||= {}; data.parts ||= {};
 export const ownsBike = id => id === 'edt250' || !!data.owned['bike:' + id];

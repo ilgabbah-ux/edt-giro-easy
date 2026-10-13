@@ -1159,7 +1159,7 @@ export function createWorld(canvas) {
     for (const m of meshesWith(seatMat)) m.visible = !look.trial;
     const st = parts.studs?.id || 'none';
     for (const sset of studSets) sset.visible = st !== 'none';
-    if (st !== 'none') { studMat.color.set(parts.studs.color || '#c9d2d6'); studMat.emissive.set(st === 'icefury' ? '#1a6f9a' : st === 'boanal' ? '#5a4200' : '#000000'); studMat.metalness = st === 'puntine' ? .3 : .85; }
+    if (st !== 'none') { studMat.color.set(parts.studs.color || '#c9d2d6'); studMat.emissive.set(st === 'icefury' ? '#1a6f9a' : st === 'boanal' ? '#5a4200' : st === 'factory' ? '#8a6400' : '#000000'); studMat.metalness = st === 'puntine' ? .3 : .85; }
     const dk = look.boanal && (parts.decal?.id || 'none') === 'none' ? 'boanal' : parts.decal?.id || 'none';
     bike.traverse(o => { if (o.name === 'sidedecal') o.visible = dk !== 'none'; });
     if (dk !== 'none') paintSideDecal(dk, livery.accent || '#fcd326', livery.helmet || '#ffffff');
