@@ -138,7 +138,7 @@ function doGet(e) {
     // v96 · controlli di buon senso contro i giri truccati: punteggio, tempo, metri e versione devono essere credibili
     const tm = Number(p.time) || 0, vv = Number(p.v) || 0;
     const plausible = vv >= minvOf_(p) && score <= (CAP[mode] || 150000) &&
-      (mode === 2 ? tm <= 400 : mode === ICE ? tm <= 1600 : (p.win !== '1' || tm >= 38));
+      (mode === 2 ? tm <= 400 : mode === ICE ? tm <= 1600 : (p.win !== '1' || tm >= 30));   // v102 · con pietraia, turbo e potenziamenti un giro vero può stare sotto i 38 s (Gabbah 36,7 s su Argentera): soglia a 30 s
     if (name && score > 0 && score <= MAX_SCORE && mode >= 0 && mode < MODES && plausible) {
       const lock = LockService.getScriptLock();
       lock.waitLock(8000);
