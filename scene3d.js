@@ -1359,14 +1359,33 @@ export function createWorld(canvas) {
     for (let i = 0; i < 70; i++) { const y = Math.random() * 128, len = 30 + Math.random() * 90, a = .08 + Math.random() * .22; x.strokeStyle = `rgba(230,245,250,${a})`; x.lineWidth = 1 + Math.random() * 2.5; x.beginPath(); const x0 = Math.random() * 256; x.moveTo(x0, y); x.bezierCurveTo(x0 + len * .3, y - 3, x0 + len * .6, y + 3, x0 + len, y); x.stroke(); }
     for (let i = 0; i < 40; i++) { x.fillStyle = `rgba(20,50,60,${.15 + Math.random() * .2})`; x.beginPath(); x.ellipse(Math.random() * 256, Math.random() * 128, 6 + Math.random() * 18, 2 + Math.random() * 4, 0, 0, 7); x.fill(); }
     const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(3, 1); t.colorSpace = T.SRGBColorSpace; return t; })();
-  const fordWater = new T.MeshStandardMaterial({ map: fordTex, color: '#c4ddd6', roughness: .05, metalness: .3, transparent: true, opacity: .86 }), fordFoam = mat('#eef6f7', .6);
+  const fordWater = new T.MeshStandardMaterial({ map: fordTex, color: '#d6ebe4', roughness: .05, metalness: .3, transparent: true, opacity: .8 }), fordFoam = mat('#eef6f7', .6);
   const fordFoamT = new T.MeshStandardMaterial({ color: '#f2f8f9', roughness: .5, transparent: true, opacity: .75, depthWrite: false });
-  const fordBank = mat('#3f3226', .55), mossStone = mat('#6d7a55', .9);
-  for (const m of [fordWater, fordFoamT, fordBank]) { m.polygonOffset = true; m.polygonOffsetFactor = -4; m.polygonOffsetUnits = -4; }   // sempre sopra il terreno, anche dove la mesh del suolo sale
+  const fordBank = mat('#3f3226', .55), mossStone = mat('#6d7a55', .9), fordGravel = mat('#8b7f6a', .95);
+  const fordDeep = new T.MeshStandardMaterial({ map: fordTex, color: '#7fa7a4', roughness: .04, metalness: .35, transparent: true, opacity: .8, depthWrite: false });   // v101 · canale più profondo al centro del guado
+  for (const m of [fordWater, fordFoamT, fordBank, fordGravel, fordDeep]) { m.polygonOffset = true; m.polygonOffsetFactor = -4; m.polygonOffsetUnits = -4; }   // sempre sopra il terreno, anche dove la mesh del suolo sale
+  // v101 · guado naturale: un'unica "decalcomania" dipinta (fango bagnato sfumato, greto, acqua bassa ai bordi e più scura al centro) + velo d'acqua che scorre, mascherato sulla stessa forma
+  const fordDecals = [];
+  function fordDecal() {
+    if (fordDecals.length >= 3) return fordDecals[Math.floor(Math.random() * fordDecals.length)];
+    const W = 1024, H = 256, s = Math.random() * 100;
+    const zc = x => .5 + .07 * Math.sin(x * 9.4 + s) + .03 * Math.sin(x * 23 + s * 2);
+    const hw = x => .25 + .045 * Math.sin(x * 15 + s * 3) + .02 * Math.sin(x * 41 + s) + .09 * Math.exp(-Math.pow((x - .5) / .06, 2));
+    const band = (c, w, fill) => { c.beginPath(); for (let i = 0; i <= 128; i++) { const x = i / 128; c.lineTo(x * W, (zc(x) - w(x)) * H); } for (let i = 128; i >= 0; i--) { const x = i / 128; c.lineTo(x * W, (zc(x) + w(x)) * H); } c.closePath(); c.fillStyle = fill; c.fill(); };
+    const g = document.createElement('canvas'); g.width = W; g.height = H; const c = g.getContext('2d');
+    for (let k = 10; k >= 1; k--) band(c, x => hw(x) + .022 * k, `rgba(52,40,28,${.1})`);   // fango bagnato che sfuma nel terreno
+    for (let i = 0; i < 260; i++) { const x = Math.random(), side = Math.random() < .5 ? -1 : 1, z = zc(x) + side * (hw(x) + Math.random() * .1); c.fillStyle = `rgba(${150 + Math.random() * 50},${140 + Math.random() * 40},${120 + Math.random() * 30},${.5 + Math.random() * .4})`; c.beginPath(); c.ellipse(x * W, z * H, 1.5 + Math.random() * 4, 1 + Math.random() * 3, Math.random() * 3, 0, 7); c.fill(); }   // greto di sassolini
+    for (let k = 0; k < 6; k++) band(c, x => hw(x) - .012 * k, `rgba(${70 - k * 6},${110 - k * 6},${105 - k * 4},${.35 + k * .1})`);   // acqua bassa → profonda
+    for (let i = 0; i < 70; i++) { const x = Math.random(), z = zc(x) + (Math.random() - .5) * 1.6 * hw(x); c.fillStyle = `rgba(30,45,40,${.18 + Math.random() * .2})`; c.beginPath(); c.ellipse(x * W, z * H, 3 + Math.random() * 9, 2 + Math.random() * 5, Math.random() * 3, 0, 7); c.fill(); }   // sassi sul fondo
+    const m = document.createElement('canvas'); m.width = W; m.height = H; const mc = m.getContext('2d'); mc.fillStyle = '#000'; mc.fillRect(0, 0, W, H);
+    for (let k = 0; k < 6; k++) band(mc, x => hw(x) - .014 * k, 'rgba(255,255,255,.2)');
+    const tex = cv => { const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace; return t; };
+    const d = { ground: tex(g), mask: new T.CanvasTexture(m) }; fordDecals.push(d); return d;
+  }
   let fordGeoCache = null;
   function fordGeos() {
     if (fordGeoCache) return fordGeoCache;
-    const edge = (x, sgn, k) => { const taper = 1 - .6 * Math.pow(Math.max(0, Math.abs(x) - .4) / .1, 2); return sgn * (2.1 + k + .45 * Math.sin(x * 14 + sgn * 1.3) + .22 * Math.sin(x * 37 + 2 * sgn) + .08 * Math.sin(x * 91)) * taper + 2.2 * Math.sin(x * 7.5) + .8 * Math.sin(x * 17); };   // torrente che arriva dal prato, serpeggia e riparte   // largo in pista, si stringe ai lati e serpeggia
+    const edge = (x, sgn, k) => { const taper = 1 - .6 * Math.pow(Math.max(0, Math.abs(x) - .4) / .1, 2); return sgn * (3.4 + k + 1.3 * Math.exp(-Math.pow(x / .09, 2)) + .55 * Math.sin(x * 14 + sgn * 1.3) + .22 * Math.sin(x * 37 + 2 * sgn) + .08 * Math.sin(x * 91)) * taper + 2.2 * Math.sin(x * 7.5) + .8 * Math.sin(x * 17); };   // torrente che arriva dal prato, serpeggia e riparte   // largo in pista, si stringe ai lati e serpeggia
     const shape = k => { const sh = new T.Shape(), N = 60; sh.moveTo(-.5, edge(-.5, -1, k));
       for (let i = 1; i <= N; i++) { const x = -.5 + i / N; sh.lineTo(x, edge(x, -1, k)); }
       for (let i = N; i >= 0; i--) { const x = -.5 + i / N; sh.lineTo(x, edge(x, 1, k)); }
@@ -1376,7 +1395,7 @@ export function createWorld(canvas) {
       for (let i = N; i >= 0; i--) { const x = -.5 + i / N; sh.lineTo(x, edge(x, sgn, -.1 - .04 * Math.sin(x * 37))); }
       const g = new T.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); parts.push(g); } return mergeGeometries(parts); })();
     const wake = (() => { const sh = new T.Shape(); sh.moveTo(-.1, 0); sh.quadraticCurveTo(.2, .18, 1, .05); sh.lineTo(1, -.05); sh.quadraticCurveTo(.2, -.18, -.1, 0); const g = new T.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); g.scale(.25, 1, 1); return g; })();
-    return (fordGeoCache = { water: shape(0), bank: shape(.55), foam, wake });
+    return (fordGeoCache = { water: shape(0), bank: shape(.75), gravel: shape(1.5), deep: shape(-2.1), foam, wake });
   }
   const ibexFur = mat('#8a6a48', .9), chamFur = mat('#4a3526', .9), marmotFur = mat('#9a7650', .95);
   const snowMat = mat('#f6f9fb', .7), carrotMat = mat('#f07a1c', .6), scarfMat = mat('#d0242a', .8);
@@ -1608,15 +1627,17 @@ export function createWorld(canvas) {
       // v97 · guado vero: bordi irregolari, sponde di fango bagnato, corrente che scorre, sassi affioranti con la schiuma a valle
       const inner = new T.Group(); g.add(inner); g.userData.inner = inner;   // allargato su tutta la pista (solo in x)
       g.rotation.y = (Math.random() - .5) * .3;   // il torrente non taglia mai la pista a squadra
-      const G = fordGeos();
-      const bank = mesh(G.bank, fordBank, inner); bank.position.y = .06; bank.receiveShadow = true; bank.castShadow = false;
-      const w = mesh(G.water, fordWater, inner); w.position.y = .09; w.receiveShadow = true; w.castShadow = false;
-      const f = mesh(G.foam, fordFoamT, inner); f.position.y = .1; f.castShadow = false;
+      const D = fordDecal(), G = fordGeos();
+      const gm = new T.MeshStandardMaterial({ map: D.ground, transparent: true, depthWrite: false, roughness: .55, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+      const fg = new T.PlaneGeometry(1, 12, 1, 30).rotateX(-Math.PI / 2); g.userData.fgeo = fg; g.userData.stones = [];   // v101 · la superficie segue il terreno (niente pezzi sepolti)
+      const gp = mesh(fg, gm, inner); gp.position.y = 0; gp.receiveShadow = true; gp.castShadow = false;
+      const wm = new T.MeshStandardMaterial({ map: fordTex, alphaMap: D.mask, color: '#d6ebe4', transparent: true, depthWrite: false, roughness: .04, metalness: .35, opacity: .75, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 });
+      const wp = mesh(fg, wm, inner); wp.position.y = .02; wp.castShadow = false;
       const seed = Math.random() * 100;
-      for (let i = 0; i < 22; i++) {
-        const x = (i - 11) * .62 + Math.sin(seed + i * 7.3) * .3, z = Math.sin(seed * .7 + i * 3.1) * 1.5 + (i % 5 === 0 ? (i % 2 ? 1.9 : -1.9) : 0), sz = .09 + Math.abs(Math.sin(seed + i * 2.2)) * .16;
-        const r = mesh(new T.IcosahedronGeometry(sz, 1), i % 4 ? stone : mossStone, g); r.scale.set(1.25, .55, 1); r.position.set(x, .07 + sz * .12, z); r.rotation.y = i;
-        if (i % 2 === 0) { const fm = mesh(G.wake, fordFoamT, g); fm.position.set(x + sz * 1.6, .1, z); fm.scale.set(sz * 6, 1, sz * 4); fm.castShadow = false; }
+      for (let i = 0; i < 30; i++) {
+        const x = (i - 15) * .5 + Math.sin(seed + i * 7.3) * .3, z = Math.sin(seed * .7 + i * 3.1) * 2.2 + (i % 5 === 0 ? (i % 2 ? 3.3 : -3.3) : 0), sz = .14 + Math.abs(Math.sin(seed + i * 2.2)) * .26;
+        const r = mesh(new T.IcosahedronGeometry(sz, 1), i % 4 ? stone : mossStone, g); r.scale.set(1.25, .55, 1); r.position.set(x, .07 + sz * .12, z); r.rotation.y = i; g.userData.stones.push([r, z, sz * .12]);
+        if (i % 2 === 0) { const fm = mesh(G.wake, fordFoamT, g); r.userData.wake = fm; fm.position.set(x + sz * 1.6, .1, z); fm.scale.set(sz * 6, 1, sz * 4); fm.castShadow = false; }
       }
     } else if (type === 'ibex' || type === 'chamois') {
       // v46 · stambecco (corna grandi a falce) e camoscio (corna a uncino, maschera bianca e nera)
@@ -2286,7 +2307,10 @@ export function createWorld(canvas) {
       }
       if (m.userData.roller) m.userData.roller.rotation.z = -o.z * 26;
       if (o.type === 'bigLog') { const len = spacing() * 2 + 2.2; m.userData.inner.scale.x = len; }
-      if (o.type === 'ford') m.userData.inner.scale.x = spacing() * 2 + 30;   // v97 · il torrente continua nel prato
+      if (o.type === 'ford') { m.userData.inner.scale.x = spacing() * 2 + 30;   // v97 · il torrente continua nel prato
+        m.rotation.x = 0; const h0 = height(z, t), pos = m.userData.fgeo.attributes.position;   // v101 · guado appoggiato sul terreno vero, anche su dossi e cunette
+        for (let i = 0; i < pos.count; i++) pos.setY(i, height(z + pos.getZ(i), t) - h0 + .06);
+        pos.needsUpdate = true; for (const [r, rz, ry] of m.userData.stones) { r.position.y = height(z + rz, t) - h0 + .05 + ry; if (r.userData.wake) r.userData.wake.position.y = r.position.y - ry + .05; } }
       if (o.cross) m.rotation.y = o.cross > 0 ? 0 : Math.PI;
       else if (o.type === 'ibex' || o.type === 'chamois' || o.type === 'marmot') m.rotation.y = 0;
       if (o.lean !== undefined && o.type === 'tree') m.rotation.z = o.lean * .3;
