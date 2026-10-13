@@ -172,7 +172,7 @@ let keyL = false, keyR = false, btnL = false, btnR = false, zoneSteer = 0, padSt
 const steerNow = () => Math.max(-1, Math.min(1, (keyR ? 1 : 0) - (keyL ? 1 : 0) + (btnR ? 1 : 0) - (btnL ? 1 : 0) + zoneSteer + padSteer + tiltSteer));
 // v62 · sterzo inclinando il telefono (giroscopio): si attiva dal menu; lo "zero" è la posizione del telefono al via.
 let tiltOn = false, tiltSteer = 0, tiltZero = null, tiltRaw = 0;
-try { tiltOn = localStorage.getItem('edt-tilt') === '1'; } catch {}
+try { const st = localStorage.getItem('edt-tilt'); tiltOn = st === '1' || (st === null && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)); } catch {}   // v101.1 · sul telefono si sterza inclinando di serie (chi l'ha spento resta senza)
 function tiltAngle(e) {
   const a = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0;
   if (a === 90) return e.beta;          // orizzontale, tasto home a destra
@@ -486,6 +486,7 @@ function startMusic() {
 }
 function go() {
   state = 'playing'; tiltZero = null;   // v62 · lo zero del giroscopio è la posizione al VIA
+  if (tiltOn) { let seen = '1'; try { seen = localStorage.getItem('edt-tilt-hint'); localStorage.setItem('edt-tilt-hint', '1'); } catch {} if (!seen) setTimeout(() => toast('📱 INCLINA IL TELEFONO PER STERZARE · SI SPEGNE DAL MENU', 'green'), 900); }
   if (holePre) setTimeout(() => { if (state === 'playing' && !holeDone) holeshot(); }, 0);
   $('countdown').className = 'countdown go';
   $('trackintro').className = 'trackintro out';
