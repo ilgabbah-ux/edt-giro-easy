@@ -1,8 +1,8 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=100';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=101';
 import * as T from './three.module.min.js';
-import { RIDER_PARTS } from './pilota3d.js?v=100';
+import { RIDER_PARTS } from './pilota3d.js?v=101';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
@@ -332,6 +332,7 @@ export function createWorld(canvas) {
     tufts.visible = !on && quality < 2;
     ferns.visible = flowers.visible = !on; shroomStems.visible = shroomCaps.visible = false;   // v72 · niente funghi giganti da cartone
     shrubs.material.color.set(on ? '#e6eef2' : '#567342');
+    rockMat.vertexColors = !on; rockMat.color.set(on ? '#dde6ea' : '#ffffff'); rockMat.needsUpdate = true;   // v101 · sassi innevati su Ice Scrofy
   }
 
   // ---------- Paesaggi per sezione (instanced: leggero sui telefoni) ----------
@@ -374,7 +375,27 @@ export function createWorld(canvas) {
   larchData.forEach((d, i) => larchCrowns.setColorAt(i, new T.Color(larchCols[i % larchCols.length])));
   const LARCH_D = [.03, .08, 1, .3];
 
-  const rocks = new T.InstancedMesh(new T.IcosahedronGeometry(1, 1), stone, 60);
+  // v101 · sassi veri: forma irregolare con facce spaccate, base piatta, licheni e muschio sopra (colori nei vertici)
+  const rockGeo = (() => {
+    const g = new T.IcosahedronGeometry(1, 2), p = g.attributes.position, v = new T.Vector3(), col = [];
+    const n3 = (x, y, z) => Math.sin(x * 2.1 + y * 1.3) * .5 + Math.sin(y * 3.7 - z * 2.3) * .3 + Math.sin(z * 5.3 + x * 4.1) * .2;
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i); const d = 1 + n3(v.x, v.y, v.z) * .22;
+      v.multiplyScalar(d); v.y *= .62; if (v.y < -.28) v.y = -.28 + (v.y + .28) * .15;
+      p.setXYZ(i, v.x, v.y, v.z);
+    }
+    const ng = g.toNonIndexed(); ng.computeVertexNormals();
+    const q = ng.attributes.position, nn = ng.attributes.normal, c = new T.Color();
+    for (let i = 0; i < q.count; i += 3) {   // un colore per faccia: grigio-marrone che varia, muschio sulle facce verso l'alto
+      const ny = (nn.getY(i) + nn.getY(i + 1) + nn.getY(i + 2)) / 3, yy = (q.getY(i) + q.getY(i + 1) + q.getY(i + 2)) / 3, r = Math.sin(i * 12.9898) * 43758.5453 % 1;
+      if (ny > .55 && yy > .05 && r > -.35) c.set(r > .3 ? '#6f7f4a' : '#7d8a52'); else if (yy < -.2) c.set('#5d5a50'); else c.setHSL(.09 + r * .03, .07 + Math.abs(r) * .06, .40 + r * .07, T.SRGBColorSpace);
+      for (let k = 0; k < 3; k++) col.push(c.r, c.g, c.b);
+    }
+    ng.setAttribute('color', new T.Float32BufferAttribute(col, 3)); return ng;
+  })();
+  const rockMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: .95, flatShading: true });
+  const rocks = new T.InstancedMesh(rockGeo, rockMat, 60);
+  const wetRockMat = new T.MeshStandardMaterial({ color: '#5e625b', roughness: .35, metalness: .1, flatShading: true });   // sassi bagnati nel guado: scuri e lucidi, niente muschio
   const rockData = Array.from({ length: 60 }, (_, i) => ({ side: i % 2 ? 1 : -1, z: i * 3.03, off: (i % 7) * .47, big: rand() }));
   for (const item of [trunks, crowns, tops, rocks, birchTrunks, leafCrowns, larchTrunks, larchCrowns]) { item.castShadow = true; item.receiveShadow = true; scene.add(item); }
   // v70 · abeti veri: modelli Poly Haven (CC0) renderizzati in Blender e messi in pista come sagome incrociate
@@ -391,6 +412,7 @@ export function createWorld(canvas) {
   const cardMat = (tint) => new T.MeshLambertMaterial({ color: tint, alphaTest: .42, side: T.DoubleSide, transparent: false });
   const firA = new T.InstancedMesh(cardGeo, cardMat('#9fb08c'), PINES), firB = new T.InstancedMesh(cardGeo, cardMat('#93a885'), PINES);
   for (const m of [firA, firB]) { m.visible = false; m.frustumCulled = false; scene.add(m); }
+  { const c = new T.Color(); for (let i = 0; i < PINES; i++) { const r = (Math.sin(i * 91.7) * 43758.5) % 1; c.setRGB(.86 + r * .14, .9 + r * .1, .84 + Math.abs(r) * .12); firA.setColorAt(i, c); firB.setColorAt(i, c); } }   // v101 · abeti di toni diversi, il bosco non sembra copiato
   let firOK = false;
   const zeroM = new T.Matrix4().makeScale(0, 0, 0);
   for (const [m, k] of [[firA, 'a'], [firB, 'b']]) texLoader.load(`img/tex/fir_${k}.webp?t=1`, t => {
@@ -433,8 +455,8 @@ export function createWorld(canvas) {
       const z = wrapZ(d.z, t), w = d.side * (5.2 * trail.width + d.off);
       // Sul salitone i sassi diventano massi.
       const k = 1 + dens(z, [0, 0, 1.6, .6]) * d.big;
-      dummy.position.set(center(z, t) + w + d.side * (k - 1) * .8, ground(z, t, w) + .23 * k, z);
-      dummy.rotation.set(i * .8, i, 0); dummy.scale.set((.35 + (i % 4) * .16) * k, (.28 + (i % 3) * .25) * k, .6 * k); put(rocks, i);
+      dummy.position.set(center(z, t) + w + d.side * (k - 1) * .8, ground(z, t, w) + .14 * k, z);
+      dummy.rotation.set(Math.sin(i) * .12, i * 2.3, Math.cos(i * 1.7) * .12); dummy.scale.set((.35 + (i % 4) * .16) * k, (.28 + (i % 3) * .25) * k, .6 * k); put(rocks, i);
     });
     for (const o of [trunks, crowns, tops, rocks, birchTrunks, leafCrowns, larchTrunks, larchCrowns, firA, firB, larchCards, leafCards]) o.instanceMatrix.needsUpdate = true;
   }
@@ -1636,7 +1658,7 @@ export function createWorld(canvas) {
       const seed = Math.random() * 100;
       for (let i = 0; i < 30; i++) {
         const x = (i - 15) * .5 + Math.sin(seed + i * 7.3) * .3, z = Math.sin(seed * .7 + i * 3.1) * 2.2 + (i % 5 === 0 ? (i % 2 ? 3.3 : -3.3) : 0), sz = .14 + Math.abs(Math.sin(seed + i * 2.2)) * .26;
-        const r = mesh(new T.IcosahedronGeometry(sz, 1), i % 4 ? stone : mossStone, g); r.scale.set(1.25, .55, 1); r.position.set(x, .07 + sz * .12, z); r.rotation.y = i; g.userData.stones.push([r, z, sz * .12]);
+        const r = mesh(rockGeo, wetRockMat, g); r.scale.set(sz * 1.3, sz * 1.15, sz); r.position.set(x, .07 + sz * .12, z); r.rotation.y = i; g.userData.stones.push([r, z, sz * .12]);
         if (i % 2 === 0) { const fm = mesh(G.wake, fordFoamT, g); r.userData.wake = fm; fm.position.set(x + sz * 1.6, .1, z); fm.scale.set(sz * 6, 1, sz * 4); fm.castShadow = false; }
       }
     } else if (type === 'ibex' || type === 'chamois') {
