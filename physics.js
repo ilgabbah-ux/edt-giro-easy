@@ -32,6 +32,8 @@ export const OBSTACLE_HEIGHT = {
   tyre: .50,      // v57 · copertone lanciato dalle GEV
   sign: .92,      // v57 · cartello di divieto lanciato dalle GEV
   barrier: .80,   // v57 · transenna lanciata dalle GEV
+  hen: .42,       // v102 · gallina in fuga (Gusta Ranch)
+  rollHay: .95,   // v102 · rotoballa lanciata dal Gusta
   trincia: 2.6,   // v81 · trattore con la trincia del Gusta (non si salta)
 };
 
@@ -204,6 +206,26 @@ const iceIdx = x => { const f = (x - ICE_X0) / ICE_STEP; const i = Math.max(0, M
 export function iceBend(x) { const [i, f] = iceIdx(x); return iceK[i] + (iceK[i + 1] - iceK[i]) * f; }
 export function iceShape(x) { const [i, f] = iceIdx(x); return iceP[i] + (iceP[i + 1] - iceP[i]) * f; }
 export function iceHeading(x) { const [i, f] = iceIdx(x); return iceH[i] + (iceH[i + 1] - iceH[i]) * f; }
+
+// v102 · Gusta Ranch: il giro vero disegnato sulla mappa. Dalla cascina giù dritti, curva a destra lungo il campo,
+// poi l'anello dei tornanti nel bosco del Gusta (una fila di tornanti a U, uno dopo l'altro) e ritorno verso il falò.
+const RANCH_SEGS = [
+  [70, 0], [60, -1.3], [80, 0], [70, 1.4], [40, 0], [100, -1.6], [30, 0], [100, 1.6], [30, 0], [90, -1.6], [25, 0],
+  [80, 1.5], [30, 0], [90, -1.5], [40, 0], [70, -1.2], [60, 0], [50, .9], [50, -.9], [60, 0], [80, 1.3], [200, 0],
+];
+const RANCH_N = 7200, RANCH_X0 = -400, RANCH_STRETCH = 1.2;   // il giro dura ~1900 unità di strada: i tornanti occupano i primi 4/5
+const ranchK = new Float32Array(RANCH_N), ranchH = new Float64Array(RANCH_N), ranchP = new Float64Array(RANCH_N);
+(() => {
+  const RAMP = 14, starts = []; let acc = 0; for (const s of RANCH_SEGS) { starts.push(acc); acc += s[0] * RANCH_STRETCH; }
+  const kAt = x => { if (x < 0 || x >= acc) return 0; let i = 0; while (i + 1 < RANCH_SEGS.length && x >= starts[i + 1]) i++;
+    const u = x - starts[i], cur = RANCH_SEGS[i][1], prev = i ? RANCH_SEGS[i - 1][1] : 0; if (u >= RAMP) return cur; const w = u / RAMP; return prev + (cur - prev) * w * w * (3 - 2 * w); };
+  for (let i = 0; i < RANCH_N; i++) ranchK[i] = kAt(RANCH_X0 + i * ICE_STEP);
+  for (let i = 1; i < RANCH_N; i++) { ranchH[i] = ranchH[i - 1] - ranchK[i] * IK * ICE_STEP; ranchP[i] = ranchP[i - 1] + ranchH[i] * ICE_STEP; }
+})();
+const ranchIdx = x => { const f = (x - RANCH_X0) / ICE_STEP; const i = Math.max(0, Math.min(RANCH_N - 2, Math.floor(f))); return [i, Math.max(0, Math.min(1, f - i))]; };
+export function ranchShape(x) { const [i, f] = ranchIdx(x); return ranchP[i] + (ranchP[i + 1] - ranchP[i]) * f; }
+export function ranchHeading(x) { const [i, f] = ranchIdx(x); return ranchH[i] + (ranchH[i + 1] - ranchH[i]) * f; }
+export function ranchBend(x) { const [i, f] = ranchIdx(x); return ranchK[i] + (ranchK[i + 1] - ranchK[i]) * f; }
 
 // Generatore pseudo-casuale riproducibile (per la Sfida del giorno).
 export function makeRng(seed) {

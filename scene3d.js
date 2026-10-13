@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=101';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=101';
 import * as T from './three.module.min.js';
 import { RIDER_PARTS } from './pilota3d.js?v=101';
 
@@ -159,8 +159,9 @@ export function createWorld(canvas) {
   let trail = { grade: 0, width: 1, rough: 0, climb: 0, wet: 0 };
   const spacing = () => 2.5 * trail.width;
   let iceMode = false, iceKey = null, groundMaps = null;
+  let ranchLook = false;   // v102 · Gusta Ranch nell'Astigiano
   let curveA = 3.8, curveF = .021;   // v97 · curve diverse per la variante della settimana
-  const center = (z, t) => iceMode ? (iceShape(t - z) - iceShape(t) + iceHeading(t) * z) * 2 : Math.sin((t - z) * curveF) * curveA - Math.sin(t * curveF) * curveA + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;   // v88 · sul ghiaccio la vista segue la direzione della pista: si vede solo la curva
+  const center = (z, t) => iceMode ? (iceShape(t - z) - iceShape(t) + iceHeading(t) * z) * 2 : ranchLook ? (ranchShape(t - z) - ranchShape(t) + ranchHeading(t) * z) * 2 : Math.sin((t - z) * curveF) * curveA - Math.sin(t * curveF) * curveA + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;   // v88 · sul ghiaccio la vista segue la direzione della pista: si vede solo la curva
   // v64 · burrone del Taglio di Angelo: la montagna finisce e il terreno sprofonda (la moto resta alla quota del bordo)
   let canyon = null;
   const CANYON_D = 52, CANYON_DROP = 14;   // profondità del burrone e quanto più in basso si atterra
@@ -430,7 +431,7 @@ export function createWorld(canvas) {
     const shrink = 1 - trail.rough * .45;
     treeData.forEach((d, i) => {
       const z = wrapZ(d.z, t), x = center(z, t) + d.side * d.off, y = ground(z, t, d.side * d.off);
-      const s = d.scale * shrink * vis(z, PINE_D, d.h);
+      const s = d.scale * shrink * vis(z, PINE_D, d.h) * (ranchLook && i % 4 ? 0 : 1);   // v102 · nell'astigiano pochi abeti
       dummy.rotation.set(0, d.rot, 0); dummy.scale.setScalar(s);
       for (const [m, yy] of [[trunks, 1.5], [crowns, 4.0], [tops, 6]]) { dummy.position.set(x, y + yy * s, z); put(m, i); }
       if (firOK) { const card = i % 2 ? firB : firA, other = i % 2 ? firA : firB; dummy.position.set(x, y - .15, z); dummy.scale.setScalar(4.6 * s); put(card, i); other.setMatrixAt(i, zeroM); }
@@ -445,7 +446,7 @@ export function createWorld(canvas) {
     });
     larchData.forEach((d, i) => {
       const z = wrapZ(d.z, t), x = center(z, t) + d.side * d.off, y = ground(z, t, d.side * d.off);
-      const s = d.scale * vis(z, LARCH_D, d.h);
+      const s = d.scale * vis(z, LARCH_D, d.h) * (ranchLook ? 0 : 1);
       dummy.rotation.set(0, i, 0); dummy.scale.setScalar(s);
       dummy.position.set(x, y + 1.2 * s, z); put(larchTrunks, i);
       dummy.scale.set(s * .9, s, s * .9); dummy.position.set(x, y + 3.9 * s, z); put(larchCrowns, i);
@@ -687,6 +688,35 @@ export function createWorld(canvas) {
       }
     }
     vineLeaf.instanceMatrix.needsUpdate = vinePost.instanceMatrix.needsUpdate = vineGrape.instanceMatrix.needsUpdate = true;
+  }
+
+  // v102 · Gusta Ranch sulle colline dell'Astigiano: noccioleti in filari, cascine e campanili sui bricchi
+  const HAZ = 96, hazelData = Array.from({ length: HAZ }, (_, i) => ({ side: i % 2 ? 1 : -1, row: Math.floor(i / 24), z: (i % 24) * 7.5 + rand() * 1.5, s: .8 + rand() * .45 }));
+  const hazelCrown = new T.InstancedMesh((() => { const g = new T.IcosahedronGeometry(1, 1); g.scale(1.5, 1.15, 1.5); return g; })(), new T.MeshStandardMaterial({ roughness: .9, flatShading: true }), HAZ);
+  const hazelTrunk = new T.InstancedMesh(new T.CylinderGeometry(.09, .16, 1.4, 6), bark, HAZ);
+  { const cols = ['#6f8a3c', '#7d963f', '#9aa047', '#b9a346', '#87913a']; const c = new T.Color(); for (let i = 0; i < HAZ; i++) hazelCrown.setColorAt(i, c.set(cols[i % cols.length])); }
+  const FARMS = 7, farmData = Array.from({ length: FARMS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 46 + rand() * 30, z: i * 25.7 + rand() * 8, tower: i % 3 === 0, rot: rand() * 6 }));
+  const farmWall = new T.InstancedMesh(new T.BoxGeometry(7, 3.4, 4.2), new T.MeshStandardMaterial({ color: '#e0c08e', roughness: .95 }), FARMS);
+  const farmRoof = new T.InstancedMesh((() => { const g = new T.CylinderGeometry(0, 3.3, 1.5, 4, 1); g.rotateY(Math.PI / 4); g.scale(1.55, 1, .95); return g; })(), new T.MeshStandardMaterial({ color: '#a8482e', roughness: .9, flatShading: true }), FARMS);
+  const towerBody = new T.InstancedMesh(new T.BoxGeometry(1.5, 9, 1.5), new T.MeshStandardMaterial({ color: '#c98d5e', roughness: .95 }), FARMS);
+  const towerTop = new T.InstancedMesh((() => { const g = new T.ConeGeometry(1.2, 2.4, 4); g.rotateY(Math.PI / 4); return g; })(), new T.MeshStandardMaterial({ color: '#8f3f2a', roughness: .9, flatShading: true }), FARMS);
+  for (const m of [hazelCrown, hazelTrunk, farmWall, farmRoof, towerBody, towerTop]) { m.castShadow = m !== farmWall; m.receiveShadow = true; m.visible = false; scene.add(m); }
+  function astigiano(t, on) {
+    for (const m of [hazelCrown, hazelTrunk, farmWall, farmRoof, towerBody, towerTop]) m.visible = on;
+    if (!on) return;
+    hazelData.forEach((d, i) => {
+      const off = (25 + d.row * 4.2) * (trail.width * .5 + .5), z = wrapZ(d.z, t), w = d.side * off, x = center(z, t) + w, y = ground(z, t, w);
+      dummy.rotation.set(0, i, 0); dummy.scale.setScalar(d.s); dummy.position.set(x, y + .7 * d.s, z); put(hazelTrunk, i);
+      dummy.position.set(x, y + 1.9 * d.s, z); put(hazelCrown, i);
+    });
+    farmData.forEach((d, i) => {
+      const z = wrapZ(d.z, t), w = d.side * d.off, x = center(z, t) + w, y = ground(z, t, w);
+      dummy.rotation.set(0, d.rot, 0); dummy.scale.setScalar(1);
+      dummy.position.set(x, y + 1.6, z); put(farmWall, i); dummy.position.set(x, y + 4.05, z); put(farmRoof, i);
+      if (d.tower) { dummy.position.set(x + 4.6, y + 4.5, z + 1.2); put(towerBody, i); dummy.position.set(x + 4.6, y + 10.2, z + 1.2); put(towerTop, i); }
+      else { dummy.scale.setScalar(0); put(towerBody, i); put(towerTop, i); }
+    });
+    for (const m of [hazelCrown, hazelTrunk, farmWall, farmRoof, towerBody, towerTop]) m.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- Montagne: due creste con foschia ----------
@@ -1339,6 +1369,19 @@ export function createWorld(canvas) {
   const waterPlastic = new T.MeshStandardMaterial({ color: '#a9dcff', roughness: .1, transparent: true, opacity: .6 });
   const waterCap = mat('#1e6fd9', .4), waterLabel = mat('#ffffff', .6);
   const dangerRing = new T.MeshBasicMaterial({ color: '#ff3b30', transparent: true, opacity: .6, side: T.DoubleSide, depthWrite: false });
+  const ranchLogoMat = new T.MeshBasicMaterial({ transparent: true, alphaTest: .05, side: T.DoubleSide, depthWrite: false });   // v102 · logo "Mud, beer & glory"
+  texLoader.load('img/gusta-ranch-logo.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; });
+  const henWhite = mat('#f3efe6', .85), henRed = mat('#a5512a', .8), henComb = mat('#d4241c', .6), henBeak = mat('#e8b02a', .6);   // v102
+  const pigPink = mat('#e9a49a', .7), pigNose = mat('#d17d78', .6), pigMudDark = mat('#4a3423', .5), cartWood = mat('#7b5434', .9);
+  const hayRollSide = mat('#d9b35a', .95), hayRollEnd = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#d2ab52'; x.fillRect(0, 0, 128, 128); x.strokeStyle = '#a07b30'; x.lineWidth = 3; x.beginPath(); for (let a = 0; a < 40; a += .1) { const r = a * 1.55; x.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r); } x.stroke(); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return new T.MeshStandardMaterial({ map: t, roughness: .95 }); })();
+  const pigMudMat = (() => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const x = c.getContext('2d');
+    const band = (w, fill) => { x.beginPath(); for (let i = 0; i <= 64; i++) { const u = i / 64; x.lineTo(u * 512, (.5 - w - .04 * Math.sin(u * 19) - .03 * Math.sin(u * 47)) * 256); } for (let i = 64; i >= 0; i--) { const u = i / 64; x.lineTo(u * 512, (.5 + w + .04 * Math.sin(u * 23 + 1) + .03 * Math.sin(u * 41)) * 256); } x.closePath(); x.fillStyle = fill; x.fill(); };
+    for (let k = 8; k >= 0; k--) band(.3 + k * .018, `rgba(60,40,24,${k ? .12 : .9})`);
+    band(.2, 'rgba(44,30,18,.9)');
+    for (let i = 0; i < 140; i++) { x.fillStyle = `rgba(${90 + Math.random() * 40},${70 + Math.random() * 30},${45 + Math.random() * 20},${.3 + Math.random() * .4})`; x.beginPath(); x.ellipse(Math.random() * 512, 70 + Math.random() * 116, 2 + Math.random() * 10, 1 + Math.random() * 4, Math.random() * 3, 0, 7); x.fill(); }
+    for (let i = 0; i < 18; i++) { x.fillStyle = 'rgba(190,200,190,.18)'; x.beginPath(); x.ellipse(Math.random() * 512, 100 + Math.random() * 56, 8 + Math.random() * 20, 2 + Math.random() * 4, 0, 0, 7); x.fill(); }   // riflessi nelle pozze
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace;
+    return new T.MeshStandardMaterial({ map: t, transparent: true, depthWrite: false, roughness: .35, metalness: .05, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }); })();
   const hayObs = mat('#dcb553', .95), twine = mat('#8f6a2c', .9), goatWhite = mat('#ece6da', .85), goatDark = mat('#3b332c', .8), hornMat = mat('#9c8a6a', .6);
   const tractorGreen = mat('#2f7d32', .45), tractorYellow = mat('#f2c230', .4), mulchOrange = mat('#e86a1c', .45), cabGlass = new T.MeshStandardMaterial({ color: '#9fc4d8', roughness: .1, metalness: .2, transparent: true, opacity: .45 }), gustaShirt = mat('#3c6e2a', .8);   // v81 · trattore del Gusta
   // v82 · faccia del Gusta (testone tondo col bordo verde) sul trattore: la foto arriva dal gioco con setGustaFace
@@ -1811,6 +1854,7 @@ export function createWorld(canvas) {
       const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
       for (const sd of [-1, 1]) box(.2, 3.4, .2, wood, g, 5.2 + sd * 1.6, 1.7, 4.6);
       const sign = mesh(new T.PlaneGeometry(3.4, .85), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); sign.position.set(5.2, 3.0, 4.7); sign.rotation.y = .5; sign.castShadow = false;
+      { const lg = new T.Mesh(new T.PlaneGeometry(2.4, 2.4), ranchLogoMat); lg.position.set(5.2, 4.75, 4.72); lg.rotation.y = .5; lg.userData.keep = true; g.add(lg); }   // v102 · il logo vero del Gusta Ranch sopra l'insegna
       g.rotation.y = .25;
     } else if (type === 'cone') {
       // v57 · birillo lanciato dalle GEV
@@ -1844,6 +1888,51 @@ export function createWorld(canvas) {
       box(1.6, .12, .05, gevWhite, g, 0, .3, 0);
       for (const sd of [-1, 1]) { box(.07, .78, .07, gevWhite, g, sd * .72, .39, 0); box(.12, .05, .55, gevBlack, g, sd * .72, .03, 0); }
       hazardRing(g, .7);
+    } else if (type === 'hen') {
+      // v102 · gallina in fuga: corpo bianco o rosso, cresta, becco, zampe gialle
+      const red = Math.random() < .4, body = red ? henRed : henWhite;
+      ball(.2, .17, .14, body, g, 0, .27, 0); ball(.1, .1, .09, body, g, .17, .4, 0);
+      ball(.07, .05, .02, henComb, g, .19, .5, 0); ball(.035, .025, .025, henBeak, g, .27, .4, 0); ball(.03, .04, .015, henComb, g, .24, .34, 0);
+      const tail = ball(.1, .12, .08, body, g, -.19, .36, 0); tail.rotation.z = .6;
+      for (const z of [-.05, .05]) rod([.02, .14, z], [.04, 0, z], .015, henBeak, g);
+      for (const z of [-.13, .13]) { const w = ball(.13, .07, .02, body, g, -.02, .3, z); w.rotation.x = z > 0 ? -.5 : .5; }
+      g.scale.setScalar(1.7);   // grandi abbastanza da vederle arrivare
+    } else if (type === 'rollHay') {
+      // v102 · rotoballa che rotola di traverso (la tira il Gusta)
+      const inner = new T.Group(); inner.position.y = .62; g.add(inner); g.userData.roller = inner;
+      const c = mesh(new T.CylinderGeometry(.62, .62, 1.15, 22), hayRollSide, inner); c.rotation.x = Math.PI / 2;
+      for (const z of [-.58, .58]) { const e = mesh(new T.CircleGeometry(.6, 22), hayRollEnd, inner); e.position.z = z; e.rotation.y = z > 0 ? 0 : Math.PI; }
+      for (const z of [-.25, .25]) { const t2 = mesh(new T.TorusGeometry(.625, .018, 6, 28), twine, inner); t2.position.z = z; }
+      hazardRing(g, .7);
+    } else if (type === 'hayCart') {
+      // v102 · carro del fieno: pianale, ruote e il mucchio di fieno inclinato che fa da rampa
+      const sh = new T.Shape(); sh.moveTo(1.15, 0); sh.quadraticCurveTo(.1, .25, -.7, 1.05); sh.lineTo(-1.15, 1.0); sh.lineTo(-1.15, 0); sh.closePath();
+      const geo = new T.ExtrudeGeometry(sh, { depth: 1.5, bevelEnabled: true, bevelSize: .06, bevelThickness: .06, bevelSegments: 2 }); geo.rotateY(-Math.PI / 2); geo.translate(.75, .32, 0);
+      mesh(geo, hayObs, g);
+      box(1.7, .12, 2.5, cartWood, g, 0, .3, -.15);
+      for (const x of [-.9, .9]) for (const z of [-1.1, .75]) { const w = mesh(new T.CylinderGeometry(.34, .34, .1, 14), cartWood, g); w.rotation.z = Math.PI / 2; w.position.set(x, .34, z); }
+      for (const x of [-.87, .87]) box(.06, .5, 2.4, cartWood, g, x, .6, -.2);
+      rod([0, .3, 1.1], [0, .25, 1.9], .04, cartWood, g);
+      for (const x of [-.55, 0, .55]) box(.4, .06, .3, twine, g, x, 1.38, -1.0);
+    } else if (type === 'pigpen') {
+      // v102 · il porcile del Gusta: fango di traverso a tutta la pista, maiali che ci sguazzano ai lati, staccionata
+      const inner = new T.Group(); g.add(inner); g.userData.inner = inner;
+      g.rotation.y = (Math.random() - .5) * .25;
+      const fg = new T.PlaneGeometry(1, 9, 1, 24).rotateX(-Math.PI / 2); g.userData.fgeo = fg; g.userData.stones = [];
+      const pm = mesh(fg, pigMudMat, inner); pm.castShadow = false;
+      for (const sx of [-1, 1]) {
+        for (let k = 0; k < 2; k++) {
+          const pig = new T.Group(); g.add(pig); const x = sx * (4.6 + k * 1.6), z = (k - .5) * 2.2 + Math.random() * .6;
+          pig.position.set(x, 0, z); pig.rotation.y = Math.random() * 6;
+          ball(.52, .34, .32, pigPink, pig, 0, .42, 0); ball(.22, .2, .2, pigPink, pig, .5, .5, 0);
+          ball(.07, .07, .09, pigNose, pig, .7, .47, 0); for (const z2 of [-.11, .11]) { const e = ball(.08, .1, .03, pigPink, pig, .48, .7, z2); e.rotation.x = z2 * 3; }
+          for (const [lx, lz] of [[.3, .17], [.3, -.17], [-.3, .17], [-.3, -.17]]) rod([lx, .2, lz], [lx, 0, lz], .06, pigPink, pig);
+          ball(.4, .1, .3, pigMudDark, pig, -.05, .58, .05);   // fango sulla schiena
+          mergeGroup(pig); g.userData.stones.push([pig, z, 0]);
+        }
+        for (let k = 0; k < 4; k++) { const post = box(.12, 1, .12, cartWood, g, sx * 3.9, .5, -3.6 + k * 2.4); g.userData.stones.push([post, -3.6 + k * 2.4, .5]); }
+        const rail = box(.08, .1, 7.4, cartWood, g, sx * 3.9, .8, 0); g.userData.stones.push([rail, 0, .8]);
+      }
     } else if (type === 'rollRock') {
       const inner = new T.Group(); inner.position.y = .55; g.add(inner); g.userData.roller = inner;
       const r = mesh(detailedRockGeometry, detailedStone, inner); r.position.y = -.55; r.scale.setScalar(.9);
@@ -1937,6 +2026,50 @@ export function createWorld(canvas) {
   for (const x of [.9, 1.9]) box(.7, .6, .08, mat('#f6d27a', .3), hut, x - .2, 1.6, -2.02);
   box(2, .12, .5, bark, hut, -.2, .55, -2.6);
   mergeGroup(hut); mergeGroup(finish);
+
+  // v102 · arrivo del Gusta Ranch: il falò con la griglia, la tavolata e il gruppo che festeggia
+  const ranchFinish = new T.Group(); ranchFinish.visible = false; scene.add(ranchFinish);
+  { const lg = new T.Mesh(new T.PlaneGeometry(2.9, 2.9), ranchLogoMat); lg.position.set(0, 5.65, .08); ranchFinish.add(lg); }
+  const flames = [];
+  {
+    const R = ranchFinish, wood = mat('#6b4a2e', .9), glowM = new T.SpriteMaterial({ map: glowTex, color: '#ffae3a', transparent: true, opacity: .85, blending: T.AdditiveBlending, depthWrite: false });
+    for (const sx of [-1, 1]) box(.2, 4.2, .2, wood, R, sx * 4.4, 2.1, 0);
+    box(9, .22, .22, wood, R, 0, 4.15, 0);
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 128; const x = c.getContext('2d');
+    x.fillStyle = '#7a2e1c'; x.fillRect(0, 0, 1024, 128); x.fillStyle = '#ffd36a'; x.font = '900 62px Arial'; x.textAlign = 'center'; x.fillText('GUSTA RANCH • TUTTI AL FALÒ!', 512, 84);
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; const sg = mesh(new T.PlaneGeometry(8.5, 1.06), new T.MeshStandardMaterial({ map: t, side: T.DoubleSide }), R); sg.position.set(0, 3.55, .05);
+    // falò: tronchi a capanna, sassi intorno, fiamme e bagliore
+    const fire = new T.Group(); fire.position.set(0, 0, -9); fire.scale.setScalar(2); R.add(fire);
+    for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; rod([Math.cos(a) * .9, .05, Math.sin(a) * .9], [0, 1.5, 0], .1, wood, fire); }
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; const st = ball(.2, .14, .18, stone, fire, Math.cos(a) * 1.25, .1, Math.sin(a) * 1.25); st.rotation.y = a; }
+    for (let i = 0; i < 4; i++) { const f = new T.Mesh(new T.ConeGeometry(.55 - i * .1, 1.6 + i * .3, 7), new T.MeshBasicMaterial({ color: i % 2 ? '#ffcf4a' : '#ff7a1c', transparent: true, opacity: .9, depthWrite: false, fog: false })); f.position.set((i - 1.5) * .12, .9 + i * .1, (i % 2 - .5) * .15); fire.add(f); flames.push(f); }
+    const glow = new T.Sprite(glowM); glow.scale.set(5, 5, 1); glow.position.y = 1.4; fire.add(glow); flames.push(glow);
+    // griglia con la carne e il fumo
+    const grill = new T.Group(); grill.position.set(-3.6, 0, -11); R.add(grill);
+    box(1.8, .3, .8, mat('#2a2a2a', .5, .4), grill, 0, .95, 0);
+    for (const [gx, gz] of [[-.8, -.3], [.8, -.3], [-.8, .3], [.8, .3]]) rod([gx, 0, gz], [gx, .85, gz], .04, black, grill);
+    for (let i = 0; i < 6; i++) ball(.14, .05, .09, mat('#8a3b22', .6), grill, -.6 + i * .24, 1.13, (i % 2 - .5) * .3);
+    for (let i = 0; i < 3; i++) { const p = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#d8d4cc', transparent: true, opacity: .35, depthWrite: false })); p.scale.setScalar(1.2 + i * .6); p.position.set(0, 1.6 + i * .8, 0); grill.add(p); flames.push(p); }
+    // tavolata con panche, bottiglie e bicchieri
+    const table = new T.Group(); table.position.set(3.9, 0, -12); table.rotation.y = -.2; R.add(table);
+    box(4.2, .1, 1, mat('#9a6b3e', .85), table, 0, .9, 0);
+    for (const tx of [-1.8, 1.8]) for (const tz of [-.35, .35]) rod([tx, 0, tz], [tx, .86, tz], .05, wood, table);
+    for (const bz of [-.95, .95]) { box(4, .08, .35, wood, table, 0, .48, bz); for (const tx of [-1.7, 1.7]) rod([tx, 0, bz], [tx, .45, bz], .04, wood, table); }
+    for (let i = 0; i < 6; i++) { const b = mesh(new T.CylinderGeometry(.05, .07, .38, 8), mat(i % 2 ? '#2f5a28' : '#5b1d22', .3), table); b.position.set(-1.6 + i * .64, 1.14, (i % 2 - .5) * .3); }
+    // il gruppo che festeggia: braccia al cielo con le maglie EDT
+    const shirts = ['#fcd326', '#151515', '#fcd326', '#d42a1e', '#fcd326', '#1f3fbf'], skin = mat('#e0b089', .7), pants = mat('#2b3138', .8);
+    for (let i = 0; i < 6; i++) {
+      const p = new T.Group(), a = Math.PI + .25 + i / 5 * (Math.PI - .5); p.position.set(Math.cos(a) * 3.7, 0, -9 + Math.sin(a) * 3.7); p.rotation.y = -a + Math.PI / 2; R.add(p);
+      const sh = mat(shirts[i], .7);
+      for (const lx of [-.12, .12]) rod([lx, 0, 0], [lx, .85, 0], .09, pants, p);
+      mesh(new T.CapsuleGeometry(.25, .5, 4, 10), sh, p).position.y = 1.25;
+      ball(.19, .21, .19, skin, p, 0, 1.85, 0);
+      const up = i % 2 === 0;
+      for (const ax of [-1, 1]) rod([ax * .28, 1.45, 0], up ? [ax * .45, 2.2, 0] : [ax * .38, .95, .15], .07, sh, p);
+      if (i === 1 || i === 4) { const mug = mesh(new T.CylinderGeometry(.07, .07, .16, 8), mat('#f2c230', .3), p); mug.position.set(.47, 2.28, 0); }
+      p.userData.bob = i; flames.push(p);
+    }
+  }
 
   // ---------- v41 · Avversari EDT: copie della moto con livrea, numero e nome propri ----------
   const rivalModels = new Map();
@@ -2208,7 +2341,7 @@ export function createWorld(canvas) {
     const live = s.state === 'playing' || s.state === 'paused' || s.state === 'countdown';
     const boostAmount = live ? (s.turbo || 0) : 0;
     trail = routeAt(s.elapsed || 0, t);
-    terrain(t); instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne);
+    ranchLook = !!s.ranch; terrain(t); instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook);
     weatherNow = s.weather || weatherNow;
     applyWeather(s.weather, s.sight || 0);
     ambient(fdt, t, trail.w, live);
@@ -2325,7 +2458,7 @@ export function createWorld(canvas) {
       const z = (o.z - .91) * 55;
       let lx = (o.l - 1) * spacing();
       if (o.type === 'coin' && s.magnet > 0 && o.z > .62 && !o.air) lx += ((s.px - 1) * spacing() - lx) * Math.min(1, (o.z - .62) / .29);
-      if (o.type === 'bigLog' || o.type === 'ford' || o.type === 'bigRamp') lx = 0;
+      if (o.type === 'bigLog' || o.type === 'ford' || o.type === 'pigpen' || o.type === 'bigRamp') lx = 0;
       m.position.set(center(z, t) + lx, height(z, t) + (o.lift || 0), z);
       m.rotation.x = Math.atan(slope(z, t));
       if (m.userData.spin) {
@@ -2334,7 +2467,7 @@ export function createWorld(canvas) {
       }
       if (m.userData.roller) m.userData.roller.rotation.z = -o.z * 26;
       if (o.type === 'bigLog') { const len = spacing() * 2 + 2.2; m.userData.inner.scale.x = len; }
-      if (o.type === 'ford') { m.userData.inner.scale.x = spacing() * 2 + 30;   // v97 · il torrente continua nel prato
+      if (o.type === 'ford' || o.type === 'pigpen') { m.userData.inner.scale.x = o.type === 'ford' ? spacing() * 2 + 30 : spacing() * 2 + 6.5;   // v97 · il torrente continua nel prato · v102 il porcile copre la pista
         m.rotation.x = 0; const h0 = height(z, t), pos = m.userData.fgeo.attributes.position;   // v101 · guado appoggiato sul terreno vero, anche su dossi e cunette
         for (let i = 0; i < pos.count; i++) pos.setY(i, height(z + pos.getZ(i), t) - h0 + .06);
         pos.needsUpdate = true; for (const [r, rz, ry] of m.userData.stones) { r.position.y = height(z + rz, t) - h0 + .05 + ry; if (r.userData.wake) r.userData.wake.position.y = r.position.y - ry + .05; } }
@@ -2468,7 +2601,10 @@ export function createWorld(canvas) {
     // Arrivo al rifugio negli ultimi secondi
     const remain = Math.max(0, 60 - (s.elapsed || 0)), gz = remain < 4 ? -remain * 17 : -175;
     finish.position.set(center(gz, t), height(gz, t), gz);
-    finish.visible = remain < 5;
+    finish.visible = remain < 5 && !ranchLook;
+    ranchFinish.visible = remain < 5 && ranchLook;
+    if (ranchFinish.visible) { ranchFinish.position.copy(finish.position); ranchFinish.rotation.copy(finish.rotation); const k = now / 1000;
+      for (const f of flames) { if (f.userData.bob !== undefined) f.position.y = Math.max(0, Math.sin(k * 7 + f.userData.bob * 1.3)) * .25; else if (f.isSprite && f.material.color.r < .9) { f.position.y += .01; if (f.position.y > 4) f.position.y = 1.6; } else f.scale.y = .85 + Math.sin(k * 13 + f.position.x * 40) * .18; } }   // v102 · fiamme che ballano, fumo che sale, gruppo che salta
 
     // Telecamera: orizzonte stabile, scossoni su colpi e atterraggi.
     const shakeIn = s.shake || 0;

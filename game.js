@@ -1,5 +1,5 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=101';
+import { iceBend, ranchBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=101';
 import { createWorld } from './scene3d.js?v=101';
 import * as A from './audio.js?v=101';
 import * as P from './progress.js?v=101';
@@ -161,7 +161,7 @@ let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400,
 let leap = false, leapState = 0, leapPow = 0, leapPitch = 0, leapW = 0, leapStartT = 0, leapStartKmh = 0, leapDist = 0, leapBest = 0, lastHopAt = -9, leapEndT = 0, leapPerfect = false;
 let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
 const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
-const GEV_SOFT = new Set(['forkShort', 'forkSafe', 'gevmark', 'bar', 'coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
+const GEV_SOFT = new Set(['pigpen', 'hayCart', 'forkShort', 'forkSafe', 'gevmark', 'bar', 'coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
 // v48 · fantasma del primo nella classifica del gruppo
 let gGhost = null, gGhostPassed = false;
 // v50 · guida libera: la moto va dove la porti (niente più corsie fisse).
@@ -952,10 +952,10 @@ function spawnRanchSpecial(force = false) {
   prevSafe = beerLane; wave++; return true;
 }
 let gustaAt = -99, gustaTimer = 0;
-function gustaPop() {
+function gustaPop(line) {
   const el = $('gustapop'); if (!el || elapsed - gustaAt < 9) return; gustaAt = elapsed;
   const img = el.querySelector('img'); if (!img.src && FOTO.gusta) img.src = FOTO.gusta;
-  el.querySelector('.bubble').textContent = 'LEVATI DAI PIEDI CHE TRINCIO TUTTO!';
+  el.querySelector('.bubble').textContent = line || 'LEVATI DAI PIEDI CHE TRINCIO TUTTO!';
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   clearTimeout(gustaTimer); gustaTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
@@ -978,11 +978,11 @@ function makeRunPlan() {
   const pool = FLASH_POOL.filter(f => f.id !== 'climbcaps' || layoutSegments().some(g => g.climb > .3));
   plan.flash = pool[Math.floor(rng() * pool.length)];
   if (md.gev) { plan.flash = pool.find(f => f.id === 'combo'); return plan; }
-  const kinds = ['gregge', 'albero', 'frana', 'pioggia'];
+  const kinds = md.ranch ? ['galline', 'rotoballe', 'porcile', 'carro', 'pioggia'] : ['gregge', 'albero', 'frana', 'pioggia'];   // v102 · al Gusta Ranch: ignoranza pura
   if (!md.ranch) kinds.push('trattore');
-  if (!md.wild) kinds.push('guado');
+  if (!md.wild && !md.ranch) kinds.push('guado');
   if (feat('night') || md.rainy) kinds.splice(kinds.indexOf('pioggia'), 1);
-  const n = 2 + (rng() < .5 ? 1 : 0);
+  const n = md.ranch ? 3 + (rng() < .5 ? 1 : 0) : 2 + (rng() < .5 ? 1 : 0);
   for (let i = 0; i < n; i++) { const k = kinds.splice(Math.floor(rng() * kinds.length), 1)[0]; plan.events.push({ kind: k, at: 9 + (i + .2 + rng() * .6) * (40 / n) }); }
   const near = (at, d) => plan.events.some(e => Math.abs(e.at - at) < d) || plan.forks.some(f => Math.abs(f.at - at) < d + 4) || plan.zones.some(z => at > z.from - d && at < z.to + d);
   const nf = 1 + (rng() < .45 ? 1 : 0);
@@ -1000,6 +1000,26 @@ function spawnEvent(kind) {
     add(1, .08, 'ford');
     for (let k = -2; k <= 2; k++) { const dz = k * .05, lift = 2.05 * Math.max(0, Math.cos(dz / .5 / JUMP_DURATION * Math.PI)) + .1; add(prevSafe, .08 - dz, 'coin', { air: true, lift: Math.max(.35, lift) }); }
     toast('🌊 GUADO IMPROVVISO! SALTA O TI BAGNI I PIEDI', 'blue'); wave++; return true;
+  }
+  // v102 · Gusta Ranch: galline in fuga, rotoballe lanciate dal Gusta, il porcile, il carro del fieno
+  if (kind === 'galline') {
+    const free = Math.floor(rng() * 3), dir = rng() < .5 ? 1 : -1; let i = 0;
+    for (let l = 0; l < 3; l++) if (l !== free) for (let h = 0; h < 2; h++) { const k = dir * (2.3 + h * .5) / .83; add(l - (.91 - .08) * k, .08 - i * .05 - h * .03, 'hen', { roll: true, lEnd: l, k, cross: dir }); i++; }
+    beer(free); toast('🐔 GALLINE IN FUGA! COCCODÈ!', 'gold'); A.sfx.horn?.(); wave++; return true;
+  }
+  if (kind === 'rotoballe') {
+    for (let i = 0; i < 2; i++) { const lEnd = Math.floor(rng() * 3), dir = rng() < .5 ? 1 : -1, k = dir * 2.8 / .83; add(lEnd - (.91 - .08) * k, .08 - i * .18, 'rollHay', { roll: true, lEnd, k, cross: dir }); }
+    toast('🌾 IL GUSTA TI TIRA LE ROTOBALLE!', 'red'); gustaPop('TIÈ, BECCATI LA ROTOBALLA!'); wave++; return true;
+  }
+  if (kind === 'porcile') {
+    add(1, .08, 'pigpen');
+    for (let k = -2; k <= 2; k++) { const dz = k * .05, lift = 2.05 * Math.max(0, Math.cos(dz / .5 / JUMP_DURATION * Math.PI)) + .1; add(prevSafe, .08 - dz, 'coin', { air: true, lift: Math.max(.35, lift) }); }
+    toast('🐷 IL PORCILE DEL GUSTA! SALTALO… O BUTTATI DENTRO', 'gold'); wave++; return true;
+  }
+  if (kind === 'carro') {
+    const l = Math.floor(rng() * 3); add(l, .08, 'hayCart');
+    for (let k = 1; k <= 5; k++) add(l, .08 - k * .055, 'coin', { air: true, lift: 1.2 + Math.sin(k / 6 * Math.PI) * 2.6 });
+    toast('🌾 CARRO DEL FIENO! PRENDILO IN PIENO E VOLA', 'gold'); prevSafe = l; wave++; return true;
   }
   if (kind === 'gregge') {
     const free = Math.floor(rng() * 3), dir = rng() < .5 ? 1 : -1; let i = 0;
@@ -1725,6 +1745,7 @@ function update(dt) {
   const kLat = (118 - route.rough * 32) * (touchDevice ? 1.35 : 1) * (1 - weather.rain * .18) * (1 + up.tyres * .08) * (1 + (bs.steer || 0)) * (has('mule') && route.rough > .4 ? 1.35 : 1), cLat = 2 * Math.sqrt(kLat) * .9;
   if (ice) iceStep(dt);
   else steerStep(dt, route);
+  if (P.MODES[mode].ranch) { const ahead = ranchBend(roadTime * 19.5 + 45); if (Math.abs(ahead) > 1.45 && elapsed - (run.uCallAt ?? -99) > 5) { run.uCallAt = elapsed; bigCall('TORNANTE DEL GUSTA!'); } }   // v102 · l'anello dei tornanti
   { const nl = Math.max(0, Math.min(2, Math.round(px))); if (nl !== lane) { lane = nl; A.sfx.lane(lane); } }
   const wasAirborne = jump > 0;
   jump = Math.max(0, jump - dt);
@@ -1763,11 +1784,17 @@ function update(dt) {
     if (o.type === 'trincia' && !o.sprayed && o.z > .8 && Math.abs(px - o.l) < 1.5) { o.sprayed = 1; mud(.3); }   // v81 · la trincia spara erba e terra
     if (o.hit || o.z < .91) continue;
     o.hit = true;
-    const gap = o.type === 'bigLog' || o.type === 'ford' ? 0 : o.type === 'trincia' ? Math.max(0, Math.abs(px - o.l) - .28) : Math.abs(px - o.l);   // v81 · il trattore è largo
+    const gap = o.type === 'bigLog' || o.type === 'ford' || o.type === 'pigpen' ? 0 : o.type === 'trincia' ? Math.max(0, Math.abs(px - o.l) - .28) : Math.abs(px - o.l);   // v81 · il trattore è largo
     if (o.type === 'sgap') {
       if (Math.abs(px - o.l) < .5 && crash <= 0) { slalomN++; run.slaloms = Math.max(run.slaloms || 0, slalomN); reward(10 + Math.min(slalomN, 10) * 3, slalomN >= 5 ? 'SLALOM ×' + slalomN + '!' : 'SLALOM!', 'trick', false); if (slalomN === 10) cheer('SEI UN CANGURO DEL BOSCO!', false, true); }
       else slalomN = 0;
       o.collected = true; continue;
+    }
+    if (o.type === 'pigpen') {   // v102 · il porcile: saltarlo paga, ma buttarsi dentro col gas è ignoranza pura (e paga lo stesso)
+      o.collected = true;
+      if (lift > .55) { run.jumps++; reward(220, 'PORCILE SALTATO!', 'jump'); }
+      else { reward(160, 'IGNORANZA PURA! 🐷', 'trick'); mud(1); fxKind = 'splash'; fxSerial++; A.sfx.splash(); flash('gold'); run.splashes++; toast('🐷 SEI PIÙ SPORCO DEI MAIALI', 'gold'); }
+      continue;
     }
     if (o.type === 'ford') {
       o.collected = true;
@@ -1793,13 +1820,14 @@ function update(dt) {
       continue;
     }
     if (o.type === 'bigRamp') { o.collected = true; if (leapState === 1) leapTakeoff(); continue; }
-    if (o.type === 'ramp') {
-      // Rampa di terra: se ci passi sopra a terra, decolli con un salto lunghissimo.
+    if (o.type === 'ramp' || o.type === 'hayCart') {
+      // Rampa di terra: se ci passi sopra a terra, decolli con un salto lunghissimo. v102 · il carro del fieno ti lancia ancora più su
       if (gap < .5 && jump <= 0 && crash <= 0) {
         if (wheelie) endWheelie(false);
-        jumpDur = 1.45 * (1 + up.susp * .03); jumpH = 3.0 * (1 + up.susp * .05) * (1 + (bs.jump || 0)); jump = jumpDur; scrubbed = 0;
+        const cart = o.type === 'hayCart';
+        jumpDur = (cart ? 1.7 : 1.45) * (1 + up.susp * .03); jumpH = (cart ? 3.8 : 3.0) * (1 + up.susp * .05) * (1 + (bs.jump || 0)); jump = jumpDur; scrubbed = 0;
         A.sfx.jump(); run.ramps = (run.ramps || 0) + 1; shake = Math.max(shake, .3);
-        reward(120, 'RAMPA!', 'trick');
+        reward(cart ? 250 : 120, cart ? 'DECOLLO DAL CARRO DEL FIENO!' : 'RAMPA!', 'trick');
       }
       continue;
     }
@@ -1840,8 +1868,8 @@ function update(dt) {
       else if (clearsObstacle(o.type, lift)) {
         run.jumps++;
         const perfect = has('precise') ? phase > .2 && phase < .8 : isPerfectJump(phase);
-        const base = o.type === 'rock' || o.type === 'rollRock' || o.type === 'ibex' ? 200 : o.type === 'bigLog' ? 250 : o.type === 'goat' ? 220 : 150;
-        const names = { rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!', cone: 'BIRILLO SALTATO!', tyre: 'COPERTONE SALTATO!', sign: 'DIVIETO IGNORATO!', barrier: 'TRANSENNA VOLATA!' };
+        const base = o.type === 'rock' || o.type === 'rollRock' || o.type === 'rollHay' || o.type === 'ibex' ? 200 : o.type === 'bigLog' ? 250 : o.type === 'goat' ? 220 : 150;
+        const names = { rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hen: 'GALLINA SALTATA!', rollHay: 'ROTOBALLA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!', cone: 'BIRILLO SALTATO!', tyre: 'COPERTONE SALTATO!', sign: 'DIVIETO IGNORATO!', barrier: 'TRANSENNA VOLATA!' };
         if (perfect) { run.perfect++; A.sfx.perfect(); if (touchDevice && navigator.vibrate) try { navigator.vibrate([10, 40, 10]); } catch {} reward(Math.round(base * (has('precise') ? 2 : 1.5)), 'SALTO PERFETTO!', 'perfect'); flash('gold'); slowmo = .3; slowScale = .45; }
         else reward(base, names[o.type] || 'BEL SALTO!', 'jump');
       } else if (wheelie && (o.type === 'root' || o.type === 'puddle')) {
@@ -1880,7 +1908,7 @@ function update(dt) {
         for (const q of objects) if (q !== o && !q.hit && q.z > .66 && q.z < .91 && OBSTACLE_HEIGHT[q.type] !== undefined && q.type !== 'water') q.collected = true;
         crash = 1; stun = .9 * (bs.protect ? .7 : 1) * (has('tank') ? .5 : 1); if (has('tank')) invincible += 1; slowmo = .35; slowScale = .4; jump = 0;
         if (wheelie) endWheelie(false);
-        const lines = { trincia: 'TRINCIATO DAL GUSTA.', rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
+        const lines = { trincia: 'TRINCIATO DAL GUSTA.', rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hen: 'COCCODÈ. PIUME OVUNQUE.', rollHay: 'ARROTOBALLATO DAL GUSTA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
         if (o.type === 'tree') slalomN = 0;
         // v49 · Erika anche su ogni albero di MontaFiga
         if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
@@ -1944,7 +1972,7 @@ function mudOld() {
 
 function drawState() {
   return ({
-    mode, vigne: !!P.MODES[mode].vigne, state, lane, px, vx: vx + (barT > 0 ? Math.sin(elapsed * 4.2) * 2.2 * Math.min(1, barT) : 0), jump, lift: curLift(), jumpPhase: jump > 0 ? 1 - jump / jumpDur : 0, elapsed: course,
+    mode, vigne: !!P.MODES[mode].vigne, ranch: !!P.MODES[mode].ranch, state, lane, px, vx: vx + (barT > 0 ? Math.sin(elapsed * 4.2) * 2.2 * Math.min(1, barT) : 0), jump, lift: curLift(), jumpPhase: jump > 0 ? 1 - jump / jumpDur : 0, elapsed: course,
     wheelie: wheelie ? 1 : 0, ears: earsOn(), grappa, water: waterT,
     courseScale: GAME_LENGTH / (courseLength(P.MODES[mode].difficulty) * 19.5), objects, invincible, roadTime, wheelPhase, turbo, combo, fxKind, fxSerial,
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
