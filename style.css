@@ -1421,3 +1421,17 @@ aside#hub { gap: 10px; }
   -webkit-mask: radial-gradient(ellipse at 50% 46%, transparent 32%, #000 78%); mask: radial-gradient(ellipse at 50% 46%, transparent 32%, #000 78%); }
 .speedfx.on { opacity: 1; animation: speedfx .14s linear infinite alternate; }
 @keyframes speedfx { from { transform: scale(1) rotate(0deg); } to { transform: scale(1.06) rotate(1.2deg); } }
+
+/* v106 · telefono in orizzontale: menu su due colonne, così "ACCENDI LA MOTO" si vede subito senza scorrere */
+@media (max-height: 500px) and (orientation: landscape) {
+  .card:has(> .menuhead) { width: min(900px, 100%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 14px; align-items: start; }
+  .card:has(> .menuhead) > * { grid-column: 1 / -1; }
+  .card:has(> .menuhead) > .menuhead { grid-column: 1; grid-row: 1; margin: 0; }
+  .card:has(> .menuhead) > .profilerow { grid-column: 1; grid-row: 2; margin: 4px 0; }
+  .card:has(> .menuhead) > #start { grid-column: 1; grid-row: 3; margin: 2px 0 0; padding-top: 8px; padding-bottom: 8px; }
+  .card:has(> .menuhead) > .trackhero { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+  .card:has(> .menuhead) .menuhead .eyebrow { display: none; }
+  .card:has(> .menuhead) .menushield { width: 46px; height: auto; }
+  .card:has(> .menuhead) h1.title { font-size: 24px; margin: 0 0 2px; }
+  .card:has(> .menuhead) .trackhero .thtext > small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+}

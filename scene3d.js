@@ -1599,6 +1599,9 @@ export function createWorld(canvas) {
       if (model) holder.remove(model);
       model = bike.clone(true); model.position.set(0, 0, 0); model.rotation.set(0, 0, 0); model.scale.copy(bike.scale); model.visible = true;
       model.traverse(o => { if (o.name === 'fx' || (o.material && hideMats.has(o.material))) o.visible = false; });
+      // v106 · il pilota con le ossa non si può copiare così com'è: nel garage va in posa seduta ferma
+      const sk = []; model.traverse(o => { if (o.isSkinnedMesh) sk.push(o); });
+      for (const o of sk) { const m = new T.Mesh(o.geometry, o.material); m.position.copy(o.position); m.quaternion.copy(o.quaternion); m.scale.copy(o.scale); m.castShadow = o.castShadow; o.parent.add(m); o.removeFromParent(); }
       holder.add(model);
     }
     function tick(t) {
