@@ -1213,7 +1213,7 @@ export function createWorld(canvas) {
   // Il casco resta quello modellato (con livrea, telecamere e orecchie): segue il collo del modello. Maglia e pantaloni prendono i colori della livrea.
   const riderJerseyTint = { value: new T.Color('#ffffff') }, riderPantsTint = { value: new T.Color('#ffffff') };
   let riderGlb = null;
-  const HIP = new T.Vector3(0, 1.43, .27), NECK = { sit: new T.Vector3(0, .503, -.193), stand: new T.Vector3(0, .406, -.305) };
+  const HIP = new T.Vector3(0, 1.43, .27), NECK = { sit: new T.Vector3(0, .503, -.193), stand: new T.Vector3(0, .446, -.269) };
   gltf.load('img/models/rider_poses.glb?t=1', g => {
     const sit = g.scene.getObjectByName('rider_sit'), stand = g.scene.getObjectByName('rider_stand');
     const m = sit.material.clone();
@@ -1410,7 +1410,7 @@ export function createWorld(canvas) {
   // Le plastiche del modello prendono il colore della livrea.
   const BIKE_GLB = { edt250: 'enduro', gp125: 'enduro', ts300: 'enduro', mulo450: 'enduro', factory: 'enduro', trial: 'trial', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar' };
   // misure prese dai modelli: manubrio (mezza larghezza, altezza, z) e sella, per mettere mani e sedere al posto giusto
-  const BIKE_FIT = { enduro: [.44, 1.42, -.2, 1.135], trial: [.5, 1.45, -.27, 1.1], vintage: [.47, 1.39, -.26, 1.115], adventure: [.5, 1.5, -.25, 1.13], electric: [.46, 1.43, -.29, 1.168], dakar: [.4, 1.31, -.24, 1.08] };
+  const BIKE_FIT = { enduro: [.44, 1.42, -.2, 1.106], trial: [.5, 1.45, -.27, .99], vintage: [.47, 1.39, -.26, .921], adventure: [.5, 1.5, -.25, 1.011], electric: [.46, 1.43, -.29, 1.133], dakar: [.4, 1.31, -.24, 1.063] };   // [manubrio x, y, z, sella sotto il sedere]
   const glbCache = {}, bikeTint = { value: new T.Color('#ffffff') };
   let procBike = null, glbNow = null, glbWant = null;
   function procBikeParts() {
@@ -1460,7 +1460,7 @@ export function createWorld(canvas) {
   function syncBikeModel() {
     if (riderGlb) { if (jerseyMat.map && jerseyMat.userData.base) riderJerseyTint.value.set(jerseyMat.userData.base); else riderJerseyTint.value.copy(jerseyMat.color); riderPantsTint.value.copy(pantsMat.color); }
     const fit = glbNow && BIKE_FIT[glbNow.key];
-    rider.position.y = riderY0 + (fit ? fit[3] - 1.24 : 0); rider.position.z = fit && riderGlb ? .07 : 0;
+    rider.position.y = riderY0 + (fit ? (riderGlb ? fit[3] + .118 - 1.43 : fit[3] - 1.24) : 0); rider.position.z = 0;
     for (const j of joints) { if (!j.grip0) j.grip0 = j.grip.position.clone(); if (fit) j.grip.position.set(j.side * fit[0], fit[1], fit[2] - STEER_Z); else j.grip.position.copy(j.grip0); }
     if (!glbNow) return;
     for (const m of procBikeParts()) m.visible = false;
