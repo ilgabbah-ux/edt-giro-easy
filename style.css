@@ -1394,18 +1394,18 @@ aside#hub { gap: 10px; }
   .trackhero .strip { max-width: none; }
 }
 /* v103 · bivio: cartello a schermo con i due lati */
-.forkhud { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); z-index: 4; display: flex; align-items: stretch; gap: 0; width: min(560px, 94%); pointer-events: none; animation: fhIn .3s ease-out; filter: drop-shadow(0 6px 14px #000a); }
+.forkhud { position: absolute; left: 8px; right: 8px; top: 46%; transform: translateY(-50%); z-index: 4; display: flex; justify-content: space-between; align-items: center; pointer-events: none; animation: fhIn .3s ease-out; filter: drop-shadow(0 4px 10px #0009); }   /* v105.5 · cartelli piccoli ai lati: la pista al centro resta libera */
 .forkhud[hidden] { display: none; }
-.forkhud .fh { flex: 1; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 6px; padding: 6px 10px; border: 3px solid #fff; color: #fff; font: 800 12px/1.1 system-ui, sans-serif; opacity: .78; transition: transform .12s, opacity .12s; }
+.forkhud .fh { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 5px; max-width: 34%; padding: 4px 8px; border: 2px solid #fff; border-radius: 6px; color: #fff; font: 800 10px/1.1 system-ui, sans-serif; opacity: .82; transition: transform .12s, opacity .12s; }
 .forkhud .fh:last-child { grid-template-columns: 1fr auto; text-align: right; }
-.forkhud .fh i { grid-row: span 2; font: 900 26px/1 system-ui, sans-serif; font-style: normal; }
-.forkhud .fh b { font-size: 15px; letter-spacing: .5px; }
-.forkhud .fh small { font-size: 11px; opacity: .9; }
-.forkhud .fh.short { background: #c8321f; }
-.forkhud .fh.long { background: #1f6b34; }
-.forkhud .fh.sel { opacity: 1; transform: scale(1.07); border-color: #ffd400; box-shadow: 0 0 0 2px #ffd400; z-index: 1; }
-.forkhud .fhc { align-self: center; padding: 6px 8px; background: #ffd400; color: #111; font: 900 13px/1 system-ui, sans-serif; white-space: nowrap; }
-@keyframes fhIn { from { transform: translate(-50%, -14px); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+.forkhud .fh i { grid-row: span 2; font: 900 18px/1 system-ui, sans-serif; font-style: normal; }
+.forkhud .fh b { font-size: 12px; letter-spacing: .4px; }
+.forkhud .fh small { font-size: 9px; opacity: .9; }
+.forkhud .fh.short { background: #c8321fd9; }
+.forkhud .fh.long { background: #1f6b34d9; }
+.forkhud .fh.sel { opacity: 1; transform: scale(1.06); border-color: #ffd400; box-shadow: 0 0 0 2px #ffd400; z-index: 1; }
+.forkhud .fhc { display: none; }
+@keyframes fhIn { from { transform: translateY(calc(-50% - 10px)); opacity: 0; } to { transform: translateY(-50%); opacity: 1; } }
 .trackhero .thchips .gold { border-color: #ffcf1699; color: #ffe27a; }
 /* v104 · bacheca trofei */
 .trophies { list-style: none; margin: 6px 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
