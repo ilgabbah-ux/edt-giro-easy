@@ -162,7 +162,7 @@ export function createWorld(canvas) {
   let trail = { grade: 0, width: 1, rough: 0, climb: 0, wet: 0 };
   const spacing = () => 2.5 * trail.width;
   let iceMode = false, iceKey = null, groundMaps = null;
-  let ranchLook = false, camRoll = 0;   // v102 · Gusta Ranch nell'Astigiano
+  let ranchLook = false, camRoll = 0, camTurn = 0, bikeTurn = 0;   // v102 · Gusta Ranch nell'Astigiano
   let curveA = 3.8, curveF = .021;   // v97 · curve diverse per la variante della settimana
   const RANCH_SHAPE = { shape: ranchShape, heading: ranchHeading, bend: ranchBend };
   let curShape = null;   // v103 · tracciato vero del percorso (Gusta Ranch e gli altri): la vista segue la direzione della pista
@@ -2744,7 +2744,9 @@ export function createWorld(canvas) {
     bike.position.set((s.px - 1) * spacing(), lift + .06 * Math.abs(trail.grade) + noseDown, 0);
     { const gy = height(0, t), air = Math.max(0, bike.position.y - gy); blob.visible = !s.leap || air < 6; blob.position.set(bike.position.x, gy + .035, .02); const k = 1 + air * .35; blob.scale.set(k, 1, k); blobMat.opacity = .5 / (1 + air * .9); }
     // v46 · sul ghiaccio la moto va di traverso (il posteriore scivola) e il pilota controsterza
-    dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : -vx * .045)) - dyn.yaw) * Math.min(1, fdt * 10);
+    // v105.2 · curve vere: la moto punta dove va la pista pochi metri avanti (solo grafica: la posizione la decidi tu)
+    bikeTurn += ((curShape && s.state === 'playing' && s.jump <= 0 ? -Math.atan((center(-4.6, t) - center(-3.4, t)) / 1.2) * .75 : 0) - bikeTurn) * Math.min(1, fdt * 5);
+    dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : -vx * .045 + bikeTurn)) - dyn.yaw) * Math.min(1, fdt * 10);
     // v94 · derapata vera: moto piegata dentro la curva (fino a ~40°), pilota più dritto della moto, gamba interna fuori
     const ranchLeanT = curShape && s.jump <= 0 && crash <= 0 ? Math.max(-.55, Math.min(.55, curShape.bend(t + 6) * .32)) : 0;   // v102.1 · Gusta Ranch: nei tornanti il pilota piega la moto dentro la curva, come su Ice Scrofy
     const iceLeanT = s.ice && s.jump <= 0 && crash <= 0 ? Math.max(-.7, Math.min(.7, dyn.yaw * .85)) : ranchLeanT;
@@ -2980,7 +2982,10 @@ export function createWorld(canvas) {
     camera.position.set(camX + .55 * trail.rough + shakeX, camY + airborne * .3 + trail.climb * (portrait ? .2 : short ? .25 : 1.2) + shakeY, camZ + trail.climb * (short ? .6 : 1.3) - boostAmount * .15);
     camLift += (Math.max(0, lift - 1.1) * .8 - camLift) * .12;
     leapFollow += ((s.leapCam ? lift * .9 : 0) - leapFollow) * .15; if (leapFollow > .01) { camera.position.y += leapFollow; camera.position.z += leapFollow * .55; }   // v86 · in volo la camera si allarga: si vede il vuoto
-    camera.lookAt(bike.position.x * (portrait ? .4 : .16), lookY + leapFollow * .55 + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : short ? 1.5 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : short ? .45 : .1), lookZ);
+    // v105.2 · in curva la camera guarda dove va la pista (come seguire la moto da dietro) e si sposta un filo verso l'esterno
+    camTurn += ((curShape && s.state !== 'menu' ? center(-12, t) * .8 : 0) - camTurn) * Math.min(1, fdt * 3);
+    camera.position.x -= camTurn * .18;
+    camera.lookAt(bike.position.x * (portrait ? .4 : .16) + camTurn, lookY + leapFollow * .55 + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : short ? 1.5 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : short ? .45 : .1), lookZ);
     camera.rotateZ(bike.rotation.z * .06);
     camRoll += ((curShape && s.state === 'playing' ? Math.max(-.06, Math.min(.06, curShape.bend(t + 18) * .035)) : 0) - camRoll) * .04; camera.rotateZ(camRoll);   // v104 · nelle curve dei tracciati veri la camera si inclina con la pista
     if (s.ice) camera.rotateZ(-(s.drift || 0) * .045);   // v49 · la camera segue un filo la derapata
