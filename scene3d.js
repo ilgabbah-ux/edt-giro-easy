@@ -1209,6 +1209,39 @@ export function createWorld(canvas) {
       j.glove.position.copy(grip); j.elbowBall.position.copy(_e);
     }
   }
+  // v105 · pilota vero: modello generato (Higgsfield), scheletrato e messo in posa in Blender (seduto e in piedi sulle pedane).
+  // Il casco resta quello modellato (con livrea, telecamere e orecchie): segue il collo del modello. Maglia e pantaloni prendono i colori della livrea.
+  const riderJerseyTint = { value: new T.Color('#ffffff') }, riderPantsTint = { value: new T.Color('#ffffff') };
+  let riderGlb = null;
+  const HIP = new T.Vector3(0, 1.43, .27), NECK = { sit: new T.Vector3(0, .503, -.193), stand: new T.Vector3(0, .406, -.305) };
+  gltf.load('img/models/rider_poses.glb?t=1', g => {
+    const sit = g.scene.getObjectByName('rider_sit'), stand = g.scene.getObjectByName('rider_stand');
+    const m = sit.material.clone();
+    m.onBeforeCompile = sh => {
+      sh.uniforms.uJ = riderJerseyTint; sh.uniforms.uP = riderPantsTint;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vH;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvH = position.y;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uJ; uniform vec3 uP; varying float vH;')
+        .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+{ float lo = min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b)), hi = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+  float pm = smoothstep(.25, .45, lo) * (1.0 - smoothstep(.05, .12, (hi - lo) / max(hi, .01) * .5));
+  vec3 tint = mix(uP, uJ, smoothstep(.06, .12, vH));
+  diffuseColor.rgb = mix(diffuseColor.rgb, tint * (.3 + .8 * lo), pm); }`);
+    };
+    m.customProgramCacheKey = () => 'riderPose';
+    for (const o of [sit, stand]) { o.removeFromParent(); o.material = m; o.castShadow = true; o.receiveShadow = true; o.position.copy(HIP); upper.add(o); o.userData.keep = true; }
+    stand.visible = false;
+    riderGlb = { sit, stand }; customKey = '';
+  });
+  const _neck = new T.Vector3();
+  function syncRiderModel(standing) {
+    if (!riderGlb) return;
+    const hideTree = o => { for (const c of o.children) { if (c === head || c === riderGlb.sit || c === riderGlb.stand || c.name === 'fx') continue; if (c.isMesh) c.visible = false; hideTree(c); } };
+    hideTree(rider);
+    const st = standing > .5; riderGlb.sit.visible = !st; riderGlb.stand.visible = st;
+    // casco sul collo del modello
+    rider.updateMatrixWorld(true); _neck.copy(st ? NECK.stand : NECK.sit).add(HIP); upper.localToWorld(_neck); body.worldToLocal(_neck);
+    head.position.set(_neck.x, _neck.y + .11, _neck.z + .01); head.scale.setScalar(.88);
+  }
   for (let i = 0; i < 14; i++) { const z = .13 + i * .051; box(.028, .022, .047, alloy, chassis, -.18, .49, z); }
   const sprocket = mesh(new T.TorusGeometry(.18, .028, 8, 28), alloy, rearWheel); sprocket.rotation.y = Math.PI / 2; sprocket.position.x = -.13;
   for (const side of [-1, 1]) { const stripe = box(.028, .012, .4, accent, chassis, side * .07, 1.285, .8); stripe.rotation.x = .04; box(.052, .13, .055, spring, front, ...F(side * .145, .57, -.85)); }
@@ -1376,6 +1409,8 @@ export function createWorld(canvas) {
   // Le ruote restano quelle procedurali (girano e sterzano); il resto della moto procedurale si nasconde.
   // Le plastiche del modello prendono il colore della livrea.
   const BIKE_GLB = { edt250: 'enduro', gp125: 'enduro', ts300: 'enduro', mulo450: 'enduro', factory: 'enduro', trial: 'trial', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar' };
+  // misure prese dai modelli: manubrio (mezza larghezza, altezza, z) e sella, per mettere mani e sedere al posto giusto
+  const BIKE_FIT = { enduro: [.44, 1.42, -.2, 1.135], trial: [.5, 1.45, -.27, 1.1], vintage: [.47, 1.39, -.26, 1.115], adventure: [.5, 1.5, -.25, 1.13], electric: [.46, 1.43, -.29, 1.168], dakar: [.4, 1.31, -.24, 1.08] };
   const glbCache = {}, bikeTint = { value: new T.Color('#ffffff') };
   let procBike = null, glbNow = null, glbWant = null;
   function procBikeParts() {
@@ -1423,7 +1458,10 @@ export function createWorld(canvas) {
   }
   const riderY0 = rider.position.y;
   function syncBikeModel() {
-    rider.position.y = riderY0 - (glbNow ? .1 : 0);
+    if (riderGlb) { if (jerseyMat.map && jerseyMat.userData.base) riderJerseyTint.value.set(jerseyMat.userData.base); else riderJerseyTint.value.copy(jerseyMat.color); riderPantsTint.value.copy(pantsMat.color); }
+    const fit = glbNow && BIKE_FIT[glbNow.key];
+    rider.position.y = riderY0 + (fit ? fit[3] - 1.24 : 0); rider.position.z = fit && riderGlb ? .07 : 0;
+    for (const j of joints) { if (!j.grip0) j.grip0 = j.grip.position.clone(); if (fit) j.grip.position.set(j.side * fit[0], fit[1], fit[2] - STEER_Z); else j.grip.position.copy(j.grip0); }
     if (!glbNow) return;
     for (const m of procBikeParts()) m.visible = false;
     rearWheel.visible = frontWheel.visible = false;
@@ -2653,6 +2691,7 @@ export function createWorld(canvas) {
     const bounce = crash > 0 ? Math.sin((1 - crash) * Math.PI) * .32 : 0;
     upper.position.set(lean * -.08, dyn.stand * .17 - Math.max(0, comp) * .9 + bounce, -dyn.stand * .07 - boostAmount * .015);
     body.rotation.x = -.08 - .3 * dyn.stand - grade * .2 - boostAmount * .05 - (s.gas ? .06 : 0) - dyn.pitch * .45 + crash * .5 + (s.wheelie ? .32 : 0);
+    syncRiderModel(dyn.stand);
     body.rotation.z = lean * .35 - dyn.iceLean * .45 - whip * .3 + (crash > 0 ? Math.sin(crash * 20) * crash * .3 : 0);
     head.rotation.y = dyn.steer * .9 + dyn.iceLean * .9;   // lo sguardo va verso l'uscita della curva
     { const inner = dyn.iceLean > 0 ? -1 : 1, deep = Math.min(1, Math.max(0, (Math.abs(dyn.iceLean) - .12) / .3));
