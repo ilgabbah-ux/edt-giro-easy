@@ -435,6 +435,8 @@ const SONGS = {
   6: ['brindisi-easy', 'Brindisi Easy · Il GaBbAH'],
   7: ['vai-ciccio', 'Vai Ciccio · Il GaBbAH'],
   12: ['bosco-veloce', 'Bosco Veloce · Il GaBbAH'],
+  5: ['kick-up-the-dust', 'Kick up the dust · Il GaBbAH'],   // v105.4 · solo canzoni vere del GaBbAH, niente più musica sintetica
+  8: ['hell-can-wait', 'Hell can wait · Il GaBbAH'],
   1: ['lenduro-non-e-reato', 'L’enduro non è reato · Il GaBbAH'],
   2: ['angelo-potter', 'Angelo Potter · Il GaBbAH'],
   3: ['enduro-is-not-a-crime', 'Enduro is not a crime · Il GaBbAH'],
@@ -445,6 +447,7 @@ const SONGS = {
 };
 for (const [i, [f, n]] of Object.entries(SONGS)) STYLES[i] = { ...STYLES[i], file: 'musica/' + f + '.mp3', name: n };
 STYLES[15] = { ...STYLES[10] };   // v99 · Notturna con le frontali: stessa musica di MotoFogna
+for (let i = 0; i < STYLES.length; i++) if (!STYLES[i].file) STYLES[i] = { ...STYLES[i], file: 'musica/giro-easy.mp3', name: 'Giro Easy · Il GaBbAH' };
 // v57 · brani registrati (MP3): caricati una volta sola; la canzone riparte da dove si era fermata al giro prima.
 const songBuf = {}, songPos = {};
 async function loadSong(file) {
@@ -562,7 +565,7 @@ export function musicStart(styleId = 0, opts = {}) {
   musicStop(true);
   const style = STYLES[styleId % STYLES.length];
   const m = { style, n: 0, step: 60 / style.bpm / 4, next: ctx.currentTime + .08, transpose: opts.transpose || 0, intensity: .5, timer: 0 };
-  m.timer = setInterval(() => {
+  if (!style.file) m.timer = setInterval(() => {
     if (!ctx || music !== m) return;
     while (m.next < ctx.currentTime + .14) {
       const i = m.n % 16, sw = (i % 2 === 1) ? style.swing * m.step * 2 : 0;
