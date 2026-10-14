@@ -161,7 +161,7 @@ export function createWorld(canvas) {
   let trail = { grade: 0, width: 1, rough: 0, climb: 0, wet: 0 };
   const spacing = () => 2.5 * trail.width;
   let iceMode = false, iceKey = null, groundMaps = null;
-  let ranchLook = false;   // v102 · Gusta Ranch nell'Astigiano
+  let ranchLook = false, camRoll = 0;   // v102 · Gusta Ranch nell'Astigiano
   let curveA = 3.8, curveF = .021;   // v97 · curve diverse per la variante della settimana
   const RANCH_SHAPE = { shape: ranchShape, heading: ranchHeading, bend: ranchBend };
   let curShape = null;   // v103 · tracciato vero del percorso (Gusta Ranch e gli altri): la vista segue la direzione della pista
@@ -1408,7 +1408,7 @@ export function createWorld(canvas) {
   const ranchLogoMat = new T.MeshBasicMaterial({ transparent: true, alphaTest: .05, side: T.DoubleSide, depthWrite: false });   // v102 · logo "Mud, beer & glory"
   texLoader.load('img/gusta-ranch-logo.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; });
   const henWhite = mat('#f3efe6', .85), henRed = mat('#a5512a', .8), henComb = mat('#d4241c', .6), henBeak = mat('#e8b02a', .6);   // v102
-  const crateWood = mat('#b98a52', .9), grapeMat = mat('#4a2a5c', .5), grapeGreen = mat('#a7b54a', .5), cowWhite = mat('#f1ede4', .8), cowBlack = mat('#22201e', .8), cowPink = mat('#e7a99c', .7), boarFur = mat('#3e2f24', .95), tuskMat = mat('#efe6cf', .5), deerFur = mat('#9a6237', .85), deerLight = mat('#e2c9a3', .85), ironMat = mat('#2c2f31', .45, .6), heliRed = mat('#d0242a', .45, .2), heliWhite = mat('#f2f2f2', .5), heliGlass = mat('#1d2b38', .15, .3), eyeShine = new T.MeshBasicMaterial({ color: '#e8ff9a' }), dolmenStone = mat('#77756e', .98), lichen = mat('#5f6b2f', .95);   // v103 · occhi che brillano nel faro
+  const crateWood = mat('#b98a52', .9), grapeMat = mat('#4a2a5c', .5), grapeGreen = mat('#a7b54a', .5), cowWhite = mat('#f1ede4', .8), cowBlack = mat('#22201e', .8), cowPink = mat('#e7a99c', .7), boarFur = mat('#3e2f24', .95), tuskMat = mat('#efe6cf', .5), deerFur = mat('#9a6237', .85), deerLight = mat('#e2c9a3', .85), ironMat = mat('#2c2f31', .45, .6), heliRed = mat('#d0242a', .45, .2), heliWhite = mat('#f2f2f2', .5), heliGlass = mat('#1d2b38', .15, .3), eyeShine = new T.MeshBasicMaterial({ color: '#e8ff9a' }), dolmenStone = mat('#77756e', .98), goldMat = new T.MeshStandardMaterial({ color: '#ffc21a', roughness: .22, metalness: .9, emissive: '#8a5a00', emissiveIntensity: .9 }), goldFoam = mat('#fffdf2', .6), lichen = mat('#5f6b2f', .95);   // v103 · occhi che brillano nel faro
   const pigPink = mat('#e9a49a', .7), pigNose = mat('#d17d78', .6), pigMudDark = mat('#4a3423', .5), cartWood = mat('#7b5434', .9);
   const hayRollSide = mat('#d9b35a', .95), hayRollEnd = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#d2ab52'; x.fillRect(0, 0, 128, 128); x.strokeStyle = '#a07b30'; x.lineWidth = 3; x.beginPath(); for (let a = 0; a < 40; a += .1) { const r = a * 1.55; x.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r); } x.stroke(); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return new T.MeshStandardMaterial({ map: t, roughness: .95 }); })();
   const pigMudMat = (() => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const x = c.getContext('2d');
@@ -2037,6 +2037,17 @@ export function createWorld(canvas) {
       rod([.5, 1.3, 0], [.72, 1.75, 0], .1, deerFur, g); ball(.2, .14, .13, deerFur, g, .82, 1.82, 0); for (const z of [-.09, .09]) ball(.06, .06, .06, eyeShine, g, .9, 1.88, z);
       { const gl = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#d8ff7a', transparent: true, opacity: .8, blending: T.AdditiveBlending, depthWrite: false })); gl.scale.set(.8, .45, 1); gl.position.set(.95, 1.88, 0); g.add(gl); }
       for (const z of [-.08, .08]) { rod([.76, 1.95, z], [.7, 2.4, z * 3], .025, hornMat, g); rod([.72, 2.2, z * 2], [.9, 2.35, z * 3.5], .02, hornMat, g); rod([.7, 2.3, z * 2.6], [.55, 2.5, z * 4], .02, hornMat, g); }
+    } else if (type === 'goldMug') {
+      // v104 · boccale d'oro nascosto: d'oro massiccio, schiuma, alone che si vede da lontano
+      const spin = new T.Group(); spin.position.y = 1.15; g.add(spin); g.userData.spin = spin;
+      const cup = mesh(new T.CylinderGeometry(.3, .26, .62, 20, 1, true), goldMat, spin); cup.material.side = T.DoubleSide;
+      const bot = mesh(new T.CylinderGeometry(.27, .27, .05, 20), goldMat, spin); bot.position.y = -.3;
+      ball(.31, .12, .31, goldFoam, spin, 0, .32, 0);
+      const h = mesh(new T.TorusGeometry(.17, .045, 8, 16, Math.PI), goldMat, spin); h.rotation.z = -Math.PI / 2; h.position.x = .3;
+      for (const y of [-.2, .18]) { const r = mesh(new T.TorusGeometry(.29, .025, 6, 22), goldMat, spin); r.rotation.x = Math.PI / 2; r.position.y = y; }
+      spin.scale.setScalar(1.25);
+      const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffd23a', transparent: true, opacity: .85, blending: T.AdditiveBlending, depthWrite: false })); glow.scale.set(2.6, 2.6, 1); glow.position.y = 1.15; g.add(glow);
+      const beam = mesh(new T.CylinderGeometry(.05, .3, 6, 10, 1, true), new T.MeshBasicMaterial({ color: '#ffe27a', transparent: true, opacity: .22, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide }), g); beam.position.y = 3.6; beam.castShadow = false;
     } else if (type === 'dolmen') {
       // v103 · dolmen di Costa: due lastroni dritti e il lastrone di copertura, muschio e cartello
       const slab = (w, h, d, x, y, z, rx = 0, rz = 0) => { const o = mesh(new T.BoxGeometry(w, h, d, 3, 3, 2), dolmenStone, g); o.position.set(x, y, z); o.rotation.set(rx, 0, rz);
@@ -2755,6 +2766,7 @@ export function createWorld(canvas) {
     leapFollow += ((s.leapCam ? lift * .9 : 0) - leapFollow) * .15; if (leapFollow > .01) { camera.position.y += leapFollow; camera.position.z += leapFollow * .55; }   // v86 · in volo la camera si allarga: si vede il vuoto
     camera.lookAt(bike.position.x * (portrait ? .4 : .16), lookY + leapFollow * .55 + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : short ? 1.5 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : short ? .45 : .1), lookZ);
     camera.rotateZ(bike.rotation.z * .06);
+    camRoll += ((curShape && s.state === 'playing' ? Math.max(-.06, Math.min(.06, curShape.bend(t + 18) * .035)) : 0) - camRoll) * .04; camera.rotateZ(camRoll);   // v104 · nelle curve dei tracciati veri la camera si inclina con la pista
     if (s.ice) camera.rotateZ(-(s.drift || 0) * .045);   // v49 · la camera segue un filo la derapata
     sky.position.copy(camera.position);
     ridges[1].visible = !pano.visible;   // v62 · la cresta vicina copriva il fondale con una sagoma piatta grigia: col panorama resta solo il fondale

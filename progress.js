@@ -347,6 +347,37 @@ export function weeklyMissions() {
   while (out.length < 3) out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
   return out.map(m => ({ id: m.id, text: m.text, beers: m.beers, done: !!data.weekly.done[m.id], ok: m.ok }));
 }
+// v104 · boccali d'oro: 3 nascosti in ogni percorso, cambiano posto ogni lunedì
+export function goldFound(mode) { const wk = weekKey(); if (!data.gold || data.gold.wk !== wk) data.gold = { wk, f: {} }; return data.gold.f[mode] || [0, 0, 0]; }
+export function findGold(mode, i) { const g = goldFound(mode).slice(); if (g[i]) return g.filter(Boolean).length; g[i] = 1; data.gold.f[mode] = g; data.goldTotal = (data.goldTotal || 0) + 1; save(); return g.filter(Boolean).length; }
+export function goldWeekTotal() { goldFound(0); return Object.values(data.gold.f).reduce((a, g) => a + g.filter(Boolean).length, 0); }
+// v104 · bacheca trofei: si sbloccano una volta e restano
+export const TROPHIES = [
+  { id: 'first', icon: '🏁', name: 'Primo giro', desc: 'Finisci la tua prima gara', ok: (st) => st.runs >= 1 },
+  { id: 'rifugio10', icon: '🛖', name: 'Habitué del rifugio', desc: 'Arriva al rifugio 10 volte', ok: (st) => st.finished >= 10 },
+  { id: 'wins10', icon: '🥇', name: 'Manico vero', desc: 'Vinci 10 gare', ok: (st) => st.wins >= 10 },
+  { id: 'podi50', icon: '🏆', name: 'Sempre sul podio', desc: '50 podi', ok: (st) => st.podi >= 50 },
+  { id: 'allwins', icon: '🗺', name: 'Giro d’Italia EDT', desc: 'Vinci almeno una volta su ogni percorso a gara', ok: (st) => MODES.filter(m => !m.hidden && !m.leap && !m.gev).every(m => st.winsBy?.[m.id]) },
+  { id: 'caps1000', icon: '🍺', name: 'Mille bionde', desc: 'Raccogli 1.000 birre', ok: (st) => st.caps >= 1000 },
+  { id: 'jumps500', icon: '🦘', name: 'Canguro', desc: 'Fai 500 salti', ok: (st) => st.jumps >= 500 },
+  { id: 'km100', icon: '🛣', name: 'Cento chilometri', desc: 'Percorri 100 km', ok: (st) => st.km >= 100 },
+  { id: 'gold1', icon: '✨', name: 'Cercatore d’oro', desc: 'Trova un boccale d’oro', ok: (st, d) => (d.goldTotal || 0) >= 1 },
+  { id: 'goldTris', icon: '🔱', name: 'Tris d’oro', desc: 'Trova tutti e 3 i boccali d’oro di un percorso nella stessa settimana', ok: (st, d) => Object.values(d.gold?.f || {}).some(g => g.every(Boolean)) || st.goldTris },
+  { id: 'gold30', icon: '👑', name: 'Re dei boccali', desc: 'Trova 30 boccali d’oro', ok: (st, d) => (d.goldTotal || 0) >= 30 },
+  { id: 'dolmen', icon: '🗿', name: 'Amico di Costa', desc: 'Schiva 10 dolmen di Costa', ok: (st) => st.dolmen >= 10 },
+  { id: 'drift', icon: '❄', name: 'Re del traverso', desc: '500 m di derapata in un giro di Ice Scrofy', ok: (st) => st.bestDrift >= 500 },
+  { id: 'holeshot', icon: '🚀', name: 'Partenza a razzo', desc: '20 partenze a razzo', ok: (st) => st.holeshots >= 20 },
+  { id: 'bar', icon: '🍻', name: 'Giro dei bar', desc: '25 soste al bar', ok: (st) => st.bars >= 25 },
+  { id: 'hits', icon: '💥', name: 'Colpa di Angelo', desc: 'Prendi 200 botte (succede)', ok: (st) => st.hits >= 200 },
+  { id: 'weekly', icon: '🗓', name: 'Settimane piene', desc: 'Completa 12 missioni della settimana', ok: (st) => st.weekly >= 12 },
+];
+export function trophies() { return data.trophies || (data.trophies = {}); }
+export function checkTrophies() {
+  const st = stats(), got = trophies(), fresh = [];
+  for (const t of TROPHIES) if (!got[t.id] && t.ok(st, data)) { got[t.id] = todayKey(); fresh.push(t); }
+  if (fresh.length) save();
+  return fresh;
+}
 // v96 · statistiche di sempre del pilota
 export function stats() { return data.stats || (data.stats = {}); }
 export function recordRun(run) {
@@ -356,6 +387,8 @@ export function recordRun(run) {
     st.km = (st.km || 0) + (run.km || 0); st.driftM = (st.driftM || 0) + (run.driftM || 0); st.hits = (st.hits || 0) + (run.hits || 0);
     st.holeshots = (st.holeshots || 0) + (run.holeshot ? 1 : 0); st.bars = (st.bars || 0) + (run.bars || 0); st.turbos = (st.turbos || 0) + (run.turbos || 0);
     st.bestLeap = Math.max(st.bestLeap || 0, run.leap || 0); st.bestDrift = Math.max(st.bestDrift || 0, run.driftM || 0); st.bestSlalom = Math.max(st.bestSlalom || 0, run.slaloms || 0);
+    st.winsBy = st.winsBy || {}; if (run.position === 1 && run.finishTime > 0) st.winsBy[run.mode] = (st.winsBy[run.mode] || 0) + 1;
+    st.dolmen = (st.dolmen || 0) + (run.dolmens && !run.dolmenHit ? run.dolmens : 0); st.gold = (st.gold || 0) + (run.gold || 0);
     st.best = st.best || {}; if (run.finishTime > 0 && run.mode !== 2 && run.mode !== 9 && (!st.best[run.mode] || run.finishTime < st.best[run.mode])) st.best[run.mode] = +run.finishTime.toFixed(1); }
   const weeklyDone = [];
   for (const m of weeklyMissions()) if (!m.done && m.ok(run)) { data.weekly.done[m.id] = true; data.beers += m.beers; weeklyDone.push(m); stats().weekly = (stats().weekly || 0) + 1; }
@@ -406,5 +439,6 @@ export function recordRun(run) {
 
   ensureMissions();
   save();
-  return { weeklyDone, completed, isRecord, previousBest, scoreXp, missionsXp, before, after, unlocked, position, beersEarned, prize, wallet: data.beers };
+  const trophiesNew = checkTrophies();
+  return { weeklyDone, completed, isRecord, previousBest, scoreXp, missionsXp, before, after, unlocked, position, beersEarned, prize, wallet: data.beers, trophiesNew };
 }

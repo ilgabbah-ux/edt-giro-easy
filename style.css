@@ -1406,3 +1406,18 @@ aside#hub { gap: 10px; }
 .forkhud .fh.sel { opacity: 1; transform: scale(1.07); border-color: #ffd400; box-shadow: 0 0 0 2px #ffd400; z-index: 1; }
 .forkhud .fhc { align-self: center; padding: 6px 8px; background: #ffd400; color: #111; font: 900 13px/1 system-ui, sans-serif; white-space: nowrap; }
 @keyframes fhIn { from { transform: translate(-50%, -14px); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+.trackhero .thchips .gold { border-color: #ffcf1699; color: #ffe27a; }
+/* v104 · bacheca trofei */
+.trophies { list-style: none; margin: 6px 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.trophies li { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; padding: 7px 8px; border: 1px solid #ffffff1a; background: #0006; opacity: .45; filter: grayscale(1); }
+.trophies li.got { opacity: 1; filter: none; border-color: #ffcf1680; background: linear-gradient(135deg, #3a2f0c, #16130a); }
+.trophies li i { grid-row: span 2; font-style: normal; font-size: 24px; }
+.trophies li b { font: italic 800 13px/1.1 var(--ui); color: var(--y); }
+.trophies li small { font: 600 11px/1.15 var(--ui); color: #cfc5ae; }
+.unlock.trophy { border-color: #ffcf16; }
+/* v104 · scie di velocità col turbo */
+.speedfx { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .3s;
+  background: repeating-conic-gradient(from 0deg at 50% 46%, #fff0 0deg 2.6deg, #ffffff48 3deg, #fff0 3.5deg 7deg);
+  -webkit-mask: radial-gradient(ellipse at 50% 46%, transparent 32%, #000 78%); mask: radial-gradient(ellipse at 50% 46%, transparent 32%, #000 78%); }
+.speedfx.on { opacity: 1; animation: speedfx .14s linear infinite alternate; }
+@keyframes speedfx { from { transform: scale(1) rotate(0deg); } to { transform: scale(1.06) rotate(1.2deg); } }
