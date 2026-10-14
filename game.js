@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=105';
-import { createWorld } from './scene3d.js?v=105';
-import * as A from './audio.js?v=105';
-import * as P from './progress.js?v=105';
-import { createMud } from './mudfx.js?v=105';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=105';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=105';
-import * as C from './classifica.js?v=105';
-import * as D from './duel.js?v=105';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=105.1';
+import { createWorld } from './scene3d.js?v=105.1';
+import * as A from './audio.js?v=105.1';
+import * as P from './progress.js?v=105.1';
+import { createMud } from './mudfx.js?v=105.1';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=105.1';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=105.1';
+import * as C from './classifica.js?v=105.1';
+import * as D from './duel.js?v=105.1';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=105').then(m => {
+import('./piloti.js?v=105.1').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -595,13 +595,12 @@ function move(d) {
   const from = aimPx ?? Math.round(px);
   aimPx = Math.max(0, Math.min(2, Math.round(from) + d));
 }
-// v105 · Gusta Ranch: le curve si fanno davvero. Nei tornanti la moto viene spinta verso l'esterno (va tenuta),
-// la corda (corsia interna) è più corta e veloce, l'esterno è largo e lento; a fine curva un premio se hai tenuto la corda.
+// v105 · Gusta Ranch: le curve si fanno davvero (v105.1 · niente spinta automatica: la moto la guidi solo tu).
+// La corda (corsia interna) è più corta e veloce, l'esterno è largo e lento; a fine curva un premio se hai tenuto la corda.
 let corner = { t: 0, in: 0, s: 0, out: 0 }, cornerLine = 0;
 function ranchCorner(dt) {
   const b = ranchBend(roadTime * 19.5), k = Math.abs(b);
   if (k > .55 && crash <= 0) {
-    if (jump <= 0) px += b * .62 * Math.min(1.25, speedNow) * (1 - up.tyres * .06) * (wet > 0 ? 1.25 : 1) * (has('mule') ? .8 : 1) * dt;
     const inside = b > 0 ? 0 : 2, d = Math.abs(px - inside);
     cornerLine = d < .6 ? 1 : d > 1.35 ? -1 : 0;
     if (!corner.t) { corner.s = Math.sign(b); corner.in = corner.out = 0; }
@@ -2752,7 +2751,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 105;
+const GAME_VERSION = 105.1;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
