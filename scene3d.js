@@ -1267,12 +1267,13 @@ export function createWorld(canvas) {
     const sit = g.scene.getObjectByName('rider_sit');
     riderBaseMat = sit.material; const m = riderMat(riderJerseyTint, riderPantsTint);
     const gs = sit.geometry.clone(); gs.applyMatrix4(new T.Matrix4().compose(new T.Vector3(), sit.quaternion, sit.scale));
-    riderStatic = gs.clone();   // per i compagni: posa seduta ferma, senza ossa
     rRig = buildRiderRig(gs, m);
     rRig.mesh.castShadow = true; rRig.mesh.receiveShadow = true; rRig.mesh.userData.keep = true; riderPivot.add(rRig.mesh);
     riderGlb = { mesh: rRig.mesh }; customKey = '';
   });
   let riderStatic = null;
+  // v105.4 · compagni: versione leggera del pilota (≈7k triangoli) seduta e ferma
+  gltf.load('img/models/rider_lo.glb?t=1', g => { const o = g.scene.getObjectByName('rider_sit'); const gg = o.geometry.clone(); gg.applyMatrix4(new T.Matrix4().compose(new T.Vector3(), o.quaternion, o.scale)); riderStatic = gg; });
   // IK a due ossa: a = osso alto (spalla/anca), b = osso basso (gomito/ginocchio); porta l'estremità su target, piegando verso pole
   const _ikA = new T.Vector3(), _ikB = new T.Vector3(), _ikC = new T.Vector3(), _ikE = new T.Vector3(), _ikd = new T.Vector3(), _ikpl = new T.Vector3(), _ikqa = new T.Quaternion(), _ikws = new T.Vector3();
   function aimBone(bone, childRest, targetW) {
@@ -1564,7 +1565,7 @@ export function createWorld(canvas) {
     loadBikeGlb(key, use);
   }
   const riderY0 = rider.position.y;
-  loadBikeGlb('enduro', () => {});   // i compagni usano la moto vera: la carichiamo subito
+  loadBikeGlb('enduro_lo', () => {});   // i compagni usano la moto vera in versione leggera: la carichiamo subito
   function syncBikeModel() {
     helmTint.value.set(helmetMat.map && helmetMat.userData.base ? helmetMat.userData.base : helmetMat.color);
     if (riderGlb) { if (jerseyMat.map && jerseyMat.userData.base) riderJerseyTint.value.set(jerseyMat.userData.base); else riderJerseyTint.value.copy(jerseyMat.color); riderPantsTint.value.copy(pantsMat.color); }
@@ -2465,9 +2466,9 @@ export function createWorld(canvas) {
   const rivalSpokes = (() => { const g = new T.CylinderGeometry(.01, .01, .58, 3); const gs = []; for (let i = 0; i < 4; i++) { const c = g.clone(); c.rotateX(i * Math.PI / 4); gs.push(c); } return mergeGeometries(gs); })();
   const rivalMats = ['plastic', 'accent', 'jersey', 'pants', 'helmet'];
   // v105 · compagni con moto e pilota veri (stessi modelli del giocatore), ognuno con le sue tinte
-  const rivalGlbReady = () => !!(riderGlb && helmGlb && glbCache.enduro && glbCache.enduro !== 'loading');
+  const rivalGlbReady = () => !!(riderGlb && riderStatic && helmGlb && glbCache.enduro_lo && glbCache.enduro_lo !== 'loading');
   function makeRivalGlb(r) {
-    const G = glbCache.enduro, fit = BIKE_FIT.enduro;
+    const G = glbCache.enduro_lo, fit = BIKE_FIT.enduro;
     const bT = { value: new T.Color(r.livery.plastic) }, jT = { value: new T.Color(r.livery.jersey) }, pT = { value: new T.Color(r.livery.pants) };
     const mats = new Map();
     const bm = src => { if (!mats.has(src)) { const m = src.clone(); tintable(m, bT); mats.set(src, m); } return mats.get(src); };
