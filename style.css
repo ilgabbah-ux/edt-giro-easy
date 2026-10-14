@@ -1421,3 +1421,6 @@ aside#hub { gap: 10px; }
   -webkit-mask: radial-gradient(ellipse at 50% 46%, transparent 32%, #000 78%); mask: radial-gradient(ellipse at 50% 46%, transparent 32%, #000 78%); }
 .speedfx.on { opacity: 1; animation: speedfx .14s linear infinite alternate; }
 @keyframes speedfx { from { transform: scale(1) rotate(0deg); } to { transform: scale(1.06) rotate(1.2deg); } }
+/* v105 · vignettatura leggera e luce calda dall'alto: più profondità, niente costo per la GPU */
+.vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse 85% 75% at 50% 52%, transparent 58%, #0a0805 140%), linear-gradient(180deg, #ffd9a014 0%, transparent 28%); }

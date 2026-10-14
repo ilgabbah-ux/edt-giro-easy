@@ -247,6 +247,22 @@ export function createWorld(canvas) {
     ['#8d9b70', '#a4bd84', '#d6cc9c', '#b4b6ae'].forEach((c, i) => VERGE_COLS[i].set(c));
   });
 
+  // v105 · prato meno piatto: macchie più chiare e più scure su grande scala e qualche chiazza di terra, senza costare nulla
+  grass.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWp;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vWp;
+float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+{ vec2 q = vec2(vWp.x, uRoad - vWp.z);
+  float big = n2(q * .045) * .65 + n2(q * .13) * .35;
+  float earth = smoothstep(.72, .86, n2(q * .21 + 7.3));
+  diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(.74, .8, .7), vec3(1.18, 1.14, .94), big), uAmt);
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.15, .95, .7), earth * .45 * uAmt); }`).replace('varying vec3 vWp;', 'varying vec3 vWp;\nuniform float uRoad;\nuniform float uAmt;');
+    sh.uniforms.uRoad = grassRoad; sh.uniforms.uAmt = grassAmt; grass.userData.shader = sh;
+  };
+  const grassRoad = { value: 0 }, grassAmt = { value: 1 };
   function blend(target, cols, w) { target.setRGB(0, 0, 0); for (let i = 0; i < 4; i++) { target.r += cols[i].r * w[i]; target.g += cols[i].g * w[i]; target.b += cols[i].b * w[i]; } }
   function forkStrips(t) {
     const F = forkF, on = !!F && (forkGap(t + 190) > 0 || forkGap(t) > 0 || (t + 190 > F.x0 && t - 14 < F.x1));
@@ -295,6 +311,7 @@ export function createWorld(canvas) {
     forkStrips(t);
     for (const m of roadMaps) m.offset.y = (t * m.repeat.y / 200) % 1;
     for (const m of grassMaps) m.offset.y = (t * m.repeat.y / 200) % 1;
+    grassRoad.value = t % 4000; grassAmt.value = iceMode ? 0 : 1;
     // Colori del terreno per sezione: terra scura di bosco, fango, ocra di pascolo, pietra.
     const W = trail.w || [1, 0, 0, 0];
     blend(dirt.color, DIRT_COLS, W);
@@ -430,7 +447,14 @@ export function createWorld(canvas) {
     }
     ng.setAttribute('color', new T.Float32BufferAttribute(col, 3)); return ng;
   })();
-  const rockMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: .95, flatShading: true });
+  const rockDetail = (() => {   // v105 · grana della pietra: macchie, venature e licheni, usata anche come rilievo
+    const c = document.createElement('canvas'); c.width = 256; c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#b4b4b4'; x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 2600; i++) { const v = 110 + Math.random() * 120; x.fillStyle = `rgba(${v},${v},${v},${.25 + Math.random() * .4})`; x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 4, 1 + Math.random() * 3); }
+    for (let i = 0; i < 14; i++) { x.strokeStyle = 'rgba(60,60,60,.5)'; x.lineWidth = 1 + Math.random() * 1.5; x.beginPath(); let px = Math.random() * 256, py = Math.random() * 256; x.moveTo(px, py); for (let k = 0; k < 6; k++) { px += (Math.random() - .5) * 50; py += Math.random() * 30; x.lineTo(px, py); } x.stroke(); }
+    for (let i = 0; i < 40; i++) { x.fillStyle = `rgba(${150 + Math.random() * 40},${160 + Math.random() * 40},${110},.35)`; x.beginPath(); x.arc(Math.random() * 256, Math.random() * 256, 3 + Math.random() * 9, 0, 7); x.fill(); }
+    const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(2, 2); t.anisotropy = 4; return t;
+  })();
+  const rockMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: .95, flatShading: true, map: rockDetail, bumpMap: rockDetail, bumpScale: 2.2 });
   const rocks = new T.InstancedMesh(rockGeo, rockMat, 60);
   const wetRockMat = new T.MeshStandardMaterial({ color: '#5e625b', roughness: .35, metalness: .1, flatShading: true });   // sassi bagnati nel guado: scuri e lucidi, niente muschio
   const rockData = Array.from({ length: 60 }, (_, i) => ({ side: i % 2 ? 1 : -1, z: i * 3.03, off: (i % 7) * .47, big: rand() }));
@@ -704,33 +728,68 @@ export function createWorld(canvas) {
 
   // v84 · Giro easy tra le vigne: filari di viti ai lati (pali, chiome e grappoli)
   const VROWS = 8, VPER = 72, VSTEP = 180 / VPER;
-  const vineLeaf = new T.InstancedMesh((() => { const g = new T.IcosahedronGeometry(1, 1); g.scale(.38, .5, 1.6); return g; })(), new T.MeshStandardMaterial({ color: '#58853a', roughness: .9, flatShading: true }), VROWS * VPER);
+  // v105 · filari veri: pareti di foglie (sagome con le foglie disegnate), pali, fili e grappoli a grappolo
+  const vineLeafTex = (() => {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 256; const x = c.getContext('2d');
+    const leaf = (cx, cy, r, h, l) => { x.fillStyle = `hsl(${h},${42 + Math.random() * 18}%,${l}%)`; x.beginPath();
+      for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + (k - 2) * .62; x.moveTo(cx, cy); x.arc(cx + Math.cos(a) * r * .55, cy + Math.sin(a) * r * .55, r * .5, 0, Math.PI * 2); }
+      x.fill(); x.strokeStyle = `hsla(${h},40%,${l - 12}%,.6)`; x.lineWidth = 1; x.beginPath(); x.moveTo(cx, cy + r * .3); x.lineTo(cx, cy - r * .6); x.stroke(); };
+    for (let i = 0; i < 420; i++) { const y = 8 + Math.pow(Math.random(), 1.7) * 230, r = 8 + Math.random() * 12 - y * .015;
+      const autumn = Math.random() < .22, h = autumn ? 38 + Math.random() * 18 : 82 + Math.random() * 30, l = (autumn ? 44 : 26) + Math.random() * 18 + (230 - y) * .03;
+      leaf(Math.random() * 512, y, r, h, l); }
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.anisotropy = 4; return t;
+  })();
+  const vineWallGeo = (() => {   // sezione a "V" con il cappello: due pareti inclinate + il tetto, lunghe un tratto di filare
+    const g = new T.BufferGeometry(), P = [], U = [], I = [], L = VSTEP * 2.02;
+    const quad = (a, b, c2, d) => { const o = P.length / 3; P.push(...a, ...b, ...c2, ...d); U.push(0, 0, 1, 0, 1, 1, 0, 1); I.push(o, o + 1, o + 2, o, o + 2, o + 3); };
+    for (const sd of [-1, 1]) quad([sd * .12, -.55, -L / 2], [sd * .12, -.55, L / 2], [sd * .42, .55, L / 2], [sd * .42, .55, -L / 2]);
+    quad([-.42, .5, -L / 2], [-.42, .5, L / 2], [.42, .62, L / 2], [.42, .62, -L / 2]);
+    g.setAttribute('position', new T.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(U, 2)); g.setIndex(I); g.computeVertexNormals(); return g;
+  })();
+  const bunchGeo = (() => { const parts = []; for (let k = 0; k < 11; k++) { const row = k < 4 ? 0 : k < 7 ? 1 : k < 9 ? 2 : k < 10 ? 3 : 4, n = [4, 3, 2, 1, 1][row], a = k * 2.4;
+      const sg = new T.IcosahedronGeometry(.055, 1); sg.translate(Math.cos(a) * .045 * n / 2, -row * .07, Math.sin(a) * .045 * n / 2); parts.push(sg); }
+    return mergeGeometries(parts); })();
+  const vineLeaf = new T.InstancedMesh(vineWallGeo, new T.MeshLambertMaterial({ map: vineLeafTex, alphaTest: .45, side: T.DoubleSide }), VROWS * VPER / 2);
   const vinePost = new T.InstancedMesh(new T.BoxGeometry(.08, 1.7, .08), mat('#7a5a3a', .9), VROWS * VPER / 2);
-  const vineGrape = new T.InstancedMesh(new T.IcosahedronGeometry(.16, 0), mat('#4a1d4f', .5), VROWS * VPER / 2);
-  vineLeaf.castShadow = vinePost.castShadow = true; scene.add(vineLeaf, vinePost, vineGrape);
-  vineLeaf.visible = vinePost.visible = vineGrape.visible = false;
+  const vineGrape = new T.InstancedMesh(bunchGeo, mat('#3d1a45', .45), VROWS * VPER);
+  const vineWire = new T.InstancedMesh(new T.BoxGeometry(.012, .012, VSTEP * 2.02), mat('#9aa0a2', .4, .6), VROWS * VPER);
+  vineLeaf.castShadow = vinePost.castShadow = true; vineWire.castShadow = false; scene.add(vineLeaf, vinePost, vineGrape, vineWire);
+  vineLeaf.visible = vinePost.visible = vineGrape.visible = vineWire.visible = false;
+  { const c = new T.Color(); for (let i = 0; i < VROWS * VPER / 2; i++) { const r = Math.abs(Math.sin(i * 12.9898) * 43758.5) % 1; vineLeaf.setColorAt(i, c.setRGB(.85 + r * .2, .9 + r * .12, .8 + r * .1)); } }
+  for (let i = 0; i < VROWS * VPER; i++) vineGrape.setColorAt(i, new T.Color(i % 5 === 0 ? '#9fa94a' : i % 3 ? '#4a1f55' : '#33163d'));
   function vineyard(t, on) {
-    vineLeaf.visible = vinePost.visible = vineGrape.visible = on;
+    vineLeaf.visible = vinePost.visible = vineGrape.visible = vineWire.visible = on;
     if (!on) return;
-    let pi = 0, gi = 0;
+    let li = 0, pi = 0, gi = 0, wi = 0;
     for (let r = 0; r < VROWS; r++) {
       const side = r % 2 ? 1 : -1, w = side * (6.2 + Math.floor(r / 2) * 2.3) * (trail.width * .5 + .5);
-      for (let k = 0; k < VPER; k++) {
-        const i = r * VPER + k, z = wrapZ(k * VSTEP + r * .7, t), x = center(z, t) + w, y = ground(z, t, w);
-        dummy.rotation.set(0, Math.sin(i * 3.1) * .06, 0); dummy.position.set(x, y + 1.0, z); dummy.scale.set(1, .9 + (i % 5) * .05, 1); put(vineLeaf, i);
-        dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1);
-        if (k % 2 === 0) { dummy.position.set(x, y + .85, z + .9); put(vinePost, pi++); }
-        else { dummy.position.set(x + side * -.38, y + .62 + (i % 3) * .06, z); dummy.scale.set(1, 1.4, 1); put(vineGrape, gi++); }
+      for (let k = 0; k < VPER; k += 2) {
+        const z = wrapZ(k * VSTEP + r * .7, t), zN = wrapZ((k + 2) * VSTEP + r * .7, t), x = center(z, t) + w, y = ground(z, t, w);
+        const z2 = z - VSTEP, x2 = center(z2, t) + w, y2 = ground(z2, t, w), yaw = Math.atan2(x - x2, z - z2) - (Math.abs(z - zN) > 50 ? 0 : 0);
+        const vh = .88 + ((k * 7 + r * 3) % 5) * .06; dummy.rotation.set(0, yaw, 0); dummy.scale.set(1 + ((k + r) % 3) * .08, vh, 1);
+        dummy.position.set((x + x2) / 2, (y + y2) / 2 + 1.05 * vh, (z + z2) / 2); put(vineLeaf, li++); dummy.scale.set(1, 1, 1);
+        dummy.position.set(x, y + .85, z); put(vinePost, pi++);
+        for (const hy of [.62, 1.05]) { dummy.position.set((x + x2) / 2, (y + y2) / 2 + hy, (z + z2) / 2); put(vineWire, wi++); }
+        for (let b = 0; b < 2; b++) { const zz = z - VSTEP * (.35 + b * .7), xx = center(zz, t) + w + side * (b ? .2 : -.2) * -1, yy = ground(zz, t, w);
+          dummy.rotation.set(0, b * 1.7 + r, 0); const sc = 1.5 + ((k + b + r) % 4) * .15; dummy.scale.set(sc, sc * 1.1, sc); dummy.position.set(xx + side * .06, yy + .64, zz); put(vineGrape, gi++); }
       }
     }
-    vineLeaf.instanceMatrix.needsUpdate = vinePost.instanceMatrix.needsUpdate = vineGrape.instanceMatrix.needsUpdate = true;
+    vineLeaf.instanceMatrix.needsUpdate = vinePost.instanceMatrix.needsUpdate = vineGrape.instanceMatrix.needsUpdate = vineWire.instanceMatrix.needsUpdate = true;
   }
 
   // v102 · Gusta Ranch sulle colline dell'Astigiano: noccioleti in filari, cascine e campanili sui bricchi
   const HAZ = 96, hazelData = Array.from({ length: HAZ }, (_, i) => ({ side: i % 2 ? 1 : -1, row: Math.floor(i / 24), z: (i % 24) * 7.5 + rand() * 1.5, s: .8 + rand() * .45 }));
-  const hazelCrown = new T.InstancedMesh((() => { const g = new T.IcosahedronGeometry(1, 1); g.scale(1.5, 1.15, 1.5); return g; })(), new T.MeshStandardMaterial({ roughness: .9, flatShading: true }), HAZ);
+  const bushTex = (() => {   // v105 · chioma di nocciolo disegnata a foglie, su sagome incrociate
+    const c = document.createElement('canvas'); c.width = 256; c.height = 256; const x = c.getContext('2d');
+    for (let i = 0; i < 900; i++) { const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * 112, cx = 128 + Math.cos(a) * rr, cy = 120 + Math.sin(a) * rr * .82;
+      const l = 24 + (1 - (cy - 20) / 210) * 22 + Math.random() * 12; x.fillStyle = `hsl(${78 + Math.random() * 26},${38 + Math.random() * 20}%,${l}%)`;
+      x.beginPath(); x.ellipse(cx, cy, 7 + Math.random() * 6, 4 + Math.random() * 4, Math.random() * 3, 0, Math.PI * 2); x.fill(); }
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; return t;
+  })();
+  const bushGeo = (() => { const g = cardGeo.clone(); g.translate(0, -1, 0); g.scale(1.6, .75, 1.6); for (const r of [Math.PI / 4]) { const g2 = cardGeo.clone(); g2.translate(0, -1, 0); g2.scale(1.6, .75, 1.6); g2.rotateY(r); return mergeGeometries([g, g2]); } })();
+  const hazelCrown = new T.InstancedMesh(bushGeo, new T.MeshLambertMaterial({ map: bushTex, alphaTest: .4, side: T.DoubleSide }), HAZ);
   const hazelTrunk = new T.InstancedMesh(new T.CylinderGeometry(.09, .16, 1.4, 6), bark, HAZ);
-  { const cols = ['#6f8a3c', '#7d963f', '#9aa047', '#b9a346', '#87913a']; const c = new T.Color(); for (let i = 0; i < HAZ; i++) hazelCrown.setColorAt(i, c.set(cols[i % cols.length])); }
+  { const cols = ['#e6f0d0', '#f2f4d4', '#ffffff', '#fff2c4', '#eef0cc']; const c = new T.Color(); for (let i = 0; i < HAZ; i++) hazelCrown.setColorAt(i, c.set(cols[i % cols.length])); }
   const FARMS = 7, farmData = Array.from({ length: FARMS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 46 + rand() * 30, z: i * 25.7 + rand() * 8, tower: i % 3 === 0, rot: rand() * 6 }));
   const farmWall = new T.InstancedMesh(new T.BoxGeometry(7, 3.4, 4.2), new T.MeshStandardMaterial({ color: '#e0c08e', roughness: .95 }), FARMS);
   const farmRoof = new T.InstancedMesh((() => { const g = new T.CylinderGeometry(0, 3.3, 1.5, 4, 1); g.rotateY(Math.PI / 4); g.scale(1.55, 1, .95); return g; })(), new T.MeshStandardMaterial({ color: '#a8482e', roughness: .9, flatShading: true }), FARMS);
