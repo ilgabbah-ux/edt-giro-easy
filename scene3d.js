@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=102.5';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=102.5';
 import * as T from './three.module.min.js';
 import { RIDER_PARTS } from './pilota3d.js?v=102.5';
 
@@ -163,7 +163,9 @@ export function createWorld(canvas) {
   let iceMode = false, iceKey = null, groundMaps = null;
   let ranchLook = false;   // v102 · Gusta Ranch nell'Astigiano
   let curveA = 3.8, curveF = .021;   // v97 · curve diverse per la variante della settimana
-  const baseCenter = (z, t) => iceMode ? (iceShape(t - z) - iceShape(t) + iceHeading(t) * z) * 2 : ranchLook ? (ranchShape(t - z) - ranchShape(t) + ranchHeading(t) * z) * 2 : Math.sin((t - z) * curveF) * curveA - Math.sin(t * curveF) * curveA + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;   // v88 · sul ghiaccio la vista segue la direzione della pista: si vede solo la curva
+  const RANCH_SHAPE = { shape: ranchShape, heading: ranchHeading, bend: ranchBend };
+  let curShape = null;   // v103 · tracciato vero del percorso (Gusta Ranch e gli altri): la vista segue la direzione della pista
+  const baseCenter = (z, t) => iceMode ? (iceShape(t - z) - iceShape(t) + iceHeading(t) * z) * 2 : curShape ? (curShape.shape(t - z) - curShape.shape(t) + curShape.heading(t) * z) * 2 + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 1.2 : Math.sin((t - z) * curveF) * curveA - Math.sin(t * curveF) * curveA + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;   // v88 · sul ghiaccio la vista segue la direzione della pista: si vede solo la curva
   // v103 · bivio vero: tra x0 e x1 la strada si divide; g = distanza tra i due rami. Scelto il ramo, la "nostra" strada si sposta da quella parte
   let forkF = null;
   const forkGap = x => { const F = forkF; if (!F || x < F.x0 || x > F.x1) return 0; const u = (x - F.x0) / (F.x1 - F.x0), a = Math.min(1, u / .22), b = Math.min(1, (1 - u) / .22); return 22 * a * a * (3 - 2 * a) * b * b * (3 - 2 * b); };
@@ -1406,6 +1408,7 @@ export function createWorld(canvas) {
   const ranchLogoMat = new T.MeshBasicMaterial({ transparent: true, alphaTest: .05, side: T.DoubleSide, depthWrite: false });   // v102 · logo "Mud, beer & glory"
   texLoader.load('img/gusta-ranch-logo.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; });
   const henWhite = mat('#f3efe6', .85), henRed = mat('#a5512a', .8), henComb = mat('#d4241c', .6), henBeak = mat('#e8b02a', .6);   // v102
+  const crateWood = mat('#b98a52', .9), grapeMat = mat('#4a2a5c', .5), grapeGreen = mat('#a7b54a', .5), cowWhite = mat('#f1ede4', .8), cowBlack = mat('#22201e', .8), cowPink = mat('#e7a99c', .7), boarFur = mat('#3e2f24', .95), tuskMat = mat('#efe6cf', .5), deerFur = mat('#9a6237', .85), deerLight = mat('#e2c9a3', .85), ironMat = mat('#2c2f31', .45, .6), heliRed = mat('#d0242a', .45, .2), heliWhite = mat('#f2f2f2', .5), heliGlass = mat('#1d2b38', .15, .3), eyeShine = new T.MeshBasicMaterial({ color: '#e8ff9a' }), dolmenStone = mat('#77756e', .98), lichen = mat('#5f6b2f', .95);   // v103 · occhi che brillano nel faro
   const pigPink = mat('#e9a49a', .7), pigNose = mat('#d17d78', .6), pigMudDark = mat('#4a3423', .5), cartWood = mat('#7b5434', .9);
   const hayRollSide = mat('#d9b35a', .95), hayRollEnd = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#d2ab52'; x.fillRect(0, 0, 128, 128); x.strokeStyle = '#a07b30'; x.lineWidth = 3; x.beginPath(); for (let a = 0; a < 40; a += .1) { const r = a * 1.55; x.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r); } x.stroke(); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return new T.MeshStandardMaterial({ map: t, roughness: .95 }); })();
   const pigMudMat = (() => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const x = c.getContext('2d');
@@ -1993,6 +1996,69 @@ export function createWorld(canvas) {
         for (let k = 0; k < 4; k++) { const post = box(.12, 1, .12, cartWood, g, sx * 3.9, .5, -3.6 + k * 2.4); g.userData.stones.push([post, -3.6 + k * 2.4, .5]); }
         const rail = box(.08, .1, 7.4, cartWood, g, sx * 3.9, .8, 0); g.userData.stones.push([rail, 0, .8]);
       }
+    } else if (type === 'grapeCrate') {
+      // v103 · cassette della vendemmia impilate, piene d'uva
+      for (const [x, y, z] of [[-.32, 0, 0], [.32, 0, 0], [0, .3, .05]]) {
+        const c = new T.Group(); c.position.set(x, y, z); g.add(c);
+        box(.58, .04, .4, crateWood, c, 0, .02, 0); for (const sd of [-1, 1]) { box(.58, .26, .03, crateWood, c, 0, .15, sd * .19); box(.03, .26, .4, crateWood, c, sd * .28, .15, 0); }
+        for (let k = 0; k < 6; k++) ball(.09, .08, .08, Math.random() < .6 ? grapeMat : grapeGreen, c, -.18 + (k % 3) * .18, .28, k < 3 ? -.08 : .08);
+      }
+      g.scale.setScalar(1.45); hazardRing(g, .55);
+    } else if (type === 'cow') {
+      // v103 · mucca al pascolo che attraversa (bianca a macchie nere, campanaccio)
+      ball(.78, .42, .36, cowWhite, g, 0, 1.05, 0);
+      for (const [x, y, z, r] of [[.2, 1.25, .3, .22], [-.35, 1.1, -.32, .2], [-.1, .9, .34, .16], [.4, 1.2, -.3, .15]]) ball(r, r * .8, .06, cowBlack, g, x, y, z);
+      for (const [x, z] of [[-.5, -.2], [-.5, .2], [.5, -.2], [.5, .2]]) rod([x, .8, z], [x, 0, z], .07, cowWhite, g);
+      ball(.24, .22, .2, cowWhite, g, .88, 1.25, 0); ball(.14, .11, .15, cowPink, g, 1.06, 1.15, 0);
+      for (const z of [-.14, .14]) rod([.85, 1.42, z], [.82, 1.55, z * 1.9], .03, hornMat, g);
+      ball(.08, .1, .08, mat('#c9a13a', .4, .6), g, .78, .92, 0);
+      rod([-.78, 1.15, 0], [-.88, .7, 0], .03, cowWhite, g);
+    } else if (type === 'manhole') {
+      // v103 · tombino saltato: buco nero a terra, coperchio di ghisa sollevato e vapore
+      const hole = mesh(new T.CircleGeometry(.48, 24), new T.MeshBasicMaterial({ color: '#050505' }), g); hole.rotation.x = -Math.PI / 2; hole.position.y = .03; hole.castShadow = false;
+      const rim = mesh(new T.TorusGeometry(.5, .06, 6, 24), ironMat, g); rim.rotation.x = Math.PI / 2; rim.position.y = .04;
+      const lid = mesh(new T.CylinderGeometry(.48, .48, .06, 24), ironMat, g); lid.position.set(.15, .42, -.1); lid.rotation.set(.9, 0, .5);
+      const steam = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#cfd8d2', transparent: true, opacity: .35, depthWrite: false })); steam.scale.set(1.2, 1.8, 1); steam.position.y = .9; g.add(steam);
+      hazardRing(g, .62);
+    } else if (type === 'boar') {
+      // v103 · cinghiale che attraversa di notte
+      ball(.5, .32, .26, boarFur, g, 0, .5, 0); ball(.2, .2, .18, boarFur, g, .48, .5, 0); ball(.12, .1, .1, boarFur, g, .66, .44, 0);
+      for (const z of [-.06, .06]) rod([.68, .4, z], [.74, .5, z * 2], .02, tuskMat, g);
+      for (const [x, z] of [[-.3, -.12], [-.3, .12], [.3, -.12], [.3, .12]]) rod([x, .35, z], [x, 0, z], .05, boarFur, g);
+      box(.7, .1, .04, boarFur, g, -.05, .84, 0);
+      for (const z of [-.09, .09]) ball(.055, .055, .055, eyeShine, g, .6, .6, z);
+      { const gl = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#d8ff7a', transparent: true, opacity: .8, blending: T.AdditiveBlending, depthWrite: false })); gl.scale.set(.7, .4, 1); gl.position.set(.66, .6, 0); g.add(gl); }
+      g.scale.setScalar(1.25);
+      hazardRing(g, .62);
+    } else if (type === 'deer') {
+      // v103 · cervo che salta la pista nel faro
+      ball(.62, .32, .26, deerFur, g, 0, 1.15, 0); ball(.3, .16, .2, deerLight, g, -.05, 1.0, 0);
+      for (const [x, z] of [[-.42, -.12], [-.42, .12], [.42, -.12], [.42, .12]]) rod([x, 1.0, z], [x + (x > 0 ? .25 : -.25), .15, z], .045, deerFur, g);
+      rod([.5, 1.3, 0], [.72, 1.75, 0], .1, deerFur, g); ball(.2, .14, .13, deerFur, g, .82, 1.82, 0); for (const z of [-.09, .09]) ball(.06, .06, .06, eyeShine, g, .9, 1.88, z);
+      { const gl = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#d8ff7a', transparent: true, opacity: .8, blending: T.AdditiveBlending, depthWrite: false })); gl.scale.set(.8, .45, 1); gl.position.set(.95, 1.88, 0); g.add(gl); }
+      for (const z of [-.08, .08]) { rod([.76, 1.95, z], [.7, 2.4, z * 3], .025, hornMat, g); rod([.72, 2.2, z * 2], [.9, 2.35, z * 3.5], .02, hornMat, g); rod([.7, 2.3, z * 2.6], [.55, 2.5, z * 4], .02, hornMat, g); }
+    } else if (type === 'dolmen') {
+      // v103 · dolmen di Costa: due lastroni dritti e il lastrone di copertura, muschio e cartello
+      const slab = (w, h, d, x, y, z, rx = 0, rz = 0) => { const o = mesh(new T.BoxGeometry(w, h, d, 3, 3, 2), dolmenStone, g); o.position.set(x, y, z); o.rotation.set(rx, 0, rz);
+        const pa = o.geometry.attributes.position; for (let i = 0; i < pa.count; i++) pa.setXYZ(i, pa.getX(i) * (1 + (Math.random() - .5) * .14), pa.getY(i) * (1 + (Math.random() - .5) * .08), pa.getZ(i) * (1 + (Math.random() - .5) * .2)); o.geometry.computeVertexNormals(); return o; };
+      slab(.5, 1.6, 1.3, -.6, .8, 0, 0, .05); slab(.5, 1.5, 1.2, .62, .75, .05, 0, -.06);
+      slab(2.1, .55, 1.8, 0, 1.78, 0, .05, -.06);
+      for (const [x, z, r] of [[-.3, .3, .18], [.4, -.4, .14], [.1, .55, .12]]) ball(r * 1.6, .06, r, lichen, g, x, 2.04, z);
+      const c = document.createElement('canvas'); c.width = 256; c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#6b4a2a'; x.fillRect(0, 0, 256, 64); x.fillStyle = '#ffe9b0'; x.font = '900 30px Arial'; x.textAlign = 'center'; x.fillText('DOLMEN DI COSTA', 128, 43);
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace; const pl = mesh(new T.PlaneGeometry(.9, .23), new T.MeshBasicMaterial({ map: tx }), g); pl.position.set(0, .55, .62); pl.castShadow = false;
+      rod([-.5, 0, .62], [-.5, .5, .62], .03, cartWood, g); rod([.5, 0, .62], [.5, .5, .62], .03, cartWood, g);
+      hazardRing(g, .85);
+    } else if (type === 'heli') {
+      // v103 · elicottero del soccorso alpino che passa sopra la pista
+      const body = new T.Group(); body.position.y = 7.5; g.add(body); g.userData.heli = body;
+      ball(1.3, .8, .75, heliRed, body, 0, 0, 0); ball(.7, .55, .6, heliGlass, body, .7, .15, 0);
+      rod([-1, .1, 0], [-3.4, .45, 0], .16, heliRed, body); box(.1, .9, .5, heliWhite, body, -3.4, .7, 0);
+      box(2.2, .06, .08, ironMat, body, 0, -.95, .55); box(2.2, .06, .08, ironMat, body, 0, -.95, -.55);
+      for (const z of [-.55, .55]) for (const x of [-.6, .6]) rod([x, -.6, z * .8], [x, -.95, z], .03, ironMat, body);
+      const rotor = new T.Group(); rotor.position.y = .95; body.add(rotor); g.userData.rotor = rotor;
+      for (const a of [0, Math.PI / 2]) { const bl = box(5.4, .04, .22, ironMat, rotor, 0, 0, 0); bl.rotation.y = a; }
+      const c = document.createElement('canvas'); c.width = 256; c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.font = '900 40px Arial'; x.textAlign = 'center'; x.fillText('118', 128, 48);
+      const tx = new T.CanvasTexture(c); for (const sd of [-1, 1]) { const pl = mesh(new T.PlaneGeometry(.9, .22), new T.MeshBasicMaterial({ map: tx, transparent: true, side: T.DoubleSide }), body); pl.position.set(-.2, .05, sd * .76); }
     } else if (type === 'rollRock') {
       const inner = new T.Group(); inner.position.y = .55; g.add(inner); g.userData.roller = inner;
       const r = mesh(detailedRockGeometry, detailedStone, inner); r.position.y = -.55; r.scale.setScalar(.9);
@@ -2225,8 +2291,8 @@ export function createWorld(canvas) {
       m.g.position.set(center(z, t) + lx, height(z, t) + (r.lift || 0) + Math.abs(Math.sin(now / 90 + m.phase)) * .02, z);
       // v96 · sul ghiaccio i compagni seguono la direzione della pista nel punto in cui sono, col muso dentro la curva e piegati verso l'interno
       const rBend = iceMode ? iceBend(t + r.gap) : 0, rHead = iceMode ? -Math.atan((center(z - .6, t) - center(z + .6, t)) / 1.2) : 0;
-      const rYaw = iceMode ? rHead + rBend * .35 - (r.lean || 0) * .12 : ranchLook ? -Math.atan((center(z - .6, t) - center(z + .6, t)) / 1.2) - (r.lean || 0) * .05 : -(r.lean || 0) * .05;   // v102.1 · al Gusta Ranch i compagni seguono i tornanti
-      m.g.rotation.set(0, rYaw, ranchLook ? Math.max(-.5, Math.min(.5, ranchBend(t + r.gap) * .32)) : iceMode ? Math.max(-.6, Math.min(.6, rBend * .45)) : Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));   // v94 · anche i compagni piegati in derapata
+      const rYaw = iceMode ? rHead + rBend * .35 - (r.lean || 0) * .12 : curShape ? -Math.atan((center(z - .6, t) - center(z + .6, t)) / 1.2) - (r.lean || 0) * .05 : -(r.lean || 0) * .05;   // v102.1 · al Gusta Ranch i compagni seguono i tornanti
+      m.g.rotation.set(0, rYaw, curShape ? Math.max(-.5, Math.min(.5, curShape.bend(t + r.gap) * .32)) : iceMode ? Math.max(-.6, Math.min(.6, rBend * .45)) : Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));   // v94 · anche i compagni piegati in derapata
       m.pitch.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 160 + m.phase) * .015;
       m.pitch.position.y = 0;
       for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475;
@@ -2401,7 +2467,7 @@ export function createWorld(canvas) {
     const live = s.state === 'playing' || s.state === 'paused' || s.state === 'countdown';
     const boostAmount = live ? (s.turbo || 0) : 0;
     trail = routeAt(s.elapsed || 0, t);
-    ranchLook = !!s.ranch; forkF = s.fork || null; terrain(t); instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook);
+    ranchLook = !!s.ranch; curShape = ranchLook ? RANCH_SHAPE : s.ice ? null : trackShape(s.mode, s.variant || 0, GAME_LENGTH / (s.courseScale || .04)); forkF = s.fork || null; terrain(t); instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook);
     weatherNow = s.weather || weatherNow;
     applyWeather(s.weather, s.sight || 0);
     ambient(fdt, t, trail.w, live);
@@ -2455,7 +2521,7 @@ export function createWorld(canvas) {
     // v46 · sul ghiaccio la moto va di traverso (il posteriore scivola) e il pilota controsterza
     dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : -vx * .045)) - dyn.yaw) * Math.min(1, fdt * 10);
     // v94 · derapata vera: moto piegata dentro la curva (fino a ~40°), pilota più dritto della moto, gamba interna fuori
-    const ranchLeanT = ranchLook && s.jump <= 0 && crash <= 0 ? Math.max(-.55, Math.min(.55, ranchBend(t + 6) * .32)) : 0;   // v102.1 · Gusta Ranch: nei tornanti il pilota piega la moto dentro la curva, come su Ice Scrofy
+    const ranchLeanT = curShape && s.jump <= 0 && crash <= 0 ? Math.max(-.55, Math.min(.55, curShape.bend(t + 6) * .32)) : 0;   // v102.1 · Gusta Ranch: nei tornanti il pilota piega la moto dentro la curva, come su Ice Scrofy
     const iceLeanT = s.ice && s.jump <= 0 && crash <= 0 ? Math.max(-.7, Math.min(.7, dyn.yaw * .85)) : ranchLeanT;
     dyn.iceLean = (dyn.iceLean || 0) + (iceLeanT - (dyn.iceLean || 0)) * Math.min(1, fdt * 7);
     bike.rotation.z = lean + dyn.iceLean;
@@ -2533,6 +2599,8 @@ export function createWorld(canvas) {
         m.rotation.x = 0; const h0 = height(z, t), pos = m.userData.fgeo.attributes.position;   // v101 · guado appoggiato sul terreno vero, anche su dossi e cunette
         for (let i = 0; i < pos.count; i++) pos.setY(i, height(z + pos.getZ(i), t) - h0 + .06);
         pos.needsUpdate = true; for (const [r, rz, ry] of m.userData.stones) { r.position.y = height(z + rz, t) - h0 + .05 + ry; if (r.userData.wake) r.userData.wake.position.y = r.position.y - ry + .05; } }
+      if (o.type === 'pigpen' && m.userData.sludge !== !!o.sludge) { m.userData.sludge = !!o.sludge; for (const [r] of m.userData.stones) r.visible = !o.sludge; }   // v103 · ondata di fango della Fogna: senza maiali né staccionata
+      if (m.userData.rotor) { m.userData.rotor.rotation.y = s.roadTime * 40; m.userData.heli.position.x = (o.z - .5) * 6; m.userData.heli.rotation.z = .12; m.userData.heli.position.y = 7.5 + Math.sin(s.roadTime * 2) * .3; }
       if (o.cross) m.rotation.y = o.cross > 0 ? 0 : Math.PI;
       else if (o.type === 'ibex' || o.type === 'chamois' || o.type === 'marmot') m.rotation.y = 0;
       if (o.lean !== undefined && o.type === 'tree') m.rotation.z = o.lean * .3;

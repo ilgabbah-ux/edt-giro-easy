@@ -1,5 +1,5 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=102.5';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=102.5';
 import { createWorld } from './scene3d.js?v=102.5';
 import * as A from './audio.js?v=102.5';
 import * as P from './progress.js?v=102.5';
@@ -996,13 +996,17 @@ function makeRunPlan() {
   if (md.ice || md.leap || md.slalom) return plan;
   const pool = FLASH_POOL.filter(f => f.id !== 'climbcaps' || layoutSegments().some(g => g.climb > .3));
   plan.flash = pool[Math.floor(rng() * pool.length)];
-  if (md.gev) { plan.flash = pool.find(f => f.id === 'combo'); return plan; }
-  const kinds = md.ranch ? ['galline', 'rotoballe', 'porcile', 'carro', 'pioggia'] : ['gregge', 'albero', 'frana', 'pioggia'];   // v102 · al Gusta Ranch: ignoranza pura
+  if (md.gev) { plan.flash = pool.find(f => f.id === 'combo'); const nb = 1 + (rng() < .5 ? 1 : 0); for (let i = 0; i < nb; i++) plan.events.push({ kind: 'blocco', at: 14 + (i + .3 + rng() * .4) * (34 / nb) }); return plan; }
+  // v103 · imprevisti tipici di ogni percorso: almeno uno a giro, poi quelli di sempre
+  const own = { 0: ['vendemmia'], 10: ['tombini', 'ondata'], 11: ['mucche', 'elicottero'], 15: ['cinghiali', 'cervo'] }[md.id] || [];
+  const kinds = md.ranch ? ['galline', 'rotoballe', 'porcile', 'carro', 'pioggia'] : ['gregge', 'albero', 'frana', 'pioggia', 'dolmen'];   // v102 · al Gusta Ranch: ignoranza pura
   if (!md.ranch) kinds.push('trattore');
   if (!md.wild && !md.ranch) kinds.push('guado');
   if (feat('night') || md.rainy) kinds.splice(kinds.indexOf('pioggia'), 1);
   const n = md.ranch ? 3 + (rng() < .5 ? 1 : 0) : 2 + (rng() < .5 ? 1 : 0);
-  for (let i = 0; i < n; i++) { const k = kinds.splice(Math.floor(rng() * kinds.length), 1)[0]; plan.events.push({ kind: k, at: 9 + (i + .2 + rng() * .6) * (40 / n) }); }
+  const firstOwn = own.length ? own[Math.floor(rng() * own.length)] : null, ownSlot = Math.floor(rng() * n);
+  if (own.length) for (const k of own) if (k !== firstOwn) kinds.push(k);
+  for (let i = 0; i < n; i++) { const k = i === ownSlot && firstOwn ? firstOwn : kinds.splice(Math.floor(rng() * kinds.length), 1)[0]; plan.events.push({ kind: k, at: 9 + (i + .2 + rng() * .6) * (40 / n) }); }
   const near = (at, d) => plan.events.some(e => Math.abs(e.at - at) < d) || plan.forks.some(f => Math.abs(f.at - at) < d + 4) || plan.zones.some(z => at > z.from - d && at < z.to + d);
   const nf = 1 + (rng() < .45 ? 1 : 0);
   for (let i = 0; i < nf; i++) { let at = 0, tries = 0; do { at = 15 + rng() * 32; } while (++tries < 40 && near(at, 5)); if (!near(at, 5) || !i) plan.forks.push({ at }); }
@@ -1039,6 +1043,50 @@ function spawnEvent(kind) {
     const l = Math.floor(rng() * 3); add(l, .08, 'hayCart');
     for (let k = 1; k <= 5; k++) add(l, .08 - k * .055, 'coin', { air: true, lift: 1.2 + Math.sin(k / 6 * Math.PI) * 2.6 });
     toast('🌾 CARRO DEL FIENO! PRENDILO IN PIENO E VOLA', 'gold'); prevSafe = l; wave++; return true;
+  }
+  // v103 · imprevisti dei singoli percorsi
+  if (kind === 'vendemmia') {
+    const free = Math.floor(rng() * 3);
+    for (let l = 0; l < 3; l++) if (l !== free) { add(l, .08, 'grapeCrate'); if (rng() < .6) add(l, -.12, 'grapeCrate'); }
+    beer(free); add(free, -.18, 'coin'); toast('🍇 VENDEMMIA! CASSETTE D’UVA IN PISTA', 'gold'); wave++; return true;
+  }
+  if (kind === 'mucche') {
+    const free = Math.floor(rng() * 3), dir = rng() < .5 ? 1 : -1; let i = 0;
+    for (let l = 0; l < 3; l++) if (l !== free) { const k = dir * 1.5 / .83; add(l - (.91 - .08) * k, .08 - i * .1, 'cow', { roll: true, lEnd: l, k, cross: dir }); i++; }
+    beer(free); toast('🐄 MANDRIA AL PASCOLO! LE MUCCHE NON SI SALTANO', 'red'); A.sfx.horn?.(); wave++; return true;
+  }
+  if (kind === 'elicottero') {
+    add(1, .02, 'heli');
+    const l = Math.floor(rng() * 3); for (let k = 0; k < 6; k++) add(l, .0 - k * .06, 'coin', { air: k % 2 === 1, lift: 1.4 });
+    bigCall('🚁 SOCCORSO ALPINO!'); toast('🚁 L’ELICOTTERO VI LANCIA LE BIRRE!', 'gold'); prevSafe = l; wave++; return true;
+  }
+  if (kind === 'tombini') {
+    for (let r = 0; r < 2; r++) { const free = Math.floor(rng() * 3); for (let l = 0; l < 3; l++) if (l !== free) add(l, .08 - r * .2, 'manhole'); add(free, .08 - r * .2, 'coin'); }
+    toast('🕳 SALTANO I TOMBINI! OCCHIO AI BUCHI', 'red'); wave++; return true;
+  }
+  if (kind === 'ondata') {
+    add(1, .08, 'pigpen', { sludge: true });
+    for (let k = -2; k <= 2; k++) { const dz = k * .05, lift = 2.05 * Math.max(0, Math.cos(dz / .5 / JUMP_DURATION * Math.PI)) + .1; add(prevSafe, .08 - dz, 'coin', { air: true, lift: Math.max(.35, lift) }); }
+    toast('💩 ONDATA DI FANGO DALLA FOGNA! SALTALA', 'gold'); wave++; return true;
+  }
+  if (kind === 'cinghiali') {
+    const dir = rng() < .5 ? 1 : -1, free = Math.floor(rng() * 3); let i = 0;
+    for (let l = 0; l < 3; l++) if (l !== free) for (let h = 0; h < 2; h++) { const k = dir * (2.6 + h * .4) / .83; add(l - (.91 - .08) * k, .08 - i * .06 - h * .04, 'boar', { roll: true, lEnd: l, k, cross: dir }); i++; }
+    beer(free); toast('🐗 CINGHIALI IN PISTA!', 'red'); wave++; return true;
+  }
+  if (kind === 'cervo') {
+    const dir = rng() < .5 ? 1 : -1, lEnd = 1, k = dir * 3.4 / .83; add(lEnd - (.91 - .08) * k, .08, 'deer', { roll: true, lEnd, k, cross: dir });
+    bigCall('🦌 UN CERVO NEL FARO!'); wave++; return true;
+  }
+  if (kind === 'dolmen') {   // v103 · i dolmen di Costa: due pietroni preistorici in pista, una sola corsia libera
+    const free = Math.floor(rng() * 3);
+    for (let l = 0; l < 3; l++) if (l !== free) add(l, .08 - (l % 2) * .06, 'dolmen');
+    beer(free); toast('🗿 I DOLMEN DI COSTA! NON SI SALTANO, SI SCHIVANO', 'red'); wave++; return true;
+  }
+  if (kind === 'blocco') {
+    const free = Math.floor(rng() * 3);
+    for (let r = 0; r < 2; r++) for (let l = 0; l < 3; l++) if (l !== free) add(l, .08 - r * .14, 'barrier');
+    beer(free); toast('🚧 POSTO DI BLOCCO DELLE GEV! PASSA DOVE C’È IL BUCO', 'red'); A.sfx.whistle?.(); wave++; return true;
   }
   if (kind === 'gregge') {
     const free = Math.floor(rng() * 3), dir = rng() < .5 ? 1 : -1; let i = 0;
@@ -1139,6 +1187,7 @@ function spawnWave() {
   if (P.MODES[mode].ranch && spawnRanchSpecial()) return;
   if (ice) return spawnIceWave();
   if (P.MODES[mode].slalom) return spawnSlalomWave();
+  if (P.MODES[mode].gev && !duelNoPlan() && runPlan?.events.length && course >= runPlan.events[0].at) { const ev = runPlan.events.shift(); if (spawnEvent(ev.kind)) { checkFlash(); return; } }
   if (!P.MODES[mode].gev && !duelNoPlan() && planWave()) { checkFlash(); return; }
   checkFlash();
   { const rr = routeAt(course, roadTime * 19.5);   // v85 · in salita con la trazione si pensa solo al gas: niente ostacoli, solo birre
@@ -1783,7 +1832,8 @@ function update(dt) {
   const kLat = (118 - route.rough * 32) * (touchDevice ? 1.35 : 1) * (1 - weather.rain * .18) * (1 + up.tyres * .08) * (1 + (bs.steer || 0)) * (has('mule') && route.rough > .4 ? 1.35 : 1), cLat = 2 * Math.sqrt(kLat) * .9;
   if (ice) iceStep(dt);
   else steerStep(dt, route);
-  if (P.MODES[mode].ranch) { const ahead = ranchBend(roadTime * 19.5 + 45); if (Math.abs(ahead) > 1.45 && elapsed - (run.uCallAt ?? -99) > 5) { run.uCallAt = elapsed; bigCall('TORNANTE DEL GUSTA!'); } }   // v102 · l'anello dei tornanti
+  { const ts = P.MODES[mode].ranch ? null : trackShape(mode, variantOf(mode), courseLength(P.MODES[mode].difficulty) * 19.5), ahead = P.MODES[mode].ranch ? ranchBend(roadTime * 19.5 + 45) : ts ? ts.bend(roadTime * 19.5 + 45) : 0;   // v103 · tornanti annunciati su tutti i tracciati veri
+    if (Math.abs(ahead) > 1.45 && elapsed - (run.uCallAt ?? -99) > 5) { run.uCallAt = elapsed; bigCall(P.MODES[mode].ranch ? 'TORNANTE DEL GUSTA!' : 'TORNANTE ' + (ahead < 0 ? 'A DESTRA!' : 'A SINISTRA!')); } }   // v102 · l'anello dei tornanti
   { const nl = Math.max(0, Math.min(2, Math.round(px))); if (nl !== lane) { lane = nl; A.sfx.lane(lane); } }
   const wasAirborne = jump > 0;
   jump = Math.max(0, jump - dt);
@@ -1830,8 +1880,8 @@ function update(dt) {
     }
     if (o.type === 'pigpen') {   // v102 · il porcile: saltarlo paga, ma buttarsi dentro col gas è ignoranza pura (e paga lo stesso)
       o.collected = true;
-      if (lift > .55) { run.jumps++; reward(220, 'PORCILE SALTATO!', 'jump'); }
-      else { reward(160, 'IGNORANZA PURA! 🐷', 'trick'); mud(1); fxKind = 'splash'; fxSerial++; A.sfx.splash(); flash('gold'); run.splashes++; toast('🐷 SEI PIÙ SPORCO DEI MAIALI', 'gold'); }
+      if (lift > .55) { run.jumps++; reward(220, o.sludge ? 'ONDATA SALTATA!' : 'PORCILE SALTATO!', 'jump'); }
+      else { reward(160, o.sludge ? 'NELLA FOGNA FINO AL CASCO!' : 'IGNORANZA PURA! 🐷', 'trick'); mud(1); fxKind = 'splash'; fxSerial++; A.sfx.splash(); flash('gold'); run.splashes++; toast(o.sludge ? '💩 CHE PROFUMO… LAVATI PRIMA DEL RIFUGIO' : '🐷 SEI PIÙ SPORCO DEI MAIALI', 'gold'); }
       continue;
     }
     if (o.type === 'ford') {
@@ -1852,6 +1902,7 @@ function update(dt) {
     if (o.type === 'bar') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeBar(); } continue; }
     if (o.type === 'shortcut') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeShortcut(); return; } continue; }
     if (o.type === 'forkShort' || o.type === 'forkSafe') { if (Math.abs(px - o.l) < .6 && crash <= 0 && !o.collected) takeFork(o.type === 'forkShort' ? 'short' : 'safe'); continue; }
+    if (o.type === 'heli') continue;
     if (o.type === 'forkSplit') {   // v103 · al bivio decide da che parte sei: a sinistra o a destra del cartello (al centro tiri dritto sulla strada lunga)
       o.collected = true; const side = px < .97 ? -1 : px > 1.03 ? 1 : -o.shortSide;
       if (forkInfo) forkInfo.side = side; takeFork(side === o.shortSide ? 'short' : 'safe'); continue;
@@ -1911,7 +1962,7 @@ function update(dt) {
         run.jumps++;
         const perfect = has('precise') ? phase > .2 && phase < .8 : isPerfectJump(phase);
         const base = o.type === 'rock' || o.type === 'rollRock' || o.type === 'rollHay' || o.type === 'ibex' ? 200 : o.type === 'bigLog' ? 250 : o.type === 'goat' ? 220 : 150;
-        const names = { rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hen: 'GALLINA SALTATA!', rollHay: 'ROTOBALLA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!', cone: 'BIRILLO SALTATO!', tyre: 'COPERTONE SALTATO!', sign: 'DIVIETO IGNORATO!', barrier: 'TRANSENNA VOLATA!' };
+        const names = { rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hen: 'GALLINA SALTATA!', grapeCrate: 'CASSETTA SALTATA!', dolmen: 'DOLMEN VOLATO!', manhole: 'TOMBINO SALTATO!', boar: 'CINGHIALE SALTATO!', barrier: 'BLOCCO SALTATO!', rollHay: 'ROTOBALLA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!', cone: 'BIRILLO SALTATO!', tyre: 'COPERTONE SALTATO!', sign: 'DIVIETO IGNORATO!', barrier: 'TRANSENNA VOLATA!' };
         if (perfect) { run.perfect++; A.sfx.perfect(); if (touchDevice && navigator.vibrate) try { navigator.vibrate([10, 40, 10]); } catch {} reward(Math.round(base * (has('precise') ? 2 : 1.5)), 'SALTO PERFETTO!', 'perfect'); flash('gold'); slowmo = .3; slowScale = .45; }
         else reward(base, names[o.type] || 'BEL SALTO!', 'jump');
       } else if (wheelie && (o.type === 'root' || o.type === 'puddle')) {
@@ -1950,7 +2001,7 @@ function update(dt) {
         for (const q of objects) if (q !== o && !q.hit && q.z > .66 && q.z < .91 && OBSTACLE_HEIGHT[q.type] !== undefined && q.type !== 'water') q.collected = true;
         crash = 1; stun = .9 * (bs.protect ? .7 : 1) * (has('tank') ? .5 : 1); if (has('tank')) invincible += 1; slowmo = .35; slowScale = .4; jump = 0;
         if (wheelie) endWheelie(false);
-        const lines = { trincia: 'TRINCIATO DAL GUSTA.', rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hen: 'COCCODÈ. PIUME OVUNQUE.', rollHay: 'ARROTOBALLATO DAL GUSTA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
+        const lines = { trincia: 'TRINCIATO DAL GUSTA.', rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hen: 'COCCODÈ. PIUME OVUNQUE.', grapeCrate: 'MOSTO DAPPERTUTTO.', dolmen: 'IL DOLMEN DI COSTA NON SI SPOSTA.', cow: 'MUUU. LA MUCCA HA VINTO.', manhole: 'DENTRO IL TOMBINO.', boar: 'IL CINGHIALE NON PERDONA.', deer: 'CORNA DEL CERVO.', rollHay: 'ARROTOBALLATO DAL GUSTA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
         if (o.type === 'tree') slalomN = 0;
         // v49 · Erika anche su ogni albero di MontaFiga
         if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');

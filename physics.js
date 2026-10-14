@@ -34,6 +34,12 @@ export const OBSTACLE_HEIGHT = {
   barrier: .80,   // v57 · transenna lanciata dalle GEV
   hen: .42,       // v102 · gallina in fuga (Gusta Ranch)
   rollHay: .95,   // v102 · rotoballa lanciata dal Gusta
+  grapeCrate: .78, // v103 · cassette d'uva (vendemmia, Giro easy)
+  cow: 1.55,      // v103 · mucca al pascolo (Argentera): non si salta
+  manhole: .48,   // v103 · tombino saltato (Fogna)
+  boar: .72,      // v103 · cinghiale (Frontali)
+  deer: 1.3,      // v103 · cervo (Frontali)
+  dolmen: 2.3,    // v103 · i dolmen di Costa: pietre enormi, non si saltano
   trincia: 2.6,   // v81 · trattore con la trincia del Gusta (non si salta)
 };
 
@@ -237,4 +243,41 @@ export function makeRng(seed) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+// v103 · tracciati veri per ogni percorso: sequenze di curve [lunghezza, curvatura] come al Gusta Ranch.
+// Solo la vista cambia (la guida resta a corsie): la variante della settimana B è il tracciato a specchio, la C è al contrario.
+export const TRACK_SEGS = {
+  // Giro easy: esse tra i filari, curvone del bar, ultimo rettilineo verso il rifugio
+  0: [[60, 0], [70, .8], [40, -.8], [60, .7], [50, 0], [90, -1.1], [40, 0], [50, .9], [50, -.9], [50, .9], [80, 0], [70, 1.2], [60, 0], [60, -.7], [120, 0]],
+  // Dopo migliora: il salitone a tornanti, uno sopra l'altro
+  1: [[80, 0], [60, .6], [30, 0], [70, -1.5], [40, 0], [70, 1.5], [40, 0], [70, -1.5], [40, 0], [70, 1.5], [60, 0], [60, -.8], [50, .6], [140, 0]],
+  // Fogna: gola stretta e buia, esse cattive una dopo l'altra
+  10: [[50, 0], [40, 1.1], [40, -1.2], [40, 1.2], [30, 0], [50, -1.3], [40, 1], [60, 0], [40, -1.1], [40, 1.2], [40, -1.2], [50, 0], [60, .9], [120, 0]],
+  // Valle Argentera: lunghi curvoni lungo il torrente e un tornante sotto le cime
+  11: [[90, 0], [110, .55], [60, 0], [110, -.6], [50, 0], [80, 1.5], [60, 0], [120, -.5], [80, 0], [100, .5], [160, 0]],
+  // Anti-GEV: fuga veloce, chicane e curvoni larghi
+  13: [[80, 0], [40, .9], [40, -.9], [90, 0], [100, -.7], [60, 0], [40, -1], [40, 1], [80, 0], [110, .6], [160, 0]],
+  // Frontali: bosco fitto, curve cieche
+  15: [[50, 0], [60, -1], [30, 0], [60, 1.1], [40, -.8], [50, 0], [70, 1.2], [40, 0], [60, -1.2], [40, .8], [50, 0], [60, -1], [120, 0]],
+  // MontaFiga: lo slalom scende in diagonale nel bosco
+  12: [[80, 0], [140, .45], [80, 0], [140, -.45], [80, 0], [120, .4], [160, 0]],
+};
+const SHAPES = new Map();
+export function trackShape(id, variant = 0, len = 1800) {
+  const segs0 = TRACK_SEGS[id]; if (!segs0) return null;
+  const key = id + ':' + variant + ':' + Math.round(len / 50); if (SHAPES.has(key)) return SHAPES.get(key);
+  let segs = segs0.map(s => [s[0], variant === 1 ? -s[1] : s[1]]);
+  if (variant === 2) { const last = segs.pop(); segs = segs.reverse(); segs.push(last); }
+  const total = segs.reduce((a, s) => a + s[0], 0), stretch = len * .95 / total;
+  const N = Math.ceil((len + 900) / ICE_STEP), X0 = -400, K = new Float32Array(N), H = new Float64Array(N), Pp = new Float64Array(N);
+  const RAMP = 14, starts = []; let acc = 0; for (const s of segs) { starts.push(acc); acc += s[0] * stretch; }
+  const kAt = x => { if (x < 0 || x >= acc) return 0; let i = 0; while (i + 1 < segs.length && x >= starts[i + 1]) i++;
+    const u = x - starts[i], cur = segs[i][1], prev = i ? segs[i - 1][1] : 0; if (u >= RAMP) return cur; const w = u / RAMP; return prev + (cur - prev) * w * w * (3 - 2 * w); };
+  for (let i = 0; i < N; i++) K[i] = kAt(X0 + i * ICE_STEP);
+  for (let i = 1; i < N; i++) { H[i] = H[i - 1] - K[i] * IK * ICE_STEP; Pp[i] = Pp[i - 1] + H[i] * ICE_STEP; }
+  const idx = x => { const f = (x - X0) / ICE_STEP; const i = Math.max(0, Math.min(N - 2, Math.floor(f))); return [i, Math.max(0, Math.min(1, f - i))]; };
+  const lerp = A => x => { const [i, f] = idx(x); return A[i] + (A[i + 1] - A[i]) * f; };
+  const sh = { shape: lerp(Pp), heading: lerp(H), bend: lerp(K) };
+  SHAPES.set(key, sh); return sh;
 }
