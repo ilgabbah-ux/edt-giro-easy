@@ -243,7 +243,7 @@ async function setTilt(on) {
   try { localStorage.setItem('edt-tilt', on ? '1' : '0'); } catch {}
   return on;
 }
-let throttleSlip = 0, overT = 0, wasSweet = false, gasLock = false, gasDownAt = 0, noClimbT = 0;
+let wasClimb = false, throttleSlip = 0, overT = 0, wasSweet = false, gasLock = false, gasDownAt = 0, noClimbT = 0;
 let ice = false, drift = 0, driftT = 0, driftSum = 0, driftPend = 0, driftChain = 0, driftGap = 9, driftScore = 0, driftBest = 0, driftCount = 0, snowT = 0, bendNow = 0, lastWall = -9, driftM = 0, driftMP = 0;   // v92 · metri percorsi di traverso
 // v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
 let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos = '';
@@ -383,7 +383,7 @@ function hud() {
   $('gas').setAttribute('aria-pressed', String(gas));
   $('gas').textContent = ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? '🔒 GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
   $('gas').classList.toggle('locked', gasLock);
-  { const tb = $('tractbox'); if (tb) { tb.hidden = !(tractOn && state === 'playing'); if (!tb.hidden) { tb.style.setProperty('--g', grip.toFixed(3)); tb.className = 'tractbox ' + (stalled ? 'stall' : grip > .9 ? 'spin' : grip < .15 ? 'low' : grip >= .35 && grip <= .75 ? 'ok' : ''); tb.querySelector('b').textContent = stalled ? 'SPINGI!' : grip > .9 ? 'PATTINA' : grip < .15 ? 'SI PIANTA' : grip >= .35 && grip <= .75 ? 'TRAZIONE' : 'GAS'; } } }
+  { const tb = $('tractbox'); if (tb) { tb.hidden = !(tractOn && state === 'playing'); if (!tb.hidden) { tb.style.setProperty('--g', grip.toFixed(3)); tb.className = 'tractbox ' + (stalled ? 'stall' : grip > .94 ? 'spin' : grip < .12 ? 'low' : grip >= .28 && grip <= .84 ? 'ok' : ''); tb.querySelector('b').textContent = stalled ? 'SPINGI!' : grip > .94 ? 'PATTINA' : grip < .12 ? 'SI PIANTA' : grip >= .28 && grip <= .84 ? 'TRAZIONE' : 'GAS'; } } }
   if (leap && live) {   // v59 · riquadro del salto: assetto della moto e metri
     $('driftbox').hidden = false;
     $('driftlabel').textContent = leapState === 2 ? 'IN VOLO · MUSO SU!' : leapState >= 3 ? 'SALTO' : 'VELOCITÀ DI RINCORSA';
@@ -465,7 +465,7 @@ function resetRun() {
   leap = !!P.MODES[mode].leap; canyonX0 = null; canyonLand = 0; leapTurbo = false; leapMul = 1; leapZRate = .5; leapFree = 1; leapState = 0; leapPitch = leapW = leapDist = leapBest = 0; lastHopAt = -9; leapEndT = 0; leapPerfect = false;
   gev = !!P.MODES[mode].gev; gevZ = 9; gevThrow = 4.5; gevArm = gevLost = 0; gevGone = false; gevShout = 0; gevSide = 1; gevFine = 0;
   keyL = keyR = btnL = btnR = false; zoneSteer = padSteer = 0; aimPx = null; lastSteerDir = 0; edgeT = 0;
-  throttleSlip = overT = noClimbT = 0; wasSweet = gasLock = false;
+  throttleSlip = overT = noClimbT = 0; wasSweet = gasLock = wasClimb = false;
   drift = driftT = driftSum = driftPend = driftChain = driftScore = driftBest = driftCount = snowT = bendNow = driftM = driftMP = 0; corner = { t: 0, in: 0, s: 0, out: 0 }; cornerLine = 0; speedSm = .4; driftGap = 9; lastWall = -9;
   setupRace();
   if (rule('rush')) timeLimit -= 4;
@@ -1808,10 +1808,10 @@ function update(dt) {
   wasTract = tractOn;
   if (tractOn && !run.tractHint) { run.tractHint = 1; bigCall('SALITA: DOSA IL GAS!'); toast('⛽ APRI E CHIUDI IL GAS: TIENI LA LANCETTA NEL VERDE', 'gold'); }
   if (tractOn && !stalled) {
-    grip = Math.max(0, Math.min(1, grip + (gas ? .5 : -.85) * dt));
-    if (grip > .9) { tractMul = .58; if (elapsed - spinMsgAt > 2.5) { spinMsgAt = elapsed; toast('🔥 PATTINA! MOLLA UN FILO IL GAS', 'red'); } }
-    else if (grip < .15 - up.ecu * .015) { tractMul = .45; stallT += dt; if (stallT > 1.5 + up.ecu * .15) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); toast('👆 TOCCA SALTA PIÙ VOLTE PER SPINGERE LA MOTO', 'gold'); } }
-    else { stallT = 0; if (grip >= .35 - up.ecu * .03 && grip <= .75 + up.ecu * .03) { tractMul = 1.08; score += dt * 40; } }
+    grip = Math.max(0, Math.min(1, grip + (gas ? .36 : -.6) * dt));
+    if (grip > .94) { tractMul = .58; if (elapsed - spinMsgAt > 2.5) { spinMsgAt = elapsed; toast('🔥 PATTINA! MOLLA UN FILO IL GAS', 'red'); } }
+    else if (grip < .12 - up.ecu * .015) { tractMul = .45; stallT += dt; if (stallT > 2.2 + up.ecu * .15) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); toast('👆 TOCCA SALTA PIÙ VOLTE PER SPINGERE LA MOTO', 'gold'); } }
+    else { stallT = 0; if (grip >= .28 - up.ecu * .03 && grip <= .84 + up.ecu * .03) { tractMul = 1.08; score += dt * 40; } }
   } else if (!tractOn) { grip += (.5 - grip) * Math.min(1, dt * 2); stallT = 0; stalled = false; }
   if (stalled) tractMul = .04;
   if (rule('noturbo')) charge = 0;
@@ -1852,6 +1852,11 @@ function update(dt) {
   updateWeather(dt);
   updateGroupGhost();
   updateDuel(dt);
+  // v105.5 · salite più semplici: all'inizio di ogni salita il gas si apre da solo (resta il tasto per mollarlo);
+  // al Dopo migliora la trazione resta da dosare, ma con una zona verde più larga e la ruota che risponde più piano
+  { const climbNow = state === 'playing' && !ice && !feat('traction') && (route.climb > .05 || route.rough > .05);
+    if (climbNow && !wasClimb && !gasLock && !gasDownAt) { gasLock = true; gas = true; noClimbT = 0; if (!run.autoGasHint) { run.autoGasHint = 1; toast('⛽ IN SALITA IL GAS VA DA SOLO · TOCCA PER MOLLARE', 'green'); } }
+    wasClimb = climbNow; }
   if (gasLock) { noClimbT = route.climb > .05 || route.rough > .05 ? 0 : noClimbT + dt; if (noClimbT > 2.5) { gasLock = false; if (!gasDownAt) gas = false; } }
   coachUpdate();
   if (gev) gevStep(dt, diff);
