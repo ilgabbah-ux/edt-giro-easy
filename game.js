@@ -122,7 +122,7 @@ let lane = 1, px = 1, jump = 0, jumpBuffer = 0, elapsed = 0, score = 0, lives = 
 let toastTime = 0, gas = false, wet = 0, routePhase = -1, countdown = 0, countStep = 0;
 let combo = 0, comboTime = 0, charge = 0, turbo = 0, magnet = 0, wave = 0, prevSafe = 1, lastBigLog = -9, fxSerial = 0, fxKind = 'coin';
 let lean = 0, bodyLean = 0, suspension = 0, springVelocity = 0, wheelPhase = 0, whip = 0, scrubbed = 0, shake = 0, speedNow = 1;
-let timeOfDay = '';
+let timeOfDay = '', heroDir = '';
 let rng = Math.random, run = null, announced = new Set(), missionCheck = 0, lastCheer = -10;
 // v16: percorso a distanza con tempo massimo, moto con dinamica laterale, caduta e rallentatore.
 // Fantasma del record: dove eri, secondo per secondo, nel tuo giro migliore arrivato al rifugio.
@@ -519,6 +519,7 @@ function topLayer() { return document.fullscreenElement || document.webkitFullsc
 function finish(win, reason = '') {
   if (win && state === 'playing') { course = GAME_LENGTH; checkFlash(); }   // v97 · la sfida lampo 'seconda metà pulita' si chiude all'arrivo
   if ($('flashchip')) $('flashchip').hidden = true;
+  forkHud(0);
   if (duel?.racing) { duel.me = { s: Math.round(score), w: win ? 1 : 0, tm: +elapsed.toFixed(2), c: +course.toFixed(2), j: leap ? leapBest : 0 }; D.send({ t: 'end', ...duel.me }); }
   state = 'ended';
   A.engineStop(); A.stopVoice(); A.musicStop();
@@ -991,7 +992,7 @@ const FLASH_POOL = [
 const FLASH_BEERS = 15;
 function makeRunPlan() {
   const md = P.MODES[mode], plan = { events: [], forks: [], zones: [], flash: null, flashDone: false };
-  forkPath = null; forkInfo = null; $('flashchip')?.classList.remove('done');
+  forkPath = null; forkInfo = null; forkHud(0); $('flashchip')?.classList.remove('done');
   if (md.ice || md.leap || md.slalom) return plan;
   const pool = FLASH_POOL.filter(f => f.id !== 'climbcaps' || layoutSegments().some(g => g.climb > .3));
   plan.flash = pool[Math.floor(rng() * pool.length)];
@@ -1055,13 +1056,13 @@ function spawnEvent(kind) {
   }
   return false;
 }
-function spawnFork() {
-  const shortSide = rng() < .5 ? -1 : 1, t0 = roadTime * 19.5, x0 = t0 + (.91 - .04) * 55, len = 5 / GAME_LENGTH * courseLength(P.MODES[mode].difficulty) * 19.5;
+function spawnFork(ss) {
+  const shortSide = ss || (rng() < .5 ? -1 : 1), t0 = roadTime * 19.5, x0 = t0 + (.91 - .04) * 55, len = 5 / GAME_LENGTH * courseLength(P.MODES[mode].difficulty) * 19.5;
   objects = objects.filter(o => o.z > .3 || o.z < -.4 || o.type === 'coin');
   objects.push({ l: 1, z: .04, type: 'forkSplit', shortSide, hit: false });
   forkInfo = { x0, x1: x0 + len, side: 0, shortSide };
   const side = d => d < 0 ? 'SINISTRA' : 'DESTRA';
-  toast(`🔀 BIVIO! A ${side(shortSide)} LA PIETRAIA CORTA · A ${side(-shortSide)} LA STRADA LUNGA CON LE BIRRE`, 'gold');
+  forkHud(shortSide); bigCall('🔀 BIVIO: SCEGLI IL LATO!');
   wave++;
 }
 function takeFork(kind) {
@@ -1099,7 +1100,7 @@ function planWave() {
       forkPath = null;
     } else { if (forkPath.kind === 'short') spawnRockWave(true); else spawnBeerLine(); return true; }
   }
-  if (runPlan.forks.length && course >= runPlan.forks[0].at) { runPlan.forks.shift(); spawnFork(); return true; }
+  if (runPlan.forks.length && course >= runPlan.forks[0].at) { const f = runPlan.forks.shift(); spawnFork(f.shortSide); return true; }
   if (runPlan.events.length && course >= runPlan.events[0].at) { const ev = runPlan.events.shift(); if (spawnEvent(ev.kind)) return true; }
   const zone = runPlan.zones.find(z => course >= z.from && course < z.to);
   if (zone) {
@@ -1109,7 +1110,24 @@ function planWave() {
   }
   return false;
 }
+// v103 · bivio annunciato prima: cartello a schermo con i due lati finché non scegli
+function forkHud(ss) {
+  const h = $('forkhud'); if (!h) return;
+  if (!ss) { h.hidden = true; return; }
+  const lab = sd => sd === ss ? '<b>PIETRAIA</b><small>⏱ CORTA · DURA</small>' : '<b>STRADA LUNGA</b><small>🍺 PULITA · BIRRE</small>';
+  h.innerHTML = `<span class="fh ${ss < 0 ? 'short' : 'long'}"><i>◀</i>${lab(-1)}</span><span class="fhc">🔀 BIVIO</span><span class="fh ${ss > 0 ? 'short' : 'long'}">${lab(1)}<i>▶</i></span>`;
+  h.hidden = false;
+}
+function forkWarn() {
+  const f = runPlan?.forks?.[0];
+  if (f && !f.warned && course >= f.at - 2.5) { f.warned = true; f.shortSide = f.shortSide || (rng() < .5 ? -1 : 1); forkHud(f.shortSide); bigCall('🔀 BIVIO IN ARRIVO!'); A.sfx.click?.(); }
+  const h = $('forkhud'); if (!h || h.hidden) return;
+  if (forkInfo?.side) { forkHud(0); return; }
+  const ss = f?.shortSide || forkInfo?.shortSide || 1, sel = px < .97 ? -1 : px > 1.03 ? 1 : -ss, sp = h.querySelectorAll('.fh');
+  if (sp.length === 2) { sp[0].classList.toggle('sel', sel < 0); sp[1].classList.toggle('sel', sel > 0); }
+}
 function checkFlash() {
+  forkWarn();
   const f = runPlan?.flash; if (!f || runPlan.flashDone) return;
   const v = f.val(), ch = $('flashchip');
   if (ch) { ch.hidden = state !== 'playing'; ch.innerHTML = `🎯 ${f.text}<b>${Math.min(v, f.goal)}/${f.goal}</b>`; }
@@ -2223,6 +2241,8 @@ function renderReady() {
   const missions = P.ensureMissions();
   const trackArt = trackArtOf;
   const art = trackArt(md);
+  const heroList = P.SHOWN().filter(m => P.isUnlocked(m, info.level));
+  const heroLead = d => { const top = d?.boards?.[mode]?.[0]; return top ? `👑 1° NEL GRUPPO: <b>${top.n}</b> · ${top.s.toLocaleString('it-IT')}` : '👑 NESSUNO IN CLASSIFICA: IL PRIMO SEI TU'; };
   $('card').innerHTML = `
     <div class="menuhead">
       <img class="menushield" src="img/edt-shield.webp" alt="" width="453" height="520">
@@ -2233,11 +2253,15 @@ function renderReady() {
       <button class="pilotchip" id="pilotchip" type="button"><span class="platenum">${String(RIDERS.indexOf(profile.rider) + 1).padStart(2, '0')}</span>${avatarHTML(profile.rider)}<span class="pctext"><small>PILOTA · TOCCA PER CAMBIARE</small><b>${profile.rider}</b><em class="skillline"><span class="noicx">${sk.icon || ''}</span> ${sk.name || ''}</em></span></button>
       <div class="lvlbox"><span class="lvlnum"><small>LIV</small>${info.level}</span><span class="lvltext"><b>${info.grade.toUpperCase()}</b><i><u style="width:${Math.round(info.pct * 100)}%"></u></i><small>${info.into}/${info.need} XP</small></span></div>
     </div>
-    <div class="trackhero sky${md.sky ?? 0} ${md.ice ? 'icy' : ''} ${art ? 'hasart' : ''}">
+    <div class="trackhero sky${md.sky ?? 0} ${md.ice ? 'icy' : ''} ${art ? 'hasart' : ''} ${heroDir ? 'in' + heroDir : ''}" id="trackhero">
       ${art ? `<img class="trackart" src="${art}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}
       <div class="thtext"><span class="ps">PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.id === 3 ? `<span class="dayrule">${dailyRule().icon} REGOLA DI OGGI: ${dailyRule().name}</span> ${dailyRule().desc}` : md.desc}</small>
+      <span class="thchips"><span title="Difficoltà">🔥 ${'★'.repeat((md.difficulty || 0) + 1) + '☆'.repeat(2 - (md.difficulty || 0))}</span>${variantOf(md.id) ? `<span class="var">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</span>` : ''}${TRACK_INFO[md.id]?.tipo ? `<span class="tipo">${TRACK_INFO[md.id].tipo.split(' (')[0]}</span>` : ''}</span>
       ${md.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(layoutFor(md.id))}
-      <span class="record">${icon('trophy')} ${best ? `RECORD ${md.id === 3 ? 'DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span></div>
+      <span class="record">${icon('trophy')} ${best ? `RECORD ${md.id === 3 ? 'DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span>
+      ${C.enabled() ? `<span class="thlead" id="thlead">${heroLead(C.cached())}</span>` : ''}</div>
+      ${heroList.length > 1 ? `<button class="thnav prev" id="thprev" type="button" aria-label="Percorso precedente">‹</button><button class="thnav next" id="thnext" type="button" aria-label="Percorso successivo">›</button>
+      <div class="thdots" aria-hidden="true">${heroList.map(m => `<i class="${m.id === mode ? 'on' : ''}"></i>`).join('')}</div>` : ''}
     </div>
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : (A.STYLES[mode] || A.STYLES[0]).name}</small></span>${icon('chevrons')}</button>
     <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
@@ -2275,7 +2299,7 @@ function renderReady() {
   };
   if ($('opengroup')) {
     $('opengroup').onclick = () => { showHub('classifica'); renderGroup(renderReady, mode); };
-    C.load().then(d => { const top = d.boards?.[mode]?.[0]; if ($('grouplead')) $('grouplead').textContent = top ? `1° ${top.n} · ${top.s.toLocaleString('it-IT')}` : 'nessuno ancora: vai!'; cupBar(d); setTimeout(() => checkOvertakes(d), 400); }).catch(() => {});
+    C.load().then(d => { const top = d.boards?.[mode]?.[0]; if ($('thlead')) $('thlead').innerHTML = heroLead(d); if ($('grouplead')) $('grouplead').textContent = top ? `1° ${top.n} · ${top.s.toLocaleString('it-IT')}` : 'nessuno ancora: vai!'; cupBar(d); setTimeout(() => checkOvertakes(d), 400); }).catch(() => {});
     if ($('cupbar')) { cupBar(C.cached()); $('cupbar').onclick = () => { A.sfx.click(); showHub('classifica'); renderGroup(renderReady, 'cup'); }; }
   }
   $('testvoci').onclick = () => {
@@ -2297,6 +2321,20 @@ function renderReady() {
     mode = m.id; profile.mode = mode; P.save(); A.sfx.click();
     renderReady(); renderSide();
   });
+  // v103 · scheda percorso scorrevole: frecce o swipe per cambiare percorso
+  const heroGo = dir => {
+    const i = heroList.findIndex(m => m.id === mode), n = heroList[(i + dir + heroList.length) % heroList.length];
+    if (!n || n.id === mode) return;
+    mode = n.id; profile.mode = mode; P.save(); A.sfx.click(); heroDir = dir > 0 ? 'r' : 'l';
+    renderReady(); renderSide(); heroDir = '';
+  };
+  if ($('thprev')) { $('thprev').onclick = () => heroGo(-1); $('thnext').onclick = () => heroGo(1); }
+  const th = $('trackhero');
+  if (th && heroList.length > 1) {
+    let sx = 0, sy = 0, on = false;
+    th.addEventListener('touchstart', e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; on = true; }, { passive: true });
+    th.addEventListener('touchend', e => { if (!on) return; on = false; const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) heroGo(dx < 0 ? 1 : -1); }, { passive: true });
+  }
   setDisabled(false);
   hud();
 }

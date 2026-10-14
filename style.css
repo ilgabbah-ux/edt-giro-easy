@@ -1361,3 +1361,48 @@ aside#hub { gap: 10px; }
   .bikecard:has(.bimg) .bstats { grid-template-columns: 1fr 1fr; gap: 3px 12px; }
   .bikecard:has(.bimg) .bstats .bs { grid-template-columns: 66px 1fr; }
 }
+
+/* v103 · scheda percorso scorrevole nel menu */
+.trackhero { touch-action: pan-y; }
+.trackhero.inr { animation: thInR .28s ease-out; }
+.trackhero.inl { animation: thInL .28s ease-out; }
+@keyframes thInR { from { transform: translateX(34px); opacity: .25; } to { transform: none; opacity: 1; } }
+@keyframes thInL { from { transform: translateX(-34px); opacity: .25; } to { transform: none; opacity: 1; } }
+.trackhero .thnav { position: absolute; z-index: 3; top: 50%; transform: translateY(-50%); width: 34px; height: 54px; padding: 0; border: 1px solid #ffffff30; background: #0b0c09c4; color: var(--y); font: 800 30px/1 var(--ui); display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 12px #0008; }
+.trackhero .thnav.prev { left: 0; border-left: 0; }
+.trackhero .thnav.next { right: 0; border-right: 0; }
+.trackhero .thnav:active { background: var(--y); color: #111; }
+.trackhero:has(.thnav) .thtext { padding-left: 40px; }
+.trackhero.hasart:has(.thnav) .thtext { padding-right: calc(40% + 10px); }
+.trackhero .thchips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.trackhero .thchips span { font: 700 11px/1 var(--ui); letter-spacing: .5px; padding: 4px 6px; background: #00000059; border: 1px solid #ffffff22; color: #f0e6cf; white-space: nowrap; }
+.trackhero .thchips .var { border-color: #6fd6ff88; color: #aee9ff; }
+.trackhero .thchips .tipo { white-space: normal; color: #d8cfbd; }
+.trackhero .thlead { font: 600 12px/1.2 var(--ui); color: #ffe27a; }
+.trackhero .thlead b { color: #fff; }
+.trackhero .thdots { position: absolute; z-index: 3; left: 50%; bottom: 5px; transform: translateX(-50%); display: flex; gap: 4px; pointer-events: none; }
+.trackhero .thdots i { width: 6px; height: 6px; border-radius: 50%; background: #ffffff40; }
+.trackhero .thdots i.on { background: var(--y); width: 16px; border-radius: 3px; }
+.trackhero:has(.thdots) .thtext { padding-bottom: 18px; }
+@media (max-width: 520px) {
+  .trackhero .thnav { width: 28px; height: 46px; font-size: 26px; }
+  .trackhero:has(.thnav) .thtext { padding-left: 34px; }
+  .trackhero.hasart .thtext, .trackhero.hasart:has(.thnav) .thtext { padding-right: 34px; }
+  .trackhero.hasart .trackart { top: 10px; right: 30px; height: auto; width: 40%; max-width: 40%; transform: rotate(4deg); }
+  .trackhero.hasart > .thtext > .ps, .trackhero.hasart > .thtext > b, .trackhero.hasart > .thtext > small { margin-right: 40%; }
+  .trackhero.hasart > .thtext > b { font-size: 26px; }
+  .trackhero .strip { max-width: none; }
+}
+/* v103 · bivio: cartello a schermo con i due lati */
+.forkhud { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); z-index: 4; display: flex; align-items: stretch; gap: 0; width: min(560px, 94%); pointer-events: none; animation: fhIn .3s ease-out; filter: drop-shadow(0 6px 14px #000a); }
+.forkhud[hidden] { display: none; }
+.forkhud .fh { flex: 1; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 6px; padding: 6px 10px; border: 3px solid #fff; color: #fff; font: 800 12px/1.1 system-ui, sans-serif; opacity: .78; transition: transform .12s, opacity .12s; }
+.forkhud .fh:last-child { grid-template-columns: 1fr auto; text-align: right; }
+.forkhud .fh i { grid-row: span 2; font: 900 26px/1 system-ui, sans-serif; font-style: normal; }
+.forkhud .fh b { font-size: 15px; letter-spacing: .5px; }
+.forkhud .fh small { font-size: 11px; opacity: .9; }
+.forkhud .fh.short { background: #c8321f; }
+.forkhud .fh.long { background: #1f6b34; }
+.forkhud .fh.sel { opacity: 1; transform: scale(1.07); border-color: #ffd400; box-shadow: 0 0 0 2px #ffd400; z-index: 1; }
+.forkhud .fhc { align-self: center; padding: 6px 8px; background: #ffd400; color: #111; font: 900 13px/1 system-ui, sans-serif; white-space: nowrap; }
+@keyframes fhIn { from { transform: translate(-50%, -14px); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }

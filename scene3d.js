@@ -1622,6 +1622,14 @@ export function createWorld(canvas) {
       box(10.6, .2, .2, rampWood, g, 0, 4.5, 0);
       const sign = mesh(new T.PlaneGeometry(9.6, 1.9), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); sign.position.set(0, 3.45, .1); sign.castShadow = false; sign.userData.keep = true;
       for (let i = 0; i < 5; i++) { const r = mesh(rockGeo, rockMat, g); r.scale.setScalar(.35 + (i % 3) * .12); r.position.set(-.8 + i * .4, .1, -2 - i * .9); }   // la punta dell'isola in mezzo
+      { // v103 · cartello a frecce giallo-nero sulla punta dell'isola: si capisce subito che la strada si divide
+        const cc = document.createElement('canvas'); cc.width = 512; cc.height = 160; const q = cc.getContext('2d');
+        q.fillStyle = '#ffd400'; q.fillRect(0, 0, 512, 160); q.fillStyle = '#111';
+        for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) { const cx = 256 + sd * (60 + k * 62); q.beginPath(); q.moveTo(cx + sd * 26, 80); q.lineTo(cx - sd * 14, 20); q.lineTo(cx - sd * 40, 20); q.lineTo(cx, 80); q.lineTo(cx - sd * 40, 140); q.lineTo(cx - sd * 14, 140); q.closePath(); q.fill(); }
+        const ct = new T.CanvasTexture(cc); ct.colorSpace = T.SRGBColorSpace;
+        const chev = mesh(new T.PlaneGeometry(3.2, 1), new T.MeshBasicMaterial({ map: ct, side: T.DoubleSide }), g); chev.position.set(0, 1.05, -.6); chev.castShadow = false;
+        for (const sd of [-1, 1]) box(.12, 1.1, .12, rampWood, g, sd * 1.4, .55, -.65);
+      }
     } else if (type === 'forkShort' || type === 'forkSafe') {
       // v97 · bivio: due cartelli su pali, pietraia corta (rischio) o strada lunga con le birre
       const sh = type === 'forkShort', c = document.createElement('canvas'); c.width = 512; c.height = 200; const x = c.getContext('2d');
