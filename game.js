@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=102.2';
-import { createWorld } from './scene3d.js?v=102.2';
-import * as A from './audio.js?v=102.2';
-import * as P from './progress.js?v=102.2';
-import { createMud } from './mudfx.js?v=102.2';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=102.2';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=102.2';
-import * as C from './classifica.js?v=102.2';
-import * as D from './duel.js?v=102.2';
+import { iceBend, ranchBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=102.3';
+import { createWorld } from './scene3d.js?v=102.3';
+import * as A from './audio.js?v=102.3';
+import * as P from './progress.js?v=102.3';
+import { createMud } from './mudfx.js?v=102.3';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=102.3';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=102.3';
+import * as C from './classifica.js?v=102.3';
+import * as D from './duel.js?v=102.3';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=102.2').then(m => {
+import('./piloti.js?v=102.3').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -727,7 +727,6 @@ function goFull() {
   if (!fsOK || inFull()) return;
   try {
     const r = (fsTarget.requestFullscreen || fsTarget.webkitRequestFullscreen).call(fsTarget, { navigationUI: 'hide' });
-    r?.then?.(() => { try { if (touchDevice && screen.orientation?.lock) screen.orientation.lock(screen.orientation.type).catch(() => {}); } catch {} });   // v102.2 · a schermo intero lo schermo non gira più da solo (sdraiati a letto ruotava)
     r?.catch?.(() => {});
   } catch {}
 }
