@@ -2744,7 +2744,7 @@ export function createWorld(canvas) {
     bike.position.set((s.px - 1) * spacing(), lift + .06 * Math.abs(trail.grade) + noseDown, 0);
     { const gy = height(0, t), air = Math.max(0, bike.position.y - gy); blob.visible = !s.leap || air < 6; blob.position.set(bike.position.x, gy + .035, .02); const k = 1 + air * .35; blob.scale.set(k, 1, k); blobMat.opacity = .5 / (1 + air * .9); }
     // v46 · sul ghiaccio la moto va di traverso (il posteriore scivola) e il pilota controsterza
-    dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : -vx * .045)) - dyn.yaw) * Math.min(1, fdt * 10);
+    dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : -vx * .045 + (s.ranch && curShape && s.jump <= 0 ? curShape.bend(t + 4) * .1 : 0))) - dyn.yaw) * Math.min(1, fdt * 10);
     // v94 · derapata vera: moto piegata dentro la curva (fino a ~40°), pilota più dritto della moto, gamba interna fuori
     const ranchLeanT = curShape && s.jump <= 0 && crash <= 0 ? Math.max(-.55, Math.min(.55, curShape.bend(t + 6) * .32)) : 0;   // v102.1 · Gusta Ranch: nei tornanti il pilota piega la moto dentro la curva, come su Ice Scrofy
     const iceLeanT = s.ice && s.jump <= 0 && crash <= 0 ? Math.max(-.7, Math.min(.7, dyn.yaw * .85)) : ranchLeanT;

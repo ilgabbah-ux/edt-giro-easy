@@ -466,7 +466,7 @@ function resetRun() {
   gev = !!P.MODES[mode].gev; gevZ = 9; gevThrow = 4.5; gevArm = gevLost = 0; gevGone = false; gevShout = 0; gevSide = 1; gevFine = 0;
   keyL = keyR = btnL = btnR = false; zoneSteer = padSteer = 0; aimPx = null; lastSteerDir = 0; edgeT = 0;
   throttleSlip = overT = noClimbT = 0; wasSweet = gasLock = false;
-  drift = driftT = driftSum = driftPend = driftChain = driftScore = driftBest = driftCount = snowT = bendNow = driftM = driftMP = 0; driftGap = 9; lastWall = -9;
+  drift = driftT = driftSum = driftPend = driftChain = driftScore = driftBest = driftCount = snowT = bendNow = driftM = driftMP = 0; corner = { t: 0, in: 0, s: 0, out: 0 }; cornerLine = 0; driftGap = 9; lastWall = -9;
   setupRace();
   if (rule('rush')) timeLimit -= 4;
   if (duel?.racing) { rivals = [duel.entry]; gGhost = null; duel.opp.c = 0; duel.opp.end = null; duel.me = null; duel.ahead = false; Object.assign(duel.entry, { gap: 0, lx: 1, lift: 0 }); }
@@ -595,6 +595,27 @@ function move(d) {
   const from = aimPx ?? Math.round(px);
   aimPx = Math.max(0, Math.min(2, Math.round(from) + d));
 }
+// v105 · Gusta Ranch: le curve si fanno davvero. Nei tornanti la moto viene spinta verso l'esterno (va tenuta),
+// la corda (corsia interna) è più corta e veloce, l'esterno è largo e lento; a fine curva un premio se hai tenuto la corda.
+let corner = { t: 0, in: 0, s: 0, out: 0 }, cornerLine = 0;
+function ranchCorner(dt) {
+  const b = ranchBend(roadTime * 19.5), k = Math.abs(b);
+  if (k > .55 && crash <= 0) {
+    if (jump <= 0) px += b * .62 * Math.min(1.25, speedNow) * (1 - up.tyres * .06) * (wet > 0 ? 1.25 : 1) * (has('mule') ? .8 : 1) * dt;
+    const inside = b > 0 ? 0 : 2, d = Math.abs(px - inside);
+    cornerLine = d < .6 ? 1 : d > 1.35 ? -1 : 0;
+    if (!corner.t) { corner.s = Math.sign(b); corner.in = corner.out = 0; }
+    corner.t += dt; if (cornerLine > 0) corner.in += dt; if (cornerLine < 0) corner.out += dt;
+  } else {
+    cornerLine = 0;
+    if (corner.t > 1.4) {
+      const q = corner.in / corner.t;
+      if (q > .7) { reward(Math.round(50 + q * 70), q > .9 ? 'CORDA PERFETTA!' : 'BELLA CORDA!', 'trick', false); run.corners = (run.corners || 0) + 1; if (q > .9) A.sfx.scrub(); }
+      else if (corner.out / corner.t > .6) pop('LARGO… TIENI LA CORDA', 'small');
+    }
+    corner.t = 0;
+  }
+}
 // Scrub: sterzare in volo (cambio di direzione mentre sei in aria).
 function scrubCheck(dir) {
   if (dir && dir !== lastSteerDir && jump > 0 && scrubbed < (has('scrub') ? 2 : 1) && curLift() > .6) {
@@ -616,6 +637,7 @@ function steerStep(dt, route) {
   if (barT > 0) px += Math.sin(elapsed * 4.2) * 1.8 * (1 - up.damper * .12) * dt * Math.min(1, barT);   // v84 · dopo la birra la moto balla
   { const slick = Math.max(wet > 0 ? 1 : 0, route.wet * weather.rain, route.wet * .35);   // v104 · sul fango e nelle pozze la moto scivola un filo di lato: va tenuta
     if (slick > .05 && jump <= 0) { slideT += dt; px += (Math.sin(slideT * 3.1) + Math.sin(slideT * 7.3) * .4) * .28 * slick * (1 - up.tyres * .12) * dt; } }
+  if (P.MODES[mode].ranch) ranchCorner(dt);
   if (aimPx !== null && Math.abs(aimPx - px) < .02 && Math.abs(vx) < .15) { px += (aimPx - px) * .5; }
   const dir = st || (aimPx !== null && Math.abs(aimPx - px) > .25 ? Math.sign(aimPx - px) : 0);
   scrubCheck(dir);
@@ -1796,7 +1818,7 @@ function update(dt) {
   if (rule('noturbo')) charge = 0;
   if (barT > 0) barT = Math.max(0, barT - dt);
   if (has('sprint') && course > GAME_LENGTH * .75 && !run.sprintCall && state === 'playing') { run.sprintCall = 1; bigCall('SPRINT FINALE!'); toast('💨 ULTIMO QUARTO: +10% VELOCITÀ E PUNTI DOPPI', 'gold'); A.sfx.turbo(); A.sayRider?.('maggie_sprint'); }   // v96
-  const speed = tractMul * paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
+  const speed = tractMul * paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (cornerLine > 0 ? 1.07 : cornerLine < 0 ? .93 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
   // Discesa: "Campa giù!"
   if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); }
   if (route.down < .15) downAnnounced = false;
@@ -1845,7 +1867,7 @@ function update(dt) {
   if (ice) iceStep(dt);
   else steerStep(dt, route);
   { const ts = P.MODES[mode].ranch ? null : trackShape(mode, variantOf(mode), courseLength(P.MODES[mode].difficulty) * 19.5), ahead = P.MODES[mode].ranch ? ranchBend(roadTime * 19.5 + 45) : ts ? ts.bend(roadTime * 19.5 + 45) : 0;   // v103 · tornanti annunciati su tutti i tracciati veri
-    if (Math.abs(ahead) > 1.45 && elapsed - (run.uCallAt ?? -99) > 5) { run.uCallAt = elapsed; bigCall(P.MODES[mode].ranch ? 'TORNANTE DEL GUSTA!' : 'TORNANTE ' + (ahead < 0 ? 'A DESTRA!' : 'A SINISTRA!')); } }   // v102 · l'anello dei tornanti
+    if (Math.abs(ahead) > 1.45 && elapsed - (run.uCallAt ?? -99) > 5) { run.uCallAt = elapsed; bigCall(P.MODES[mode].ranch ? 'TORNANTE A ' + (ahead < 0 ? 'DESTRA' : 'SINISTRA') + '!' : 'TORNANTE ' + (ahead < 0 ? 'A DESTRA!' : 'A SINISTRA!')); if (P.MODES[mode].ranch) toast((ahead < 0 ? '↱' : '↰') + ' STAI ALL’INTERNO: LA CORDA È PIÙ VELOCE', 'blue'); } }   // v102 · l'anello dei tornanti
   { const nl = Math.max(0, Math.min(2, Math.round(px))); if (nl !== lane) { lane = nl; A.sfx.lane(lane); } }
   const wasAirborne = jump > 0;
   jump = Math.max(0, jump - dt);
@@ -3106,7 +3128,7 @@ if (/debug/.test(location.hash)) {
 }
 
 // Aggancio per i test automatici (non usato dal gioco).
-window.__edt = { get state() { return state; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
+window.__edt = { get state() { return state; }, get cornerLine() { return cornerLine; }, get rb() { return ranchBend(roadTime * 19.5); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, get runPlan() { return runPlan; }, get forkPath() { return forkPath; }, replay: startReplay, recFake() { recClock += 1 / 30; replayBuf.push({ t: recClock, s: cloneSnap(drawState()) }); while (replayBuf[0].t < recClock - REPLAY_SEC) replayBuf.shift(); }, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
 
