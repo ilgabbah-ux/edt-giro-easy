@@ -499,7 +499,7 @@ function start() {
 function startMusic() {
   const md = P.MODES[mode];
   const transpose = md.random === 'daily' ? (P.todayKey() % 5) - 2 : md.random === 'run' ? Math.floor(Math.random() * 5) - 2 : 0;
-  A.musicStart(mode, { transpose });
+  A.musicStart(duel?.racing ? A.DUEL_STYLE : mode, { transpose });   // v105.4 · nel duello suona "Angelo vs Gabbah"
 }
 function go() {
   state = 'playing'; tiltZero = null;   // v62 · lo zero del giroscopio è la posizione al VIA

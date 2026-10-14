@@ -435,8 +435,8 @@ const SONGS = {
   6: ['brindisi-easy', 'Brindisi Easy · Il GaBbAH'],
   7: ['vai-ciccio', 'Vai Ciccio · Il GaBbAH'],
   12: ['bosco-veloce', 'Bosco Veloce · Il GaBbAH'],
-  5: ['kick-up-the-dust', 'Kick up the dust · Il GaBbAH'],   // v105.4 · solo canzoni vere del GaBbAH, niente più musica sintetica
-  8: ['hell-can-wait', 'Hell can wait · Il GaBbAH'],
+  5: ['costa-vs-linus', 'Costa vs Linus · Il GaBbAH'],   // v105.4 · solo canzoni vere del GaBbAH, niente più musica sintetica
+  8: ['sergione-vs-renard', 'EDT Battle: Sergione vs Renard · Il GaBbAH'],
   1: ['lenduro-non-e-reato', 'L’enduro non è reato · Il GaBbAH'],
   2: ['angelo-potter', 'Angelo Potter · Il GaBbAH'],
   3: ['enduro-is-not-a-crime', 'Enduro is not a crime · Il GaBbAH'],
@@ -446,7 +446,9 @@ const SONGS = {
   14: ['gusta-ranch', 'Gusta Ranch'],
 };
 for (const [i, [f, n]] of Object.entries(SONGS)) STYLES[i] = { ...STYLES[i], file: 'musica/' + f + '.mp3', name: n };
-STYLES[15] = { ...STYLES[10] };   // v99 · Notturna con le frontali: stessa musica di MotoFogna
+STYLES[15] = { ...STYLES[10], file: 'musica/same-blood.mp3', name: 'Same Blood · Il GaBbAH' };   // v105.4 · Notturna con le frontali: Same Blood
+STYLES[16] = { ...STYLES[0], file: 'musica/angelo-vs-gabbah.mp3', name: 'Angelo vs Gabbah · Il GaBbAH' };   // v105.4 · sfide a due (duello)
+export const DUEL_STYLE = 16;
 for (let i = 0; i < STYLES.length; i++) if (!STYLES[i].file) STYLES[i] = { ...STYLES[i], file: 'musica/giro-easy.mp3', name: 'Giro Easy · Il GaBbAH' };
 // v57 · brani registrati (MP3): caricati una volta sola; la canzone riparte da dove si era fermata al giro prima.
 const songBuf = {}, songPos = {};
@@ -563,7 +565,7 @@ export function musicStart(styleId = 0, opts = {}) {
   if (!ensure()) return;
   musicGraph();
   musicStop(true);
-  const style = STYLES[styleId % STYLES.length];
+  const style = STYLES[styleId] || STYLES[styleId % STYLES.length];
   const m = { style, n: 0, step: 60 / style.bpm / 4, next: ctx.currentTime + .08, transpose: opts.transpose || 0, intensity: .5, timer: 0 };
   if (!style.file) m.timer = setInterval(() => {
     if (!ctx || music !== m) return;
