@@ -1,5 +1,6 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
+import { GLTFLoader } from './GLTFLoader.js';
 import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=104';
 import * as T from './three.module.min.js';
 import { RIDER_PARTS } from './pilota3d.js?v=104';
@@ -359,7 +360,7 @@ export function createWorld(canvas) {
   function setIce(on) {
     if (on === iceKey) return; iceKey = on; iceMode = on;
     // inverno: latifoglie e larici spogli, abeti con la neve in cima, niente erba
-    leafCrowns.visible = !on && !leafOK; larchCrowns.visible = !on && !larchOK; leafCards.visible = !on && leafOK; larchCards.visible = !on && larchOK;
+    leafCrowns.visible = !on && !leafOK; larchCrowns.visible = !on && !larchOK; leafCards.visible = !on && leafOK; larchCards.visible = !on && larchOK; if (typeof islandCards !== "undefined") islandCards.visible = !on && islandOK;
     if (on) groundMaps = { d: dirt.map, g: grass.map, v: verge.map, dn: dirt.normalMap, gn: grass.normalMap, vn: verge.normalMap };
     else if (!groundMaps) groundMaps = { d: dirt.map, g: grass.map, v: verge.map, dn: dirt.normalMap, gn: grass.normalMap, vn: verge.normalMap };
     dirt.map = on ? iceTex : groundMaps.d; grass.map = on ? null : groundMaps.g; verge.map = on ? null : groundMaps.v;
@@ -368,7 +369,7 @@ export function createWorld(canvas) {
     pine.color.set(on ? '#2c4a44' : '#30594c'); pineLight.color.set(on ? '#eef4f7' : '#3e6d56');
     tufts.visible = !on && quality < 2;
     ferns.visible = flowers.visible = !on; shroomStems.visible = shroomCaps.visible = false;   // v72 · niente funghi giganti da cartone
-    shrubs.material.color.set(on ? '#e6eef2' : '#567342');
+    shrubs.material.color.set(on ? '#e6eef2' : '#ffffff');
     rockMat.vertexColors = !on; rockMat.color.set(on ? '#dde6ea' : '#ffffff'); rockMat.needsUpdate = true;   // v101 · sassi innevati su Ice Scrofy
   }
 
@@ -463,6 +464,28 @@ export function createWorld(canvas) {
   texLoader.load('img/tex/fir_gold.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; larchCards.material.map = t; larchCards.material.needsUpdate = true; larchOK = true; larchCards.visible = !iceMode; larchTrunks.visible = larchCrowns.visible = false; });
   texLoader.load('img/tex/fir_rust.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; leafCards.material.map = t; leafCards.material.needsUpdate = true; leafOK = true; leafCards.visible = !iceMode; birchTrunks.visible = leafCrowns.visible = false; });
 
+  // v105 · modelli veri (Poly Haven, CC0) alleggeriti in Blender: rocce col muschio e albero da foto
+  const gltf = new GLTFLoader();
+  let rockVar = null;
+  gltf.load('img/models/rock_moss_set_01.glb', g => {
+    const list = []; g.scene.traverse(o => { if (o.isMesh) list.push(o); });
+    rockVar = list.map(o => {
+      const geo = o.geometry.clone(); geo.applyMatrix4(o.matrixWorld); geo.computeBoundingBox(); const b = geo.boundingBox, sz = new T.Vector3(); b.getSize(sz); const c = new T.Vector3(); b.getCenter(c);
+      geo.translate(-c.x, -b.min.y - sz.y * .18, -c.z); geo.scale(2 / Math.max(sz.x, sz.z), 2 / Math.max(sz.x, sz.z), 2 / Math.max(sz.x, sz.z));
+      const m = new T.InstancedMesh(geo, o.material, Math.ceil(60 / list.length) + 1); m.castShadow = m.receiveShadow = true; m.count = 0; scene.add(m); return m;
+    });
+    rocks.visible = false;
+    // v105 · muretti a secco e pareti della mulattiera fatti con le stesse rocce vere (centrate, raggio 1 come le vecchie forme)
+    const centered = (o) => { const geo = o.geometry.clone(); geo.applyMatrix4(o.matrixWorld); geo.computeBoundingBox(); const b = geo.boundingBox, c = new T.Vector3(), sz = new T.Vector3(); b.getCenter(c); b.getSize(sz); geo.translate(-c.x, -c.y, -c.z); const k = 2 / Math.max(sz.x, sz.y, sz.z); geo.scale(k, k * 1.3, k); return geo; };
+    wall.geometry = centered(list[1 % list.length]); wall.material = list[1 % list.length].material;
+    cliff.geometry = centered(list[0]); cliff.material = list[0].material; wall.castShadow = cliff.castShadow = true;
+  });
+  { let left = 2; const pm = new T.MeshStandardMaterial({ color: '#d4d2c8', roughness: .9 });   // lastricato: pietra vera
+    texLoader.load('img/tex/mossrock_d.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; pm.map = t; if (--left === 0) { paving.material = pm; } });
+    texLoader.load('img/tex/mossrock_n.webp?t=1', t => { pm.normalMap = t; if (--left === 0) { paving.material = pm; } }); }
+  const islandCards = new T.InstancedMesh(cardGeo, cardMat('#ffffff'), LEAFY); islandCards.visible = false; islandCards.frustumCulled = false; scene.add(islandCards);
+  let islandOK = false;
+  texLoader.load('img/tex/tree_island.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; islandCards.material.map = t; islandCards.material.needsUpdate = true; islandOK = true; islandCards.visible = !iceMode; });
   function instances(t) {
     const shrink = 1 - trail.rough * .45;
     treeData.forEach((d, i) => {
@@ -478,7 +501,8 @@ export function createWorld(canvas) {
       dummy.rotation.set(0, d.rot, 0); dummy.scale.setScalar(s);
       dummy.position.set(x, y + 1.6 * s, z); put(birchTrunks, i);
       dummy.scale.set(s, s * 1.15, s); dummy.position.set(x, y + 3.9 * s, z); put(leafCrowns, i);
-      if (leafOK) { dummy.position.set(x, y - .1, z); dummy.scale.setScalar(3.4 * s); put(leafCards, i); }
+      if (islandOK && i % 2 === 0) { dummy.position.set(x, y - .1, z); dummy.scale.set(4.6 * s, 2.3 * s, 4.6 * s); put(islandCards, i); if (leafOK) leafCards.setMatrixAt(i, zeroM); }
+      else { if (islandOK) islandCards.setMatrixAt(i, zeroM); if (leafOK) { dummy.position.set(x, y - .1, z); dummy.scale.setScalar(3.4 * s); put(leafCards, i); } }
     });
     larchData.forEach((d, i) => {
       const z = wrapZ(d.z, t), x = center(z, t) + d.side * d.off, y = ground(z, t, d.side * d.off);
@@ -494,8 +518,10 @@ export function createWorld(canvas) {
       const k = 1 + dens(z, [0, 0, 1.6, .6]) * d.big;
       dummy.position.set(center(z, t) + w + d.side * (k - 1) * .8, ground(z, t, w) + .14 * k, z);
       dummy.rotation.set(Math.sin(i) * .12, i * 2.3, Math.cos(i * 1.7) * .12); dummy.scale.set((.35 + (i % 4) * .16) * k, (.28 + (i % 3) * .25) * k, .6 * k); put(rocks, i);
+      if (rockVar) { const v = rockVar[i % rockVar.length], j = Math.floor(i / rockVar.length); dummy.position.y -= .14 * k; const sc = (.3 + (i % 4) * .1) * k; dummy.scale.set(sc, sc * (.8 + (i % 3) * .2), sc); put(v, j); v.count = Math.max(v.count, j + 1); }
     });
-    for (const o of [trunks, crowns, tops, rocks, birchTrunks, leafCrowns, larchTrunks, larchCrowns, firA, firB, larchCards, leafCards]) o.instanceMatrix.needsUpdate = true;
+    for (const o of [trunks, crowns, tops, rocks, birchTrunks, leafCrowns, larchTrunks, larchCrowns, firA, firB, larchCards, leafCards, islandCards]) o.instanceMatrix.needsUpdate = true;
+    if (rockVar) for (const v of rockVar) v.instanceMatrix.needsUpdate = true;
   }
 
   // Ciuffi d'erba, felci, canne, fiori, funghi, cespugli
@@ -565,6 +591,20 @@ export function createWorld(canvas) {
   const shrubs = new T.InstancedMesh(grassCardGeo, grassCardMat('#7f9a62'), 100);   // v73 · cespugli d'erba alta al posto delle palle verdi
   shrubs.receiveShadow = true; scene.add(shrubs);
 
+  // v105 · piante vere (Poly Haven, CC0) renderizzate in Blender: atlante di foto con erba, tarassaco, felci e erbacce, una cella per ciuffo
+  function atlasify(m, n, cellOf, url) {
+    const g = m.geometry.clone(), N = m.count, a = new Float32Array(N * 2);
+    for (let i = 0; i < N; i++) { const c = cellOf(i); a[i * 2] = c % n; a[i * 2 + 1] = n - 1 - Math.floor(c / n); }
+    g.setAttribute('aCell', new T.InstancedBufferAttribute(a, 2)); m.geometry = g;
+    const mt = m.material; mt.userData.n = n;
+    mt.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aCell;').replace('#include <uv_vertex>', `#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv = (vMapUv + aCell) / ${n}.0;\n#endif`); };
+    texLoader.load(url, t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; mt.map = t; mt.emissiveIntensity = .12; if (m !== shrubs) mt.color.set('#ffffff'); mt.alphaTest = .5; mt.needsUpdate = true;
+      const c = new T.Color(); for (let i = 0; i < N; i++) m.setColorAt(i, c.setRGB(.92 + Math.random() * .12, .95 + Math.random() * .1, .9 + Math.random() * .1)); m.instanceColor.needsUpdate = true; });
+  }
+  atlasify(tufts, 4, i => i % 10 < 7 ? i % 5 : 5 + i % 3, 'img/tex/plants.webp?t=1');
+  atlasify(ferns, 4, i => 8 + i % 8, 'img/tex/plants.webp?t=1');
+  atlasify(reeds, 4, i => i % 5, 'img/tex/plants.webp?t=1');
+  atlasify(shrubs, 2, i => i % 4, 'img/tex/shrubs.webp?t=1');
   // Pozzanghere: stagni ai lati, staccionata di legno e balle di fieno nei prati.
   const PONDS = 14;
   const pondMat = new T.MeshStandardMaterial({ color: '#4f8fa0', roughness: .05, metalness: .35, transparent: true, opacity: .9 });
@@ -704,26 +744,32 @@ export function createWorld(canvas) {
 
   // v84 · Giro easy tra le vigne: filari di viti ai lati (pali, chiome e grappoli)
   const VROWS = 8, VPER = 72, VSTEP = 180 / VPER;
-  const vineLeaf = new T.InstancedMesh((() => { const g = new T.IcosahedronGeometry(1, 1); g.scale(.38, .5, 1.6); return g; })(), new T.MeshStandardMaterial({ color: '#58853a', roughness: .9, flatShading: true }), VROWS * VPER);
-  const vinePost = new T.InstancedMesh(new T.BoxGeometry(.08, 1.7, .08), mat('#7a5a3a', .9), VROWS * VPER / 2);
-  const vineGrape = new T.InstancedMesh(new T.IcosahedronGeometry(.16, 0), mat('#4a1d4f', .5), VROWS * VPER / 2);
-  vineLeaf.castShadow = vinePost.castShadow = true; scene.add(vineLeaf, vinePost, vineGrape);
-  vineLeaf.visible = vinePost.visible = vineGrape.visible = false;
+  // v105 · filari veri: foto di un filare di Nebbiolo (generata con Higgsfield, scontornata) su due pareti parallele per ogni tratto
+  const vineGeo = (() => {
+    const g = new T.BufferGeometry(), P = [], U = [], I = [], L = VSTEP * 1.02, H = 1.95;
+    const quad = (x, u0) => { const o = P.length / 3; P.push(x, 0, -L / 2, x, 0, L / 2, x, H, L / 2, x, H, -L / 2); U.push(u0, 0, u0 + .5, 0, u0 + .5, 1, u0, 1); I.push(o, o + 1, o + 2, o, o + 2, o + 3); };
+    quad(-.16, 0); quad(.16, .5);
+    g.setAttribute('position', new T.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(U, 2)); g.setIndex(I); g.computeVertexNormals(); return g;
+  })();
+  const vineMat = new T.MeshLambertMaterial({ alphaTest: .5, side: T.DoubleSide, color: '#ffffff' });
+  const vineLeaf = new T.InstancedMesh(vineGeo, vineMat, VROWS * VPER);
+  vineLeaf.castShadow = true; vineLeaf.receiveShadow = true; scene.add(vineLeaf); vineLeaf.visible = false;
+  let vineOK = false;
+  texLoader.load('img/tex/vine_row.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; t.wrapS = T.RepeatWrapping; vineMat.map = t; vineMat.needsUpdate = true; vineOK = true; });
+  { const c = new T.Color(); for (let i = 0; i < VROWS * VPER; i++) { const r = Math.abs(Math.sin(i * 12.9898) * 43758.5) % 1; vineLeaf.setColorAt(i, c.setRGB(.9 + r * .14, .92 + r * .1, .88 + r * .1)); } }
   function vineyard(t, on) {
-    vineLeaf.visible = vinePost.visible = vineGrape.visible = on;
-    if (!on) return;
-    let pi = 0, gi = 0;
+    vineLeaf.visible = on && vineOK;
+    if (!on || !vineOK) return;
     for (let r = 0; r < VROWS; r++) {
       const side = r % 2 ? 1 : -1, w = side * (6.2 + Math.floor(r / 2) * 2.3) * (trail.width * .5 + .5);
       for (let k = 0; k < VPER; k++) {
         const i = r * VPER + k, z = wrapZ(k * VSTEP + r * .7, t), x = center(z, t) + w, y = ground(z, t, w);
-        dummy.rotation.set(0, Math.sin(i * 3.1) * .06, 0); dummy.position.set(x, y + 1.0, z); dummy.scale.set(1, .9 + (i % 5) * .05, 1); put(vineLeaf, i);
-        dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1);
-        if (k % 2 === 0) { dummy.position.set(x, y + .85, z + .9); put(vinePost, pi++); }
-        else { dummy.position.set(x + side * -.38, y + .62 + (i % 3) * .06, z); dummy.scale.set(1, 1.4, 1); put(vineGrape, gi++); }
+        const z2 = z - .5, x2 = center(z2, t) + w, yaw = Math.atan2(x - x2, z - z2);
+        dummy.rotation.set(0, yaw, 0); dummy.scale.set(1, .92 + ((k * 7 + r * 3) % 5) * .04, k % 2 ? 1 : -1);
+        dummy.position.set(x, y - .05, z); put(vineLeaf, i);
       }
     }
-    vineLeaf.instanceMatrix.needsUpdate = vinePost.instanceMatrix.needsUpdate = vineGrape.instanceMatrix.needsUpdate = true;
+    vineLeaf.instanceMatrix.needsUpdate = true;
   }
 
   // v102 · Gusta Ranch sulle colline dell'Astigiano: noccioleti in filari, cascine e campanili sui bricchi
