@@ -1212,13 +1212,12 @@ export function createWorld(canvas) {
   // v105 · pilota vero: modello generato (Higgsfield), scheletrato e messo in posa in Blender (seduto e in piedi sulle pedane).
   // Il casco resta quello modellato (con livrea, telecamere e orecchie): segue il collo del modello. Maglia e pantaloni prendono i colori della livrea.
   const riderJerseyTint = { value: new T.Color('#ffffff') }, riderPantsTint = { value: new T.Color('#ffffff') };
-  let riderGlb = null;
-  const HIP = new T.Vector3(0, 1.43, .27), NECK = { sit: new T.Vector3(0, .503, -.193), stand: new T.Vector3(0, .446, -.269) };
-  gltf.load('img/models/rider_poses.glb?t=1', g => {
-    const sit = g.scene.getObjectByName('rider_sit'), stand = g.scene.getObjectByName('rider_stand');
-    const m = sit.material.clone();
+  let riderGlb = null, riderBaseMat = null;
+  // materiale del pilota con maglia e pantaloni colorati (uniform proprie: una per il giocatore, una per ogni compagno)
+  function riderMat(uJ, uP) {
+    const m = riderBaseMat.clone();
     m.onBeforeCompile = sh => {
-      sh.uniforms.uJ = riderJerseyTint; sh.uniforms.uP = riderPantsTint;
+      sh.uniforms.uJ = uJ; sh.uniforms.uP = uP;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vH;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvH = position.y;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uJ; uniform vec3 uP; varying float vH;')
         .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
@@ -1228,6 +1227,12 @@ export function createWorld(canvas) {
   diffuseColor.rgb = mix(diffuseColor.rgb, tint * (.3 + .8 * lo), pm); }`);
     };
     m.customProgramCacheKey = () => 'riderPose';
+    return m;
+  }
+  const HIP = new T.Vector3(0, 1.43, .27), NECK = { sit: new T.Vector3(0, .503, -.193), stand: new T.Vector3(0, .446, -.269) };
+  gltf.load('img/models/rider_poses.glb?t=1', g => {
+    const sit = g.scene.getObjectByName('rider_sit'), stand = g.scene.getObjectByName('rider_stand');
+    riderBaseMat = sit.material; const m = riderMat(riderJerseyTint, riderPantsTint);
     for (const o of [sit, stand]) { o.removeFromParent(); o.material = m; o.castShadow = true; o.receiveShadow = true; o.position.copy(HIP); upper.add(o); o.userData.keep = true; }
     stand.visible = false;
     riderGlb = { sit, stand }; customKey = '';
@@ -1411,7 +1416,7 @@ export function createWorld(canvas) {
   const BIKE_GLB = { edt250: 'enduro', gp125: 'enduro', ts300: 'enduro', mulo450: 'enduro', factory: 'enduro', trial: 'trial', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar' };
   // misure prese dai modelli: manubrio (mezza larghezza, altezza, z) e sella, per mettere mani e sedere al posto giusto
   const BIKE_FIT = { enduro: [.44, 1.42, -.2, 1.106], trial: [.5, 1.45, -.27, .99], vintage: [.47, 1.39, -.26, .921], adventure: [.5, 1.5, -.25, 1.011], electric: [.46, 1.43, -.29, 1.133], dakar: [.4, 1.31, -.24, 1.063] };   // [manubrio x, y, z, sella sotto il sedere]
-  const glbCache = {}, bikeTint = { value: new T.Color('#ffffff') };
+  const glbCache = {}, glbWait = {}, bikeTint = { value: new T.Color('#ffffff') };
   let procBike = null, glbNow = null, glbWant = null;
   function procBikeParts() {
     if (procBike) return procBike;
@@ -1420,16 +1425,30 @@ export function createWorld(canvas) {
     walk(pitch); return procBike;
   }
   // plastiche: le parti bianche e non metalliche della texture prendono il colore della livrea
-  function tintable(m) {
+  function tintable(m, u = bikeTint) {
     m.onBeforeCompile = sh => {
-      sh.uniforms.uTint = bikeTint;
+      sh.uniforms.uTint = u;
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uTint;')
         .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
 { float lo = min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b)), hi = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
   float pm = smoothstep(.3, .5, lo) * (1.0 - smoothstep(.05, .12, (hi - lo) / max(hi, .01) * .5));
   diffuseColor.rgb = mix(diffuseColor.rgb, uTint * (.35 + .75 * lo), pm); }`);
     };
+    m.customProgramCacheKey = () => 'bikeTint';
     m.needsUpdate = true;
+  }
+  function loadBikeGlb(key, cb) {
+    if (glbCache[key] === 'loading') { glbWait[key].push(cb); return; }
+    if (glbCache[key]) { cb(glbCache[key]); return; }
+    glbCache[key] = 'loading'; glbWait[key] = [cb];
+    gltf.load(`img/models/bike_${key}.glb?t=1`, g => {
+      const get = n => g.scene.getObjectByName(n);
+      g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (!o.material.userData.tint) { o.material.userData.tint = true; tintable(o.material); } } });
+      const wrM = get('wheel_r'), wfM = get('wheel_f'), body = get('bike_body');
+      const rAxle = wrM.position.clone(), fAxle = wfM.position.clone();
+      wrM.position.set(0, 0, 0); wfM.position.set(0, 0, 0); wrM.removeFromParent(); wfM.removeFromParent(); body.removeFromParent();
+      glbCache[key] = { body, wr: wrM, wf: wfM, rAxle, fAxle }; for (const f of glbWait[key]) f(glbCache[key]);
+    }, undefined, e => { console.warn('bike glb', e); glbCache[key] = null; });
   }
   function setBikeModel(id) {
     const key = BIKE_GLB[id] || null; glbWant = key;
@@ -1445,18 +1464,10 @@ export function createWorld(canvas) {
       glbNow = { key, parts: [body, wr, wf], wr, wf, r: g.rAxle.y };
       customKey = '';
     };
-    if (glbCache[key]) { if (glbCache[key] !== 'loading') use(glbCache[key]); return; }
-    glbCache[key] = 'loading';
-    gltf.load(`img/models/bike_${key}.glb?t=1`, g => {
-      const get = n => g.scene.getObjectByName(n); 
-      g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (!o.material.userData.tint) { o.material.userData.tint = true; tintable(o.material); } } });
-      const wrM = get('wheel_r'), wfM = get('wheel_f'), body = get('bike_body');
-      const rAxle = wrM.position.clone(), fAxle = wfM.position.clone();
-      wrM.position.set(0, 0, 0); wfM.position.set(0, 0, 0); wrM.removeFromParent(); wfM.removeFromParent(); body.removeFromParent();
-      glbCache[key] = { body, wr: wrM, wf: wfM, rAxle, fAxle }; use(glbCache[key]);
-    }, undefined, e => { console.warn('bike glb', e); glbCache[key] = null; });
+    loadBikeGlb(key, use);
   }
   const riderY0 = rider.position.y;
+  loadBikeGlb('enduro', () => {});   // i compagni usano la moto vera: la carichiamo subito
   function syncBikeModel() {
     if (riderGlb) { if (jerseyMat.map && jerseyMat.userData.base) riderJerseyTint.value.set(jerseyMat.userData.base); else riderJerseyTint.value.copy(jerseyMat.color); riderPantsTint.value.copy(pantsMat.color); }
     const fit = glbNow && BIKE_FIT[glbNow.key];
@@ -2355,7 +2366,34 @@ export function createWorld(canvas) {
   const rivalTyre = new T.TorusGeometry(.38, .12, 6, 22), rivalRim = new T.TorusGeometry(.29, .025, 4, 18);
   const rivalSpokes = (() => { const g = new T.CylinderGeometry(.01, .01, .58, 3); const gs = []; for (let i = 0; i < 4; i++) { const c = g.clone(); c.rotateX(i * Math.PI / 4); gs.push(c); } return mergeGeometries(gs); })();
   const rivalMats = ['plastic', 'accent', 'jersey', 'pants', 'helmet'];
+  // v105 · compagni con moto e pilota veri (stessi modelli del giocatore), ognuno con le sue tinte
+  const rivalGlbReady = () => !!(riderGlb && glbCache.enduro && glbCache.enduro !== 'loading');
+  function makeRivalGlb(r) {
+    const G = glbCache.enduro, fit = BIKE_FIT.enduro;
+    const bT = { value: new T.Color(r.livery.plastic) }, jT = { value: new T.Color(r.livery.jersey) }, pT = { value: new T.Color(r.livery.pants) };
+    const mats = new Map();
+    const bm = src => { if (!mats.has(src)) { const m = src.clone(); tintable(m, bT); mats.set(src, m); } return mats.get(src); };
+    const root = new T.Group(), body = new T.Group(); root.add(body);
+    const add = (src, parent) => { const o = src.clone(true); o.traverse(c => { if (c.isMesh) { c.material = bm(c.material); c.castShadow = false; c.receiveShadow = false; } }); parent.add(o); return o; };
+    add(G.body, body);
+    const wheelsOut = [];
+    for (const [w, a] of [[G.wr, G.rAxle], [G.wf, G.fAxle]]) { const h = new T.Group(); h.position.set(0, a.y, a.z); body.add(h); add(w, h); wheelsOut.push(h); }
+    // pilota seduto in sella
+    const ry = riderY0 + fit[3] + .118 - 1.43;
+    const rm = new T.Mesh(riderGlb.sit.geometry, riderMat(jT, pT)); rm.position.set(HIP.x, HIP.y + ry, HIP.z); rm.quaternion.copy(riderGlb.sit.quaternion); rm.scale.copy(riderGlb.sit.scale); body.add(rm);
+    // casco: copia di quello del giocatore con il colore del compagno, sul collo del modello
+    const helm = pmat(r.livery.helmet, .25), acc = pmat(r.livery.accent, .4);
+    if (envTex) for (const m of [helm, acc]) { m.envMap = envTex; m.envMapIntensity = .9; }
+    const tb = new T.Group(); tb.position.set(0, 1.42 + ry, .25); tb.rotation.x = -.14; body.add(tb);
+    const h = head.clone(true); tb.add(h);
+    h.traverse(o => { if (o.name === 'fx' || o.name === 'fxcam') o.visible = false; if (o.isMesh) { if (o.material === helmetMat) o.material = helm; else if (o.material === accent) o.material = acc; else if (o.material === plastic) o.material = bm(o.material); o.castShadow = false; } });
+    body.updateMatrixWorld(true);
+    const nk = NECK.sit.clone().add(HIP); nk.y += ry; body.localToWorld(nk); tb.worldToLocal(nk);
+    h.position.set(nk.x, nk.y + .11, nk.z + .01); h.rotation.set(0, 0, 0); h.scale.setScalar(.88);
+    return finishRival(r, root, body, wheelsOut, false);
+  }
   function makeRival(r) {
+    if (rivalGlbReady()) return makeRivalGlb(r);
     const g = bike.clone(true);
     const m = { plastic: pmat(r.livery.plastic), accent: pmat(r.livery.accent, .4), jersey: mat(r.livery.jersey, .6), pants: mat(r.livery.pants, .8), helmet: pmat(r.livery.helmet, .25) };
     if (envTex) for (const k of ['plastic', 'accent', 'helmet']) { m[k].envMap = envTex; m[k].envMapIntensity = .9; }   // v73 · compagni con la stessa vernice lucida del giocatore
@@ -2414,6 +2452,19 @@ export function createWorld(canvas) {
       wheelsOut.push(wl);
     }
     tag.parent?.remove(tag); root.add(tag);
+    return finishRival(r, root, body, wheelsOut, true, tag);
+  }
+  function rivalTag(r) {
+    const tc2 = document.createElement('canvas'); tc2.width = 256; tc2.height = 64; const y = tc2.getContext('2d');
+    y.fillStyle = 'rgba(12,13,11,.82)'; y.beginPath(); y.roundRect(4, 6, 248, 52, 14); y.fill();
+    y.fillStyle = r.livery.plastic; y.fillRect(4, 6, 12, 52);
+    y.fillStyle = '#fff'; y.font = 'italic 900 34px Arial'; y.textAlign = 'center'; y.fillText(r.name.toUpperCase(), 134, 45, 220);
+    const tag = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(tc2), depthWrite: false, transparent: true }));
+    tag.material.map.colorSpace = T.SRGBColorSpace; tag.scale.set(1.5, .375, 1); tag.position.set(0, 3.0, 0); tag.renderOrder = 5;
+    return tag;
+  }
+  function finishRival(r, root, body, wheelsOut, proc, tag) {
+    if (!tag) { tag = rivalTag(r); root.add(tag); }
     const blob = new T.Mesh(new T.PlaneGeometry(1.3, 2.7), new T.MeshBasicMaterial({ color: '#000', alphaMap: glowTex, transparent: true, opacity: .45, depthWrite: false }));
     blob.rotation.x = -Math.PI / 2; blob.position.y = .03; root.add(blob);
     // v97 · frontale dei compagni: lucina sul casco e chiazza di luce sul sentiero davanti
@@ -2421,11 +2472,11 @@ export function createWorld(canvas) {
     rLamp.scale.set(.75, .55, 1); rLamp.position.set(0, 2.05, -.25); rLamp.visible = false; root.add(rLamp);
     const rPool = new T.Mesh(new T.PlaneGeometry(2.6, 6), new T.MeshBasicMaterial({ color: '#ffe7b0', alphaMap: glowTex, transparent: true, opacity: .32, blending: T.AdditiveBlending, depthWrite: false }));
     rPool.rotation.x = -Math.PI / 2; rPool.position.set(0, .05, -4.2); rPool.visible = false; root.add(rPool);
-    const model = { g: root, pitch: body, wheels: wheelsOut, tag, phase: Math.random() * 10, ghost: !!r.ghost, lamp: [rLamp, rPool] };
+    const model = { g: root, pitch: body, wheels: wheelsOut, tag, phase: Math.random() * 10, ghost: !!r.ghost, lamp: [rLamp, rPool], proc };
     if (r.ghost) {
       // v48 · fantasma del primo in classifica: moto e pilota trasparenti e dorati, senza ombra
       blob.visible = false;
-      root.traverse(o => { if (o.isMesh && o !== blob) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .5; o.material.depthWrite = false; if (o.material.emissive) { o.material.emissive.set('#f2c230'); o.material.emissiveIntensity = .6; } o.castShadow = false; } });
+      root.traverse(o => { if (o.isMesh && o !== blob) { const ob = o.material.onBeforeCompile, ck = o.material.customProgramCacheKey; o.material = o.material.clone(); o.material.onBeforeCompile = ob; o.material.customProgramCacheKey = ck; o.material.transparent = true; o.material.opacity = .5; o.material.depthWrite = false; if (o.material.emissive) { o.material.emissive.set('#f2c230'); o.material.emissiveIntensity = .6; } o.castShadow = false; } });
     }
     scene.add(root);
     return model;
@@ -2435,6 +2486,7 @@ export function createWorld(canvas) {
     for (const r of list || []) {
       seen.add(r.name);
       let m = rivalModels.get(r.name);
+      if (m && m.proc && rivalGlbReady()) { scene.remove(m.g); m = null; }   // arrivati i modelli veri: rifà il compagno
       if (!m) { m = makeRival(r); rivalModels.set(r.name, m); }
       const z = -r.gap;
       m.g.visible = z < 11 && z > -175;
@@ -2448,7 +2500,7 @@ export function createWorld(canvas) {
       m.g.rotation.set(0, rYaw, curShape ? Math.max(-.5, Math.min(.5, curShape.bend(t + r.gap) * .32)) : iceMode ? Math.max(-.6, Math.min(.6, rBend * .45)) : Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));   // v94 · anche i compagni piegati in derapata
       m.pitch.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 160 + m.phase) * .015;
       m.pitch.position.y = 0;
-      for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475;
+      for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475 * (m.proc ? 1 : 1.23);
       m.tag.visible = z > -60;
       // terra dalla ruota dietro
       if (live && !m.ghost && Math.random() < .5) emit(m.g.position.x + (Math.random() - .5) * .3, height(z, t) + .25, z + 1.1, (Math.random() - .5) * 1.5, 2 + Math.random() * 2.2, 4 + Math.random() * 3, .6 + Math.random() * .6);
