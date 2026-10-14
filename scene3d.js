@@ -1230,21 +1230,72 @@ export function createWorld(canvas) {
     return m;
   }
   const HIP = new T.Vector3(0, 1.43, .27), NECK = { sit: new T.Vector3(0, .503, -.193), stand: new T.Vector3(0, .446, -.269) };
-  // v105.3 · seduto ↔ in piedi in modo continuo: la posa in piedi è un morph della posa seduta (stesso modello), niente più scatti
+  // v105.4 · pilota con scheletro vero: ossa ricavate dal modello (bacino, schiena, braccia, gambe) e pelle legata alle ossa.
+  // Ogni fotogramma le mani restano sulle manopole (anche quando sterzi) e i piedi sulle pedane: quando il bacino si alza,
+  // si abbassa o si piega, ginocchia e gomiti si piegano da soli (cinematica inversa a due ossa).
   const riderPivot = new T.Group(); riderPivot.position.copy(HIP); upper.add(riderPivot);
+  const RJ = { root: [0, .12, -.02], spine: [0, .25, -.06], chest: [0, .38, -.12], neck: [0, .5, -.19], head: [0, .6, -.2] };
+  for (const [sd, n] of [[1, 'R'], [-1, 'L']]) Object.assign(RJ, { ['hip' + n]: [sd * .1, .06, -.04], ['knee' + n]: [sd * .18, -.27, -.31], ['ankle' + n]: [sd * .2, -.62, -.22], ['toe' + n]: [sd * .2, -.7, -.36],
+    ['shoulder' + n]: [sd * .17, .45, -.16], ['elbow' + n]: [sd * .33, .31, -.36], ['wrist' + n]: [sd * .41, .25, -.52], ['hand' + n]: [sd * .43, .24, -.59] });
+  const RV = k => new T.Vector3(...RJ[k]);
+  let rRig = null;
+  function buildRiderRig(geo, mat) {
+    // ossa: [nome, padre, giunto dove sta l'osso, giunto dove punta]
+    const defs = [['root', null, 'root', 'spine'], ['spine', 'root', 'spine', 'chest'], ['chest', 'spine', 'chest', 'neck'], ['neck', 'chest', 'neck', 'head']];
+    for (const n of 'RL') defs.push(['clav' + n, 'chest', 'chest', 'shoulder' + n], ['uarm' + n, 'clav' + n, 'shoulder' + n, 'elbow' + n], ['farm' + n, 'uarm' + n, 'elbow' + n, 'wrist' + n], ['hand' + n, 'farm' + n, 'wrist' + n, 'hand' + n],
+      ['thigh' + n, 'root', 'hip' + n, 'knee' + n], ['shin' + n, 'thigh' + n, 'knee' + n, 'ankle' + n], ['foot' + n, 'shin' + n, 'ankle' + n, 'toe' + n]);
+    const bones = {}, list = [];
+    for (const [n, par, at] of defs) { const bn = new T.Bone(); bn.name = n; const pos = RV(at); if (par) pos.sub(RV(defs.find(d => d[0] === par)[2])); bn.position.copy(pos); (par ? bones[par] : null)?.add(bn); bones[n] = bn; list.push(bn); }
+    // pelle: ogni vertice va alle due ossa più vicine (distanza dal segmento), con passaggio morbido vicino alle giunture
+    const segs = defs.map(d => [list.findIndex(bn => bn.name === d[0]), RV(d[2]), RV(d[3])]);
+    segs.push([list.findIndex(bn => bn.name === 'root'), RV('hipR'), RV('hipL')]);
+    const P = geo.attributes.position, n = P.count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4), v = new T.Vector3(), ab = new T.Vector3(), q = new T.Vector3();
+    for (let i = 0; i < n; i++) {
+      v.fromBufferAttribute(P, i); let d1 = 1e9, d2 = 1e9, b1 = 0, b2 = 0;
+      for (const [bi, A, B] of segs) { ab.subVectors(B, A); const tt = Math.max(0, Math.min(1, q.subVectors(v, A).dot(ab) / ab.lengthSq())); const d = q.copy(A).addScaledVector(ab, tt).distanceTo(v);
+        if (d < d1) { if (b1 !== bi) { d2 = d1; b2 = b1; } d1 = d; b1 = bi; } else if (d < d2 && bi !== b1) { d2 = d; b2 = bi; } }
+      const w2 = Math.max(0, 1 - (d2 - d1) / .05) * .5;   // vicino a una giuntura (distanze simili) la pelle si divide tra le due ossa
+      si[i * 4] = b1; si[i * 4 + 1] = b2; sw[i * 4] = 1 - w2; sw[i * 4 + 1] = w2;
+    }
+    geo.setAttribute('skinIndex', new T.Uint16BufferAttribute(si, 4)); geo.setAttribute('skinWeight', new T.Float32BufferAttribute(sw, 4));
+    const mesh = new T.SkinnedMesh(geo, mat); mesh.add(bones.root); mesh.bind(new T.Skeleton(list));
+    mesh.frustumCulled = false;
+    const rest = {}; for (const bn of list) rest[bn.name] = bn.position.clone();
+    return { mesh, bones, rest };
+  }
   gltf.load('img/models/rider_poses.glb?t=1', g => {
-    const sit = g.scene.getObjectByName('rider_sit'), stand = g.scene.getObjectByName('rider_stand');
+    const sit = g.scene.getObjectByName('rider_sit');
     riderBaseMat = sit.material; const m = riderMat(riderJerseyTint, riderPantsTint);
-    const bake = o => { const gg = o.geometry.clone(); gg.applyMatrix4(new T.Matrix4().compose(new T.Vector3(), o.quaternion, o.scale)); return gg; };
-    const gs = bake(sit), gt = bake(stand);
-    let mesh;
-    if (gs.attributes.position.count === gt.attributes.position.count) {
-      gs.morphAttributes.position = [gt.attributes.position]; gs.morphAttributes.normal = [gt.attributes.normal]; gs.morphTargetsRelative = false;
-      mesh = new T.Mesh(gs, m);
-    } else mesh = new T.Mesh(gs, m);
-    mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.keep = true; riderPivot.add(mesh);
-    riderGlb = { sit: mesh, stand: mesh, mesh, morph: !!gs.morphAttributes.position }; customKey = '';
+    const gs = sit.geometry.clone(); gs.applyMatrix4(new T.Matrix4().compose(new T.Vector3(), sit.quaternion, sit.scale));
+    riderStatic = gs.clone();   // per i compagni: posa seduta ferma, senza ossa
+    rRig = buildRiderRig(gs, m);
+    rRig.mesh.castShadow = true; rRig.mesh.receiveShadow = true; rRig.mesh.userData.keep = true; riderPivot.add(rRig.mesh);
+    riderGlb = { mesh: rRig.mesh }; customKey = '';
   });
+  let riderStatic = null;
+  // IK a due ossa: a = osso alto (spalla/anca), b = osso basso (gomito/ginocchio); porta l'estremità su target, piegando verso pole
+  const _ikA = new T.Vector3(), _ikB = new T.Vector3(), _ikC = new T.Vector3(), _ikE = new T.Vector3(), _ikd = new T.Vector3(), _ikpl = new T.Vector3(), _ikqa = new T.Quaternion(), _ikws = new T.Vector3();
+  function aimBone(bone, childRest, targetW) {
+    bone.updateWorldMatrix(true, false); bone.getWorldPosition(_ikC);
+    bone.parent.getWorldQuaternion(_ikqa).invert();
+    _ikd.subVectors(targetW, _ikC).normalize().applyQuaternion(_ikqa);
+    bone.quaternion.setFromUnitVectors(_ikB.copy(childRest).normalize(), _ikd);
+  }
+  function ik2(a, b, endRest, target, poleW) {
+    a.quaternion.identity(); b.quaternion.identity(); a.updateWorldMatrix(true, true);
+    a.getWorldPosition(_ikA); a.getWorldScale(_ikws); const sc = _ikws.x;
+    const l1 = b.position.length() * sc, l2 = endRest.length() * sc;
+    const T0 = _ikE.copy(target); let dist = T0.distanceTo(_ikA); const maxL = (l1 + l2) * .999;
+    if (dist > maxL) { T0.sub(_ikA).setLength(maxL).add(_ikA); dist = maxL; }
+    dist = Math.max(dist, Math.abs(l1 - l2) + 1e-3);
+    const x = (l1 * l1 - l2 * l2 + dist * dist) / (2 * dist), h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+    const dir = _ikd.subVectors(T0, _ikA).normalize();
+    const pole = _ikpl.subVectors(poleW, _ikA); pole.addScaledVector(dir, -pole.dot(dir)).normalize();
+    const elbow = new T.Vector3().copy(_ikA).addScaledVector(dir, x).addScaledVector(pole, h);
+    aimBone(a, b.position, elbow); a.updateWorldMatrix(false, true);
+    aimBone(b, endRest, T0);
+  }
+  const _tg = new T.Vector3(), _pw = new T.Vector3(), _gl = new T.Vector3();
   // v105 · casco vero (generato con Higgsfield): calotta, frontino e maschera; la calotta prende il colore del casco della livrea
   const helmTint = { value: new T.Color('#ffffff') };
   let helmGlb = null;
@@ -1262,19 +1313,36 @@ export function createWorld(canvas) {
     helmGroup.add(mesh); helmGlb = mesh; customKey = '';
   }, undefined, e => console.warn('helmet glb', e));
   const _neck = new T.Vector3();
-  const _n2 = new T.Vector3();
-  function syncRiderModel(standing, leanX = 0, leanZ = 0) {
-    if (!riderGlb) return;
+  function syncRiderModel(standing, leanX = 0, leanZ = 0, dab = 0) {
+    if (!riderGlb || !rRig) return;
     const hideTree = o => { for (const c of o.children) { if (c === head || c === riderPivot || c.name === 'fx') continue; if (c.isMesh) c.visible = false; hideTree(c); } };
     hideTree(rider);
-    const w = Math.max(0, Math.min(1, (standing - .1) / .8)), k = w * w * (3 - 2 * w);
-    if (riderGlb.morph) riderGlb.mesh.morphTargetInfluences[0] = k;
-    // il busto segue la guida: avanti col gas, indietro in impennata, di lato in piega (piccoli angoli attorno al bacino)
+    // il busto segue la guida: avanti col gas e quando sei in piedi, indietro in impennata, di lato in piega
     riderPivot.rotation.set(leanX, 0, leanZ);
+    const B = rRig.bones, R = rRig.rest;
+    B.spine.quaternion.setFromEuler(new T.Euler(leanX * .4, 0, leanZ * .5)); B.chest.quaternion.identity(); B.neck.quaternion.setFromEuler(new T.Euler(-leanX * .6, 0, 0));
+    bike.updateMatrixWorld(true);
+    const fitE = BIKE_FIT.enduro, ryE = riderY0 + fitE[3] + .118 - 1.43;
+    for (const [n, sd] of [['R', 1], ['L', -1]]) {
+      // mani: sulla manopola (il modello è stato messo in posa sulla moto enduro: teniamo la stessa distanza mano-manopola)
+      const j = joints.find(jj => jj.side === sd);
+      _gl.copy(RV('wrist' + n)).add(HIP); _gl.y += ryE; _gl.x -= sd * fitE[0]; _gl.y -= fitE[1]; _gl.z -= fitE[2];
+      _tg.copy(j.grip.position).add(_gl); front.localToWorld(_tg);
+      _pw.copy(RV('elbow' + n)).add(RV('elbow' + n)).sub(RV('wrist' + n)); _pw.y -= .15; rRig.mesh.localToWorld(_pw);
+      ik2(B['uarm' + n], B['farm' + n], R['hand' + n], _tg, _pw);
+      // piedi: sulla pedana (ferma rispetto al telaio); in derapata il piede interno esce in avanti
+      _tg.copy(RV('ankle' + n)).add(HIP).add(rider.position);
+      const out = (sd > 0 ? Math.max(0, -dab) : Math.max(0, dab));
+      if (out > 0) _tg.add(_gl.set(sd * .28 * out, .12 * out, -.45 * out));
+      chassis.localToWorld(_tg);
+      _pw.copy(RV('knee' + n)).multiplyScalar(2).sub(RV('hip' + n)); _pw.z -= .4; rRig.mesh.localToWorld(_pw);
+      ik2(B['thigh' + n], B['shin' + n], R['foot' + n], _tg, _pw);
+    }
     // casco sul collo del modello
-    rider.updateMatrixWorld(true); _neck.copy(NECK.sit).lerp(_n2.copy(NECK.stand), k).applyEuler(riderPivot.rotation).add(HIP); upper.localToWorld(_neck); body.worldToLocal(_neck);
+    B.neck.getWorldPosition(_neck); body.worldToLocal(_neck);
     head.position.set(_neck.x, _neck.y + .11, _neck.z + .01); head.scale.setScalar(.88);
   }
+
 
   for (let i = 0; i < 14; i++) { const z = .13 + i * .051; box(.028, .022, .047, alloy, chassis, -.18, .49, z); }
   const sprocket = mesh(new T.TorusGeometry(.18, .028, 8, 28), alloy, rearWheel); sprocket.rotation.y = Math.PI / 2; sprocket.position.x = -.13;
@@ -2410,7 +2478,7 @@ export function createWorld(canvas) {
     for (const [w, a] of [[G.wr, G.rAxle], [G.wf, G.fAxle]]) { const h = new T.Group(); h.position.set(0, a.y, a.z); body.add(h); add(w, h); wheelsOut.push(h); }
     // pilota seduto in sella
     const ry = riderY0 + fit[3] + .118 - 1.43;
-    const rm = new T.Mesh(riderGlb.mesh.geometry, riderMat(jT, pT)); rm.position.set(HIP.x, HIP.y + ry, HIP.z); body.add(rm); if (rm.morphTargetInfluences) rm.morphTargetInfluences[0] = .25;
+    const rm = new T.Mesh(riderStatic, riderMat(jT, pT)); rm.position.set(HIP.x, HIP.y + ry, HIP.z); body.add(rm);
     // casco: copia di quello del giocatore con il colore del compagno, sul collo del modello
     const helm = pmat(r.livery.helmet, .25), acc = pmat(r.livery.accent, .4);
     if (envTex) for (const m of [helm, acc]) { m.envMap = envTex; m.envMapIntensity = .9; }
@@ -2785,7 +2853,7 @@ export function createWorld(canvas) {
     const bounce = crash > 0 ? Math.sin((1 - crash) * Math.PI) * .32 : 0;
     upper.position.set(lean * -.08, dyn.stand * .17 - Math.max(0, comp) * .9 + bounce, -dyn.stand * .07 - boostAmount * .015);
     body.rotation.x = -.08 - .3 * dyn.stand - grade * .2 - boostAmount * .05 - (s.gas ? .06 : 0) - dyn.pitch * .45 + crash * .5 + (s.wheelie ? .32 : 0);
-    syncRiderModel(dyn.stand, Math.max(-.22, Math.min(.18, (body.rotation.x + .08 + .3 * dyn.stand) * .45)), Math.max(-.2, Math.min(.2, lean * .25 - dyn.iceLean * .2)));
+    syncRiderModel(dyn.stand, Math.max(-.45, Math.min(.25, (body.rotation.x + .08) * .7)), Math.max(-.25, Math.min(.25, lean * .3 - dyn.iceLean * .35)), s.jump <= 0 && (s.ice ? s.driftOn : curShape) ? Math.max(-1, Math.min(1, dyn.iceLean * 2.2)) : 0);
     body.rotation.z = lean * .35 - dyn.iceLean * .45 - whip * .3 + (crash > 0 ? Math.sin(crash * 20) * crash * .3 : 0);
     head.rotation.y = dyn.steer * .9 + dyn.iceLean * .9;   // lo sguardo va verso l'uscita della curva
     { const inner = dyn.iceLean > 0 ? -1 : 1, deep = Math.min(1, Math.max(0, (Math.abs(dyn.iceLean) - .12) / .3));
