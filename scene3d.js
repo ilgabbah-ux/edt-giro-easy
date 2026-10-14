@@ -1230,12 +1230,20 @@ export function createWorld(canvas) {
     return m;
   }
   const HIP = new T.Vector3(0, 1.43, .27), NECK = { sit: new T.Vector3(0, .503, -.193), stand: new T.Vector3(0, .446, -.269) };
+  // v105.3 · seduto ↔ in piedi in modo continuo: la posa in piedi è un morph della posa seduta (stesso modello), niente più scatti
+  const riderPivot = new T.Group(); riderPivot.position.copy(HIP); upper.add(riderPivot);
   gltf.load('img/models/rider_poses.glb?t=1', g => {
     const sit = g.scene.getObjectByName('rider_sit'), stand = g.scene.getObjectByName('rider_stand');
     riderBaseMat = sit.material; const m = riderMat(riderJerseyTint, riderPantsTint);
-    for (const o of [sit, stand]) { o.removeFromParent(); o.material = m; o.castShadow = true; o.receiveShadow = true; o.position.copy(HIP); upper.add(o); o.userData.keep = true; }
-    stand.visible = false;
-    riderGlb = { sit, stand }; customKey = '';
+    const bake = o => { const gg = o.geometry.clone(); gg.applyMatrix4(new T.Matrix4().compose(new T.Vector3(), o.quaternion, o.scale)); return gg; };
+    const gs = bake(sit), gt = bake(stand);
+    let mesh;
+    if (gs.attributes.position.count === gt.attributes.position.count) {
+      gs.morphAttributes.position = [gt.attributes.position]; gs.morphAttributes.normal = [gt.attributes.normal]; gs.morphTargetsRelative = false;
+      mesh = new T.Mesh(gs, m);
+    } else mesh = new T.Mesh(gs, m);
+    mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.keep = true; riderPivot.add(mesh);
+    riderGlb = { sit: mesh, stand: mesh, mesh, morph: !!gs.morphAttributes.position }; customKey = '';
   });
   // v105 · casco vero (generato con Higgsfield): calotta, frontino e maschera; la calotta prende il colore del casco della livrea
   const helmTint = { value: new T.Color('#ffffff') };
@@ -1254,15 +1262,20 @@ export function createWorld(canvas) {
     helmGroup.add(mesh); helmGlb = mesh; customKey = '';
   }, undefined, e => console.warn('helmet glb', e));
   const _neck = new T.Vector3();
-  function syncRiderModel(standing) {
+  const _n2 = new T.Vector3();
+  function syncRiderModel(standing, leanX = 0, leanZ = 0) {
     if (!riderGlb) return;
-    const hideTree = o => { for (const c of o.children) { if (c === head || c === riderGlb.sit || c === riderGlb.stand || c.name === 'fx') continue; if (c.isMesh) c.visible = false; hideTree(c); } };
+    const hideTree = o => { for (const c of o.children) { if (c === head || c === riderPivot || c.name === 'fx') continue; if (c.isMesh) c.visible = false; hideTree(c); } };
     hideTree(rider);
-    const st = standing > .5; riderGlb.sit.visible = !st; riderGlb.stand.visible = st;
+    const w = Math.max(0, Math.min(1, (standing - .1) / .8)), k = w * w * (3 - 2 * w);
+    if (riderGlb.morph) riderGlb.mesh.morphTargetInfluences[0] = k;
+    // il busto segue la guida: avanti col gas, indietro in impennata, di lato in piega (piccoli angoli attorno al bacino)
+    riderPivot.rotation.set(leanX, 0, leanZ);
     // casco sul collo del modello
-    rider.updateMatrixWorld(true); _neck.copy(st ? NECK.stand : NECK.sit).add(HIP); upper.localToWorld(_neck); body.worldToLocal(_neck);
+    rider.updateMatrixWorld(true); _neck.copy(NECK.sit).lerp(_n2.copy(NECK.stand), k).applyEuler(riderPivot.rotation).add(HIP); upper.localToWorld(_neck); body.worldToLocal(_neck);
     head.position.set(_neck.x, _neck.y + .11, _neck.z + .01); head.scale.setScalar(.88);
   }
+
   for (let i = 0; i < 14; i++) { const z = .13 + i * .051; box(.028, .022, .047, alloy, chassis, -.18, .49, z); }
   const sprocket = mesh(new T.TorusGeometry(.18, .028, 8, 28), alloy, rearWheel); sprocket.rotation.y = Math.PI / 2; sprocket.position.x = -.13;
   for (const side of [-1, 1]) { const stripe = box(.028, .012, .4, accent, chassis, side * .07, 1.285, .8); stripe.rotation.x = .04; box(.052, .13, .055, spring, front, ...F(side * .145, .57, -.85)); }
@@ -1381,7 +1394,7 @@ export function createWorld(canvas) {
   let earsScale = 0;
 
   // Stato dinamico della moto (molle e smorzatori, aggiornato in render).
-  const dyn = { yaw: 0, pitch: 0, pitchV: 0, cf: 0, vf: 0, cr: 0, vr: 0, stand: 0, steer: 0, crashSpin: 0, lastJump: 0, wheelie: 0 };
+  const dyn = { yaw: 0, pitch: 0, pitchV: 0, cf: 0, vf: 0, cr: 0, vr: 0, stand: 0, steer: 0, crashSpin: 0, lastJump: 0, wheelie: 0, fwd: 20, latA: 0, leanV: 0, leanR: 0 };
   let decalKey = '';
   function paintDecal(name, number, bg) {
     const key = name + number + bg; if (key === decalKey) return; decalKey = key;
@@ -2397,7 +2410,7 @@ export function createWorld(canvas) {
     for (const [w, a] of [[G.wr, G.rAxle], [G.wf, G.fAxle]]) { const h = new T.Group(); h.position.set(0, a.y, a.z); body.add(h); add(w, h); wheelsOut.push(h); }
     // pilota seduto in sella
     const ry = riderY0 + fit[3] + .118 - 1.43;
-    const rm = new T.Mesh(riderGlb.sit.geometry, riderMat(jT, pT)); rm.position.set(HIP.x, HIP.y + ry, HIP.z); rm.quaternion.copy(riderGlb.sit.quaternion); rm.scale.copy(riderGlb.sit.scale); body.add(rm);
+    const rm = new T.Mesh(riderGlb.mesh.geometry, riderMat(jT, pT)); rm.position.set(HIP.x, HIP.y + ry, HIP.z); body.add(rm); if (rm.morphTargetInfluences) rm.morphTargetInfluences[0] = .25;
     // casco: copia di quello del giocatore con il colore del compagno, sul collo del modello
     const helm = pmat(r.livery.helmet, .25), acc = pmat(r.livery.accent, .4);
     if (envTex) for (const m of [helm, acc]) { m.envMap = envTex; m.envMapIntensity = .9; }
@@ -2739,14 +2752,23 @@ export function createWorld(canvas) {
     pitch.position.y = wheelieLift;
 
     // Piega e sterzo dalla velocità laterale; colpo di frusta (whip) in volo; sbandata nella caduta.
-    const lean = Math.max(-.48, Math.min(.48, -vx * .15)) + whip * .35 + (crash > 0 ? Math.sin(crash * 25) * crash * .4 : 0);
-    dyn.steer += (Math.max(-.38, Math.min(.38, -vx * .11)) - dyn.steer) * Math.min(1, fdt * 14);
+    // v105.3 · moto vera: il muso punta dove la moto sta andando (velocità laterale rispetto a quella in avanti),
+    // la piega nasce dall'accelerazione laterale (come in curva) e oscilla su una molla, lo sterzo segue la rotazione del muso
+    if (fdt > 0) { const fw = dyn.lastT !== undefined ? (t - dyn.lastT) / fdt : 20; if (fw > 0 && fw < 200) dyn.fwd += (Math.max(8, fw) - dyn.fwd) * Math.min(1, fdt * 3); }
+    dyn.lastT = t;
+    const latV = vx * spacing(), latA = fdt > 0 ? (latV - (dyn.lastLatV ?? latV)) / fdt : 0; dyn.lastLatV = latV;
+    dyn.latA += (latA - dyn.latA) * Math.min(1, fdt * 9);
+    const leanT = Math.max(-.5, Math.min(.5, -(latV * .06 + dyn.latA * .012)));
+    dyn.leanV += ((leanT - dyn.leanR) * 70 - dyn.leanV * 11) * fdt; dyn.leanR += dyn.leanV * fdt;
+    const lean = Math.max(-.55, Math.min(.55, dyn.leanR)) + whip * .35 + (crash > 0 ? Math.sin(crash * 25) * crash * .4 : 0);
+    const velYaw = -Math.atan2(latV, dyn.fwd) * .85;
+    dyn.steer += (Math.max(-.32, Math.min(.32, (velYaw - (dyn.prevVelYaw ?? velYaw)) / Math.max(fdt, .001) * .1 + velYaw * .25)) - dyn.steer) * Math.min(1, fdt * 12); dyn.prevVelYaw = velYaw;
     bike.position.set((s.px - 1) * spacing(), lift + .06 * Math.abs(trail.grade) + noseDown, 0);
     { const gy = height(0, t), air = Math.max(0, bike.position.y - gy); blob.visible = !s.leap || air < 6; blob.position.set(bike.position.x, gy + .035, .02); const k = 1 + air * .35; blob.scale.set(k, 1, k); blobMat.opacity = .5 / (1 + air * .9); }
     // v46 · sul ghiaccio la moto va di traverso (il posteriore scivola) e il pilota controsterza
     // v105.2 · curve vere: la moto punta dove va la pista pochi metri avanti (solo grafica: la posizione la decidi tu)
     bikeTurn += ((curShape && s.state === 'playing' && s.jump <= 0 ? -Math.atan((center(-4.6, t) - center(-3.4, t)) / 1.2) * .75 : 0) - bikeTurn) * Math.min(1, fdt * 5);
-    dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : -vx * .045 + bikeTurn)) - dyn.yaw) * Math.min(1, fdt * 10);
+    dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : velYaw + bikeTurn)) - dyn.yaw) * Math.min(1, fdt * 10);
     // v94 · derapata vera: moto piegata dentro la curva (fino a ~40°), pilota più dritto della moto, gamba interna fuori
     const ranchLeanT = curShape && s.jump <= 0 && crash <= 0 ? Math.max(-.55, Math.min(.55, curShape.bend(t + 6) * .32)) : 0;   // v102.1 · Gusta Ranch: nei tornanti il pilota piega la moto dentro la curva, come su Ice Scrofy
     const iceLeanT = s.ice && s.jump <= 0 && crash <= 0 ? Math.max(-.7, Math.min(.7, dyn.yaw * .85)) : ranchLeanT;
@@ -2763,7 +2785,7 @@ export function createWorld(canvas) {
     const bounce = crash > 0 ? Math.sin((1 - crash) * Math.PI) * .32 : 0;
     upper.position.set(lean * -.08, dyn.stand * .17 - Math.max(0, comp) * .9 + bounce, -dyn.stand * .07 - boostAmount * .015);
     body.rotation.x = -.08 - .3 * dyn.stand - grade * .2 - boostAmount * .05 - (s.gas ? .06 : 0) - dyn.pitch * .45 + crash * .5 + (s.wheelie ? .32 : 0);
-    syncRiderModel(dyn.stand);
+    syncRiderModel(dyn.stand, Math.max(-.22, Math.min(.18, (body.rotation.x + .08 + .3 * dyn.stand) * .45)), Math.max(-.2, Math.min(.2, lean * .25 - dyn.iceLean * .2)));
     body.rotation.z = lean * .35 - dyn.iceLean * .45 - whip * .3 + (crash > 0 ? Math.sin(crash * 20) * crash * .3 : 0);
     head.rotation.y = dyn.steer * .9 + dyn.iceLean * .9;   // lo sguardo va verso l'uscita della curva
     { const inner = dyn.iceLean > 0 ? -1 : 1, deep = Math.min(1, Math.max(0, (Math.abs(dyn.iceLean) - .12) / .3));

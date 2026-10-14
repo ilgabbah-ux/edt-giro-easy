@@ -630,7 +630,7 @@ function steerStep(dt, route) {
   if (st) aimPx = null;
   const maxLat = 4.1 * (1 + (bs.steer || 0)) * (1 + up.tyres * .05) * (touchDevice ? 1.08 : 1) * (1 - route.rough * .18) * (1 - weather.rain * .12) * (has('mule') && route.rough > .4 ? 1.3 : 1);
   const want = st ? st * maxLat : aimPx !== null ? Math.max(-maxLat, Math.min(maxLat, (aimPx - px) * 7.5)) : 0;
-  const acc = (17 - route.rough * 4) * (wet > 0 ? .6 : 1) * (1 + (bs.steer || 0) * .5);
+  const acc = (14 - route.rough * 3.5) * (wet > 0 ? .6 : 1) * (1 + (bs.steer || 0) * .5);
   vx += (want - vx) * Math.min(1, dt * acc);
   px += vx * dt;
   if (barT > 0) px += Math.sin(elapsed * 4.2) * 1.8 * (1 - up.damper * .12) * dt * Math.min(1, barT);   // v84 · dopo la birra la moto balla
