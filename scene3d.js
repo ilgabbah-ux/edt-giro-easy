@@ -2315,7 +2315,7 @@ export function createWorld(canvas) {
       hazardRing(g, .85);
     } else if (type === 'heli') {
       // v103 · elicottero del soccorso alpino che passa sopra la pista
-      const body = new T.Group(); body.position.y = 7.5; g.add(body); g.userData.heli = body;
+      const body = new T.Group(); body.position.y = 4; body.scale.setScalar(1.25); g.add(body); g.userData.heli = body;
       ball(1.3, .8, .75, heliRed, body, 0, 0, 0); ball(.7, .55, .6, heliGlass, body, .7, .15, 0);
       rod([-1, .1, 0], [-3.4, .45, 0], .16, heliRed, body); box(.1, .9, .5, heliWhite, body, -3.4, .7, 0);
       box(2.2, .06, .08, ironMat, body, 0, -.95, .55); box(2.2, .06, .08, ironMat, body, 0, -.95, -.55);
@@ -2922,7 +2922,7 @@ export function createWorld(canvas) {
         for (let i = 0; i < pos.count; i++) pos.setY(i, height(z + pos.getZ(i), t) - h0 + .06);
         pos.needsUpdate = true; for (const [r, rz, ry] of m.userData.stones) { r.position.y = height(z + rz, t) - h0 + .05 + ry; if (r.userData.wake) r.userData.wake.position.y = r.position.y - ry + .05; } }
       if (o.type === 'pigpen' && m.userData.sludge !== !!o.sludge) { m.userData.sludge = !!o.sludge; for (const [r] of m.userData.stones) r.visible = !o.sludge; }   // v103 · ondata di fango della Fogna: senza maiali né staccionata
-      if (m.userData.rotor) { m.userData.rotor.rotation.y = s.roadTime * 40; m.userData.heli.position.x = (o.z - .5) * 6; m.userData.heli.rotation.z = .12; m.userData.heli.position.y = 7.5 + Math.sin(s.roadTime * 2) * .3; }
+      if (m.userData.rotor) { m.userData.rotor.rotation.y = s.roadTime * 40; m.userData.heli.position.x = (o.z - .5) * 6; m.userData.heli.rotation.z = .12; m.userData.heli.position.y = 3.6 + Math.max(0, o.z - .55) * 3 + Math.sin(s.roadTime * 2) * .25; }   // v105.6 · elicottero più basso: si vede anche col telefono in orizzontale, poi sale passando sopra la camera
       if (o.cross) m.rotation.y = o.cross > 0 ? 0 : Math.PI;
       else if (o.type === 'ibex' || o.type === 'chamois' || o.type === 'marmot') m.rotation.y = 0;
       if (o.lean !== undefined && o.type === 'tree') m.rotation.z = o.lean * .3;
