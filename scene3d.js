@@ -156,12 +156,19 @@ export function createWorld(canvas) {
     const o = mesh(g, material); o.castShadow = false; return o;
   }
   const road = strip(dirt), left = strip(grass), right = strip(grass), edges = [strip(verge), strip(verge)];
+  const forkRoads = [strip(dirt), strip(dirt)], forkIsland = strip(grass);   // v103 · i due rami del bivio e l'isola d'erba in mezzo
+  for (const o of [...forkRoads, forkIsland]) o.visible = false;
   let trail = { grade: 0, width: 1, rough: 0, climb: 0, wet: 0 };
   const spacing = () => 2.5 * trail.width;
   let iceMode = false, iceKey = null, groundMaps = null;
   let ranchLook = false;   // v102 · Gusta Ranch nell'Astigiano
   let curveA = 3.8, curveF = .021;   // v97 · curve diverse per la variante della settimana
-  const center = (z, t) => iceMode ? (iceShape(t - z) - iceShape(t) + iceHeading(t) * z) * 2 : ranchLook ? (ranchShape(t - z) - ranchShape(t) + ranchHeading(t) * z) * 2 : Math.sin((t - z) * curveF) * curveA - Math.sin(t * curveF) * curveA + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;   // v88 · sul ghiaccio la vista segue la direzione della pista: si vede solo la curva
+  const baseCenter = (z, t) => iceMode ? (iceShape(t - z) - iceShape(t) + iceHeading(t) * z) * 2 : ranchLook ? (ranchShape(t - z) - ranchShape(t) + ranchHeading(t) * z) * 2 : Math.sin((t - z) * curveF) * curveA - Math.sin(t * curveF) * curveA + trail.rough * (Math.sin((t - z) * .062) - Math.sin(t * .062)) * 2.6;   // v88 · sul ghiaccio la vista segue la direzione della pista: si vede solo la curva
+  // v103 · bivio vero: tra x0 e x1 la strada si divide; g = distanza tra i due rami. Scelto il ramo, la "nostra" strada si sposta da quella parte
+  let forkF = null;
+  const forkGap = x => { const F = forkF; if (!F || x < F.x0 || x > F.x1) return 0; const u = (x - F.x0) / (F.x1 - F.x0), a = Math.min(1, u / .22), b = Math.min(1, (1 - u) / .22); return 22 * a * a * (3 - 2 * a) * b * b * (3 - 2 * b); };
+  const forkShift = (z, t) => forkF && forkF.side ? forkF.side * (forkGap(t - z) - forkGap(t)) / 2 : 0;
+  const center = (z, t) => baseCenter(z, t) + forkShift(z, t);
   // v64 · burrone del Taglio di Angelo: la montagna finisce e il terreno sprofonda (la moto resta alla quota del bordo)
   let canyon = null;
   const CANYON_D = 52, CANYON_DROP = 14;   // profondità del burrone e quanto più in basso si atterra
@@ -239,6 +246,32 @@ export function createWorld(canvas) {
   });
 
   function blend(target, cols, w) { target.setRGB(0, 0, 0); for (let i = 0; i < 4; i++) { target.r += cols[i].r * w[i]; target.g += cols[i].g * w[i]; target.b += cols[i].b * w[i]; } }
+  function forkStrips(t) {
+    const F = forkF, on = !!F && (forkGap(t + 190) > 0 || forkGap(t) > 0 || (t + 190 > F.x0 && t - 14 < F.x1));
+    for (const o of [...forkRoads, forkIsland]) o.visible = on;
+    if (!on) return;
+    const W = 5.15 * trail.width;
+    const fill = (o, side) => {   // side: -1/+1 ramo, 0 isola
+      const a = o.geometry.attributes.position, col = o.geometry.attributes.color;
+      const shortRoad = side !== 0 && side === F.shortSide;
+      for (let i = 0; i <= segments; i++) {
+        const z = 14 - i, x = t - z, g = forkGap(x), c = center(z, t), base = c - (F.side ? F.side * g / 2 : 0), h = height(z, t);
+        const hide = side !== 0 ? (g <= 0 || (F.side && side === F.side)) : g / 2 - W <= 0;
+        for (let j = 0; j <= lanes; j++) {
+          const k = i * (lanes + 1) + j, u = j / lanes;
+          let wx;
+          if (side !== 0) wx = base + side * g / 2 + (-W + 2 * W * u);
+          else { const half = Math.max(0, g / 2 - W + .3); wx = base - half + 2 * half * u; }
+          const w = wx - c;
+          a.setXYZ(k, wx, hide ? h - 30 : h + bank(w, z) + (side ? .05 : .08), z);
+          const tint = shortRoad ? .82 : 1;
+          col.setXYZ(k, tint, tint, shortRoad ? tint * 1.04 : tint);
+        }
+      }
+      a.needsUpdate = true; col.needsUpdate = true; o.geometry.computeVertexNormals();
+    };
+    fill(forkRoads[0], -1); fill(forkRoads[1], 1); fill(forkIsland, 0);
+  }
   function terrain(t) {
     for (const [o, from, to] of [[road, -4.65, 4.65], [left, -70, -5.15], [right, 5.15, 70], [edges[0], -5.15, -4.65], [edges[1], 4.65, 5.15]]) {
       const a = o.geometry.attributes.position, col = o.geometry.attributes.color;
@@ -257,6 +290,7 @@ export function createWorld(canvas) {
       }
       a.needsUpdate = true; col.needsUpdate = true; o.geometry.computeVertexNormals();
     }
+    forkStrips(t);
     for (const m of roadMaps) m.offset.y = (t * m.repeat.y / 200) % 1;
     for (const m of grassMaps) m.offset.y = (t * m.repeat.y / 200) % 1;
     // Colori del terreno per sezione: terra scura di bosco, fango, ocra di pascolo, pietra.
@@ -1570,6 +1604,24 @@ export function createWorld(canvas) {
       const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffd400', transparent: true, opacity: .55, blending: T.AdditiveBlending, depthWrite: false }));
       glow.scale.set(3.2, 1.6, 1); glow.position.set(0, 2.62, .2); g.add(glow);
       for (const sd of [-1, 1]) { const arrow = mesh(new T.ConeGeometry(.18, .4, 4), rampLip, g); arrow.rotation.x = -Math.PI / 2; arrow.position.set(sd * .6, .25, -.5); }
+    } else if (type === 'forkSplit') {
+      // v103 · portale del bivio sopra la pista: a sinistra e a destra i due rami (si sceglie la parte, poi la strada si divide davvero)
+      const c = document.createElement('canvas'); c.width = 1024; c.height = 200; const x = c.getContext('2d');
+      g.userData.paint = shortSide => {
+        for (const [sd, x0] of [[-1, 0], [1, 512]]) {
+          const sh = sd === shortSide; x.fillStyle = sh ? '#c8321f' : '#1f6b34'; x.fillRect(x0, 0, 512, 200);
+          x.fillStyle = '#fff'; x.textAlign = 'center'; x.font = '900 58px Arial';
+          x.fillText((sd < 0 ? '◀ ' : '') + (sh ? 'PIETRAIA' : 'STRADA LUNGA') + (sd > 0 ? ' ▶' : ''), x0 + 256, 88);
+          x.font = '900 36px Arial'; x.fillText(sh ? '⏱ CORTA · DURA' : '🍺 PULITA · BIRRE', x0 + 256, 150);
+        }
+        x.strokeStyle = '#fff'; x.lineWidth = 10; x.strokeRect(6, 6, 1012, 188); x.beginPath(); x.moveTo(512, 0); x.lineTo(512, 200); x.stroke();
+        tx.needsUpdate = true;
+      };
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace;
+      for (const sd of [-1, 1]) box(.18, 4.6, .18, rampWood, g, sd * 5.2, 2.3, 0);
+      box(10.6, .2, .2, rampWood, g, 0, 4.5, 0);
+      const sign = mesh(new T.PlaneGeometry(9.6, 1.9), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); sign.position.set(0, 3.45, .1); sign.castShadow = false; sign.userData.keep = true;
+      for (let i = 0; i < 5; i++) { const r = mesh(rockGeo, rockMat, g); r.scale.setScalar(.35 + (i % 3) * .12); r.position.set(-.8 + i * .4, .1, -2 - i * .9); }   // la punta dell'isola in mezzo
     } else if (type === 'forkShort' || type === 'forkSafe') {
       // v97 · bivio: due cartelli su pali, pietraia corta (rischio) o strada lunga con le birre
       const sh = type === 'forkShort', c = document.createElement('canvas'); c.width = 512; c.height = 200; const x = c.getContext('2d');
@@ -2341,7 +2393,7 @@ export function createWorld(canvas) {
     const live = s.state === 'playing' || s.state === 'paused' || s.state === 'countdown';
     const boostAmount = live ? (s.turbo || 0) : 0;
     trail = routeAt(s.elapsed || 0, t);
-    ranchLook = !!s.ranch; terrain(t); instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook);
+    ranchLook = !!s.ranch; forkF = s.fork || null; terrain(t); instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook);
     weatherNow = s.weather || weatherNow;
     applyWeather(s.weather, s.sight || 0);
     ambient(fdt, t, trail.w, live);
@@ -2456,10 +2508,11 @@ export function createWorld(canvas) {
         if (OBSTACLE_HEIGHT[o.type] !== undefined && !m.userData.refl) { const r = new T.Sprite(reflMat); r.scale.set(1.5, .75, 1); r.position.y = Math.min(2.2, OBSTACLE_HEIGHT[o.type] + .3); r.name = 'fx'; m.add(r); m.userData.refl = r; }
       }
       if (o.type === 'mboard' && m.userData.m !== o.m + (o.rec ? 'r' : '')) m.userData.draw(o.m, o.rec);
+      if (o.type === 'forkSplit' && m.userData.painted !== o.shortSide) { m.userData.painted = o.shortSide; m.userData.paint(o.shortSide); }
       const z = (o.z - .91) * 55;
       let lx = (o.l - 1) * spacing();
       if (o.type === 'coin' && s.magnet > 0 && o.z > .62 && !o.air) lx += ((s.px - 1) * spacing() - lx) * Math.min(1, (o.z - .62) / .29);
-      if (o.type === 'bigLog' || o.type === 'ford' || o.type === 'pigpen' || o.type === 'bigRamp') lx = 0;
+      if (o.type === 'bigLog' || o.type === 'ford' || o.type === 'pigpen' || o.type === 'bigRamp' || o.type === 'forkSplit') lx = 0;
       m.position.set(center(z, t) + lx, height(z, t) + (o.lift || 0), z);
       m.rotation.x = Math.atan(slope(z, t));
       if (m.userData.spin) {

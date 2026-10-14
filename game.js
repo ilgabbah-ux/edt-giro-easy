@@ -979,7 +979,7 @@ function gustaPop(line) {
 }
 
 // ---------- v97 · GIRO SEMPRE DIVERSO: imprevisti, bivi, tratti flow e pietraia, sfida lampo ----------
-let runPlan = null, forkPath = null;
+let runPlan = null, forkPath = null, forkInfo = null;   // v103 · bivio vero: la strada si divide in due rami (sinistra e destra) che poi si ricongiungono
 const FLASH_POOL = [
   { id: 'jumps', text: 'Fai 6 salti', goal: 6, val: () => run.jumps },
   { id: 'combo', text: 'Arriva a combo ×5', goal: 5, val: () => run.maxMult },
@@ -991,7 +991,7 @@ const FLASH_POOL = [
 const FLASH_BEERS = 15;
 function makeRunPlan() {
   const md = P.MODES[mode], plan = { events: [], forks: [], zones: [], flash: null, flashDone: false };
-  forkPath = null; $('flashchip')?.classList.remove('done');
+  forkPath = null; forkInfo = null; $('flashchip')?.classList.remove('done');
   if (md.ice || md.leap || md.slalom) return plan;
   const pool = FLASH_POOL.filter(f => f.id !== 'climbcaps' || layoutSegments().some(g => g.climb > .3));
   plan.flash = pool[Math.floor(rng() * pool.length)];
@@ -1056,11 +1056,12 @@ function spawnEvent(kind) {
   return false;
 }
 function spawnFork() {
-  const shortL = rng() < .5 ? 0 : 2, safeL = 2 - shortL;
+  const shortSide = rng() < .5 ? -1 : 1, t0 = roadTime * 19.5, x0 = t0 + (.91 - .04) * 55, len = 5 / GAME_LENGTH * courseLength(P.MODES[mode].difficulty) * 19.5;
   objects = objects.filter(o => o.z > .3 || o.z < -.4 || o.type === 'coin');
-  objects.push({ l: shortL, z: .04, type: 'forkShort', hit: false }, { l: safeL, z: .04, type: 'forkSafe', hit: false });
-  const side = l => l === 0 ? 'SINISTRA' : 'DESTRA';
-  toast(`🔀 BIVIO! ${side(shortL)}: PIETRAIA CORTA · ${side(safeL)}: STRADA LUNGA CON LE BIRRE`, 'gold');
+  objects.push({ l: 1, z: .04, type: 'forkSplit', shortSide, hit: false });
+  forkInfo = { x0, x1: x0 + len, side: 0, shortSide };
+  const side = d => d < 0 ? 'SINISTRA' : 'DESTRA';
+  toast(`🔀 BIVIO! A ${side(shortSide)} LA PIETRAIA CORTA · A ${side(-shortSide)} LA STRADA LUNGA CON LE BIRRE`, 'gold');
   wave++;
 }
 function takeFork(kind) {
@@ -1091,6 +1092,7 @@ function spawnBeerLine() {
 // pianificazione del giro, chiamata da spawnWave: true = l'ondata l'ha già fatta lei
 function planWave() {
   if (!runPlan) return false;
+  if (forkInfo && roadTime * 19.5 > forkInfo.x1 + 60) forkInfo = null;
   if (forkPath) {
     if (course >= forkPath.until) {
       if (forkPath.kind === 'short') { const jw = courseLength(P.MODES[mode].difficulty) * 19.5 * .045; roadTime += jw / 19.5; for (const r of rivals) r.gap -= jw; score += 300; pop('⏱ PIETRAIA SUPERATA: SEI PIÙ AVANTI! +300', 'gold'); }
@@ -1832,6 +1834,10 @@ function update(dt) {
     if (o.type === 'bar') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeBar(); } continue; }
     if (o.type === 'shortcut') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeShortcut(); return; } continue; }
     if (o.type === 'forkShort' || o.type === 'forkSafe') { if (Math.abs(px - o.l) < .6 && crash <= 0 && !o.collected) takeFork(o.type === 'forkShort' ? 'short' : 'safe'); continue; }
+    if (o.type === 'forkSplit') {   // v103 · al bivio decide da che parte sei: a sinistra o a destra del cartello (al centro tiri dritto sulla strada lunga)
+      o.collected = true; const side = px < .97 ? -1 : px > 1.03 ? 1 : -o.shortSide;
+      if (forkInfo) forkInfo.side = side; takeFork(side === o.shortSide ? 'short' : 'safe'); continue;
+    }
     if (o.type === 'landpad' || o.type === 'mboard' || o.type === 'gevmark' || (o.type === 'boulder' && leap)) continue;   // v64 · i pietroni si valutano all'atterraggio (corsia)
     if (o.type === 'speedpad') {   // v67 · scopa volante di Angelo Potter: più velocità per il salto
       if (Math.abs(px - o.l) < .6) { o.collected = true; leapMul = Math.min(2.2, leapMul + .12); if (turbo <= 0) charge = Math.min(100, charge + 30); A.sfx.turbo(); shake = Math.max(shake, .2); pop('🧹 SCOPA! ' + Math.round(kmh * 1.45 * 1.07) + ' km/h', 'gold'); fxKind = 'trick'; fxSerial++; }
@@ -1990,7 +1996,7 @@ function mudOld() {
 
 function drawState() {
   return ({
-    mode, vigne: !!P.MODES[mode].vigne, ranch: !!P.MODES[mode].ranch, state, lane, px, vx: vx + (barT > 0 ? Math.sin(elapsed * 4.2) * 2.2 * Math.min(1, barT) : 0), jump, lift: curLift(), jumpPhase: jump > 0 ? 1 - jump / jumpDur : 0, elapsed: course,
+    mode, vigne: !!P.MODES[mode].vigne, ranch: !!P.MODES[mode].ranch, fork: forkInfo, state, lane, px, vx: vx + (barT > 0 ? Math.sin(elapsed * 4.2) * 2.2 * Math.min(1, barT) : 0), jump, lift: curLift(), jumpPhase: jump > 0 ? 1 - jump / jumpDur : 0, elapsed: course,
     wheelie: wheelie ? 1 : 0, ears: earsOn(), grappa, water: waterT,
     courseScale: GAME_LENGTH / (courseLength(P.MODES[mode].difficulty) * 19.5), objects, invincible, roadTime, wheelPhase, turbo, combo, fxKind, fxSerial,
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
