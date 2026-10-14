@@ -2093,7 +2093,7 @@ function drawState() {
     courseScale: GAME_LENGTH / (courseLength(P.MODES[mode].difficulty) * 19.5), objects, invincible, roadTime, wheelPhase, turbo, combo, fxKind, fxSerial,
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
     riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
-    livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
+    livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, bikeId: P.currentBike().id, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
     leapPitch: leap && leapState === 2 ? leapPitch : undefined, leapCam: leap && leapState === 2, canyon: leap && canyonX0 !== null ? { x0: canyonX0, len: canyonLen, land: canyonLand } : null,
     gev: gev ? { L: 1 + gevSide * 2.15, z: gevZ, arm: gevArm, t: elapsed } : null,
     ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs, variant: variantOf(mode),

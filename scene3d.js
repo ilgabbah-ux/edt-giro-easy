@@ -1364,7 +1364,7 @@ export function createWorld(canvas) {
     const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(2, 2); t.anisotropy = 4;
     patternCache.set(key, t); return t;
   }
-  function setMap(m, tex, color) { const had = !!m.map; m.map = tex || null; m.color.set(tex ? '#ffffff' : color); if (had !== !!tex) m.needsUpdate = true; }
+  function setMap(m, tex, color) { m.userData.base = color; const had = !!m.map; m.map = tex || null; m.color.set(tex ? '#ffffff' : color); if (had !== !!tex) m.needsUpdate = true; }
   function applyLivery(l) {
     if (!l || l.id === liveryKey) return; liveryKey = l.id;
     setMap(plastic, l.pattern ? patternTex(l.pattern, l.plastic, l.ink || '#111') : null, l.plastic);
@@ -1372,6 +1372,64 @@ export function createWorld(canvas) {
     accent.color.set(l.accent); pantsMat.color.set(l.pants); helmetMat.color.set(l.helmet);
     decalKey = '';
   }
+  // v105 · moto vere: modelli generati (Higgsfield) e sistemati in Blender, una per tipo di moto.
+  // Le ruote restano quelle procedurali (girano e sterzano); il resto della moto procedurale si nasconde.
+  // Le plastiche del modello prendono il colore della livrea.
+  const BIKE_GLB = { edt250: 'enduro', gp125: 'enduro', ts300: 'enduro', mulo450: 'enduro', factory: 'enduro', trial: 'trial', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar' };
+  const glbCache = {}, bikeTint = { value: new T.Color('#ffffff') };
+  let procBike = null, glbNow = null, glbWant = null;
+  function procBikeParts() {
+    if (procBike) return procBike;
+    const skip = new Set([rider, rearWheel, frontWheel]); procBike = [];
+    const walk = o => { for (const c of o.children) { if (skip.has(c) || c.name === 'fx' || c.name === 'sidedecal' || c.userData.glb) continue; if (c.isMesh) procBike.push(c); walk(c); } };
+    walk(pitch); return procBike;
+  }
+  // plastiche: le parti bianche e non metalliche della texture prendono il colore della livrea
+  function tintable(m) {
+    m.onBeforeCompile = sh => {
+      sh.uniforms.uTint = bikeTint;
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uTint;')
+        .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+{ float lo = min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b)), hi = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+  float pm = smoothstep(.3, .5, lo) * (1.0 - smoothstep(.05, .12, (hi - lo) / max(hi, .01) * .5));
+  diffuseColor.rgb = mix(diffuseColor.rgb, uTint * (.35 + .75 * lo), pm); }`);
+    };
+    m.needsUpdate = true;
+  }
+  function setBikeModel(id) {
+    const key = BIKE_GLB[id] || null; glbWant = key;
+    if (key === (glbNow && glbNow.key)) return;
+    if (glbNow) { for (const g of glbNow.parts) g.removeFromParent(); glbNow = null; for (const m of procBikeParts()) m.visible = true; rearWheel.visible = frontWheel.visible = true; customKey = ''; }
+    if (!key) return;
+    const use = g => {
+      if (glbWant !== key) return;
+      const body = g.body.clone(true), wr = new T.Group(), wf = new T.Group();
+      wr.position.set(0, g.rAxle.y, g.rAxle.z); wr.add(g.wr.clone(true)); pitch.add(wr);
+      wf.position.set(0, g.fAxle.y, g.fAxle.z - STEER_Z); wf.add(g.wf.clone(true)); front.add(wf);
+      body.userData.glb = wr.userData.glb = wf.userData.glb = true; procBikeParts(); chassis.add(body);
+      glbNow = { key, parts: [body, wr, wf], wr, wf, r: g.rAxle.y };
+      customKey = '';
+    };
+    if (glbCache[key]) { if (glbCache[key] !== 'loading') use(glbCache[key]); return; }
+    glbCache[key] = 'loading';
+    gltf.load(`img/models/bike_${key}.glb?t=1`, g => {
+      const get = n => g.scene.getObjectByName(n); 
+      g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (!o.material.userData.tint) { o.material.userData.tint = true; tintable(o.material); } } });
+      const wrM = get('wheel_r'), wfM = get('wheel_f'), body = get('bike_body');
+      const rAxle = wrM.position.clone(), fAxle = wfM.position.clone();
+      wrM.position.set(0, 0, 0); wfM.position.set(0, 0, 0); wrM.removeFromParent(); wfM.removeFromParent(); body.removeFromParent();
+      glbCache[key] = { body, wr: wrM, wf: wfM, rAxle, fAxle }; use(glbCache[key]);
+    }, undefined, e => { console.warn('bike glb', e); glbCache[key] = null; });
+  }
+  const riderY0 = rider.position.y;
+  function syncBikeModel() {
+    rider.position.y = riderY0 - (glbNow ? .1 : 0);
+    if (!glbNow) return;
+    for (const m of procBikeParts()) m.visible = false;
+    rearWheel.visible = frontWheel.visible = false;
+    if (plastic.map && plastic.userData.base) bikeTint.value.set(plastic.userData.base); else bikeTint.value.copy(plastic.color);
+  }
+
   // v52 · anteprima della moto nel garage: una piccola scena a parte che gira su sé stessa con livrea e accessori scelti
   function makePreview(cv) {
     if (!cv) return null;
@@ -2514,7 +2572,9 @@ export function createWorld(canvas) {
     setPano(s.mode ?? 0);
     setIce(!!(PRESETS[s.preset ?? 0] || {}).ice);
     applyLivery(s.livery);
+    setBikeModel(s.bikeId);
     applyCustom(s.bikeLook, s.parts, s.livery);
+    syncBikeModel();
     paintDecal(s.riderName || 'EDT', s.riderNumber || 1, s.livery?.jersey || '#fcd326');
     skyUniforms.uTime.value = now / 1000;
 
@@ -2609,6 +2669,7 @@ export function createWorld(canvas) {
     const spin = t / .475;
     frontWheel.rotation.x = -spin;
     rearWheel.rotation.x = -spin - (boostAmount > 2.2 ? (now / 40) : 0);
+    if (glbNow) { glbNow.wf.rotation.x = frontWheel.rotation.x * 1.23; glbNow.wr.rotation.x = rearWheel.rotation.x * 1.23; }
     // Orecchie: spuntano con un "pop", ondeggiano col movimento, si afflosciano con l'acqua.
     ears.visible = !!s.ears || earsScale > .02;
     earsScale += ((s.ears ? 1 : 0) - earsScale) * Math.min(1, fdt * 8);
