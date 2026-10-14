@@ -2836,7 +2836,7 @@ export function createWorld(canvas) {
     { const gy = height(0, t), air = Math.max(0, bike.position.y - gy); blob.visible = !s.leap || air < 6; blob.position.set(bike.position.x, gy + .035, .02); const k = 1 + air * .35; blob.scale.set(k, 1, k); blobMat.opacity = .5 / (1 + air * .9); }
     // v46 · sul ghiaccio la moto va di traverso (il posteriore scivola) e il pilota controsterza
     // v105.2 · curve vere: la moto punta dove va la pista pochi metri avanti (solo grafica: la posizione la decidi tu)
-    bikeTurn += ((curShape && s.state === 'playing' && s.jump <= 0 ? -Math.atan((center(-4.6, t) - center(-3.4, t)) / 1.2) * .75 : 0) - bikeTurn) * Math.min(1, fdt * 5);
+    bikeTurn += ((curShape && s.state === 'playing' && s.jump <= 0 ? -Math.atan((center(-4.6, t) - center(-3.4, t)) / 1.2) * .75 + (s.gas && Math.abs(curShape.bend(t + 3)) > .9 ? curShape.bend(t + 3) * .09 : 0) : 0) - bikeTurn) * Math.min(1, fdt * 5);
     dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : velYaw + bikeTurn)) - dyn.yaw) * Math.min(1, fdt * 10);
     // v94 · derapata vera: moto piegata dentro la curva (fino a ~40°), pilota più dritto della moto, gamba interna fuori
     const ranchLeanT = curShape && s.jump <= 0 && crash <= 0 ? Math.max(-.55, Math.min(.55, curShape.bend(t + 6) * .32)) : 0;   // v102.1 · Gusta Ranch: nei tornanti il pilota piega la moto dentro la curva, come su Ice Scrofy
@@ -3063,7 +3063,11 @@ export function createWorld(canvas) {
     // In verticale (telefono) la telecamera arretra e sale: tre corsie visibili e moto sopra i comandi.
     const portrait = camera.aspect < .8;
     const baseFov = portrait ? 68 : 53;
-    const targetFov = baseFov + trail.climb * 10 + (boostAmount > 0 ? 9 : 0) + trail.down * 6;
+    // v105.4 · sensazione di velocità: più vai forte più la vista si allarga e la moto vibra sullo sterrato
+    const spd = playing ? Math.max(0, Math.min(1.6, s.speed || 1)) : 0;
+    dyn.spdF = (dyn.spdF || 0) + (spd - (dyn.spdF || 0)) * Math.min(1, fdt * 2);
+    const targetFov = baseFov + trail.climb * 10 + (boostAmount > 0 ? 9 : 0) + trail.down * 6 + Math.max(0, dyn.spdF - .6) * 7;
+    if (playing && s.jump <= 0) { const vib = (.006 + trail.rough * .02 + (s.wet > 0 ? .006 : 0)) * dyn.spdF; shakeY += Math.sin(now * .09) * vib + (Math.random() - .5) * vib; shakeX += (Math.random() - .5) * vib * .6; }
     if (Math.abs(camera.fov - targetFov) > .01) { camera.fov += (targetFov - camera.fov) * .07; camera.updateProjectionMatrix(); }
     camX += (bike.position.x * (portrait ? .55 : .30) - camX) * .06;
     // Schermi bassi (telefono in orizzontale): moto più in alto, sopra i comandi.

@@ -121,7 +121,7 @@ let state = 'ready';
 let lane = 1, px = 1, jump = 0, jumpBuffer = 0, elapsed = 0, score = 0, lives = 3, objects = [], spawn = 0, invincible = 0, last = 0, roadTime = 0;
 let toastTime = 0, gas = false, wet = 0, routePhase = -1, countdown = 0, countStep = 0;
 let combo = 0, comboTime = 0, charge = 0, turbo = 0, magnet = 0, wave = 0, prevSafe = 1, lastBigLog = -9, fxSerial = 0, fxKind = 'coin';
-let lean = 0, bodyLean = 0, suspension = 0, springVelocity = 0, wheelPhase = 0, whip = 0, scrubbed = 0, shake = 0, speedNow = 1;
+let speedSm = .4, lean = 0, bodyLean = 0, suspension = 0, springVelocity = 0, wheelPhase = 0, whip = 0, scrubbed = 0, shake = 0, speedNow = 1;
 let timeOfDay = '', heroDir = '', slideT = 0, speedFx = null;
 let rng = Math.random, run = null, announced = new Set(), missionCheck = 0, lastCheer = -10;
 // v16: percorso a distanza con tempo massimo, moto con dinamica laterale, caduta e rallentatore.
@@ -466,7 +466,7 @@ function resetRun() {
   gev = !!P.MODES[mode].gev; gevZ = 9; gevThrow = 4.5; gevArm = gevLost = 0; gevGone = false; gevShout = 0; gevSide = 1; gevFine = 0;
   keyL = keyR = btnL = btnR = false; zoneSteer = padSteer = 0; aimPx = null; lastSteerDir = 0; edgeT = 0;
   throttleSlip = overT = noClimbT = 0; wasSweet = gasLock = false;
-  drift = driftT = driftSum = driftPend = driftChain = driftScore = driftBest = driftCount = snowT = bendNow = driftM = driftMP = 0; corner = { t: 0, in: 0, s: 0, out: 0 }; cornerLine = 0; driftGap = 9; lastWall = -9;
+  drift = driftT = driftSum = driftPend = driftChain = driftScore = driftBest = driftCount = snowT = bendNow = driftM = driftMP = 0; corner = { t: 0, in: 0, s: 0, out: 0 }; cornerLine = 0; speedSm = .4; driftGap = 9; lastWall = -9;
   setupRace();
   if (rule('rush')) timeLimit -= 4;
   if (duel?.racing) { rivals = [duel.entry]; gGhost = null; duel.opp.c = 0; duel.opp.end = null; duel.me = null; duel.ahead = false; Object.assign(duel.entry, { gap: 0, lx: 1, lift: 0 }); }
@@ -1817,10 +1817,15 @@ function update(dt) {
   if (rule('noturbo')) charge = 0;
   if (barT > 0) barT = Math.max(0, barT - dt);
   if (has('sprint') && course > GAME_LENGTH * .75 && !run.sprintCall && state === 'playing') { run.sprintCall = 1; bigCall('SPRINT FINALE!'); toast('💨 ULTIMO QUARTO: +10% VELOCITÀ E PUNTI DOPPI', 'gold'); A.sfx.turbo(); A.sayRider?.('maggie_sprint'); }   // v96
-  const speed = tractMul * paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (cornerLine > 0 ? 1.07 : cornerLine < 0 ? .93 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
+  const speedT = tractMul * paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (cornerLine > 0 ? 1.07 : cornerLine < 0 ? .93 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
   // Discesa: "Campa giù!"
   if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); }
   if (route.down < .15) downAnnounced = false;
+  // v105.4 · la moto ha massa: col gas prende velocità in un attimo ma non di colpo, mollando rallenta gradualmente; i colpi frenano subito
+  if (leap || stun > 0 || waterT > 0 || snowT > 0) speedSm = Math.min(speedSm, speedT);
+  speedSm += (speedT - speedSm) * Math.min(1, dt * (speedT > speedSm ? 2.2 : 3.2));
+  if (leap) speedSm = speedT;
+  const speed = speedSm;
   speedNow = speed;
   if (route.seg !== routePhase) {
     const prevSeg = layoutSegments()[routePhase];
