@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=102.1';
-import { createWorld } from './scene3d.js?v=102.1';
-import * as A from './audio.js?v=102.1';
-import * as P from './progress.js?v=102.1';
-import { createMud } from './mudfx.js?v=102.1';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=102.1';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=102.1';
-import * as C from './classifica.js?v=102.1';
-import * as D from './duel.js?v=102.1';
+import { iceBend, ranchBend, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=102.2';
+import { createWorld } from './scene3d.js?v=102.2';
+import * as A from './audio.js?v=102.2';
+import * as P from './progress.js?v=102.2';
+import { createMud } from './mudfx.js?v=102.2';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=102.2';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=102.2';
+import * as C from './classifica.js?v=102.2';
+import * as D from './duel.js?v=102.2';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=102.1').then(m => {
+import('./piloti.js?v=102.2').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -186,11 +186,28 @@ function tiltApply(raw) {
   const d = tiltRaw - tiltZero, dead = 3, full = 16;   // 3° di zona morta, sterzata piena a 16°
   tiltSteer = Math.abs(d) < dead ? 0 : Math.max(-1, Math.min(1, (d - Math.sign(d) * dead) / (full - dead)));
 }
+// v102.2 · sterzo "a volante" in qualunque posizione: si misura la rotazione del telefono attorno all'asse dello schermo
+// rispetto a come lo tenevi al VIA (quaternioni, niente angoli di Eulero). Così funziona anche sdraiati a letto
+// o col telefono sopra la faccia, dove gamma/beta non cambiano e alpha sì.
+const D2R = Math.PI / 180;
+function oriQuat(a, b, g) {   // W3C: Z(alpha) · X'(beta) · Y''(gamma)
+  const ca = Math.cos(a * D2R / 2), sa = Math.sin(a * D2R / 2), cb = Math.cos(b * D2R / 2), sb = Math.sin(b * D2R / 2), cg = Math.cos(g * D2R / 2), sg = Math.sin(g * D2R / 2);
+  return [ca * cb * cg - sa * sb * sg, ca * sb * cg - sa * cb * sg, ca * cb * sg + sa * sb * cg, ca * sb * sg + sa * cb * cg];   // w, x, y, z
+}
+let tiltQ0 = null;
+function twistDeg(q) {   // rotazione attorno all'asse z del telefono rispetto al riferimento tiltQ0
+  const [w0, x0, y0, z0] = tiltQ0, [w, x, y, z] = q;
+  const rw = w0 * w + x0 * x + y0 * y + z0 * z, rz = w0 * z - z0 * w - x0 * y + y0 * x;   // conj(q0) · q
+  let d = 2 * Math.atan2(rz, rw) / D2R; if (d > 180) d -= 360; if (d < -180) d += 360; return d;
+}
 window.addEventListener('deviceorientation', e => {
   if (e.gamma === null || e.gamma === undefined) return;
   tiltSeen = tiltOriSeen = performance.now();
-  if (!tiltOn) { tiltSteer = 0; tiltRaw = tiltAngle(e) || 0; return; }
-  tiltApply(tiltAngle(e) || 0);
+  const q = oriQuat(e.alpha || 0, e.beta || 0, e.gamma || 0);
+  if (tiltZero === null || !tiltQ0) tiltQ0 = q;
+  const raw = -twistDeg(q);   // a destra = come girare un volante verso destra
+  if (!tiltOn) { tiltSteer = 0; tiltRaw = raw; return; }
+  tiltApply(raw);
 });
 // v65 · riserva: alcuni telefoni non mandano l'orientamento ma solo l'accelerometro (gravità)
 window.addEventListener('devicemotion', e => {
@@ -710,6 +727,7 @@ function goFull() {
   if (!fsOK || inFull()) return;
   try {
     const r = (fsTarget.requestFullscreen || fsTarget.webkitRequestFullscreen).call(fsTarget, { navigationUI: 'hide' });
+    r?.then?.(() => { try { if (touchDevice && screen.orientation?.lock) screen.orientation.lock(screen.orientation.type).catch(() => {}); } catch {} });   // v102.2 · a schermo intero lo schermo non gira più da solo (sdraiati a letto ruotava)
     r?.catch?.(() => {});
   } catch {}
 }
