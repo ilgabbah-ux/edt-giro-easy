@@ -1159,8 +1159,8 @@ export function createWorld(canvas) {
   const head = new T.Group(); head.position.set(...B(0, 2.17, .035)); body.add(head);
   // v72 · casco da cross in scala vera: calotta, mentoniera sporgente, frontino, maschera con elastico
   // v97 · casco da cross modellato in Blender: calotta con mentoniera a becco, frontino nervato, maschera con elastico, grafica nel colore della livrea
-  { const hg = new T.Group(); hg.position.set(0, -.01, .01); head.add(hg);
-    for (const [m, mt] of [['helmet', helmetMat], ['accent', accent], ['black', black], ['lens', lensMat]]) mesh(partGeo('helmet', m), mt, hg); }
+  const helmGroup = new T.Group(); helmGroup.position.set(0, -.01, .01); head.add(helmGroup);
+  { const hg = helmGroup; for (const [m, mt] of [['helmet', helmetMat], ['accent', accent], ['black', black], ['lens', lensMat]]) mesh(partGeo('helmet', m), mt, hg); }
   // v97 · action cam sul casco: cinese, GoPro, Action360 EDT (il top, su un'asticella con due obiettivi)
   const camModels = {};
   { const camBlack = mat('#151515', .4), camGrey = mat('#4a4d50', .5), camLens = new T.MeshStandardMaterial({ color: '#0c1a22', roughness: .05, metalness: .8 }), camGold = mat('#f2c230', .3, .4);
@@ -1237,6 +1237,22 @@ export function createWorld(canvas) {
     stand.visible = false;
     riderGlb = { sit, stand }; customKey = '';
   });
+  // v105 · casco vero (generato con Higgsfield): calotta, frontino e maschera; la calotta prende il colore del casco della livrea
+  const helmTint = { value: new T.Color('#ffffff') };
+  let helmGlb = null;
+  gltf.load('img/models/helmet.glb?t=1', g => {
+    let src = null; g.scene.traverse(o => { if (o.isMesh && !src) src = o; });
+    const geo = src.geometry.clone(); geo.applyMatrix4(src.matrixWorld); geo.rotateY(-Math.PI / 2);   // nel modello il viso guarda verso -x
+    const old = []; helmGroup.traverse(o => { if (o.isMesh) old.push(o); });
+    const tb = new T.Box3(); for (const o of old) { o.geometry.computeBoundingBox(); tb.union(o.geometry.boundingBox); }
+    geo.computeBoundingBox(); const hb = geo.boundingBox, ts = tb.getSize(new T.Vector3()), hs = hb.getSize(new T.Vector3());
+    const k = ts.x / hs.x * 1.05, hc = hb.getCenter(new T.Vector3()), tc = tb.getCenter(new T.Vector3());
+    geo.translate(-hc.x, -hc.y, -hc.z); geo.scale(k, k, k); geo.translate(tc.x, tc.y, tc.z - .01);
+    const m = src.material.clone(); tintable(m, helmTint);
+    const mesh = new T.Mesh(geo, m); mesh.castShadow = true; mesh.userData.helmGlb = true; mesh.userData.keep = true;
+    for (const o of old) o.visible = false;
+    helmGroup.add(mesh); helmGlb = mesh; customKey = '';
+  }, undefined, e => console.warn('helmet glb', e));
   const _neck = new T.Vector3();
   function syncRiderModel(standing) {
     if (!riderGlb) return;
@@ -1469,6 +1485,7 @@ export function createWorld(canvas) {
   const riderY0 = rider.position.y;
   loadBikeGlb('enduro', () => {});   // i compagni usano la moto vera: la carichiamo subito
   function syncBikeModel() {
+    helmTint.value.set(helmetMat.map && helmetMat.userData.base ? helmetMat.userData.base : helmetMat.color);
     if (riderGlb) { if (jerseyMat.map && jerseyMat.userData.base) riderJerseyTint.value.set(jerseyMat.userData.base); else riderJerseyTint.value.copy(jerseyMat.color); riderPantsTint.value.copy(pantsMat.color); }
     const fit = glbNow && BIKE_FIT[glbNow.key];
     rider.position.y = riderY0 + (fit ? (riderGlb ? fit[3] + .118 - 1.43 : fit[3] - 1.24) : 0); rider.position.z = 0;
@@ -2367,7 +2384,7 @@ export function createWorld(canvas) {
   const rivalSpokes = (() => { const g = new T.CylinderGeometry(.01, .01, .58, 3); const gs = []; for (let i = 0; i < 4; i++) { const c = g.clone(); c.rotateX(i * Math.PI / 4); gs.push(c); } return mergeGeometries(gs); })();
   const rivalMats = ['plastic', 'accent', 'jersey', 'pants', 'helmet'];
   // v105 · compagni con moto e pilota veri (stessi modelli del giocatore), ognuno con le sue tinte
-  const rivalGlbReady = () => !!(riderGlb && glbCache.enduro && glbCache.enduro !== 'loading');
+  const rivalGlbReady = () => !!(riderGlb && helmGlb && glbCache.enduro && glbCache.enduro !== 'loading');
   function makeRivalGlb(r) {
     const G = glbCache.enduro, fit = BIKE_FIT.enduro;
     const bT = { value: new T.Color(r.livery.plastic) }, jT = { value: new T.Color(r.livery.jersey) }, pT = { value: new T.Color(r.livery.pants) };
@@ -2386,7 +2403,8 @@ export function createWorld(canvas) {
     if (envTex) for (const m of [helm, acc]) { m.envMap = envTex; m.envMapIntensity = .9; }
     const tb = new T.Group(); tb.position.set(0, 1.42 + ry, .25); tb.rotation.x = -.14; body.add(tb);
     const h = head.clone(true); tb.add(h);
-    h.traverse(o => { if (o.name === 'fx' || o.name === 'fxcam') o.visible = false; if (o.isMesh) { if (o.material === helmetMat) o.material = helm; else if (o.material === accent) o.material = acc; else if (o.material === plastic) o.material = bm(o.material); o.castShadow = false; } });
+    const hT = { value: new T.Color(r.livery.helmet) };
+    h.traverse(o => { if (o.name === 'fx' || o.name === 'fxcam') o.visible = false; if (o.isMesh && o.userData.helmGlb) { o.material = o.material.clone(); tintable(o.material, hT); o.castShadow = false; return; } if (o.isMesh) { if (o.material === helmetMat) o.material = helm; else if (o.material === accent) o.material = acc; else if (o.material === plastic) o.material = bm(o.material); o.castShadow = false; } });
     body.updateMatrixWorld(true);
     const nk = NECK.sit.clone().add(HIP); nk.y += ry; body.localToWorld(nk); tb.worldToLocal(nk);
     h.position.set(nk.x, nk.y + .11, nk.z + .01); h.rotation.set(0, 0, 0); h.scale.setScalar(.88);
