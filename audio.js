@@ -430,7 +430,11 @@ export const STYLES = [
 // v59 · canzoni vere del GaBbAH per quasi tutti i percorsi (il ritmo sintetico resta come riserva finché l'MP3 non è caricato)
 STYLES[14] = { ...STYLES[0] };   // Gusta Ranch
 const SONGS = {
-  0: ['vai-ciccio', 'Vai Ciccio · Il GaBbAH'],
+  0: ['giro-easy', 'Giro Easy · Il GaBbAH'],   // v105.4 · le canzoni della Motovigna 2026
+  4: ['salita-infame', 'Salita Infame · Il GaBbAH'],
+  6: ['brindisi-easy', 'Brindisi Easy · Il GaBbAH'],
+  7: ['vai-ciccio', 'Vai Ciccio · Il GaBbAH'],
+  12: ['bosco-veloce', 'Bosco Veloce · Il GaBbAH'],
   1: ['lenduro-non-e-reato', 'L’enduro non è reato · Il GaBbAH'],
   2: ['angelo-potter', 'Angelo Potter · Il GaBbAH'],
   3: ['enduro-is-not-a-crime', 'Enduro is not a crime · Il GaBbAH'],
