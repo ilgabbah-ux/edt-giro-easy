@@ -16,7 +16,7 @@ const SHEET = 'Punteggi';
 const MODES = 20;           // percorsi 0..19 (9 Ice Scrophy, 10 MotoFogna, 11 Valle Argentera, 12 MontaFiga, 13 Anti-GEV · v57; spazio per quelli futuri)
 const DAILY = 3;
 const ICE = 9;
-const CAP = { 0: 150000, 1: 150000, 2: 60000, 3: 160000, 9: 120000, 10: 170000, 11: 150000, 12: 150000, 13: 160000, 14: 150000 };   // v96 · punteggio massimo credibile per percorso
+const CAP = { 0: 200000, 1: 150000, 2: 60000, 3: 160000, 9: 120000, 10: 210000, 11: 150000, 12: 160000, 13: 230000, 14: 160000, 15: 160000 };   // v102 · rifatti col bot a potenziamenti tutti al massimo (moto, pilota, speciali, pezzi Factory): circa il doppio del suo punteggio migliore   // v96 · punteggio massimo credibile per percorso
 function minvOf_(p) { return Math.max(0, Math.round(Number(p.minv) || 0)); }              // v92 · Ice Scrofy: nel campo tempo ci sono i metri di derapata            // Sfida del giorno: classifica solo del giorno
 const MAX_SCORE = 250000;
 const CUP = [10, 8, 6, 5, 4, 3, 2, 1];
@@ -138,7 +138,7 @@ function doGet(e) {
     // v96 · controlli di buon senso contro i giri truccati: punteggio, tempo, metri e versione devono essere credibili
     const tm = Number(p.time) || 0, vv = Number(p.v) || 0;
     const plausible = vv >= minvOf_(p) && score <= (CAP[mode] || 150000) &&
-      (mode === 2 ? tm <= 400 : mode === ICE ? tm <= 1600 : (p.win !== '1' || tm >= 30));   // v102 · con pietraia, turbo e potenziamenti un giro vero può stare sotto i 38 s (Gabbah 36,7 s su Argentera): soglia a 30 s
+      (mode === 2 ? tm <= 400 : mode === ICE ? tm <= 1600 : (p.win !== '1' || tm >= 22));   // v102 · tempo minimo credibile 22 s: col bot a potenziamenti tutti al massimo il giro più veloce è 30,6 s (Argentera e Frontali); 22 s lascia margine a chi guida meglio del bot, con pietraie, turbo e premi del rifugio
     if (name && score > 0 && score <= MAX_SCORE && mode >= 0 && mode < MODES && plausible) {
       const lock = LockService.getScriptLock();
       lock.waitLock(8000);

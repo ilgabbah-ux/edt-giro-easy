@@ -1,8 +1,8 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=102';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=102.1';
 import * as T from './three.module.min.js';
-import { RIDER_PARTS } from './pilota3d.js?v=102';
+import { RIDER_PARTS } from './pilota3d.js?v=102.1';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
@@ -2165,8 +2165,8 @@ export function createWorld(canvas) {
       m.g.position.set(center(z, t) + lx, height(z, t) + (r.lift || 0) + Math.abs(Math.sin(now / 90 + m.phase)) * .02, z);
       // v96 · sul ghiaccio i compagni seguono la direzione della pista nel punto in cui sono, col muso dentro la curva e piegati verso l'interno
       const rBend = iceMode ? iceBend(t + r.gap) : 0, rHead = iceMode ? -Math.atan((center(z - .6, t) - center(z + .6, t)) / 1.2) : 0;
-      const rYaw = iceMode ? rHead + rBend * .35 - (r.lean || 0) * .12 : -(r.lean || 0) * .05;
-      m.g.rotation.set(0, rYaw, iceMode ? Math.max(-.6, Math.min(.6, rBend * .45)) : Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));   // v94 · anche i compagni piegati in derapata
+      const rYaw = iceMode ? rHead + rBend * .35 - (r.lean || 0) * .12 : ranchLook ? -Math.atan((center(z - .6, t) - center(z + .6, t)) / 1.2) - (r.lean || 0) * .05 : -(r.lean || 0) * .05;   // v102.1 · al Gusta Ranch i compagni seguono i tornanti
+      m.g.rotation.set(0, rYaw, ranchLook ? Math.max(-.5, Math.min(.5, ranchBend(t + r.gap) * .32)) : iceMode ? Math.max(-.6, Math.min(.6, rBend * .45)) : Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));   // v94 · anche i compagni piegati in derapata
       m.pitch.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 160 + m.phase) * .015;
       m.pitch.position.y = 0;
       for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475;
@@ -2395,7 +2395,8 @@ export function createWorld(canvas) {
     // v46 · sul ghiaccio la moto va di traverso (il posteriore scivola) e il pilota controsterza
     dyn.yaw += (((s.ice ? -(s.drift || 0) * .85 : -vx * .045)) - dyn.yaw) * Math.min(1, fdt * 10);
     // v94 · derapata vera: moto piegata dentro la curva (fino a ~40°), pilota più dritto della moto, gamba interna fuori
-    const iceLeanT = s.ice && s.jump <= 0 && crash <= 0 ? Math.max(-.7, Math.min(.7, dyn.yaw * .85)) : 0;
+    const ranchLeanT = ranchLook && s.jump <= 0 && crash <= 0 ? Math.max(-.55, Math.min(.55, ranchBend(t + 6) * .32)) : 0;   // v102.1 · Gusta Ranch: nei tornanti il pilota piega la moto dentro la curva, come su Ice Scrofy
+    const iceLeanT = s.ice && s.jump <= 0 && crash <= 0 ? Math.max(-.7, Math.min(.7, dyn.yaw * .85)) : ranchLeanT;
     dyn.iceLean = (dyn.iceLean || 0) + (iceLeanT - (dyn.iceLean || 0)) * Math.min(1, fdt * 7);
     bike.rotation.z = lean + dyn.iceLean;
     bike.rotation.y = dyn.yaw + whip * .55;
