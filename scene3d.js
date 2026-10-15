@@ -1829,6 +1829,39 @@ export function createWorld(canvas) {
     if (live && Math.random() < .6) emit(J.position.x + (Math.random() - .5), height(z + 2, t) + .2, z + 2.2, (Math.random() - .5) * 2, 1.5 + Math.random() * 2, 3 + Math.random() * 3, .9);
   }
   function hazardRing(g, r) { const ring = mesh(new T.RingGeometry(r, r + .08, 28), ringMat, g); ring.rotation.x = -Math.PI / 2; ring.position.y = .015; ring.castShadow = false; }
+  // v106 · ostacoli veri (generati con Higgsfield): tronchi, animali, elicottero, rotoballe, trattore e gallina.
+  // Il modello sostituisce la versione a blocchi prendendone ingombro e posizione; cartelli, anelli e il Gusta col trattore restano.
+  const OBJ_GLB = { log: ['log'], bigLog: ['biglog'], cow: ['cow'], boar: ['boar'], deer: ['deer'], heli: ['heli'], hay: ['hay'], rollHay: ['hay', 'z'], hen: ['hen'], trincia: ['tractor'] };
+  const objGlb = {};
+  for (const k of new Set(Object.values(OBJ_GLB).map(v => v[0]))) gltf.load(`img/models/obs_${k}.glb?t=1`, gg => {
+    const grp = new T.Group(); const list = []; gg.scene.traverse(o => { if (o.isMesh) list.push(o); });
+    gg.scene.updateMatrixWorld(true);
+    for (const o of list) { const m = new T.Mesh(o.geometry.clone().applyMatrix4(o.matrixWorld), o.material); m.castShadow = true; m.receiveShadow = true; grp.add(m); }
+    const b = new T.Box3().setFromObject(grp); objGlb[k] = { grp, box: b };
+    for (const t of Object.keys(OBJ_GLB)) if (OBJ_GLB[t][0] === k && pools[t]) pools[t].length = 0;   // i prossimi oggetti nascono già col modello vero
+  }, undefined, () => {});
+  const _bx = new T.Box3(), _bm = new T.Matrix4();
+  function glbSwap(g, type) {
+    const spec = OBJ_GLB[type]; const G = spec && objGlb[spec[0]]; if (!G) return;
+    const host = type === 'heli' ? g.userData.heli : type === 'rollHay' ? g.userData.roller : g.userData.inner || g;
+    const keepMats = new Set([ringMat, mulchOrange, goatDark, gustaShirt]);
+    const skip = o => { for (let p = o; p && p !== host; p = p.parent) if (p === g.userData.rotor || (type === 'trincia' && p === g.userData.roller)) return true; return false; };
+    host.updateMatrixWorld(true); const inv = _bm.copy(host.matrixWorld).invert();
+    const box = new T.Box3(); const hide = [];
+    host.traverse(o => { if (!o.isMesh || o.isSprite || o === g.userData.sign || keepMats.has(o.material) || o.material?.isMeshBasicMaterial && type !== 'heli' || skip(o)) return;
+      o.geometry.computeBoundingBox(); _bx.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld).applyMatrix4(inv); box.union(_bx); hide.push(o); });
+    if (!hide.length) return;
+    for (const o of hide) o.removeFromParent();
+    const c = G.grp.clone(); const gs = G.box.getSize(new T.Vector3()), ps = box.getSize(new T.Vector3());
+    if (spec[1] === 'z') c.rotation.y = Math.PI / 2;
+    const k = spec[1] === 'z' ? ps.z / gs.x : type === 'bigLog' ? 1 : ps.x / gs.x;
+    if (type === 'bigLog') c.scale.set(1 / gs.x, ps.y / gs.y, ps.y / gs.y); else c.scale.setScalar(k);
+    const gc = G.box.getCenter(new T.Vector3()), pc = box.getCenter(new T.Vector3());
+    const sy = type === 'bigLog' ? ps.y / gs.y : k;
+    c.position.set(pc.x, box.min.y - G.box.min.y * sy, pc.z);
+    if (spec[1] === 'z') { c.position.x = pc.x - gc.z * k; c.position.z = pc.z + gc.x * k; } else { c.position.x -= gc.x * (type === 'bigLog' ? 1 / gs.x : k); c.position.z -= gc.z * (type === 'bigLog' ? ps.y / gs.y : k); }
+    host.add(c); g.userData.glb = true;
+  }
   function makeObstacle(type) {
     if (pools[type]?.length) return pools[type].pop();
     const g = new T.Group(); g.userData.type = type;
@@ -2332,6 +2365,7 @@ export function createWorld(canvas) {
       const r = mesh(detailedRockGeometry, detailedStone, inner); r.position.y = -.55; r.scale.setScalar(.9);
       hazardRing(g, .62);
     }
+    glbSwap(g, type);
     mergeGroup(g); if (g.userData.inner) mergeGroup(g.userData.inner); if (g.userData.spin) for (const c of g.userData.spin.children) if (c.isGroup) mergeGroup(c); if (g.userData.spin) mergeGroup(g.userData.spin); if (g.userData.roller) mergeGroup(g.userData.roller);
     return g;
   }
