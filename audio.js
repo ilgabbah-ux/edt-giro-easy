@@ -62,6 +62,7 @@ function ensure() {
     noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = noiseBuffer.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    loadRealEngine();
   }
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   return ctx;
@@ -288,6 +289,19 @@ export const sfx = {
 // marce con cambiata (taglio di gas e calo di giri), "bap-bap" in rilascio e fuori giri in volo.
 const FIRE_HZ = 25;          // frequenza di scoppio del buffer a playbackRate 1 (≈3000 giri/min)
 let engineBuf = null;
+// v106.1 · motore vero: monocilindrico 4T registrato (ElevenLabs), in loop, intonato col regime.
+// Se il file non arriva si usa il motore sintetico qui sotto.
+let realEngBuf = null;
+async function loadRealEngine() {
+  try {
+    const res = await fetch('musica/motore.mp3?v=1061'); if (!res.ok) return;
+    const b = await ctx.decodeAudioData(await res.arrayBuffer());
+    // normalizza: picco ≈ .8
+    const d = b.getChannelData(0); let pk = 0; for (let i = 0; i < d.length; i += 7) pk = Math.max(pk, Math.abs(d[i]));
+    if (pk > 0) for (let c = 0; c < b.numberOfChannels; c++) { const x = b.getChannelData(c); for (let i = 0; i < x.length; i++) x[i] *= .8 / pk; }
+    realEngBuf = b;
+  } catch {}
+}
 function makeEngineBuffer() {
   const sr = ctx.sampleRate, cycles = 12, per = Math.round(sr / FIRE_HZ), n = per * cycles;
   const b = ctx.createBuffer(1, n, sr), d = b.getChannelData(0);
@@ -331,23 +345,27 @@ let EP = ENGINE_PROFILES.edt250;
 export function setEngineProfile(id) { EP = ENGINE_PROFILES[id] || ENGINE_PROFILES.edt250; if (engine) { engine.shaper.curve = shaperCurve(EP.k); engine.bark.gain.value = EP.barkG; } }
 export function engineStart() {
   if (!enabled || !ensure() || engine) return;
-  if (!engineBuf) engineBuf = makeEngineBuffer();
+  const real = !!realEngBuf && EP !== ENGINE_PROFILES.electric;
+  if (!real && !engineBuf) engineBuf = makeEngineBuffer();
   const t = ctx.currentTime;
-  const src = ctx.createBufferSource(); src.buffer = engineBuf; src.loop = true; src.playbackRate.value = .5;
+  const src = ctx.createBufferSource(); src.buffer = real ? realEngBuf : engineBuf; src.loop = true; src.playbackRate.value = .5;
+  if (real) { src.loopStart = .06; src.loopEnd = realEngBuf.duration - .06; }
   const drive = ctx.createGain(); drive.gain.value = 1.4;
   const shaper = ctx.createWaveShaper(); shaper.curve = shaperCurve(EP.k); shaper.oversample = '2x';
   const body = ctx.createBiquadFilter(); body.type = 'lowpass'; body.frequency.value = 900; body.Q.value = 1.2;
   const bark = ctx.createBiquadFilter(); bark.type = 'peaking'; bark.frequency.value = EP.bark; bark.gain.value = EP.barkG; bark.Q.value = 1.4;
   const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 38;
   const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(.2, t + .35);
-  src.connect(drive); drive.connect(shaper); shaper.connect(bark); bark.connect(body); body.connect(hp); hp.connect(g); g.connect(duckBus);
+  // registrazione vera: niente distorsione sintetica, solo il colore della moto (bark/body)
+  if (real) src.connect(bark); else { src.connect(drive); drive.connect(shaper); shaper.connect(bark); }
+  bark.connect(body); body.connect(hp); hp.connect(g); g.connect(duckBus);
   // aspirazione + catena: rumore filtrato che sale con i giri
   const nz = ctx.createBufferSource(); nz.buffer = noiseBuffer; nz.loop = true;
   const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1400; nf.Q.value = .9;
   const ng = ctx.createGain(); ng.gain.value = .0;
   nz.connect(nf); nf.connect(ng); ng.connect(g);
   src.start(); nz.start();
-  engine = { src, drive, shaper, body, bark, g, nf, ng, nz, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
+  engine = { src, drive, shaper, body, bark, g, nf, ng, nz, real, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
   engineUpdate(.2, false, false, false);
 }
 export function engineUpdate(speed, gas, turbo, airborne) {
@@ -367,11 +385,12 @@ export function engineUpdate(speed, gas, turbo, airborne) {
   if (speed < .05) target = .5;                     // minimo
   e.rpm += (target - e.rpm) * (airborne ? .08 : .14);
   const load = e.shiftT > 0 ? .35 : (gas || turbo ? 1 : .72) * (airborne ? .6 : 1);
-  e.src.playbackRate.setTargetAtTime(e.rpm * EP.rate, t, .04);
-  e.body.frequency.setTargetAtTime((500 + e.rpm * 900 * load) * EP.body / 900 + (turbo ? 900 : 0), t, .05);
+  // vero: la registrazione è già a medio regime → intervallo di intonazione più stretto (.7 minimo … 1.75 fuori giri)
+  e.src.playbackRate.setTargetAtTime(e.real ? (.5 + e.rpm * .43) * Math.sqrt(EP.rate) : e.rpm * EP.rate, t, .04);
+  e.body.frequency.setTargetAtTime(e.real ? (1400 + e.rpm * 1600 * load) * EP.body / 900 + (turbo ? 1200 : 0) : (500 + e.rpm * 900 * load) * EP.body / 900 + (turbo ? 900 : 0), t, .05);
   e.bark.frequency.setTargetAtTime((110 + e.rpm * 70) * EP.bark / 180, t, .08);
   e.drive.gain.setTargetAtTime((.9 + load * 1.8) * EP.drive, t, .05);
-  e.g.gain.setTargetAtTime((.11 + load * .1) * (e.shiftT > 0 ? .55 : 1), t, .04);
+  e.g.gain.setTargetAtTime((.11 + load * .1) * (e.shiftT > 0 ? .55 : 1) * (e.real ? 1.25 : 1), t, .04);
   e.nf.frequency.setTargetAtTime(900 + e.rpm * 1300, t, .1);
   e.ng.gain.setTargetAtTime((.012 + e.rpm * .018) * EP.nz + (turbo ? .03 : 0), t, .1);
   // rilascio del gas a giri alti: scoppiettii allo scarico
