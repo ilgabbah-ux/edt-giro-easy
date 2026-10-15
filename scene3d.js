@@ -1556,7 +1556,7 @@ export function createWorld(canvas) {
     if (glbNow) { for (const g of glbNow.parts) g.removeFromParent(); glbNow = null; for (const m of procBikeParts()) m.visible = true; rearWheel.visible = frontWheel.visible = true; customKey = ''; }
     if (!key) return;
     const use = g => {
-      if (glbWant !== key) return;
+      if (glbWant !== key || (glbNow && glbNow.key === key)) return;   // v105.8 · una moto sola anche se la richiesta arriva più volte mentre carica
       const body = g.body.clone(true), wr = new T.Group(), wf = new T.Group();
       wr.position.set(0, g.rAxle.y, g.rAxle.z); wr.add(g.wr.clone(true)); pitch.add(wr);
       wf.position.set(0, g.fAxle.y, g.fAxle.z - STEER_Z); wf.add(g.wf.clone(true)); front.add(wf);
