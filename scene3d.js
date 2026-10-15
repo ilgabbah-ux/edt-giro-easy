@@ -1833,10 +1833,13 @@ export function createWorld(canvas) {
   // Il modello sostituisce la versione a blocchi prendendone ingombro e posizione; cartelli, anelli e il Gusta col trattore restano.
   const OBJ_GLB = { log: ['log'], bigLog: ['biglog'], cow: ['cow'], boar: ['boar'], deer: ['deer'], heli: ['heli'], hay: ['hay'], rollHay: ['hay', 'z'], hen: ['hen'], trincia: ['tractor'] };
   const objGlb = {};
+  const OBJ_BASE = { log: [0, 0, Math.PI / 2], biglog: [0, Math.PI / 2, 0], deer: [0, Math.PI / 2, 0], hen: [0, Math.PI / 2, 0], hay: [0, Math.PI / 2, 0], tractor: [0, Math.PI, 0] };
   for (const k of new Set(Object.values(OBJ_GLB).map(v => v[0]))) gltf.load(`img/models/obs_${k}.glb?t=1`, gg => {
     const grp = new T.Group(); const list = []; gg.scene.traverse(o => { if (o.isMesh) list.push(o); });
     gg.scene.updateMatrixWorld(true);
-    for (const o of list) { const m = new T.Mesh(o.geometry.clone().applyMatrix4(o.matrixWorld), o.material); m.castShadow = true; m.receiveShadow = true; grp.add(m); }
+    const base = OBJ_BASE[k] ? new T.Matrix4().makeRotationFromEuler(new T.Euler(...OBJ_BASE[k])) : null;   // modelli girati: lato lungo su x, muso verso +x
+    for (const o of list) { const geo = o.geometry.clone().applyMatrix4(o.matrixWorld); if (base) geo.applyMatrix4(base); if (k !== 'heli' && k !== 'tractor' && o.material.metalness !== undefined) { o.material.metalness = 0; o.material.metalnessMap = null; o.material.needsUpdate = true; }   // legno, fieno e animali non sono metallo: niente riflessi scuri
+      const m = new T.Mesh(geo, o.material); m.castShadow = true; m.receiveShadow = true; grp.add(m); }
     const b = new T.Box3().setFromObject(grp); objGlb[k] = { grp, box: b };
     for (const t of Object.keys(OBJ_GLB)) if (OBJ_GLB[t][0] === k && pools[t]) pools[t].length = 0;   // i prossimi oggetti nascono già col modello vero
   }, undefined, () => {});
@@ -1863,7 +1866,7 @@ export function createWorld(canvas) {
     host.add(c); g.userData.glb = true;
   }
   function makeObstacle(type) {
-    if (pools[type]?.length) return pools[type].pop();
+    while (pools[type]?.length) { const pg = pools[type].pop(); if (pg.userData.glb || !OBJ_GLB[type] || !objGlb[OBJ_GLB[type][0]]) return pg; }   // v106 · i vecchi a blocchi non si riusano più quando c'è il modello vero
     const g = new T.Group(); g.userData.type = type;
     if (type === 'rock') {
       mesh(detailedRockGeometry, detailedStone, g); hazardRing(g, .66);
