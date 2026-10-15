@@ -2533,8 +2533,10 @@ export function createWorld(canvas) {
     h.traverse(o => { if (o.name === 'fx' || o.name === 'fxcam') o.visible = false; if (o.isMesh && o.userData.helmGlb) { o.material = o.material.clone(); tintable(o.material, hT); o.castShadow = false; return; } if (o.isMesh) { if (o.material === helmetMat) o.material = helm; else if (o.material === accent) o.material = acc; else if (o.material === plastic) o.material = bm(o.material); o.castShadow = false; } });
     body.updateMatrixWorld(true);
     const nk = NECK.sit.clone().add(HIP); nk.y += ry; body.localToWorld(nk); tb.worldToLocal(nk);
-    h.position.set(nk.x, nk.y + .11, nk.z + .01); h.rotation.set(0, 0, 0); h.scale.setScalar(.88);
-    return finishRival(r, root, body, wheelsOut, false);
+    h.position.set(nk.x, nk.y + .095, nk.z + .015); h.rotation.set(0, 0, 0); h.scale.setScalar(.8);
+    // v106.1 · pilota del compagno su un perno al bacino: si piega, ondeggia e ammortizza mentre guida
+    const piv = new T.Group(); piv.position.set(HIP.x, HIP.y + ry, HIP.z); body.add(piv); body.updateMatrixWorld(true); piv.attach(rm); piv.attach(tb);
+    const md = finishRival(r, root, body, wheelsOut, false); md.piv = piv; md.pivY = piv.position.y; return md;
   }
   function makeRival(r) {
     if (rivalGlbReady()) return makeRivalGlb(r);
@@ -2645,6 +2647,9 @@ export function createWorld(canvas) {
       m.pitch.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 160 + m.phase) * .015;
       m.pitch.position.y = 0;
       for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475 * (m.proc ? 1 : 1.23);
+      if (m.piv) { const ph = now / 1000 + m.phase, bump = Math.abs(Math.sin(now / 85 + m.phase * 3)) * .025;   // v106.1 · compagni vivi: busto avanti e indietro, piega nelle curve, ammortizza
+        m.piv.rotation.set(-.12 - .1 * Math.sin(ph * 1.7) - bump * 2, 0, Math.max(-.3, Math.min(.3, -(r.lean || 0) * .22 + (curShape ? curShape.bend(t + r.gap) * .12 : 0))));
+        m.piv.position.y = m.pivY - bump + Math.max(0, Math.sin(ph * .9)) * .06; }
       m.tag.visible = z > -60;
       // terra dalla ruota dietro
       if (live && !m.ghost && Math.random() < .5) emit(m.g.position.x + (Math.random() - .5) * .3, height(z, t) + .25, z + 1.1, (Math.random() - .5) * 1.5, 2 + Math.random() * 2.2, 4 + Math.random() * 3, .6 + Math.random() * .6);
