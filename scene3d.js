@@ -1,6 +1,7 @@
 // EDT Giro Easy · v18 — mondo 3D (Three.js locale)
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { GLTFLoader } from './GLTFLoader.js';
+import { DRACOLoader } from './DRACOLoader.js';
 import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=106';
 import * as T from './three.module.min.js';
 import { RIDER_PARTS } from './pilota3d.js?v=106';
@@ -466,6 +467,7 @@ export function createWorld(canvas) {
 
   // v105 · modelli veri (Poly Haven, CC0) alleggeriti in Blender: rocce col muschio e albero da foto
   const gltf = new GLTFLoader();
+  { const dl = new DRACOLoader(); dl.setDecoderPath('draco/'); gltf.setDRACOLoader(dl); }   // v106.1 · modelli compressi (circa 4 volte più leggeri)
   let rockVar = null;
   gltf.load('img/models/rock_moss_set_01.glb', g => {
     const list = []; g.scene.traverse(o => { if (o.isMesh) list.push(o); });
