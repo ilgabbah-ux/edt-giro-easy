@@ -184,7 +184,10 @@ function tiltApply(raw) {
   tiltRaw = raw;
   if (tiltZero === null) tiltZero = tiltRaw;
   const d = tiltRaw - tiltZero, dead = 3, full = 16;   // 3° di zona morta, sterzata piena a 16°
-  tiltSteer = Math.abs(d) < dead ? 0 : Math.max(-1, Math.min(1, (d - Math.sign(d) * dead) / (full - dead)));
+  // v106.2 · curva più dolce al centro (correzioni fini precise) e filtro sul tremolio del sensore
+  const lin = Math.abs(d) < dead ? 0 : Math.max(-1, Math.min(1, (d - Math.sign(d) * dead) / (full - dead)));
+  const tgt = Math.sign(lin) * Math.pow(Math.abs(lin), 1.35);
+  tiltSteer = Math.abs(tgt) < .02 ? 0 : tiltSteer + (tgt - tiltSteer) * .45;
 }
 // v102.2 · sterzo "a volante" in qualunque posizione: si misura la rotazione del telefono attorno all'asse dello schermo
 // rispetto a come lo tenevi al VIA (quaternioni, niente angoli di Eulero). Così funziona anche sdraiati a letto
@@ -630,7 +633,8 @@ function steerStep(dt, route) {
   const st = steerNow();
   if (st) aimPx = null;
   const maxLat = 4.1 * (1 + (bs.steer || 0)) * (1 + up.tyres * .05) * (touchDevice ? 1.08 : 1) * (1 - route.rough * .18) * (1 - weather.rain * .12) * (has('mule') && route.rough > .4 ? 1.3 : 1);
-  const want = st ? st * maxLat : aimPx !== null ? Math.max(-maxLat, Math.min(maxLat, (aimPx - px) * 7.5)) : 0;
+  // v106.2 · senza comandi la moto si assesta piano al centro della corsia più vicina (niente più "a metà" tra due corsie)
+  const want = st ? st * maxLat : aimPx !== null ? Math.max(-maxLat, Math.min(maxLat, (aimPx - px) * 7.5)) : (Math.round(Math.max(0, Math.min(2, px))) - px) * 2.6;
   const acc = (14 - route.rough * 3.5) * (wet > 0 ? .6 : 1) * (1 + (bs.steer || 0) * .5);
   vx += (want - vx) * Math.min(1, dt * acc);
   px += vx * dt;
@@ -940,6 +944,12 @@ function spawnIceWave() {
   let safe = Math.floor(rng() * 3);
   if (safe === prevSafe && rng() < .5) safe = (safe + 1 + Math.floor(rng() * 2)) % 3;
   prevSafe = safe;
+  // v106.2 · ogni tanto una fila di tre porte che attraversa la pista: prese tutte di traverso valgono un premio grosso
+  if (wave > 2 && wave - (run.gateSeqW ?? -9) > 3 && rng() < .3) {
+    run.gateSeqW = wave; const dir = rng() < .5 ? 1 : -1, id = wave;
+    for (let i = 0; i < 3; i++) add(dir > 0 ? i : 2 - i, .08 - i * .26, 'gate', { seq: id });
+    prevSafe = dir > 0 ? 2 : 0; toast('⛳ SLALOM DI PORTE: PRENDILE TUTTE E 3 DI TRAVERSO', 'blue'); wave++; return;
+  }
   if (wave > 0 && rng() < .55) add(safe, .08, 'gate');
   for (let i = 0; i < 3; i++) add(safe, (wave > 0 && i === 0 ? .0 : .08) - i * .1, i === 1 && wave > 3 && lives < maxLives && rng() < .08 ? 'helmet' : 'coin');
   // v88 · niente ostacoli: sul ghiaccio si derapa e basta (il pericolo è il muro di neve nei curvoni)
@@ -1134,7 +1144,7 @@ function spawnEvent(kind) {
 }
 function spawnFork(ss) {
   const shortSide = ss || (rng() < .5 ? -1 : 1), t0 = roadTime * 19.5, x0 = t0 + (.91 - .04) * 55, len = 5 / GAME_LENGTH * courseLength(P.MODES[mode].difficulty) * 19.5;
-  objects = objects.filter(o => o.z > .3 || o.z < -.4 || o.type === 'coin' || o.type === 'goldMug');
+  objects = objects.filter(o => o.z > .3 || o.type === 'coin' || o.type === 'goldMug');   // v106.2 · prima del bivio: niente ostacoli fino al cartello
   objects.push({ l: 1, z: .04, type: 'forkSplit', shortSide, hit: false });
   forkInfo = { x0, x1: x0 + len, side: 0, shortSide };
   const side = d => d < 0 ? 'SINISTRA' : 'DESTRA';
@@ -1210,7 +1220,16 @@ function checkFlash() {
   if (v >= f.goal) { runPlan.flashDone = true; run.caps += FLASH_BEERS; run.flash = f.text; flash('gold'); A.sfx.perfect?.(); bigCall('🎯 SFIDA LAMPO!'); toast(`🎯 SFIDA LAMPO FATTA: ${f.text.toUpperCase()} · +${FLASH_BEERS} 🍺`, 'gold'); if (ch) ch.classList.add('done'); }
 }
 function duelNoPlan() { return false; }
+// v106.2 · gli ostacoli compaiono più lontano (≈63 m invece di ≈45 m): mezzo secondo in più per vederli e decidere.
+// Le distanze tra loro non cambiano; restano dove sono i cartelli legati al paesaggio (bivio) e le cose lanciate.
+const Z_AHEAD = .32, Z_FIXED = new Set(['forkSplit', 'forkShort', 'forkSafe', 'heli', 'gevmark', 'landpad', 'mboard', 'bigRamp', 'speedpad']);
 function spawnWave() {
+  const before = new Set(objects);
+  spawnWaveCore();
+  if (leap) return;
+  for (const o of objects) if (!before.has(o) && !o.fly && !o.of && !Z_FIXED.has(o.type)) o.z -= Z_AHEAD;
+}
+function spawnWaveCore() {
   if (leap) return spawnLeapWave();
   if (P.MODES[mode].ranch && spawnRanchSpecial()) return;
   if (ice) return spawnIceWave();
@@ -1601,6 +1620,9 @@ function iceStep(dt) {
   const vxT = (drift + bendNow * .45) * lat;
   vx += (vxT - vx) * Math.min(1, dt * (2.1 + grip * 2.2));
   px += vx * dt;
+  // v106.2 · cuscino di neve: vicino al bordo la neve frena e rimanda verso il centro (il muro vero arriva solo se insisti)
+  { const edge = px < -.16 ? px + .16 : px > 2.16 ? px - 2.16 : 0;
+    if (edge) { vx -= edge * 20 * dt; vx *= 1 - Math.min(.5, 1.6 * dt); snowT = Math.max(snowT, .12); throttleSlip *= 1 - Math.min(.5, 2 * dt);   /* nella neve morbida niente punti derapata */ if (elapsed - lastWall > 1.2 && elapsed - (run.edgeWarn ?? -9) > 1.6) { run.edgeWarn = elapsed; pop('❄ BORDO! CONTROSTERZA', 'small'); if (touchDevice && navigator.vibrate) try { navigator.vibrate(10); } catch {} } } }
   scrubCheck(Math.abs(st) > .3 ? Math.sign(st) : 0);
   // muro di neve ai bordi: si rimbalza, si rallenta e la derapata va persa
   if (px < -.42 || px > 2.42) {
@@ -1609,7 +1631,7 @@ function iceStep(dt) {
   }
   // testacoda: troppo di traverso troppo a lungo
   if (Math.abs(drift) > .88 + grip * .06 + up.damper * .03 + Math.max(0, Math.abs(bendNow) - .8) * .35 && jump <= 0) overT += dt; else overT = Math.max(0, overT - dt * 2);
-  if (overT > .45) {
+  if (overT > .62) {   // v106.2 · un filo più di margine prima del testacoda (il pulsante avvisa: TROPPO! MOLLA)
     overT = 0; endDrift(false); throttleSlip = 0; drift *= .2; stun = .6; snowT = .4; shake = Math.max(shake, .6);
     fxKind = 'snow'; fxSerial++; A.sfx.hit(); toast('🌀 TESTACODA! MOLLA UN PO’ IL GAS', 'red'); mistake();
     if (navigator.vibrate) try { navigator.vibrate([30, 40, 30]); } catch {}
@@ -1619,7 +1641,9 @@ function iceStep(dt) {
   if (active) {
     if (driftT === 0) A.sfx.scrub();
     driftT += dt; driftSum += q * dt; if (q >= .3) driftMP += dt * kmh * 1.45 / 3.6;   // contano solo i metri fatti davvero di traverso (e solo se la derapata va a buon fine)
-    driftPend += dt * Math.min(q, .7) * 260 * speedNow * driftMult() * (1 + (bs.drift || 0) * .3) * (sweet ? 1.25 : q > .7 ? .7 : 1);
+    const uTurn = Math.abs(bendNow) > 1.2;   // v106.2 · nei tornanti a U la derapata vale una volta e mezza
+    if (uTurn && elapsed - (run.uZoneAt ?? -9) > 4) { run.uZoneAt = elapsed; pop('🔥 TORNANTE ×1,5', 'gold'); }
+    driftPend += dt * Math.min(q, .7) * 260 * speedNow * driftMult() * (1 + (bs.drift || 0) * .3) * (sweet ? 1.25 : q > .7 ? .7 : 1) * (uTurn ? 1.5 : 1);
     driftGap = 0;
     if (sweet && !wasSweet && touchDevice && navigator.vibrate) try { navigator.vibrate(6); } catch {}
   } else {
@@ -1938,6 +1962,7 @@ function update(dt) {
     if (o.type === 'gate') {
       if (Math.abs(px - o.l) < .75 && crash <= 0) {
         o.collected = true;
+        if (driftT > 0 && Math.abs(drift) > .22 && o.seq) { const k = run.gateSeq?.id === o.seq ? run.gateSeq.n + 1 : 1; run.gateSeq = { id: o.seq, n: k }; if (k === 3) { driftPend += 900 * driftMult(); bigCall('SLALOM DI PORTE PERFETTO!'); flash('gold'); } }
         if (driftT > 0 && Math.abs(drift) > .22) { driftPend += 260 * driftMult(); A.sfx.perfect(); pop('PORTA IN TRAVERSO! ❄', 'gold'); fxKind = 'trick'; fxSerial++; if (touchDevice && navigator.vibrate) try { navigator.vibrate([8, 30, 8]); } catch {} }
         else { score += 50; A.sfx.near(); pop('PORTA +50 · PASSALA DI TRAVERSO!', 'small'); }
       }
