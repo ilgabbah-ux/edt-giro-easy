@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=106.1';
-import { createWorld } from './scene3d.js?v=106.1';
-import * as A from './audio.js?v=106.1';
-import * as P from './progress.js?v=106.1';
-import { createMud } from './mudfx.js?v=106.1';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=106.1';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=106.1';
-import * as C from './classifica.js?v=106.1';
-import * as D from './duel.js?v=106.1';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=106.2';
+import { createWorld } from './scene3d.js?v=106.2';
+import * as A from './audio.js?v=106.2';
+import * as P from './progress.js?v=106.2';
+import { createMud } from './mudfx.js?v=106.2';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=106.2';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=106.2';
+import * as C from './classifica.js?v=106.2';
+import * as D from './duel.js?v=106.2';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=106.1').then(m => {
+import('./piloti.js?v=106.2').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -171,6 +171,17 @@ const TAP_MS = 190;   // tocco breve = una corsia intera (come prima); tenuto = 
 let keyL = false, keyR = false, btnL = false, btnR = false, zoneSteer = 0, padSteer = 0, aimPx = null, lastSteerDir = 0, edgeT = 0, lastEdgeMsg = -9;
 const steerNow = () => Math.max(-1, Math.min(1, (keyR ? 1 : 0) - (keyL ? 1 : 0) + (btnR ? 1 : 0) - (btnL ? 1 : 0) + zoneSteer + padSteer + tiltSteer));
 // v62 · sterzo inclinando il telefono (giroscopio): si attiva dal menu; lo "zero" è la posizione del telefono al via.
+// v106.2 · vibrazione del telefono mentre giochi (Android: l'iPhone non la permette alle pagine web). Si spegne dal menu.
+let hapticOn = true, lastBuzz = 0, rumbleT = 0;
+try { hapticOn = localStorage.getItem('edt-vibra') !== '0'; } catch {}
+function buzz(p) {
+  if (!hapticOn || !navigator.vibrate) return false;
+  const now = performance.now();
+  // impulsi troppo corti molti telefoni li ignorano: minimo 22 ms e un filo più forti
+  const pat = (Array.isArray(p) ? p : [p]).map((v, i) => i % 2 ? v : Math.max(22, Math.round(v * 1.4)));
+  if (pat.length === 1 && pat[0] < 60 && now - lastBuzz < 70) return false;
+  lastBuzz = now; try { return navigator.vibrate(pat); } catch { return false; }
+}
 let tiltOn = false, tiltSteer = 0, tiltZero = null, tiltRaw = 0;
 try { const st = localStorage.getItem('edt-tilt'); tiltOn = st === '1' || (st === null && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)); } catch {}   // v101.1 · sul telefono si sterza inclinando di serie (chi l'ha spento resta senza)
 function tiltAngle(e) {
@@ -432,7 +443,7 @@ function boost() {
   if (state !== 'playing' || charge < 100 || turbo > 0 || rule('noturbo')) return;
   charge = 0; turbo = turboMax(); run.turbos++;
   toast('DAI GAS CICCIO!'); voice('Dai gas Ciccio!');
-  A.sfx.turbo(); flash('gold'); shake = .5;
+  A.sfx.turbo(); buzz([40, 40, 70]); flash('gold'); shake = .5;
   hud();
 }
 
@@ -510,7 +521,7 @@ function go() {
   if (holePre) setTimeout(() => { if (state === 'playing' && !holeDone) holeshot(); }, 0);
   $('countdown').className = 'countdown go';
   $('trackintro').className = 'trackintro out';
-  $('countdown').textContent = 'VIA!';
+  $('countdown').textContent = 'VIA!'; buzz(90);
   setTimeout(() => { if (state !== 'countdown') $('countdown').className = 'countdown'; }, 700);
   toast('VAI CICCIO!'); if (!riderLine('start')) voice('Vai Ciccio!', true);
   if (startBoosts.length) setTimeout(() => toast('🎁 ' + startBoosts.join(' · '), 'green'), 1500);
@@ -562,6 +573,7 @@ function finish(win, reason = '') {
   $('banner').classList.remove('show');
   renderResult(win, res, reason, timeBonus);
   if (gev) A.sfx.whistle();
+  if (win) buzz([60, 70, 60, 70, 160]);
   if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => { if (!riderLine('win')) voice('Sììì, così si fa!', true); }, 900); }
   else A.sfx.lose();
   renderSide();
@@ -648,21 +660,21 @@ function steerStep(dt, route) {
   // bordi della pista: la fettuccia ti tiene dentro e rallenta un attimo
   if (px < -.45 || px > 2.45) {
     px = Math.max(-.45, Math.min(2.45, px)); vx = 0; edgeT = .35;
-    if (elapsed - lastEdgeMsg > 3) { lastEdgeMsg = elapsed; pop('FETTUCCIA!', 'small'); if (touchDevice && navigator.vibrate) try { navigator.vibrate(15); } catch {} }
+    if (elapsed - lastEdgeMsg > 3) { lastEdgeMsg = elapsed; pop('FETTUCCIA!', 'small'); if (touchDevice && navigator.vibrate) try { buzz(15); } catch {} }
   }
   edgeT = Math.max(0, edgeT - dt);
 }
 function takeoff() {
   const sup = grappa > 0;
   jumpDur = (sup ? SUPER_JUMP.duration : JUMP_DURATION) * (1 + up.susp * .03); jumpH = (sup ? SUPER_JUMP.height : JUMP_HEIGHT) * (1 + up.susp * .05) * (has('spring') ? 1.15 : 1) * (1 + (bs.jump || 0)); if (has('spring')) jumpDur *= 1.1;
-  jump = jumpDur; scrubbed = 0; A.sfx.jump();
+  jump = jumpDur; scrubbed = 0; A.sfx.jump(); buzz(18);
   if (wheelie) endWheelie(false);
 }
 // v78 · PARTENZA A RAZZO: tocca SALTA proprio al VIA (da mezzo secondo prima a mezzo secondo dopo) = turbo e +150
 let holePre = false, holeDone = false;
 function holeshot() {
   holeDone = true; holePre = false; turbo = Math.max(turbo, 2.2 + up.clutch * .3); score += 150; run.holeshot = 1;
-  A.sfx.turbo(); shake = Math.max(shake, .25); bigCall('PARTENZA A RAZZO!'); pop('+150 PARTENZA', 'gold'); fxKind = 'trick'; fxSerial++;
+  A.sfx.turbo(); buzz([40, 40, 70]); shake = Math.max(shake, .25); bigCall('PARTENZA A RAZZO!'); pop('+150 PARTENZA', 'gold'); fxKind = 'trick'; fxSerial++;
 }
 function hop() {
   if (state === 'countdown') { if (countdown < .5 + up.clutch * .1 && !holeDone) holePre = true; return; }
@@ -1401,7 +1413,7 @@ function leapStep(dt) {
     if (upright && clear && crash <= 0) {
       leapBest = m; run.leap = m;
       reward(Math.round(m * 120) + (leapPerfect ? 1500 : 0), `IN PIEDI! ${m.toFixed(1).replace('.', ',')} m`, 'perfect');
-      shake = Math.min(1.4, .45 + m / 70); A.sfx.land(); mud(Math.min(.8, .2 + m / 150)); if (navigator.vibrate) try { navigator.vibrate(Math.min(120, 30 + m)); } catch {}   // v86 · più lungo il volo, più botta all'atterraggio
+      shake = Math.min(1.4, .45 + m / 70); A.sfx.land(); mud(Math.min(.8, .2 + m / 150)); if (navigator.vibrate) try { buzz(Math.min(120, 30 + m)); } catch {}   // v86 · più lungo il volo, più botta all'atterraggio
       bigCall(`${m.toFixed(1).replace('.', ',')} METRI!`); A.sfx.perfect(); flash('gold');
     } else {
       run.leap = 0;
@@ -1622,19 +1634,19 @@ function iceStep(dt) {
   px += vx * dt;
   // v106.2 · cuscino di neve: vicino al bordo la neve frena e rimanda verso il centro (il muro vero arriva solo se insisti)
   { const edge = px < -.16 ? px + .16 : px > 2.16 ? px - 2.16 : 0;
-    if (edge) { vx -= edge * 20 * dt; vx *= 1 - Math.min(.5, 1.6 * dt); snowT = Math.max(snowT, .12); throttleSlip *= 1 - Math.min(.5, 2 * dt);   /* nella neve morbida niente punti derapata */ if (elapsed - lastWall > 1.2 && elapsed - (run.edgeWarn ?? -9) > 1.6) { run.edgeWarn = elapsed; pop('❄ BORDO! CONTROSTERZA', 'small'); if (touchDevice && navigator.vibrate) try { navigator.vibrate(10); } catch {} } } }
+    if (edge) { vx -= edge * 20 * dt; vx *= 1 - Math.min(.5, 1.6 * dt); snowT = Math.max(snowT, .12); throttleSlip *= 1 - Math.min(.5, 2 * dt);   /* nella neve morbida niente punti derapata */ if (elapsed - lastWall > 1.2 && elapsed - (run.edgeWarn ?? -9) > 1.6) { run.edgeWarn = elapsed; pop('❄ BORDO! CONTROSTERZA', 'small'); if (touchDevice && navigator.vibrate) try { buzz(10); } catch {} } } }
   scrubCheck(Math.abs(st) > .3 ? Math.sign(st) : 0);
   // muro di neve ai bordi: si rimbalza, si rallenta e la derapata va persa
   if (px < -.42 || px > 2.42) {
     px = Math.max(-.42, Math.min(2.42, px)); vx = -vx * .25; snowT = .7 * (1 - up.damper * .08); throttleSlip *= .3;
-    if (elapsed - lastWall > .8) { lastWall = elapsed; endDrift(false); fxKind = 'snow'; fxSerial++; shake = Math.max(shake, .45); A.sfx.splash(); toast('❄ NEL MURO DI NEVE!', 'blue'); mistake(); if (navigator.vibrate) try { navigator.vibrate(40); } catch {} }
+    if (elapsed - lastWall > .8) { lastWall = elapsed; endDrift(false); fxKind = 'snow'; fxSerial++; shake = Math.max(shake, .45); A.sfx.splash(); toast('❄ NEL MURO DI NEVE!', 'blue'); mistake(); if (navigator.vibrate) try { buzz(40); } catch {} }
   }
   // testacoda: troppo di traverso troppo a lungo
   if (Math.abs(drift) > .88 + grip * .06 + up.damper * .03 + Math.max(0, Math.abs(bendNow) - .8) * .35 && jump <= 0) overT += dt; else overT = Math.max(0, overT - dt * 2);
   if (overT > .62) {   // v106.2 · un filo più di margine prima del testacoda (il pulsante avvisa: TROPPO! MOLLA)
     overT = 0; endDrift(false); throttleSlip = 0; drift *= .2; stun = .6; snowT = .4; shake = Math.max(shake, .6);
     fxKind = 'snow'; fxSerial++; A.sfx.hit(); toast('🌀 TESTACODA! MOLLA UN PO’ IL GAS', 'red'); mistake();
-    if (navigator.vibrate) try { navigator.vibrate([30, 40, 30]); } catch {}
+    if (navigator.vibrate) try { buzz([30, 40, 30]); } catch {}
   }
   const q = Math.abs(drift), sweet = q >= .3 && q <= .62;
   const active = jump <= 0 && crash <= 0 && snowT <= 0 && q > .2 && throttleSlip > .2 && speedNow > .45;   // senza gas non è derapata
@@ -1645,7 +1657,7 @@ function iceStep(dt) {
     if (uTurn && elapsed - (run.uZoneAt ?? -9) > 4) { run.uZoneAt = elapsed; pop('🔥 TORNANTE ×1,5', 'gold'); }
     driftPend += dt * Math.min(q, .7) * 260 * speedNow * driftMult() * (1 + (bs.drift || 0) * .3) * (sweet ? 1.25 : q > .7 ? .7 : 1) * (uTurn ? 1.5 : 1);
     driftGap = 0;
-    if (sweet && !wasSweet && touchDevice && navigator.vibrate) try { navigator.vibrate(6); } catch {}
+    if (sweet && !wasSweet && touchDevice && navigator.vibrate) try { buzz(6); } catch {}
   } else {
     if (driftT > 0) endDrift(true);
     driftGap += dt; if (driftGap > 1.8 && driftChain) driftChain = 0;
@@ -1906,10 +1918,13 @@ function update(dt) {
   const wasAirborne = jump > 0;
   jump = Math.max(0, jump - dt);
   if (wasAirborne && jump === 0) {
-    springVelocity = 95; A.sfx.land(); shake = Math.max(shake, .25); if (touchDevice && navigator.vibrate) try { navigator.vibrate(12); } catch {}
+    springVelocity = 95; A.sfx.land(); shake = Math.max(shake, .25); if (touchDevice && navigator.vibrate) try { buzz(12); } catch {}
     if (jumpBuffer > 0) { jumpBuffer = 0; takeoff(); }
   }
   const bump = jump > 0 ? 0 : Math.sin(roadTime * 27) * (18 + route.rough * 40);
+  // v106.2 · sui sassi, nel fango e in derapata il telefono "trema" piano col terreno
+  { const rr = ice ? (driftT > 0 ? .55 : 0) : Math.max(route.rough, route.wet * .5, wet > 0 ? .6 : 0); rumbleT -= dt;
+    if (rr > .25 && jump <= 0 && crash <= 0 && speed > .3 && rumbleT <= 0) { rumbleT = .42 - rr * .15; buzz(10 + rr * 10); } }
   springVelocity += (bump - suspension * 150 - springVelocity * 13) * dt;
   suspension += springVelocity * dt;
   wheelPhase += dt * (180 + diff * 45) * speed;
@@ -1963,7 +1978,7 @@ function update(dt) {
       if (Math.abs(px - o.l) < .75 && crash <= 0) {
         o.collected = true;
         if (driftT > 0 && Math.abs(drift) > .22 && o.seq) { const k = run.gateSeq?.id === o.seq ? run.gateSeq.n + 1 : 1; run.gateSeq = { id: o.seq, n: k }; if (k === 3) { driftPend += 900 * driftMult(); bigCall('SLALOM DI PORTE PERFETTO!'); flash('gold'); } }
-        if (driftT > 0 && Math.abs(drift) > .22) { driftPend += 260 * driftMult(); A.sfx.perfect(); pop('PORTA IN TRAVERSO! ❄', 'gold'); fxKind = 'trick'; fxSerial++; if (touchDevice && navigator.vibrate) try { navigator.vibrate([8, 30, 8]); } catch {} }
+        if (driftT > 0 && Math.abs(drift) > .22) { driftPend += 260 * driftMult(); A.sfx.perfect(); pop('PORTA IN TRAVERSO! ❄', 'gold'); fxKind = 'trick'; fxSerial++; if (touchDevice && navigator.vibrate) try { buzz([8, 30, 8]); } catch {} }
         else { score += 50; A.sfx.near(); pop('PORTA +50 · PASSALA DI TRAVERSO!', 'small'); }
       }
       continue;
@@ -1977,13 +1992,13 @@ function update(dt) {
         o.collected = true; const n = P.findGold(mode, o.gi); run.gold = (run.gold || 0) + 1; run.caps += 10; score += 1000;
         A.sfx.power(); A.sfx.perfect?.(); flash('gold'); fxKind = 'power'; fxSerial++; slowmo = .25; slowScale = .5;
         bigCall(`🏆 BOCCALE D'ORO ${n}/3!`); toast(n === 3 ? '🏆 TUTTI E 3 I BOCCALI D’ORO DI QUESTO PERCORSO! +10 🍺' : '🏆 BOCCALE D’ORO TROVATO! +1000 · +10 🍺', 'gold');
-        if (touchDevice && navigator.vibrate) try { navigator.vibrate([20, 50, 20, 50, 60]); } catch {}
+        if (touchDevice && navigator.vibrate) try { buzz([20, 50, 20, 50, 60]); } catch {}
       } else { o.collected = true; if (!run.goldMiss) { run.goldMiss = 1; pop(o.air ? '🏆 BOCCALE D’ORO IN ARIA: SALTA!' : '🏆 BOCCALE D’ORO SUL BORDO!', 'gold'); } }
       continue;
     }
     if (o.type === 'heli') continue;
     if (o.type === 'forkSplit') {   // v103 · al bivio decide da che parte sei: a sinistra o a destra del cartello (al centro tiri dritto sulla strada lunga)
-      o.collected = true; const side = px < .97 ? -1 : px > 1.03 ? 1 : -o.shortSide; if (touchDevice && navigator.vibrate) try { navigator.vibrate(20); } catch {}
+      o.collected = true; const side = px < .97 ? -1 : px > 1.03 ? 1 : -o.shortSide; if (touchDevice && navigator.vibrate) try { buzz(20); } catch {}
       if (forkInfo) forkInfo.side = side; takeFork(side === o.shortSide ? 'short' : 'safe'); continue;
     }
     if (o.type === 'landpad' || o.type === 'mboard' || o.type === 'gevmark' || (o.type === 'boulder' && leap)) continue;   // v64 · i pietroni si valutano all'atterraggio (corsia)
@@ -2008,7 +2023,7 @@ function update(dt) {
       if (o.air) {
         if (gap < .5 && lift > .8) { o.collected = true; run.caps++; run.airCaps++; A.sfx.air(); reward(150 * val, 'BIRRA AL VOLO!', 'coin'); }
       } else if (gap < .4 + up.nose * .05 || gap < pull || (has('nose') && gap < 1.05)) {
-        o.collected = true; run.caps++; A.sfx.beer(); reward(100 * val, combo >= 2 ? 'COMBO!' : 'BIRRA!');
+        o.collected = true; run.caps++; A.sfx.beer(); buzz(9); reward(100 * val, combo >= 2 ? 'COMBO!' : 'BIRRA!');
         if (routeAt(course, roadTime * 19.5).climb > .3) run.climbCaps = (run.climbCaps || 0) + 1;
       }
     } else if (o.type === 'helmet' || o.type === 'wine' || o.type === 'grappa') {
@@ -2042,8 +2057,8 @@ function update(dt) {
         const perfect = has('precise') ? phase > .2 && phase < .8 : isPerfectJump(phase);
         const base = o.type === 'rock' || o.type === 'rollRock' || o.type === 'rollHay' || o.type === 'ibex' ? 200 : o.type === 'bigLog' ? 250 : o.type === 'goat' ? 220 : 150;
         const names = { rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hen: 'GALLINA SALTATA!', grapeCrate: 'CASSETTA SALTATA!', dolmen: 'DOLMEN VOLATO!', manhole: 'TOMBINO SALTATO!', boar: 'CINGHIALE SALTATO!', barrier: 'BLOCCO SALTATO!', rollHay: 'ROTOBALLA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!', cone: 'BIRILLO SALTATO!', tyre: 'COPERTONE SALTATO!', sign: 'DIVIETO IGNORATO!', barrier: 'TRANSENNA VOLATA!' };
-        if (perfect) { run.perfect++; A.sfx.perfect(); if (touchDevice && navigator.vibrate) try { navigator.vibrate([10, 40, 10]); } catch {} reward(Math.round(base * (has('precise') ? 2 : 1.5)), 'SALTO PERFETTO!', 'perfect'); flash('gold'); slowmo = .3; slowScale = .45; }
-        else { reward(base, names[o.type] || 'BEL SALTO!', 'jump'); if (touchDevice && navigator.vibrate) try { navigator.vibrate(8); } catch {} }
+        if (perfect) { run.perfect++; A.sfx.perfect(); if (touchDevice && navigator.vibrate) try { buzz([10, 40, 10]); } catch {} reward(Math.round(base * (has('precise') ? 2 : 1.5)), 'SALTO PERFETTO!', 'perfect'); flash('gold'); slowmo = .3; slowScale = .45; }
+        else { reward(base, names[o.type] || 'BEL SALTO!', 'jump'); if (touchDevice && navigator.vibrate) try { buzz(8); } catch {} }
       } else if (wheelie && (o.type === 'root' || o.type === 'puddle')) {
         reward(140, o.type === 'root' ? 'IMPENNATA SULLA RADICE!' : 'IMPENNATA NELLA POZZA!', 'trick'); if (o.type === 'puddle') mud(.35);
       } else if (o.type === 'puddle' && has('amphibious')) {
@@ -2085,7 +2100,7 @@ function update(dt) {
         if (o.type === 'tree') slalomN = 0;
         // v49 · Erika anche su ogni albero di MontaFiga
         if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
-        if (navigator.vibrate) try { navigator.vibrate(120); } catch {}
+        if (navigator.vibrate) try { buzz(120); } catch {}
         if (has('schettino') && lives > 0) { turbo = Math.max(turbo, 2); setTimeout(() => toast('⚓ CAPITAN SCHETTINO ABBANDONA LA NAVE!', 'gold'), 600); }
         if (gev && lives > 0) setTimeout(() => toast(lives === 1 ? '🚨 ULTIMO TENTATIVO! POI È MULTA' : `🚨 TENTATIVI RIMASTI: ${lives}`, 'red'), 700);
         if (lives <= 0) { hud(); if (!run.continued && P.profile.beers >= CONTINUE_COST) offerContinue(); else finish(false); return; }
@@ -2410,7 +2425,7 @@ function renderReady() {
         ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 LIV ' + m.unlock}</small></button>`; }).join('')}
     </div>
     <div class="menufoot">
-      <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}
+      <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}
     </div>
     <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare</span></p>`;
@@ -2423,6 +2438,7 @@ function renderReady() {
   $('openshop').onclick = () => renderShop(renderReady);
   $('opengarage').onclick = () => { A.sfx.click(); showHub('garage'); const sec = document.querySelector('[data-hub="garage"]'); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   $('alltracks').onclick = () => { A.sfx.click(); renderTracks(renderReady); };
+  if ($('vibramenu')) $('vibramenu').onclick = () => { hapticOn = !hapticOn; try { localStorage.setItem('edt-vibra', hapticOn ? '1' : '0'); } catch {} $('vibramenu').textContent = '📳 VIBRAZIONE: ' + (hapticOn ? 'SÌ' : 'NO'); $('vibramenu').classList.toggle('on', hapticOn); if (hapticOn) buzz([40, 50, 40]); };
   if ($('tiltmenu')) $('tiltmenu').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltmenu').textContent = '📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO'); $('tiltmenu').classList.toggle('on', on); if (on) toast('📱 INCLINA IL TELEFONO A DESTRA E SINISTRA PER STERZARE', 'green'); };
   $('musicmenu').onclick = () => {
     A.unlock(); A.setMusic(!A.isMusicOn()); $('musicmenu').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO');
@@ -2787,7 +2803,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 106.1;
+const GAME_VERSION = 106.2;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
