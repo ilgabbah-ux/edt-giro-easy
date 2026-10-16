@@ -35,7 +35,7 @@ function playVoice(buf) {
 const dlog = [];
 function dbg(msg) { dlog.push((performance.now() / 1000).toFixed(1) + ' ' + msg); if (dlog.length > 8) dlog.shift(); }
 export function debugInfo() {
-  return { state: ctx ? ctx.state : 'nessun contesto', enabled, voci: [...buffers.keys()].join(','), extra: Object.entries(extraState).map(([k, v]) => k + ':' + (v ? 'ok' : v === null ? 'NO' : '?')).join(' '), log: dlog };
+  return { state: ctx ? ctx.state : 'nessun contesto', enabled, song: music ? (music.src ? 'suona ' + music.style.file : 'in attesa ' + music.style.file) : 'nessuna', voci: [...buffers.keys()].join(','), extra: Object.entries(extraState).map(([k, v]) => k + ':' + (v ? 'ok' : v === null ? 'NO' : '?')).join(' '), log: dlog };
 }
 const voiceBusy = () => voiceSource && ctx && ctx.currentTime < voiceEnd;
 // Piano B se il contesto audio non parte (alcuni browser): elemento <audio> classico.
@@ -63,8 +63,13 @@ function ensure() {
     const d = noiseBuffer.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     loadRealEngine();
+    // v106.2 · tornando nel gioco (cambio app, schermo spento) l'audio riparte al primo tocco
+    const wake = () => { if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {}); };
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+    for (const ev of ['pointerdown', 'touchend', 'keydown']) window.addEventListener(ev, wake, { passive: true, capture: true });
   }
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  // v106.2 · anche 'interrupted' (iPhone dopo una chiamata, un'altra app o lo schermo spento): si riprende
+  if (ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
   return ctx;
 }
 
@@ -470,16 +475,24 @@ STYLES[16] = { ...STYLES[0], file: 'musica/angelo-vs-gabbah.mp3', name: 'Angelo 
 export const DUEL_STYLE = 16;
 for (let i = 0; i < STYLES.length; i++) if (!STYLES[i].file) STYLES[i] = { ...STYLES[i], file: 'musica/giro-easy.mp3', name: 'Giro Easy · Il GaBbAH' };
 // v57 · brani registrati (MP3): caricati una volta sola; la canzone riparte da dove si era fermata al giro prima.
-const songBuf = {}, songPos = {};
-async function loadSong(file) {
-  if (songBuf[file] !== undefined) return songBuf[file];
-  songBuf[file] = null;
-  try {
-    const res = await fetch(file);
-    if (!res.ok) throw new Error(res.status);
-    songBuf[file] = await ctx.decodeAudioData(await res.arrayBuffer());
-  } catch (e) { songBuf[file] = undefined; console.warn('EDT canzone non caricata:', file, e); }
-  return songBuf[file];
+const songBuf = {}, songPos = {}, songLoad = {};
+// v106.2 · il caricamento in corso è una promessa condivisa: prima, se la canzone stava ancora scaricando
+// (precaricata al via), la partenza della musica trovava "null" e la canzone non partiva più per quel giro.
+function loadSong(file) {
+  if (songBuf[file]) return Promise.resolve(songBuf[file]);
+  if (songLoad[file]) return songLoad[file];
+  songLoad[file] = (async () => {
+    for (let k = 0; k < 2; k++) {   // un secondo tentativo se la rete singhiozza
+      try {
+        const res = await fetch(file);
+        if (!res.ok) throw new Error(res.status);
+        songBuf[file] = await ctx.decodeAudioData(await res.arrayBuffer());
+        return songBuf[file];
+      } catch (e) { console.warn('EDT canzone non caricata:', file, e); }
+    }
+    return null;
+  })().finally(() => { songLoad[file] = null; });
+  return songLoad[file];
 }
 export function preloadSong(styleId) { const st = STYLES[styleId % STYLES.length]; if (st?.file && ensure()) loadSong(st.file); }
 function playSong(m) {
