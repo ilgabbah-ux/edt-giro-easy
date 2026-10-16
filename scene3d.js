@@ -238,14 +238,15 @@ export function createWorld(canvas) {
     dirt.needsUpdate = true;
     roadMaps.length = 0; roadMaps.push(map, normalMap);
     ['#b8a58f', '#8f7b66', '#e8dccb', '#d8d4ce'].forEach((c, i) => DIRT_COLS[i].set(c));
-    if (iceMode) { iceKey = null; setIce(true); }   // v93 · se la foto arriva quando sei già sul ghiaccio, la neve resta
+    // v106.2 · se la foto arriva sul ghiaccio: si mette da parte per dopo (prima si risalvava il prato già spento = prato piatto per sempre)
+    if (iceMode && groundMaps) { groundMaps.d = map; groundMaps.dn = normalMap; dirt.map = iceTex; dirt.normalMap = null; dirt.needsUpdate = true; }
   });
   photoTex('meadow', 10, 30, true, ({ map, normalMap }) => {
     grass.map = map; grass.normalMap = normalMap; grass.normalScale.set(.8, .8); grass.needsUpdate = true;
     verge.map = map; verge.normalMap = normalMap; verge.needsUpdate = true;
     grassMaps.length = 0; grassMaps.push(map, normalMap);
     ['#9db08a', '#b8d39b', '#e2dcb0', '#c0c3bb'].forEach((c, i) => GRASS_COLS[i].set(c));
-    if (iceMode) { iceKey = null; setIce(true); }   // v93
+    if (iceMode && groundMaps) { groundMaps.g = groundMaps.v = map; groundMaps.gn = groundMaps.vn = normalMap; grass.map = verge.map = null; grass.normalMap = verge.normalMap = null; grass.needsUpdate = verge.needsUpdate = true; }   // v106.2
     ['#8d9b70', '#a4bd84', '#d6cc9c', '#b4b6ae'].forEach((c, i) => VERGE_COLS[i].set(c));
   });
 
