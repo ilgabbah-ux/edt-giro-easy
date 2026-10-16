@@ -760,7 +760,7 @@ footer { font: 600 14px var(--ui); letter-spacing: .5px; border-top: 1px solid #
   .controls { bottom: 8px; }
   .ctrl, .wheelie { height: 48px; }
   .dash { bottom: 62px; }
-  .pops { top: 64px; }
+  .pops { top: 100px; }   /* v106.2 · sotto i pulsanti audio e pausa */
   .gas { bottom: 104px; }
   .erika { bottom: 104px; }
 }

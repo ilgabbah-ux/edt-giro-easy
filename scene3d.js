@@ -2716,19 +2716,20 @@ export function createWorld(canvas) {
   // ---------- Qualità adattiva: se il telefono fatica, alleggerisce ----------
   let frameAvg = 16, frames = 0, quality = 0, lastNow = performance.now(), goodFrames = 0;
   // v101 · il livello raggiunto resta salvato: i telefoni lenti partono già leggeri, senza scatti nei primi secondi; un livello in più (4) spegne le ombre
-  const QKEY = 'edt-quality', saveQ = q => { try { localStorage.setItem(QKEY, String(q)); } catch {} };
+  // v106.2 · scala nuova: prima si tolgono ombre e dettagli, la risoluzione scende per ultima e mai sotto 1 (prima arrivava a 0,75: immagine sgranata)
+  const QKEY = 'edt-quality2', saveQ = q => { try { localStorage.setItem(QKEY, String(q)); } catch {} };
   function stepQuality(q) {
-    if (q === 1) { pixelRatio = Math.min(pixelRatio, 1.15); renderer.setPixelRatio(pixelRatio); resize(); }
-    if (q === 2) { sun.shadow.mapSize.set(768, 768); sun.shadow.map?.dispose(); sun.shadow.map = null; tufts.visible = false; }
-    if (q === 3) { pixelRatio = .85; renderer.setPixelRatio(pixelRatio); resize(); }
-    if (q === 4) { pixelRatio = .75; renderer.setPixelRatio(pixelRatio); resize(); sun.castShadow = false; renderer.shadowMap.enabled = false; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); }
+    if (q === 1) { pixelRatio = Math.min(pixelRatio, 1.35); renderer.setPixelRatio(pixelRatio); resize(); sun.shadow.mapSize.set(768, 768); sun.shadow.map?.dispose(); sun.shadow.map = null; tufts.visible = false; }
+    if (q === 2) { sun.castShadow = false; renderer.shadowMap.enabled = false; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); }
+    if (q === 3) { pixelRatio = Math.min(pixelRatio, 1.15); renderer.setPixelRatio(pixelRatio); resize(); }
+    if (q === 4) { pixelRatio = Math.min(pixelRatio, 1); renderer.setPixelRatio(pixelRatio); resize(); }
   }
   function adaptQuality() {
     const now = performance.now(), dt = now - lastNow; lastNow = now;
     if (dt > 200) return;
     frameAvg += (dt - frameAvg) * .05; frames++;
     if (frames > 120 && frameAvg > 27 && quality < 4) { frames = 0; goodFrames = 0; quality++; stepQuality(quality); saveQ(quality); }
-    if (quality > 0 && frameAvg < 18) { if (++goodFrames === 900) saveQ(quality - 1); } else goodFrames = 0;   // va liscio da un pezzo: la prossima volta si riparte un gradino più su
+    if (quality > 0 && frameAvg < 21) { if (++goodFrames === 600) saveQ(quality - 1); } else goodFrames = 0;   // va liscio da un pezzo: la prossima volta si riparte un gradino più su
   }
   queueMicrotask(() => { let q = 0; try { q = Math.min(4, +localStorage.getItem(QKEY) || 0); } catch {} while (quality < q) stepQuality(++quality); });
 
