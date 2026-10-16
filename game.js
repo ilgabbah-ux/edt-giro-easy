@@ -369,7 +369,7 @@ function hud() {
   $('chargefill').style.width = fill + '%';
   $('boost').disabled = state !== 'playing' || charge < 100 || turbo > 0;
   $('boost').classList.toggle('ready', charge >= 100 && turbo <= 0 && state === 'playing');
-  $('boostlabel').textContent = turbo > 0 ? 'GAAAS! ×2' : charge >= 100 ? 'TURBO PRONTO' : 'TURBO ' + Math.floor(charge) + '%';
+  $('boostlabel').textContent = turbo > 0 ? (ice ? 'TRAVERSO ×2' : 'GAAAS! ×2') : ice && charge >= 100 ? 'TURBO TRAVERSO' : charge >= 100 ? 'TURBO PRONTO' : 'TURBO ' + Math.floor(charge) + '%';
   $('jump').classList.toggle('airborne', jump > 0);
   $('game').classList.toggle('boosting', state === 'playing' && (turbo > 0 || (has('sprint') && course > GAME_LENGTH * .75)));   // v96 · anche lo sprint finale di Maggie
   $('game').classList.toggle('magnet', state === 'playing' && magnet > 0);
@@ -442,7 +442,7 @@ function reward(points, label, kind = 'coin', chain = true) {
 function boost() {
   if (state !== 'playing' || charge < 100 || turbo > 0 || rule('noturbo')) return;
   charge = 0; turbo = turboMax(); run.turbos++;
-  toast('DAI GAS CICCIO!'); voice('Dai gas Ciccio!');
+  if (ice) { toast('❄ TURBO TRAVERSO: DERAPATE ×2 E NIENTE TESTACODA', 'gold'); bigCall('TURBO TRAVERSO!'); } else { toast('DAI GAS CICCIO!'); voice('Dai gas Ciccio!'); }
   A.sfx.turbo(); buzz([40, 40, 70]); flash('gold'); shake = .5;
   hud();
 }
@@ -1621,7 +1621,7 @@ function iceStep(dt) {
   const grip = Math.min(.8, bs.grip || 0);
   bendNow = iceBend(roadTime * 19.5);   // + = la curva spinge verso destra
   { const ahead = iceBend(roadTime * 19.5 + 40); if (Math.abs(ahead) > 1.45 && elapsed - (run.uCallAt ?? -99) > 6) { run.uCallAt = elapsed; bigCall('TORNANTE A ' + (ahead > 0 ? 'SINISTRA' : 'DESTRA') + '!'); toast('↩ CURVONE A U: ENTRA DI TRAVERSO E TIENI IL GAS', 'blue'); } }   // v88
-  if (gas && jump <= 0 && crash <= 0) throttleSlip = Math.min(1, throttleSlip + dt * (.9 + (bs.drift || 0) * .3));
+  if (gas && jump <= 0 && crash <= 0) throttleSlip = Math.min(1, throttleSlip + dt * (.9 + (bs.drift || 0) * .3) * (turbo > 0 ? 1.6 : 1));   // v106.3 · col turbo traverso la ruota parte prima
   else throttleSlip = Math.max(0, throttleSlip - dt * (1.6 + grip * .8));
   let st = steerNow(); if (st) aimPx = null;
   else if (aimPx !== null) st = Math.max(-1, Math.min(1, (aimPx - px) * 1.3 - vx * .3));
@@ -1642,7 +1642,7 @@ function iceStep(dt) {
     if (elapsed - lastWall > .8) { lastWall = elapsed; endDrift(false); fxKind = 'snow'; fxSerial++; shake = Math.max(shake, .45); A.sfx.splash(); toast('❄ NEL MURO DI NEVE!', 'blue'); mistake(); if (navigator.vibrate) try { buzz(40); } catch {} }
   }
   // testacoda: troppo di traverso troppo a lungo
-  if (Math.abs(drift) > .88 + grip * .06 + up.damper * .03 + Math.max(0, Math.abs(bendNow) - .8) * .35 && jump <= 0) overT += dt; else overT = Math.max(0, overT - dt * 2);
+  if (Math.abs(drift) > .88 + grip * .06 + up.damper * .03 + Math.max(0, Math.abs(bendNow) - .8) * .35 && jump <= 0 && turbo <= 0) overT += dt; else overT = Math.max(0, overT - dt * 2);
   if (overT > .62) {   // v106.2 · un filo più di margine prima del testacoda (il pulsante avvisa: TROPPO! MOLLA)
     overT = 0; endDrift(false); throttleSlip = 0; drift *= .2; stun = .6; snowT = .4; shake = Math.max(shake, .6);
     fxKind = 'snow'; fxSerial++; A.sfx.hit(); toast('🌀 TESTACODA! MOLLA UN PO’ IL GAS', 'red'); mistake();
@@ -1655,7 +1655,7 @@ function iceStep(dt) {
     driftT += dt; driftSum += q * dt; if (q >= .3) driftMP += dt * kmh * 1.45 / 3.6;   // contano solo i metri fatti davvero di traverso (e solo se la derapata va a buon fine)
     const uTurn = Math.abs(bendNow) > 1.2;   // v106.2 · nei tornanti a U la derapata vale una volta e mezza
     if (uTurn && elapsed - (run.uZoneAt ?? -9) > 4) { run.uZoneAt = elapsed; pop('🔥 TORNANTE ×1,5', 'gold'); }
-    driftPend += dt * Math.min(q, .7) * 260 * speedNow * driftMult() * (1 + (bs.drift || 0) * .3) * (sweet ? 1.25 : q > .7 ? .7 : 1) * (uTurn ? 1.5 : 1);
+    driftPend += dt * Math.min(q, .7) * 260 * speedNow * driftMult() * (1 + (bs.drift || 0) * .3) * (sweet ? 1.25 : q > .7 ? .7 : 1) * (uTurn ? 1.5 : 1) * (turbo > 0 ? 2 : 1);
     driftGap = 0;
     if (sweet && !wasSweet && touchDevice && navigator.vibrate) try { buzz(6); } catch {}
   } else {
@@ -1819,7 +1819,7 @@ function update(dt) {
   // v81 · insegna il turbo: chi non lo usa arriva ultimo senza capire perché
   if (charge >= 100 && turbo <= 0 && state === 'playing' && !(leap && leapState >= 2)) {
     turboReadyT += dt;
-    if (turboReadyT < dt * 1.5 && (P.profile.turboTaught || 0) < 3) { P.profile.turboTaught = (P.profile.turboTaught || 0) + 1; P.save(); bigCall('TURBO PRONTO!'); toast(touchDevice ? '⚡ TOCCA IL PULSANTE TURBO: VAI IL DOPPIO PIÙ FORTE' : '⚡ TURBO PRONTO: TASTO B, ROTELLINA O PULSANTE TURBO', 'gold'); }
+    if (turboReadyT < dt * 1.5 && (P.profile.turboTaught || 0) < 3) { P.profile.turboTaught = (P.profile.turboTaught || 0) + 1; P.save(); bigCall('TURBO PRONTO!'); toast(ice ? '⚡ TURBO TRAVERSO PRONTO: DERAPATE ×2 PER QUALCHE SECONDO' : touchDevice ? '⚡ TOCCA IL PULSANTE TURBO: VAI IL DOPPIO PIÙ FORTE' : '⚡ TURBO PRONTO: TASTO B, ROTELLINA O PULSANTE TURBO', 'gold'); }
     if (turboReadyT > 6 && !run.turboNag && !leap) { run.turboNag = 1; toast('⚡ IL TURBO È CARICO: USALO, I COMPAGNI LO FANNO!', 'gold'); }
   } else turboReadyT = 0;
   crash = Math.max(0, crash - dt * 1.5); stun = Math.max(0, stun - dt);
@@ -1854,7 +1854,7 @@ function update(dt) {
   if (rule('noturbo')) charge = 0;
   if (barT > 0) barT = Math.max(0, barT - dt);
   if (has('sprint') && course > GAME_LENGTH * .75 && !run.sprintCall && state === 'playing') { run.sprintCall = 1; bigCall('SPRINT FINALE!'); toast('💨 ULTIMO QUARTO: +10% VELOCITÀ E PUNTI DOPPI', 'gold'); A.sfx.turbo(); A.sayRider?.('maggie_sprint'); }   // v96
-  const speedT = tractMul * paceFor(route, gas || has('climb'), turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (cornerLine > 0 ? 1.07 : cornerLine < 0 ? .93 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
+  const speedT = tractMul * paceFor(route, gas || has('climb'), ice ? 0 : turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (cornerLine > 0 ? 1.07 : cornerLine < 0 ? .93 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
   // Discesa: "Campa giù!"
   if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); }
   if (route.down < .15) downAnnounced = false;
