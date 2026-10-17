@@ -465,7 +465,7 @@ function resetRun() {
   ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
   grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9; lastRiderHit = -99;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
-  for (const k of Object.keys(up)) up[k] = P.upgradeLevel(k);
+  for (const k of Object.keys(up)) { const l = P.upgradeLevel(k); up[k] = l <= P.LEGEND_FROM ? l : P.LEGEND_FROM + (l - P.LEGEND_FROM) * .4; }   // v106.6 · livelli Leggenda: +0,4 l'uno
   skidLeft = up.skid >= 5 ? 2 : up.skid > 0 ? 1 : 0;   // v96 · paramotore
   maxLives = 3 + (up.helmet >= 2 ? 1 : 0) + (up.helmet >= 4 ? 1 : 0) + (has('lion') ? 1 : 0);
   const b = P.takeBoosts(); startBoosts = [];
@@ -581,6 +581,7 @@ function finish(win, reason = '') {
   renderResult(win, res, reason, timeBonus);
   if (gev) A.sfx.whistle();
   if (win) buzz([60, 70, 60, 70, 160]);
+  if (win) celebrate(P.currentParts().festa?.id);
   if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => { if (!riderLine('win')) voice('Sììì, così si fa!', true); }, 900); }
   else A.sfx.lose();
   renderSide();
@@ -1414,7 +1415,7 @@ function leapStep(dt) {
     // v64 · assetto semplice: col gas (o impenna) il muso sale, mollando scende piano. Verde = |muso| < 0,5
     const up = gas || wheelieHeld;
     leapPitch = Math.max(-1.2, Math.min(1.2, leapPitch + (up ? .5 : -.3) * dt));
-    if (P.upgradeLevel('wings')) leapPitch -= leapPitch * Math.min(1, dt * P.upgradeLevel('wings') * .12);   // v96 · ali: si raddrizza da sola
+    if (up.wings) leapPitch -= leapPitch * Math.min(1, dt * up.wings * .12);   // v96 · ali: si raddrizza da sola
     leapDist = (elapsed - leapStartT) * leapStartKmh / 3.6;
   }
   if (leapState === 2 && jump <= 0) {   // atterraggio
@@ -2334,7 +2335,7 @@ function renderShop(back, tab = shopTab) {
     const lvl = P.upgradeLevel(u.id), cost = P.upgradeCost(u.id), can = cost != null && P.profile.beers >= cost;
     return `<div class="upg ${lvl >= P.MAX_UPGRADE ? 'max' : ''}">
       <span class="ui">${u.icon}</span>
-      <span class="ut"><b>${u.name}</b><small>${u.desc}</small><i class="pips">${Array.from({ length: P.MAX_UPGRADE }, (_, k) => `<u class="${k < lvl ? 'on' : ''}"></u>`).join('')}</i></span>
+      <span class="ut"><b>${u.name}</b><small>${u.desc}</small><i class="pips">${Array.from({ length: P.MAX_UPGRADE }, (_, k) => `<u class="${k < lvl ? 'on' : ''} ${k >= P.LEGEND_FROM ? 'leg' : ''}"></u>`).join('')}</i>${lvl >= P.LEGEND_FROM ? `<em class="legtag">${lvl >= P.MAX_UPGRADE ? 'LEGGENDA COMPLETA' : lvl > P.LEGEND_FROM ? 'LEGGENDA ' + (lvl - P.LEGEND_FROM) + '/3' : 'PROSSIMO: LIVELLI LEGGENDA'}</em>` : ''}</span>
       <button type="button" class="buy" data-buy="${u.id}" ${can ? '' : 'disabled'}>${cost == null ? 'MAX' : cost + ' 🍺'}</button>
     </div>`;
   };
@@ -2359,15 +2360,17 @@ function renderShop(back, tab = shopTab) {
       <span class="ut"><b>${it.name}</b><small>${it.desc || ''}</small><div class="bstats"><span class="bs"><small>GRIP</small><span class="bar"><span class="fill ${g ? 'up' : ''}" style="width:${Math.min(100, Math.max(8, Math.round(g / .8 * 100)))}%"></span></span></span><span class="bs"><small>DERAPATA</small><span class="bar"><span class="fill ${d ? 'up' : ''}" style="width:${Math.min(100, Math.max(8, Math.round(d / .62 * 100)))}%"></span></span></span></div></span>
       <button type="button" class="buy" data-part="studs:${it.id}" ${on || !can ? 'disabled' : ''}>${on ? 'MONTATI' : owned ? 'MONTA' : it.price + ' 🍺'}</button></div>`;
   };
-  const tabs = [['upg', '🔧 POTENZIAMENTI'], ['bikes', '🏍 MOTO'], ['parts', '🎨 ACCESSORI'], ['ice', '❄ CHIODI']];
+  const tabs = [['upg', '🔧 POTENZIAMENTI'], ['bikes', '🏍 MOTO'], ['parts', '🎨 ACCESSORI'], ['ice', '❄ CHIODI'], ['style', '✨ STILE']];
   $('card').innerHTML = `<div class="eyebrow">OFFICINA EDT · SPENDI LE BIRRE</div>
-    <h1 class="shoptitle">${tab === 'ice' ? 'CHIODI PER<br><em>ICE SCROPHY.</em>' : tab === 'bikes' ? 'SCEGLI<br><em>LA MOTO.</em>' : tab === 'parts' ? 'FALLA<br><em>TUA.</em>' : 'POTENZIA<br><em>MOTO E PILOTA.</em>'}</h1>
+    <h1 class="shoptitle">${tab === 'style' ? 'FATTI<br><em>NOTARE.</em>' : tab === 'ice' ? 'CHIODI PER<br><em>ICE SCROPHY.</em>' : tab === 'bikes' ? 'SCEGLI<br><em>LA MOTO.</em>' : tab === 'parts' ? 'FALLA<br><em>TUA.</em>' : 'POTENZIA<br><em>MOTO E PILOTA.</em>'}</h1>
     <div class="wallet">🍺 <b>${P.profile.beers}</b> birre in cassa<small class="insella">In sella: ${cur.icon} ${cur.name}</small>${Object.keys(P.currentStats()).length ? `<small class="totstat">In gara: ${P.statLabel(P.currentStats())}</small>` : ''}</div>
     <div class="shoptabs">${tabs.map(([k, n]) => `<button type="button" class="${k === tab ? 'active' : ''}" data-tab="${k}">${n}</button>`).join('')}</div>
     ${tab === 'upg' ? ['MOTO', 'PILOTA', 'SPECIALI'].map(g => `<div class="ugroup">${g === 'SPECIALI' ? 'SPECIALI · PER CHI HA FINITO TUTTO' : g}</div><div class="upgs">${P.UPGRADES.filter(u => u.group === g).map(card).join('')}</div>`).join('')
       : tab === 'bikes' ? `<div class="upgs">${P.BIKES.map(bikeCard).join('')}</div><p class="tip">Ogni moto cambia davvero la guida. I potenziamenti valgono per tutte.</p>`
+      : tab === 'style' ? `${P.PARTS.filter(p => p.style).map(partRow).join('')}<p class="tip">Lo stile non dà vantaggi in gara: si vede e basta (in gara, nel garage e al traguardo).</p>
+        <div class="ugroup">🏆 COLLEZIONI · COMPLETALE PER UN TITOLO E UN PREMIO</div><div class="colls">${P.COLLECTIONS.map(c => { const pr = P.collectionProgress(c), done = pr.have >= pr.tot; return `<div class="coll ${done ? 'done' : ''}"><span class="ci">${c.icon}</span><span class="ct"><b>${c.name}</b><small>${c.desc} · premio ${c.prize} 🍺</small><span class="cbar"><span style="width:${Math.round(pr.have / pr.tot * 100)}%"></span></span></span><em>${done ? '✔' : pr.have + '/' + pr.tot}</em></div>`; }).join('')}</div>`
       : tab === 'ice' ? `<div class="upgs">${studs.items.map(studCard).join('')}</div><p class="tip">I chiodi contano solo su Ice Scrofy: <b>grip</b> = la moto tiene la linea e non finisce nel muro di neve; <b>derapata</b> = più punti per ogni traverso.</p>`
-      : `${P.PARTS.filter(p => !p.ice).map(partRow).join('')}<p class="tip">Gli accessori si vedono sulla moto (e dietro a questo menu). Una volta comprati restano tuoi.</p>`}
+      : `${P.PARTS.filter(p => !p.ice && !p.style).map(partRow).join('')}<p class="tip">Gli accessori si vedono sulla moto (e dietro a questo menu). Una volta comprati restano tuoi.</p>`}
     <p class="tip">Le birre si guadagnano raccogliendole in gara (+20 se arrivi al rifugio, +10 per ogni missione). Sul <b>percorso della settimana</b> (${P.MODES.find(m => m.id === P.weeklyTrack())?.name}) valgono il doppio.</p>
     <div class="actions"><button class="primary big" id="shopgo">PARTI</button><button class="secondary" id="shopback">INDIETRO</button></div>`;
   iconizeEl($('card'));
@@ -2385,6 +2388,7 @@ function renderShop(back, tab = shopTab) {
   });
   $('shopgo').onclick = start;
   $('shopback').onclick = back;
+  { const got = P.claimCollections(); if (got.length) { const c = got[0]; A.sfx.fanfare?.(); bigCall(c.icon + ' COLLEZIONE COMPLETA!'); toast(`🏅 ${c.name.toUpperCase()}: +${c.prize} 🍺 E IL TITOLO ACCANTO AL PILOTA`, 'gold'); renderShop(back); } }
 }
 function renderReady() {
   state = 'ready';
@@ -2409,7 +2413,7 @@ function renderReady() {
       <h1 class="title"><span class="t1">TRANQUILLI,</span><span class="t2">È UN GIRO <em>EASY.</em></span></h1></div>
     </div>
     <div class="profilerow">
-      <button class="pilotchip" id="pilotchip" type="button"><span class="platenum">${String(RIDERS.indexOf(profile.rider) + 1).padStart(2, '0')}</span>${avatarHTML(profile.rider)}<span class="pctext"><small>PILOTA · TOCCA PER CAMBIARE</small><b>${profile.rider}</b><em class="skillline"><span class="noicx">${sk.icon || ''}</span> ${sk.name || ''}</em></span></button>
+      <button class="pilotchip" id="pilotchip" type="button"><span class="platenum">${String(RIDERS.indexOf(profile.rider) + 1).padStart(2, '0')}</span>${avatarHTML(profile.rider)}<span class="pctext"><small>PILOTA · TOCCA PER CAMBIARE</small><b>${profile.rider}</b><em class="skillline"><span class="noicx">${sk.icon || ''}</span> ${sk.name || ''}</em>${P.bestTitle() ? `<em class="colltitle">${P.bestTitle()}</em>` : ''}</span></button>
       <div class="lvlbox"><span class="lvlnum"><small>LIV</small>${info.level}</span><span class="lvltext"><b>${info.grade.toUpperCase()}</b><i><u style="width:${Math.round(info.pct * 100)}%"></u></i><small>${info.into}/${info.need} XP</small></span></div>
     </div>
     <div class="trackhero sky${md.sky ?? 0} ${md.ice ? 'icy' : ''} ${art ? 'hasart' : ''} ${heroDir ? 'in' + heroDir : ''}" id="trackhero">
@@ -2573,7 +2577,7 @@ const MODE_LABEL = m => m === 3 ? 'SFIDA ' + P.todayLabel() : P.MODES[m].short;
 function groupListHTML(list, me = '', m = -1) {
   if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
   const mine = C.cleanNick(me).toLowerCase();
-  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${crownOf(e.n)}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto">🔧${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
+  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${crownOf(e.n)}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto${e.b >= 75 ? ' · livelli Leggenda' : ''}">${e.b >= 120 ? '👑' : e.b >= 100 ? '💎' : e.b >= 76 ? '🏅' : '🔧'}${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
 }
 // v48 · classifica dei tempi migliori al rifugio
 function timeListHTML(list, me = '', m = -1) {
@@ -2638,6 +2642,19 @@ function showPodium(w) {
   A.sfx.perfect?.();
   $('podok').onclick = () => el.remove();
 }
+// v106.6 · festa al traguardo (stile comprato in officina): coriandoli, pioggia di birre o fuochi d'artificio
+function celebrate(kind) {
+  if (!kind || kind === 'nessuna') return;
+  const g = $('game'), box = document.createElement('div'); box.className = 'festa festa-' + kind;
+  const cols = ['#ffc61a', '#111', '#e93825', '#fff'];
+  for (let i = 0; i < (kind === 'fuochi' ? 12 : 42); i++) {
+    const e = document.createElement('i');
+    if (kind === 'fuochi') { e.style.left = (10 + Math.random() * 80) + '%'; e.style.top = (8 + Math.random() * 40) + '%'; e.style.setProperty('--c', ['#ffc61a', '#ff5a3a', '#5fd4ff', '#b45cff', '#46ff5a'][i % 5]); e.style.animationDelay = (i * .3) + 's'; }
+    else { e.style.left = Math.random() * 100 + '%'; e.style.animationDelay = (Math.random() * 1.6) + 's'; e.style.animationDuration = (2 + Math.random() * 1.6) + 's'; if (kind === 'birre') e.innerHTML = icon('beer'); else e.style.background = cols[i % 4]; }
+    box.appendChild(e);
+  }
+  g.appendChild(box); setTimeout(() => box.remove(), 5200);
+}
 // v106.5 · "batti il mio fantasma": link per WhatsApp; chi lo apre corre contro il tuo fantasma su quel percorso
 function ghostChallengeHTML(sc) {
   const md = P.MODES[mode], nick = C.getNick();
@@ -2648,7 +2665,7 @@ function ghostChallengeHTML(sc) {
 }
 // v106.5 · chi ha vinto la coppa della settimana scorsa corre col casco d'oro per tutta la settimana
 const isChamp = () => { try { return !!crownOf(C.getNick()); } catch { return false; } };
-function raceLivery() { const l = P.currentLivery(); return isChamp() ? { ...l, id: l.id + '-oro', helmet: '#e3b021' } : l; }
+function raceLivery() { const l = P.currentLivery(), c = P.currentParts().casco; return isChamp() ? { ...l, id: l.id + '-oro', helmet: '#e3b021' } : c?.color ? { ...l, id: l.id + '-' + c.id, helmet: c.color } : l; }
 const crownOf = n => { const p = C.cached()?.week?.prev; return p && n && p.n.toLowerCase() === String(n).toLowerCase() ? ' 👑' : ''; };
 // v97 · WhatsApp: messaggio pronto quando superi qualcuno, e avviso nel menu quando qualcuno supera te
 const waLink = text => 'https://wa.me/?text=' + encodeURIComponent(text);

@@ -144,8 +144,8 @@ export const UPGRADES = [
   { id: 'camel', group: 'SPECIALI', pro: true, icon: '🎒', name: 'Sacca d’acqua', desc: 'La bottiglia d’acqua ti rallenta meno; dal livello 3 non perdi la combo.', per: '−15% malus acqua' },
   { id: 'eyes', group: 'SPECIALI', pro: true, icon: '🦉', name: 'Occhio da notturna', desc: 'Di notte e nella nebbia vedi più lontano; i lampi durano di più.', per: '+6% vista' },
 ];
-export const MAX_UPGRADE = 5;
-const COSTS = [30, 60, 100, 160, 240], PRO_COSTS = [150, 250, 350, 450, 500];   // v96 · speciali: ~1.700 birre l'uno
+export const MAX_UPGRADE = 8, LEGEND_FROM = 5;   // v106.6 · livelli Leggenda 6-8: carissimi, vantaggio piccolo (in gara valgono 0,4 l'uno)
+const COSTS = [30, 60, 100, 160, 240, 700, 1000, 1400], PRO_COSTS = [150, 250, 350, 450, 500, 900, 1300, 1800];   // v96 · speciali: ~1.700 birre l'uno
 export function upgradeLevel(id) { return Math.min(MAX_UPGRADE, data.upgrades[id] || 0); }
 export function upgradeCost(id) { const l = upgradeLevel(id); return l >= MAX_UPGRADE ? null : (UPGRADES.find(u => u.id === id)?.pro ? PRO_COSTS : COSTS)[l]; }
 export function buyUpgrade(id) {
@@ -218,9 +218,40 @@ export const PARTS = [
     { id: 'icefury', name: 'Ice Fury', price: 280, color: '#5fd4ff', desc: 'Il top: traversi infiniti senza perdere la linea.', stats: { grip: .58, drift: .35 } },
     { id: 'boanal', name: 'BO-anal Special', price: 420, color: '#f2c230', boanal: true, desc: 'BO-anal Special Parts: chiodi d’oro. Grip totale e punti derapata a pioggia.', stats: { grip: .72, drift: .5 } },
     { id: 'factory', name: 'Factory EDT', price: 650, color: '#f2c230', factory: true, desc: 'I chiodi ufficiali della squadra, neri e oro: il massimo del grip e derapate da applausi. Un gradino sopra i BO-anal.', stats: { grip: .8, drift: .62 } } ] },
+  // v106.6 · STILE: solo estetica, nessun vantaggio in gara
+  { slot: 'casco', name: 'Casco', style: true, items: [
+    { id: 'livrea', name: 'Colore della livrea', price: 0 },
+    { id: 'opaco', name: 'Nero opaco', price: 150, color: '#1b1c1e' }, { id: 'perla', name: 'Bianco perla', price: 150, color: '#f3efe6' },
+    { id: 'rosa', name: 'Rosa shocking', price: 200, color: '#ff3fa4' }, { id: 'acido', name: 'Verde acido', price: 200, color: '#9dff2f' },
+    { id: 'carbonio', name: 'Carbonio', price: 260, color: '#33373d' }, { id: 'cromo', name: 'Cromo', price: 320, color: '#dfe6ea' } ] },
+  { slot: 'fiamma', name: 'Fiamma del turbo', style: true, items: [
+    { id: 'classica', name: 'Classica', price: 0, color: '#ffb12b' }, { id: 'blu', name: 'Blu gas', price: 180, color: '#3aa0ff' },
+    { id: 'verde', name: 'Verde Kawa', price: 180, color: '#46ff5a' }, { id: 'viola', name: 'Viola', price: 220, color: '#b45cff' },
+    { id: 'plasma', name: 'Plasma bianco', price: 300, color: '#e9f4ff' } ] },
+  { slot: 'festa', name: 'Festa al traguardo', style: true, items: [
+    { id: 'nessuna', name: 'Niente', price: 0 }, { id: 'coriandoli', name: 'Coriandoli EDT', price: 150, color: '#ffc61a' },
+    { id: 'birre', name: 'Pioggia di birre', price: 250, color: '#e8a21c' }, { id: 'fuochi', name: 'Fuochi d’artificio', price: 350, color: '#ff5a3a' } ] },
 ];
 data.bike ||= 'edt250'; data.owned ||= {}; data.parts ||= {};
 export const ownsBike = id => id === 'edt250' || !!data.owned['bike:' + id];
+// v106.6 · collezioni: completale per un titolo accanto al tuo pilota e un premio in birre
+export const COLLECTIONS = [
+  { id: 'factory', name: 'Squadra Factory', icon: '🏁', desc: 'Tutti i pezzi EDT Factory', prize: 400, items: () => PARTS.flatMap(p => p.items.filter(i => i.factory).map(i => [p.slot, i.id])) },
+  { id: 'boanal', name: 'Cliente BO-anal', icon: '💎', desc: 'Tutti i pezzi BO-anal Special e la T7', prize: 300, items: () => [...PARTS.flatMap(p => p.items.filter(i => i.boanal).map(i => [p.slot, i.id])), ['bike', 'boanal']] },
+  { id: 'garage', name: 'Garage pieno', icon: '🏍', desc: 'Tutte le moto', prize: 400, items: () => BIKES.filter(b => b.price).map(b => ['bike', b.id]) },
+  { id: 'chiodi', name: 'Re del ghiaccio', icon: '❄', desc: 'Tutti i chiodi', prize: 250, items: () => PARTS.find(p => p.slot === 'studs').items.slice(1).map(i => ['studs', i.id]) },
+  { id: 'stile', name: 'Fighetto del paddock', icon: '✨', desc: 'Tutto lo stile: caschi, fiamme e feste', prize: 300, items: () => PARTS.filter(p => p.style).flatMap(p => p.items.slice(1).map(i => [p.slot, i.id])) },
+  { id: 'leggenda', name: 'Leggenda EDT', icon: '👑', desc: 'Tutti i potenziamenti al livello 8', prize: 1000, items: () => UPGRADES.map(u => ['upg', u.id]) },
+];
+const hasItem = ([slot, id]) => slot === 'bike' ? ownsBike(id) : slot === 'upg' ? upgradeLevel(id) >= MAX_UPGRADE : ownsPart(slot, id);
+export function collectionProgress(c) { const it = c.items(); return { have: it.filter(hasItem).length, tot: it.length }; }
+// premio una volta sola: torna le collezioni appena completate
+export function claimCollections() {
+  data.colls ||= {}; const out = [];
+  for (const c of COLLECTIONS) { const p = collectionProgress(c); if (p.have >= p.tot && !data.colls[c.id]) { data.colls[c.id] = 1; data.beers += c.prize; out.push(c); } }
+  if (out.length) save(); return out;
+}
+export function bestTitle() { data.colls ||= {}; const c = [...COLLECTIONS].reverse().find(x => data.colls[x.id]); return c ? c.icon + ' ' + c.name : ''; }
 export const ownsPart = (slot, id) => PARTS.find(p => p.slot === slot)?.items[0].id === id || !!data.owned[slot + ':' + id];
 export function currentBike() { const b = BIKES.find(x => x.id === data.bike); return b && ownsBike(b.id) ? b : BIKES[0]; }
 export function currentParts() { const o = {}; for (const p of PARTS) { const id = data.parts[p.slot]; o[p.slot] = (ownsPart(p.slot, id) && p.items.find(i => i.id === id)) || p.items[0]; } return o; }

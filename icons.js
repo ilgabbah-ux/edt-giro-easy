@@ -53,6 +53,9 @@ const P = {
   wing: '<path d="M3 18.5c4.5 0 8.6-1.4 12-4.6 2.6-2.5 4.4-5.6 5.5-9.4-4 .8-7.8 2.6-10.6 5.4C7.2 12.6 4.8 15.4 3 18.5z"/><path d="M7.5 15.5c2.6-.3 5.1-1 7.4-2.4M10.5 12.4c2-.4 4-1.2 5.8-2.4"/>',
   pack: '<path d="M7.2 8.5a4.8 4.8 0 0 1 9.6 0V20a1.5 1.5 0 0 1-1.5 1.5H8.7A1.5 1.5 0 0 1 7.2 20z"/><path d="M10 3.8V3a2 2 0 0 1 4 0v.8"/><rect x="9.3" y="13" width="5.4" height="4.5" rx="1"/><path d="M7.2 11.5H5.5v6.5h1.7M16.8 11.5h1.7v6.5h-1.7"/>',
   owl: '<path d="M5 9.5 6.2 4l3 2.6a7.4 7.4 0 0 1 5.6 0L17.8 4 19 9.5v5.3c0 3.8-3.1 6.7-7 6.7s-7-2.9-7-6.7z"/><circle cx="9.2" cy="11.5" r="2.2"/><circle cx="14.8" cy="11.5" r="2.2"/><path class="f" d="M12 14.2l-1 1.6h2z"/>',
+  crown: '<path d="M3.5 8.5 7.5 12l4.5-6.5 4.5 6.5 4-3.5-1.6 10.5H5.1z"/><path d="M5.5 21h13"/>',
+  gem: '<path d="M7 4h10l4 5-9 11L3 9z"/><path d="M3 9h18M9.5 4 8 9l4 11 4-11-1.5-5"/>',
+  sparkle: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
   pin: '<path d="M12 21.5s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10.5" r="2.4"/>',
 };
 
@@ -66,7 +69,7 @@ const MAP = {
   '🍺': 'beer', '🍷': 'wine', '🔥': 'flame', '💧': 'water', '🐰': 'rabbit', '🔧': 'wrench', '🎁': 'gift', '⏱': 'stopwatch',
   '👻': 'ghost', '⚡': 'bolt', '🔊': 'speaker', '🤠': 'wheelie', '🪨': 'rock', '⛰': 'mountain', '🎯': 'target', '🦘': 'spring',
   '🐸': 'wave', '🌀': 'scrub', '🦁': 'helmetplus', '⬇': 'downhill', '🦊': 'eye', '🧓': 'stopwatch', '🚱': 'nowater', '🚀': 'rocket',
-  '✴': 'star', '⚙': 'gear', '🪝': 'shock', '⛽': 'fuel', '🛞': 'tyre', '⛑': 'helmet', '👃': 'radar', '🔒': 'lock', '✔': 'check', '▶': 'play', '🏁': 'flag', '🏆': 'trophy', '🪵': 'log', '🎮': 'pad', '🖱': 'mouse', '🧠': 'chip', '🛡': 'shield', '🪽': 'wing', '🎒': 'pack', '🦉': 'owl',
+  '✴': 'star', '⚙': 'gear', '🪝': 'shock', '⛽': 'fuel', '🛞': 'tyre', '⛑': 'helmet', '👃': 'radar', '🔒': 'lock', '✔': 'check', '▶': 'play', '🏁': 'flag', '🏆': 'trophy', '🪵': 'log', '🎮': 'pad', '🖱': 'mouse', '🧠': 'chip', '🛡': 'shield', '🪽': 'wing', '🎒': 'pack', '🦉': 'owl', '👑': 'crown', '💎': 'gem', '✨': 'sparkle',
 };
 const RE = new RegExp('(' + Object.keys(MAP).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\uFE0F?', 'gu');
 export function iconize(html) { return String(html).replace(RE, (m, e) => icon(MAP[e])); }

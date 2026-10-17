@@ -2939,6 +2939,7 @@ export function createWorld(canvas) {
     lampGlow.visible = lampOpt || (weatherNow.night || 0) > .1;   // v84 · di notte il faro è sempre acceso
 
     flame.visible = flameCore.visible = !electricNow && (boostAmount > 0 || (s.grappa || 0) > 0);
+    if (flame.visible) { const fc = s.parts?.fiamma?.color || '#ffb12b'; if (flameMat.userData.c !== fc) { flameMat.userData.c = fc; flameMat.color.set(fc); flameCore.material.color.set(fc).lerp(new T.Color('#ffffff'), .75); } }   // v106.6 · fiamma del turbo a scelta
     flameMat.color.set(boostAmount > 0 ? '#ffb12b' : '#3fa9ff');
     if (flame.visible) { const f = .8 + Math.random() * .5; flame.scale.set(1, f, 1); flameCore.scale.set(1, f * .9, 1); }
 

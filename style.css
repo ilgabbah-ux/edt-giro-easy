@@ -1440,3 +1440,23 @@ aside#hub { gap: 10px; }
 .beerline .wkx2 { display: inline-block; margin-left: 6px; font: italic 800 12px var(--ui); color: #ffb21a; }
 .trackhero .thchips .wkchip { border-color: #ffb21a; color: #1b1206; background: linear-gradient(90deg, #ffc61a, #ff8a1a); }
 .overlay.scrolled .ovfull { opacity: 0; pointer-events: none; transition: opacity .2s; }
+/* v106.6 · livelli Leggenda, stile e collezioni */
+.pips u.leg { background: #ffffff14; outline: 1px solid #e3b02155; }
+.pips u.leg.on { background: linear-gradient(90deg, #f7d774, #e3b021); box-shadow: 0 0 6px #e3b02199; }
+.upg .legtag { display: block; margin-top: 4px; font: italic 800 11px var(--ui); letter-spacing: 1px; color: #f2c230; }
+.colls { display: grid; gap: 8px; margin: 6px 0 10px; }
+.coll { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; background: #1d1e1bd8; border: 1px solid #3a3c34; }
+.coll .ci { font-size: 22px; text-align: center; } .coll .ci .ic { width: 24px; height: 24px; color: var(--y); }
+.coll b { display: block; font: italic 800 15px var(--ui); text-transform: uppercase; color: #fff; }
+.coll small { display: block; color: var(--muted); font-size: 12.5px; }
+.coll .cbar { display: block; height: 5px; margin-top: 6px; background: #ffffff1c; } .coll .cbar span { display: block; height: 100%; background: linear-gradient(90deg, var(--r), var(--y)); }
+.coll em { font: italic 800 14px var(--ui); color: var(--y); font-style: normal; }
+.coll.done { border-color: #e3b021; background: linear-gradient(90deg, #3a2e0ccc, #1d1e1bd8); }
+.colltitle { display: block; font: italic 800 11.5px var(--ui); letter-spacing: .8px; color: #f2c230; text-transform: uppercase; margin-top: 2px; }
+.festa { position: absolute; inset: 0; pointer-events: none; z-index: 30; overflow: hidden; }
+.festa i { position: absolute; top: -30px; display: block; width: 9px; height: 14px; animation: festafall 2.6s linear forwards; }
+.festa-birre i { width: 30px; height: 30px; color: #ffc61a; filter: drop-shadow(0 2px 3px #0008); }
+.festa-birre i .ic { width: 30px; height: 30px; }
+@keyframes festafall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(110vh) rotate(540deg); opacity: 0; } }
+.festa-fuochi i { width: 14px; height: 14px; margin: -7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 14px 4px var(--c); opacity: 0; animation: festaboom 1.5s ease-out 2 forwards; }
+@keyframes festaboom { 0% { opacity: 1; transform: scale(.3); box-shadow: 0 0 14px 4px var(--c); } 70% { opacity: 1; } 100% { opacity: 0; transform: scale(1); box-shadow: 0 -90px 0 0 var(--c), 64px -64px 0 0 var(--c), 90px 0 0 0 var(--c), 64px 64px 0 0 var(--c), 0 90px 0 0 var(--c), -64px 64px 0 0 var(--c), -90px 0 0 0 var(--c), -64px -64px 0 0 var(--c), 0 0 30px 10px var(--c); } }
