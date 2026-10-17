@@ -782,6 +782,9 @@ function exitFull() { if (inFull()) try { (document.exitFullscreen || document.w
 if (!fsOK) $('fullscreen').hidden = $('ovfull').hidden = true;
 // v47 · schermo intero anche dai menu (officina, classifica, risultati): pulsante fisso in alto a destra
 $('ovfull').onclick = () => { if (inFull()) exitFull(); else goFull(); };
+// v106.6 · il pulsante dello schermo intero sparisce quando scorri le schede (copriva i prezzi in officina)
+$('overlay').addEventListener('scroll', e => { const y = e.target.scrollTop || 0; $('overlay').classList.toggle('scrolled', y > 30); }, { capture: true, passive: true });
+new MutationObserver(() => $('overlay').classList.remove('scrolled')).observe($('card'), { childList: true });
 // v48 · i pannelli a destra (pilota, garage, classifica, come si sopravvive) si aprono a tutto schermo con un tocco
 // e hanno il pulsante per tornare al menu principale.
 let maxPanel = null;
@@ -2365,7 +2368,7 @@ function renderShop(back, tab = shopTab) {
       : tab === 'bikes' ? `<div class="upgs">${P.BIKES.map(bikeCard).join('')}</div><p class="tip">Ogni moto cambia davvero la guida. I potenziamenti valgono per tutte.</p>`
       : tab === 'ice' ? `<div class="upgs">${studs.items.map(studCard).join('')}</div><p class="tip">I chiodi contano solo su Ice Scrofy: <b>grip</b> = la moto tiene la linea e non finisce nel muro di neve; <b>derapata</b> = più punti per ogni traverso.</p>`
       : `${P.PARTS.filter(p => !p.ice).map(partRow).join('')}<p class="tip">Gli accessori si vedono sulla moto (e dietro a questo menu). Una volta comprati restano tuoi.</p>`}
-    <p class="tip">Le birre si guadagnano raccogliendole in gara (+20 se arrivi al rifugio, +10 per ogni missione).</p>
+    <p class="tip">Le birre si guadagnano raccogliendole in gara (+20 se arrivi al rifugio, +10 per ogni missione). Sul <b>percorso della settimana</b> (${P.MODES.find(m => m.id === P.weeklyTrack())?.name}) valgono il doppio.</p>
     <div class="actions"><button class="primary big" id="shopgo">PARTI</button><button class="secondary" id="shopback">INDIETRO</button></div>`;
   iconizeEl($('card'));
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { A.sfx.click(); renderShop(back, b.dataset.tab); });
