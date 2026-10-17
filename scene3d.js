@@ -1518,7 +1518,7 @@ export function createWorld(canvas) {
   // Le plastiche del modello prendono il colore della livrea.
   const BIKE_GLB = { edt250: 'enduro', gp125: 'enduro', ts300: 'enduro', mulo450: 'enduro', factory: 'enduro', trial: 'trial', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', pitbike: 'pitbike', bestia: 'bestia', hard300: 'hard300' };
   // misure prese dai modelli: manubrio (mezza larghezza, altezza, z) e sella, per mettere mani e sedere al posto giusto
-  const BIKE_FIT = { enduro: [.44, 1.42, -.2, 1.106], trial: [.5, 1.45, -.27, .99], vintage: [.47, 1.39, -.26, .921], adventure: [.5, 1.5, -.25, 1.011], electric: [.46, 1.43, -.29, 1.133], dakar: [.4, 1.31, -.24, 1.063] };   // [manubrio x, y, z, sella sotto il sedere]
+  const BIKE_FIT = { enduro: [.44, 1.42, -.2, 1.106], trial: [.5, 1.45, -.27, .99], vintage: [.47, 1.39, -.26, .921], adventure: [.5, 1.5, -.25, 1.011], electric: [.46, 1.43, -.29, 1.133], dakar: [.4, 1.31, -.24, 1.063], hard300: [.46, 1.36, -.41, 1.065], bestia: [.5, 1.49, -.34, 1.173], pitbike: [.44, 1.2, -.3, .903] };   // [manubrio x, y, z, sella sotto il sedere]
   const glbCache = {}, glbWait = {}, bikeTint = { value: new T.Color('#ffffff') };
   let procBike = null, glbNow = null, glbWant = null;
   function procBikeParts() {
