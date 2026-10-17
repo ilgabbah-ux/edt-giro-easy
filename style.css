@@ -13,7 +13,7 @@
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: radial-gradient(ellipse at 12% -10%, #3a2618 0, transparent 45%), radial-gradient(ellipse at 100% 0, #1d2a22 0, transparent 40%), var(--ink); color: var(--cream); font: 600 17px/1.4 var(--ui); min-height: 100svh; }
+body { margin: 0; background: radial-gradient(ellipse at 12% -10%, #3a2618 0, transparent 45%), radial-gradient(ellipse at 100% 0, #1d2a22 0, transparent 40%), var(--ink); color: var(--cream); font: 600 17px/1.4 var(--ui); min-height: 100vh; min-height: 100svh; }
 button { font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .hidden { display: none !important; }
@@ -36,7 +36,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; align-items: start; }
 
 /* ---------- Area di gioco ---------- */
-.game { position: relative; height: calc(100svh - 132px); min-height: 560px; max-height: 980px; border-radius: 16px; overflow: hidden; background: #2b3a2e; border: 1px solid #4b4637; box-shadow: 0 20px 60px #0009; isolation: isolate; user-select: none; -webkit-user-select: none; }
+.game { position: relative; height: calc(100vh - 132px); height: calc(100svh - 132px); min-height: 560px; max-height: 980px; border-radius: 16px; overflow: hidden; background: #2b3a2e; border: 1px solid #4b4637; box-shadow: 0 20px 60px #0009; isolation: isolate; user-select: none; -webkit-user-select: none; }
 .game:fullscreen { height: 100%; max-height: none; border-radius: 0; border: 0; }
 .game:-webkit-full-screen { height: 100%; max-height: none; border-radius: 0; }
 canvas { width: 100%; height: 100%; display: block; touch-action: none; }
@@ -326,7 +326,7 @@ footer { display: flex; justify-content: space-between; color: #8f8878; font-siz
   .edition { display: none; }
   .sharebutton { font-size: 11px; padding: 10px 12px; white-space: nowrap; }
   main { grid-template-columns: 1fr; gap: 14px; }
-  .game { height: calc(100svh - 76px); min-height: 520px; max-height: none; border-radius: 12px; }
+  .game { height: calc(100vh - 76px); height: calc(100svh - 76px); min-height: 520px; max-height: none; border-radius: 12px; }
   .hud { inset: 8px 8px auto; grid-template-columns: 1fr auto; }
   .hudcenter { grid-column: 1 / -1; grid-row: 2; }
   .scorebox b { font-size: 26px; }
@@ -648,7 +648,7 @@ footer { font: 600 14px var(--ui); letter-spacing: .5px; border-top: 1px solid #
   .shell { padding: 4px 8px; }
   header { display: none; }
   main { grid-template-columns: 1fr; }
-  .game { height: 100svh; min-height: 0; max-height: none; border-radius: 0; }
+  .game { height: 100vh; height: 100svh; min-height: 0; max-height: none; border-radius: 0; }
   .hud { inset: 6px 10px auto; }
   .scorebox b { font-size: 24px; } .timerbox b { font-size: 28px; } .timerbox small { display: none; }
   .combobox, .speedo { display: none; }
@@ -1085,7 +1085,7 @@ aside#hub { gap: 10px; }
 #hub[data-hub="classifica"] > .panel[data-hub="classifica"], #hub[data-hub="regole"] > .panel[data-hub="regole"], #hub > .panel.panelmax { display: block; animation: hubin .22s ease-out; }
 @keyframes hubin { from { opacity: 0; transform: translateY(6px); } }
 @media (min-width: 901px) {
-  aside#hub { position: sticky; top: 10px; max-height: calc(100svh - 20px); overflow-y: auto; scrollbar-width: thin; padding-right: 2px; }
+  aside#hub { position: sticky; top: 10px; max-height: calc(100vh - 20px); max-height: calc(100svh - 20px); overflow-y: auto; scrollbar-width: thin; padding-right: 2px; }
 }
 .howgroup { border: 1px solid #ffffff17; background: #ffffff06; margin-bottom: 8px; }
 .howgroup summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 11px 12px; font: italic 800 16px var(--ui); letter-spacing: 1px; text-transform: uppercase; color: var(--cream); }
@@ -1435,3 +1435,7 @@ aside#hub { gap: 10px; }
   .card:has(> .menuhead) h1.title { font-size: 24px; margin: 0 0 2px; }
   .card:has(> .menuhead) .trackhero .thtext > small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 }
+/* v106.5 · percorso della settimana */
+.mode .wktrack { position: absolute; bottom: 6px; right: 6px; z-index: 2; font: italic 800 11px/1 var(--ui); color: #1b1206; background: linear-gradient(90deg, #ffc61a, #ff8a1a); padding: 4px 7px; border-radius: 6px; box-shadow: 0 2px 6px #0007; letter-spacing: .3px; }
+.beerline .wkx2 { display: inline-block; margin-left: 6px; font: italic 800 12px var(--ui); color: #ffb21a; }
+.trackhero .thchips .wkchip { border-color: #ffb21a; color: #1b1206; background: linear-gradient(90deg, #ffc61a, #ff8a1a); }

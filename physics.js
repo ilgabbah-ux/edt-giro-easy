@@ -49,7 +49,7 @@ export function jumpHeight(remaining, duration = JUMP_DURATION, height = JUMP_HE
 }
 
 export function clearsObstacle(type, lift) {
-  return Object.hasOwn(OBSTACLE_HEIGHT, type) && lift >= OBSTACLE_HEIGHT[type] + .06;
+  return Object.prototype.hasOwnProperty.call(OBSTACLE_HEIGHT, type) && lift >= OBSTACLE_HEIGHT[type] + .06;
 }
 
 // "Salto perfetto": l'ostacolo passa sotto la moto vicino al punto più alto.

@@ -53,6 +53,12 @@ export const MODES = [
 // v59 · percorsi tolti dal menu (restano nell'elenco per non mescolare record e classifiche già salvati)
 export const SHOWN = () => MODES.filter(m => !m.hidden);
 export const isUnlocked = (m, level = levelInfo().level) => level >= (m.unlock || 1);
+// v106.5 · percorso della settimana: cambia ogni lunedì e porta il doppio delle birre al rifugio
+export function weeklyTrack(d = new Date()) {
+  const ids = SHOWN().filter(m => m.id !== 3 && !m.random).map(m => m.id);
+  const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7);
+  return ids[Math.round(x.getTime() / 6048e5) % ids.length];
+}
 
 // v52 · livree goliardiche: colori + fantasia (pattern) su plastiche e maglia. icon = simbolo nella scheda del garage.
 export const LIVERIES = [
@@ -421,7 +427,8 @@ export function recordRun(run) {
 
   // Birre portate al rifugio: quelle raccolte + bonus arrivo + bonus missioni.
   const finished = run.score > 0 && (run.angeloFinish || run.dailyFinish || run.finishTime > 0);
-  const beersEarned = run.caps + (finished ? 20 : 0) + completed.length * 10;
+  const weeklyX2 = run.mode === weeklyTrack();
+  const beersEarned = (run.caps + (finished ? 20 : 0) + completed.length * 10) * (weeklyX2 ? 2 : 1);
   data.beers += beersEarned;
   // Premio del rifugio: solo a chi arriva.
   let prize = null;
@@ -440,5 +447,5 @@ export function recordRun(run) {
   ensureMissions();
   save();
   const trophiesNew = checkTrophies();
-  return { weeklyDone, completed, isRecord, previousBest, scoreXp, missionsXp, before, after, unlocked, position, beersEarned, prize, wallet: data.beers, trophiesNew };
+  return { weeklyDone, completed, isRecord, previousBest, scoreXp, missionsXp, before, after, unlocked, position, beersEarned, weeklyX2, prize, wallet: data.beers, trophiesNew };
 }

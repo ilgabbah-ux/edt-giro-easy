@@ -85,6 +85,10 @@ if (!RIDERS.includes(profile.rider)) profile.rider = RIDERS[0];
 let mode = Math.min(P.MODES.length - 1, Math.max(0, profile.mode | 0));
 if (P.MODES[mode]?.hidden) mode = 0;   // v59 · percorso tolto: si torna al Giro easy
 if (!P.isUnlocked(P.MODES[mode])) mode = 0;
+// v106.5 · link "batti il mio fantasma": ?fantasma=Nome&p=percorso
+let ghostWant = null;
+{ const q = new URLSearchParams(location.search), n = (q.get('fantasma') || '').slice(0, 24), m = +q.get('p');
+  if (n && P.MODES[m] && !P.MODES[m].hidden) { ghostWant = { n, m }; mode = m; setTimeout(() => { if (state === 'ready') toast('👻 ' + n.toUpperCase() + ' TI SFIDA SU ' + P.MODES[m].name.toUpperCase() + ': PREMI VIA E BATTI IL SUO FANTASMA', 'gold'); }, 2500); } }
 // ---------- Tracciato del percorso scelto ----------
 let runSeed = 1;
 function layoutFor(m, fresh = false) {
@@ -231,14 +235,16 @@ window.addEventListener('devicemotion', e => {
   if (performance.now() - tiltOriSeen < 600) return;   // l'orientamento c'è: uso quello
   const a = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0;
   const ax = a === 90 ? g.y : (a === -90 || a === 270) ? -g.y : -g.x;
-  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ? -1 : 1;
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ? -1 : 1;   // v106.5 · anche iPad (si presenta come Mac)
   tiltApply(Math.asin(Math.max(-1, Math.min(1, ios * ax / 9.81))) * 180 / Math.PI);
 });
 // v65 · iPhone: dopo un ricaricamento il permesso ai sensori va richiesto di nuovo con un tocco
-document.addEventListener('pointerdown', () => {
+// v106.5 · su iPhone il permesso vale solo da un tocco "completo" (touchend/click), non da pointerdown
+const askTilt = () => {
   if (tiltOn && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function' && performance.now() - tiltSeen > 1000)
     DeviceOrientationEvent.requestPermission().catch(() => {});
-}, { passive: true });
+};
+for (const ev of ['touchend', 'click']) document.addEventListener(ev, askTilt, { passive: true });
 setInterval(() => {   // v66 · il pulsante del menu mostra se il telefono manda l'inclinazione
   const b = document.getElementById('tiltmenu'); if (!b || !b.offsetParent) return;
   const live = performance.now() - tiltSeen < 1200;
@@ -498,7 +504,7 @@ function start() {
   let firstTip = '';
   { const seen = P.profile.seenTracks || (P.profile.seenTracks = {}); if (!seen[mode] && TRACK_INFO[mode]?.consiglio) { seen[mode] = 1; P.save(); firstTip = TRACK_INFO[mode].consiglio; countdown += 2.5; } }   // 2,5 s in più prima del 3-2-1 per leggerlo
   { const md = P.MODES[mode], ti = $('trackintro');   // v58 · cartolina del percorso durante il via
-    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b>${variantOf(md.id) ? `<em class="tivar">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</em>` : ''}${timeOfDay ? `<em class="tivar">${timeOfDay}</em>` : ''}${runPlan?.flash ? `<em class="tiflash">🎯 SFIDA LAMPO: ${runPlan.flash.text} (+${FLASH_BEERS} 🍺)</em>` : ''}<small>${md.id === 3 ? dailyRule().icon + ' REGOLA DI OGGI: ' + dailyRule().name + ' — ' + dailyRule().desc : md.desc}</small>${gGhost ? `<em class="tighost">👻 CORRI CONTRO IL FANTASMA DI ${gGhost.name.toUpperCase()} (1° NEL GRUPPO${gGhost.time ? ' · ' + C.fmtTime(gGhost.time) : ''})</em>` : ''}${firstTip ? `<em class="titip">💡 PRIMO GIRO QUI: ${firstTip}</em>` : ''}</div>`;
+    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b>${variantOf(md.id) ? `<em class="tivar">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</em>` : ''}${timeOfDay ? `<em class="tivar">${timeOfDay}</em>` : ''}${md.id === P.weeklyTrack() ? '<em class="tivar">🔥 PERCORSO DELLA SETTIMANA: BIRRE ×2</em>' : ''}${runPlan?.flash ? `<em class="tiflash">🎯 SFIDA LAMPO: ${runPlan.flash.text} (+${FLASH_BEERS} 🍺)</em>` : ''}<small>${md.id === 3 ? dailyRule().icon + ' REGOLA DI OGGI: ' + dailyRule().name + ' — ' + dailyRule().desc : md.desc}</small>${gGhost ? `<em class="tighost">👻 CORRI CONTRO IL FANTASMA DI ${gGhost.name.toUpperCase()} (${gGhost.challenge ? 'TI HA SFIDATO' : '1° NEL GRUPPO'}${gGhost.time ? ' · ' + C.fmtTime(gGhost.time) : ''})</em>` : ''}${firstTip ? `<em class="titip">💡 PRIMO GIRO QUI: ${firstTip}</em>` : ''}</div>`;
     ti.className = 'trackintro'; void ti.offsetWidth; ti.className = 'trackintro show'; }
   $('overlay').classList.add('hidden');
   setMenu(false);
@@ -522,6 +528,7 @@ function go() {
   $('countdown').className = 'countdown go';
   $('trackintro').className = 'trackintro out';
   $('countdown').textContent = 'VIA!'; buzz(90);
+  if (isChamp() && !run.champSaid) { run.champSaid = 1; setTimeout(() => toast('👑 CASCO D’ORO: HAI VINTO LA COPPA DELLA SETTIMANA SCORSA', 'gold'), 1400); }
   setTimeout(() => { if (state !== 'countdown') $('countdown').className = 'countdown'; }, 700);
   toast('VAI CICCIO!'); if (!riderLine('start')) voice('Vai Ciccio!', true);
   if (startBoosts.length) setTimeout(() => toast('🎁 ' + startBoosts.join(' · '), 'green'), 1500);
@@ -1558,10 +1565,13 @@ function updateRivals(dt, travelStep, route, diff) {
 function setupGroupGhost() {
   gGhost = null; gGhostPassed = false;
   if (ice || P.MODES[mode].random === 'run' || P.MODES[mode].leap) return;
-  const top = (C.cached()?.boards?.[mode] || []).find(e => e.g && e.g.length > 8);
+  const bl = C.cached()?.boards?.[mode] || [];
+  const want = ghostWant && ghostWant.m === mode ? bl.find(e => e.g && e.g.length > 8 && e.n.toLowerCase() === ghostWant.n.toLowerCase()) : null;   // v106.5 · sfida da link
+  const top = want || bl.find(e => e.g && e.g.length > 8);
   if (!top) return;
   const pts = C.decodeGhost(top.g); if (pts.length < 5) return;
   gGhost = { name: top.n, pts, rider: top.r, time: top.bt || top.t || 0, entry: { name: '👻 ' + top.n.toUpperCase(), ghost: true, gap: 0, lane: 1, lx: 1, lean: 0, number: Math.max(1, RIDERS.indexOf(top.r) + 1), livery: { plastic: '#f2c230', accent: '#ffffff', jersey: '#f2c230', pants: '#202020', helmet: '#ffffff' } } };
+  if (gGhost) gGhost.challenge = !!want;
 }
 function groupGhostCourse(t) {
   if (!gGhost) return null;
@@ -2165,7 +2175,7 @@ function drawState() {
     courseScale: GAME_LENGTH / (courseLength(P.MODES[mode].difficulty) * 19.5), objects, invincible, roadTime, wheelPhase, turbo, combo, fxKind, fxSerial,
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
     riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
-    livery: P.currentLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, bikeId: P.currentBike().id, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
+    livery: raceLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, bikeId: P.currentBike().id, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
     leapPitch: leap && leapState === 2 ? leapPitch : undefined, leapCam: leap && leapState === 2, canyon: leap && canyonX0 !== null ? { x0: canyonX0, len: canyonLen, land: canyonLand } : null,
     gev: gev ? { L: 1 + gevSide * 2.15, z: gevZ, arm: gevArm, t: elapsed } : null,
     ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs, variant: variantOf(mode),
@@ -2402,7 +2412,7 @@ function renderReady() {
     <div class="trackhero sky${md.sky ?? 0} ${md.ice ? 'icy' : ''} ${art ? 'hasart' : ''} ${heroDir ? 'in' + heroDir : ''}" id="trackhero">
       ${art ? `<img class="trackart" src="${art}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}
       <div class="thtext"><span class="ps">PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.id === 3 ? `<span class="dayrule">${dailyRule().icon} REGOLA DI OGGI: ${dailyRule().name}</span> ${dailyRule().desc}` : md.desc}</small>
-      <span class="thchips"><span title="Difficoltà">🔥 ${'★'.repeat((md.difficulty || 0) + 1) + '☆'.repeat(2 - (md.difficulty || 0))}</span>${variantOf(md.id) ? `<span class="var">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</span>` : ''}${!md.leap ? `<span class="gold" title="Boccali d’oro nascosti questa settimana">🏆 ${P.goldFound(md.id).filter(Boolean).length}/3 BOCCALI D’ORO</span>` : ''}${TRACK_INFO[md.id]?.tipo ? `<span class="tipo">${TRACK_INFO[md.id].tipo.split(' (')[0]}</span>` : ''}</span>
+      <span class="thchips"><span title="Difficoltà">🔥 ${'★'.repeat((md.difficulty || 0) + 1) + '☆'.repeat(2 - (md.difficulty || 0))}</span>${md.id === P.weeklyTrack() ? '<span class="wkchip">🔥 PERCORSO DELLA SETTIMANA · BIRRE ×2</span>' : ''}${variantOf(md.id) ? `<span class="var">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</span>` : ''}${!md.leap ? `<span class="gold" title="Boccali d’oro nascosti questa settimana">🏆 ${P.goldFound(md.id).filter(Boolean).length}/3 BOCCALI D’ORO</span>` : ''}${TRACK_INFO[md.id]?.tipo ? `<span class="tipo">${TRACK_INFO[md.id].tipo.split(' (')[0]}</span>` : ''}</span>
       ${md.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(layoutFor(md.id))}
       <span class="record">${icon('trophy')} ${best ? `RECORD ${md.id === 3 ? 'DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span>
       ${C.enabled() ? `<span class="thlead" id="thlead">${heroLead(C.cached())}</span>` : ''}</div>
@@ -2422,7 +2432,7 @@ function renderReady() {
     <div class="mhead tracks">${icon('flag')} CAMBIA PERCORSO <button class="linkbtn alltracks" id="alltracks" type="button">📋 TUTTI I TRACCIATI ›</button></div>
     <div class="modes" role="radiogroup" aria-label="Percorso">
       ${P.SHOWN().map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
-        ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 LIV ' + m.unlock}</small></button>`; }).join('')}
+        ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 LIV ' + m.unlock}</small>${m.id === P.weeklyTrack() ? '<i class="wktrack">🔥 BIRRE ×2</i>' : ''}</button>`; }).join('')}
     </div>
     <div class="menufoot">
       <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
@@ -2513,7 +2523,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${res.weeklyDone?.length ? `<div class="donelist weeklydone">${res.weeklyDone.map(c => `<div><span>🗓 MISSIONE DELLA SETTIMANA: ${c.text}</span><b>+${c.beers} 🍺</b></div>`).join('')}</div>` : ''}
     ${res.completed.length ? `<div class="donelist">${res.completed.map(c => `<div><span>✔ ${c.text}</span><b>+${c.xp} XP</b></div>`).join('')}</div>` : ''}
     <div class="loot">
-      <div class="beerline">🍺 <b>+${res.beersEarned}</b> birre portate al rifugio <small>in cassa: ${res.wallet} 🍺</small></div>
+      <div class="beerline">🍺 <b>+${res.beersEarned}</b> birre portate al rifugio${res.weeklyX2 ? ' <em class="wkx2">🔥 ×2 PERCORSO DELLA SETTIMANA</em>' : ''} <small>in cassa: ${res.wallet} 🍺</small></div>
       ${res.prize ? `<div class="prize"><span class="pi">${res.prize.icon}</span><span><small>PREMIO DEL RIFUGIO</small><b>${res.prize.name}${res.prize.amount ? ' +' + res.prize.amount + ' 🍺' : ''}</b>${res.prize.amount ? '' : '<em>' + res.prize.desc + ' (prossimo giro)</em>'}</span></div>` : `<div class="noprize">Arriva al rifugio per vincere un premio.</div>`}
     </div>
     <div class="xpline">+${xpTotal} XP ${res.after.level > res.before.level ? `· <b class="lvup">LIVELLO ${res.after.level}: ${res.after.grade.toUpperCase()}!</b>` : ''}</div>
@@ -2527,6 +2537,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     <div class="actions">
       <button class="primary big" id="again"><span>UN ALTRO GIRO</span>${icon('chevrons')}</button>
       <button class="secondary hot" id="shareScore">📸 MANDA LA CARTOLINA</button>
+      ${ghostChallengeHTML(score)}
       ${replayReady() ? '<button class="secondary replaybtn" id="replaybtn" type="button">🎬 RIVEDI GLI ULTIMI 10 s</button><button class="secondary replaybtn hot" id="replayvid" type="button">🎥 FAI IL VIDEO PER IL GRUPPO</button>' : ''}
       <button class="secondary shopsec" id="shopres">🔧 OFFICINA</button>
       <button class="secondary" id="menu">MENU</button>
@@ -2618,11 +2629,23 @@ function showPodium(w) {
   el.innerHTML = `<div class="podbox"><small>COPPA DELLA SETTIMANA SCORSA</small><b class="podtitle">IL PODIO</b>
     <div class="podsteps">${order.map(i => { const e = w.prev3[i]; return `<div class="pstep p${i + 1} ${e.n.toLowerCase() === me ? 'me' : ''}">${RIDERS.includes(e.r) ? avatarHTML(e.r) : '<i class="noav"></i>'}<b>${e.n}</b><em>${e.p} pt</em><span>${['🥇', '🥈', '🥉'][i]}</span></div>`; }).join('')}</div>
     <p>${w.prev3[0].n} porta la 👑 accanto al nome per tutta la settimana. Nuova coppa: si riparte da zero!</p>
+    <a class="wabtn" target="_blank" rel="noopener" href="${waLink('🏆 Coppa della settimana di Giro Easy: ' + w.prev3.map((e, i) => ['🥇', '🥈', '🥉'][i] + ' ' + e.n + ' (' + e.p + ' pt)').join(' · ') + '. Da oggi si riparte da zero, chi la vince questa settimana? 👉 ' + publicGameURL)}">📲 MANDA IL PODIO AL GRUPPO</a>
     <button class="primary" type="button" id="podok"><span>VAI!</span></button></div>`;
   topLayer().appendChild(el);
   A.sfx.perfect?.();
   $('podok').onclick = () => el.remove();
 }
+// v106.5 · "batti il mio fantasma": link per WhatsApp; chi lo apre corre contro il tuo fantasma su quel percorso
+function ghostChallengeHTML(sc) {
+  const md = P.MODES[mode], nick = C.getNick();
+  if (!C.enabled() || !nick || sc <= 0 || duel?.racing || md.ice || md.leap || md.random) return '';
+  const url = publicGameURL + '?fantasma=' + encodeURIComponent(nick) + '&p=' + mode;
+  const text = `👻 ${nick} ti sfida su ${trackName(mode)} a Giro Easy: il suo record è in classifica. Batti il suo fantasma 👉 ${url}`;
+  return `<a class="secondary wabtn ghostbtn" target="_blank" rel="noopener" href="${waLink(text)}">👻 SFIDA UN AMICO A BATTERE IL TUO FANTASMA</a>`;
+}
+// v106.5 · chi ha vinto la coppa della settimana scorsa corre col casco d'oro per tutta la settimana
+const isChamp = () => { try { return !!crownOf(C.getNick()); } catch { return false; } };
+function raceLivery() { const l = P.currentLivery(); return isChamp() ? { ...l, id: l.id + '-oro', helmet: '#e3b021' } : l; }
 const crownOf = n => { const p = C.cached()?.week?.prev; return p && n && p.n.toLowerCase() === String(n).toLowerCase() ? ' 👑' : ''; };
 // v97 · WhatsApp: messaggio pronto quando superi qualcuno, e avviso nel menu quando qualcuno supera te
 const waLink = text => 'https://wa.me/?text=' + encodeURIComponent(text);
