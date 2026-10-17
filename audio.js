@@ -344,6 +344,9 @@ const ENGINE_PROFILES = {
   boanal: { rate: 1.08, body: 1150, bark: 200, barkG: 9, k: 6, drive: 1.7, nz: 1.2 },  // la più potente
   electric: { rate: 2.4, body: 2600, bark: 60, barkG: .5, k: 1, drive: .35, nz: .15 },   // v97 · elettrica: fischio, niente scoppi
   dakar: { rate: .78, body: 700, bark: 125, barkG: 8, k: 4, drive: 1.4, nz: 1 },        // rally 450: cupa e lunga
+  pitbike: { rate: 1.9, body: 1800, bark: 380, barkG: 3, k: 6, drive: .8, nz: 2 },      // v106.6 · pit bike: zanzara
+  bestia: { rate: .64, body: 600, bark: 105, barkG: 10, k: 5, drive: 1.6, nz: .9 },     // 690: cupa e piena
+  hard300: { rate: 1.28, body: 1350, bark: 260, barkG: 8, k: 8, drive: 1.55, nz: 1.5 }, // 2 tempi da Erzberg
   factory: { rate: 1.35, body: 1400, bark: 280, barkG: 8, k: 8, drive: 1.6, nz: 1.4 },   // ufficiale: due tempi tirato
 };
 let EP = ENGINE_PROFILES.edt250;
