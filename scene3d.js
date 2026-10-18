@@ -22,6 +22,9 @@ const PRESETS = [
   // v46 · MotoFogna: diluvio, cielo piombo, luce bassa
   { name: 'Diluvio della Fogna', top: '#4a545c', horizon: '#9aa3a3', sunDir: [.4, .5, -.75], sunColor: '#d8dcd6', clouds: .95, cloud: '#8c9496',
     light: '#dfe3dc', lightI: 2.4, hemiSky: '#b9c2c4', hemiGround: '#3c3426', hemiI: 1.6, fog: '#8f9897', fogNear: 45, fogFar: 160, exposure: 1.02, ridge: '#5d6866' },
+  // v106.7 · Il Desertone: cielo terso, sole caldo, foschia di sabbia
+  { name: 'Sole del Desertone', top: '#3a7cc2', horizon: '#f2d9a6', sunDir: [-.5, .55, -.67], sunColor: '#fff0c4', clouds: .22, cloud: '#fff4e2',
+    light: '#ffeccc', lightI: 3.9, hemiSky: '#ffe6bf', hemiGround: '#b98a52', hemiI: 1.75, fog: '#ecd3a4', fogNear: 85, fogFar: 215, exposure: 1.04, ridge: '#d9a465', desert: true },
 ];
 
 export function createWorld(canvas) {
@@ -162,7 +165,7 @@ export function createWorld(canvas) {
   for (const o of [...forkRoads, forkIsland]) o.visible = false;
   let trail = { grade: 0, width: 1, rough: 0, climb: 0, wet: 0 };
   const spacing = () => 2.5 * trail.width;
-  let iceMode = false, iceKey = null, groundMaps = null;
+  let iceMode = false, iceKey = null, groundMaps = null, desertLook = false, desertKey = null;
   let ranchLook = false, camRoll = 0, camTurn = 0, bikeTurn = 0;   // v102 · Gusta Ranch nell'Astigiano
   let curveA = 3.8, curveF = .021;   // v97 · curve diverse per la variante della settimana
   const RANCH_SHAPE = { shape: ranchShape, heading: ranchHeading, bend: ranchBend };
@@ -239,14 +242,14 @@ export function createWorld(canvas) {
     roadMaps.length = 0; roadMaps.push(map, normalMap);
     ['#b8a58f', '#8f7b66', '#e8dccb', '#d8d4ce'].forEach((c, i) => DIRT_COLS[i].set(c));
     // v106.2 · se la foto arriva sul ghiaccio: si mette da parte per dopo (prima si risalvava il prato già spento = prato piatto per sempre)
-    if (iceMode && groundMaps) { groundMaps.d = map; groundMaps.dn = normalMap; dirt.map = iceTex; dirt.normalMap = null; dirt.needsUpdate = true; }
+    if ((iceMode || desertLook) && groundMaps) { groundMaps.d = map; groundMaps.dn = normalMap; dirt.map = iceMode ? iceTex : sandTex; dirt.normalMap = null; dirt.needsUpdate = true; }
   });
   photoTex('meadow', 10, 30, true, ({ map, normalMap }) => {
     grass.map = map; grass.normalMap = normalMap; grass.normalScale.set(.8, .8); grass.needsUpdate = true;
     verge.map = map; verge.normalMap = normalMap; verge.needsUpdate = true;
     grassMaps.length = 0; grassMaps.push(map, normalMap);
     ['#9db08a', '#b8d39b', '#e2dcb0', '#c0c3bb'].forEach((c, i) => GRASS_COLS[i].set(c));
-    if (iceMode && groundMaps) { groundMaps.g = groundMaps.v = map; groundMaps.gn = groundMaps.vn = normalMap; grass.map = verge.map = null; grass.normalMap = verge.normalMap = null; grass.needsUpdate = verge.needsUpdate = true; }   // v106.2
+    if ((iceMode || desertLook) && groundMaps) { groundMaps.g = groundMaps.v = map; groundMaps.gn = groundMaps.vn = normalMap; grass.map = verge.map = desertLook ? sandTex : null; grass.normalMap = verge.normalMap = null; grass.needsUpdate = verge.needsUpdate = true; }   // v106.2
     ['#8d9b70', '#a4bd84', '#d6cc9c', '#b4b6ae'].forEach((c, i) => VERGE_COLS[i].set(c));
   });
 
@@ -313,6 +316,10 @@ export function createWorld(canvas) {
       grass.color.set('#f2f7fa'); verge.color.set('#dde9ef');
       scene.fog.near = fogBase.near; scene.fog.far = fogBase.far;
     } else dirt.metalness = 0;
+    if (desertLook) {   // v106.7 · sabbia ovunque: pista battuta più scura, dune chiare ai lati
+      sandTex.offset.y = (t * 6 / 200) % 1;
+      dirt.color.set('#d2a56c'); grass.color.set('#efc98f'); verge.color.set('#e2b77c'); dirt.roughness = .95;
+    }
   }
   // v66 · il burrone visto dall'alto: fondovalle dipinto (bosco, prati, torrente) e parete di roccia di fronte, senza nebbia
   const valleyTex = (() => {
@@ -373,6 +380,25 @@ export function createWorld(canvas) {
     ferns.visible = flowers.visible = !on; shroomStems.visible = shroomCaps.visible = false;   // v72 · niente funghi giganti da cartone
     shrubs.material.color.set(on ? '#e6eef2' : '#ffffff');
     rockMat.vertexColors = !on; rockMat.color.set(on ? '#dde6ea' : '#ffffff'); rockMat.needsUpdate = true;   // v101 · sassi innevati su Ice Scrofy
+  }
+
+  // v106.7 · Il Desertone: texture di sabbia con le increspature del vento
+  const sandTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+    x.fillStyle = '#f2dcb4'; x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 1600; i++) { const v = 200 + Math.random() * 45; x.fillStyle = `rgba(${v},${v * .86},${v * .66},.35)`; x.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 1.5); }
+    x.lineWidth = 2;
+    for (let r = 0; r < 26; r++) { const y0 = r * 10 + Math.random() * 4; x.strokeStyle = `rgba(150,105,60,${.07 + Math.random() * .07})`; x.beginPath(); for (let px = -4; px <= 260; px += 8) { const y = y0 + Math.sin(px * .045 + r) * 3.5 + Math.sin(px * .11) * 1.2; px < 0 ? x.moveTo(px, y) : x.lineTo(px, y); } x.stroke(); }
+    const tx = new T.CanvasTexture(c); tx.wrapS = tx.wrapT = T.RepeatWrapping; tx.colorSpace = T.SRGBColorSpace; tx.repeat.set(9, 32); tx.anisotropy = 4; return tx;
+  })();
+  function setDesert(on) {
+    if (on === desertKey) return; desertKey = on; desertLook = on;
+    if (on && !iceMode) groundMaps = { d: dirt.map, g: grass.map, v: verge.map, dn: dirt.normalMap, gn: grass.normalMap, vn: verge.normalMap };
+    if (on) { dirt.map = grass.map = verge.map = sandTex; dirt.normalMap = grass.normalMap = verge.normalMap = null; }
+    else if (groundMaps && !iceMode) { dirt.map = groundMaps.d; grass.map = groundMaps.g; verge.map = groundMaps.v; dirt.normalMap = groundMaps.dn; grass.normalMap = groundMaps.gn; verge.normalMap = groundMaps.vn; }
+    dirt.needsUpdate = grass.needsUpdate = verge.needsUpdate = true;
+    tufts.visible = !on && quality < 2; ferns.visible = flowers.visible = !on && !iceMode;
+    shrubs.material.color.set(on ? '#b89a68' : iceMode ? '#e6eef2' : '#ffffff');   // cespugli secchi
   }
 
   // ---------- Paesaggi per sezione (instanced: leggero sui telefoni) ----------
@@ -493,14 +519,14 @@ export function createWorld(canvas) {
     const shrink = 1 - trail.rough * .45;
     treeData.forEach((d, i) => {
       const z = wrapZ(d.z, t), x = center(z, t) + d.side * d.off, y = ground(z, t, d.side * d.off);
-      const s = d.scale * shrink * vis(z, PINE_D, d.h) * (ranchLook && i % 4 ? 0 : 1);   // v102 · nell'astigiano pochi abeti
+      const s = d.scale * shrink * vis(z, PINE_D, d.h) * (ranchLook && i % 4 ? 0 : 1) * (desertLook ? 0 : 1);   // v102 · nell'astigiano pochi abeti
       dummy.rotation.set(0, d.rot, 0); dummy.scale.setScalar(s);
       for (const [m, yy] of [[trunks, 1.5], [crowns, 4.0], [tops, 6]]) { dummy.position.set(x, y + yy * s, z); put(m, i); }
       if (firOK) { const card = i % 2 ? firB : firA, other = i % 2 ? firA : firB; dummy.position.set(x, y - .15, z); dummy.scale.setScalar(4.6 * s); put(card, i); other.setMatrixAt(i, zeroM); }
     });
     leafData.forEach((d, i) => {
       const z = wrapZ(d.z, t), x = center(z, t) + d.side * d.off, y = ground(z, t, d.side * d.off);
-      const s = d.scale * vis(z, LEAF_D, d.h);
+      const s = d.scale * vis(z, LEAF_D, d.h) * (desertLook ? 0 : 1);
       dummy.rotation.set(0, d.rot, 0); dummy.scale.setScalar(s);
       dummy.position.set(x, y + 1.6 * s, z); put(birchTrunks, i);
       dummy.scale.set(s, s * 1.15, s); dummy.position.set(x, y + 3.9 * s, z); put(leafCrowns, i);
@@ -509,7 +535,7 @@ export function createWorld(canvas) {
     });
     larchData.forEach((d, i) => {
       const z = wrapZ(d.z, t), x = center(z, t) + d.side * d.off, y = ground(z, t, d.side * d.off);
-      const s = d.scale * vis(z, LARCH_D, d.h) * (ranchLook ? 0 : 1);
+      const s = d.scale * vis(z, LARCH_D, d.h) * (ranchLook || desertLook ? 0 : 1);
       dummy.rotation.set(0, i, 0); dummy.scale.setScalar(s);
       dummy.position.set(x, y + 1.2 * s, z); put(larchTrunks, i);
       dummy.scale.set(s * .9, s, s * .9); dummy.position.set(x, y + 3.9 * s, z); put(larchCrowns, i);
@@ -856,7 +882,7 @@ export function createWorld(canvas) {
         n.fromBufferAttribute(nr, i);
         const shade = .5 + .75 * Math.max(0, n.dot(light));
         tmp.copy(r === ridges[1] ? dark : base).multiplyScalar(shade * (.92 + .1 * Math.sin(i * 1.7)));
-        const sl = p.ice ? Math.min(cols.snow, 2) : cols.snow;
+        const sl = p.ice ? Math.min(cols.snow, 2) : p.desert ? 999 : cols.snow;   // v106.7 · nel deserto niente neve sulle cime
         if (y > sl) tmp.lerp(snow.clone().multiplyScalar(.75 + shade * .3), Math.min(1, (y - sl) / 9));
         tmp.lerp(horizon, cols.haze + (1 - Math.min(1, y / 70)) * .18);
         c.setXYZ(i, tmp.r, tmp.g, tmp.b);
@@ -1668,6 +1694,7 @@ export function createWorld(canvas) {
   const ranchLogoMat = new T.MeshBasicMaterial({ transparent: true, alphaTest: .05, side: T.DoubleSide, depthWrite: false });   // v102 · logo "Mud, beer & glory"
   texLoader.load('img/gusta-ranch-logo.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; });
   const henWhite = mat('#f3efe6', .85), henRed = mat('#a5512a', .8), henComb = mat('#d4241c', .6), henBeak = mat('#e8b02a', .6);   // v102
+  const camelMat = mat('#c79a5e', .85), camelDarkMat = mat('#8a6236', .85), thornA = mat('#7a5a34', .95), thornB = mat('#9c7a48', .95), thornLeaf = mat('#5e6a2c', .9);   // v106.7
   const crateWood = mat('#b98a52', .9), grapeMat = mat('#4a2a5c', .5), grapeGreen = mat('#a7b54a', .5), cowWhite = mat('#f1ede4', .8), cowBlack = mat('#22201e', .8), cowPink = mat('#e7a99c', .7), boarFur = mat('#3e2f24', .95), tuskMat = mat('#efe6cf', .5), deerFur = mat('#9a6237', .85), deerLight = mat('#e2c9a3', .85), ironMat = mat('#2c2f31', .45, .6), heliRed = mat('#d0242a', .45, .2), heliWhite = mat('#f2f2f2', .5), heliGlass = mat('#1d2b38', .15, .3), eyeShine = new T.MeshBasicMaterial({ color: '#e8ff9a' }), dolmenStone = mat('#77756e', .98), goldMat = new T.MeshStandardMaterial({ color: '#ffc21a', roughness: .22, metalness: .9, emissive: '#8a5a00', emissiveIntensity: .9 }), goldFoam = mat('#fffdf2', .6), lichen = mat('#5f6b2f', .95);   // v103 · occhi che brillano nel faro
   const pigPink = mat('#e9a49a', .7), pigNose = mat('#d17d78', .6), pigMudDark = mat('#4a3423', .5), cartWood = mat('#7b5434', .9);
   const hayRollSide = mat('#d9b35a', .95), hayRollEnd = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#d2ab52'; x.fillRect(0, 0, 128, 128); x.strokeStyle = '#a07b30'; x.lineWidth = 3; x.beginPath(); for (let a = 0; a < 40; a += .1) { const r = a * 1.55; x.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r); } x.stroke(); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return new T.MeshStandardMaterial({ map: t, roughness: .95 }); })();
@@ -1834,7 +1861,7 @@ export function createWorld(canvas) {
   function hazardRing(g, r) { const ring = mesh(new T.RingGeometry(r, r + .08, 28), ringMat, g); ring.rotation.x = -Math.PI / 2; ring.position.y = .015; ring.castShadow = false; }
   // v106 · ostacoli veri (generati con Higgsfield): tronchi, animali, elicottero, rotoballe, trattore e gallina.
   // Il modello sostituisce la versione a blocchi prendendone ingombro e posizione; cartelli, anelli e il Gusta col trattore restano.
-  const OBJ_GLB = { log: ['log'], bigLog: ['biglog'], cow: ['cow'], boar: ['boar'], deer: ['deer'], heli: ['heli'], hay: ['hay'], rollHay: ['hay', 'z'], hen: ['hen'], trincia: ['tractor'] };
+  const OBJ_GLB = { camel: ['camel'], log: ['log'], bigLog: ['biglog'], cow: ['cow'], boar: ['boar'], deer: ['deer'], heli: ['heli'], hay: ['hay'], rollHay: ['hay', 'z'], hen: ['hen'], trincia: ['tractor'] };
   const objGlb = {};
   const OBJ_BASE = { log: [0, 0, Math.PI / 2], biglog: [0, Math.PI / 2, 0], deer: [0, Math.PI / 2, 0], hen: [0, Math.PI / 2, 0], hay: [0, Math.PI / 2, 0], tractor: [0, Math.PI, 0] };
   for (const k of new Set(Object.values(OBJ_GLB).map(v => v[0]))) gltf.load(`img/models/obs_${k}.glb?t=1`, gg => {
@@ -2316,6 +2343,20 @@ export function createWorld(canvas) {
       const lid = mesh(new T.CylinderGeometry(.48, .48, .06, 24), ironMat, g); lid.position.set(.15, .42, -.1); lid.rotation.set(.9, 0, .5);
       const steam = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#cfd8d2', transparent: true, opacity: .35, depthWrite: false })); steam.scale.set(1.2, 1.8, 1); steam.position.y = .9; g.add(steam);
       hazardRing(g, .62);
+    } else if (type === 'camel') {
+      // v106.7 · cammello (dromedario) che attraversa il Desertone: corpo lungo su x, muso verso +x
+      const camel = camelMat, camelDark = camelDarkMat;
+      ball(.85, .5, .42, camel, g, 0, 1.55, 0); ball(.32, .38, .3, camel, g, -.05, 2.05, 0);
+      for (const [x, z] of [[-.55, -.22], [-.55, .22], [.55, -.22], [.55, .22]]) rod([x, 1.25, z], [x, 0, z], .08, camel, g);
+      rod([.75, 1.6, 0], [1.15, 2.3, 0], .13, camel, g); ball(.3, .16, .15, camel, g, 1.28, 2.35, 0); ball(.08, .07, .1, camelDark, g, 1.5, 2.3, 0);
+      rod([-.85, 1.6, 0], [-.95, 1.0, 0], .04, camelDark, g);
+      hazardRing(g, .95);
+    } else if (type === 'thorns') {
+      // v106.7 · cespuglio di spine secche: basso, si salta (se ci passi sopra buchi la gomma)
+      const tw = thornA, tw2 = thornB;
+      for (let i = 0; i < 26; i++) { const a = i * 2.4, r = .1 + (i % 5) * .09, h = .25 + (i % 4) * .08; rod([Math.cos(a) * .08, .02, Math.sin(a) * .08], [Math.cos(a) * r * 1.6, h, Math.sin(a) * r * 1.3], .018, i % 2 ? tw : tw2, g); }
+      for (let i = 0; i < 14; i++) { const a = i * 1.7; ball(.05, .04, .05, thornLeaf, g, Math.cos(a) * .3, .3 + (i % 3) * .05, Math.sin(a) * .25); }
+      hazardRing(g, .55);
     } else if (type === 'boar') {
       // v103 · cinghiale che attraversa di notte
       ball(.5, .32, .26, boarFur, g, 0, .5, 0); ball(.2, .2, .18, boarFur, g, .48, .5, 0); ball(.12, .1, .1, boarFur, g, .66, .44, 0);
@@ -2811,7 +2852,7 @@ export function createWorld(canvas) {
     adaptQuality();
     applyPreset(s.preset ?? 0);
     setPano(s.mode ?? 0);
-    setIce(!!(PRESETS[s.preset ?? 0] || {}).ice);
+    { const pr = PRESETS[s.preset ?? 0] || {}; if (pr.desert) { setIce(false); setDesert(true); } else { setDesert(false); setIce(!!pr.ice); } }   // v106.7 · prima si toglie un fondo, poi si mette l'altro
     applyLivery(s.livery);
     setBikeModel(s.bikeId);
     applyCustom(s.bikeLook, s.parts, s.livery);

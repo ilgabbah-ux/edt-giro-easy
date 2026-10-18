@@ -150,6 +150,7 @@ let bs = {}; // v44 · caratteristiche della moto scelta in officina
 let slalomN = 0, lastFord = -9, lastAnimal = -9, turboReadyT = 0;
 // v84 · Dopo migliora: la salita si fa dosando il gas (trazione); se ti pianti si spinge la moto
 let grip = .5, stallT = 0, stalled = false, pushP = 0, spinMsgAt = -9, tractOn = false;
+let desert = false, sandT = 0, sandStuck = false, flat = false, fixP = 0;   // v106.7 · Desertone: sabbia sulle dune e gomma bucata
 let wasTract = false, lastWaveFlash = -9, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
 // v84 · Sfida del giorno: una regola diversa ogni giorno, uguale per tutti
 const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RULES.length];
@@ -401,7 +402,7 @@ function hud() {
   $('gas').hidden = !needGas;
   $('gas').classList.toggle('held', gas);
   $('gas').setAttribute('aria-pressed', String(gas));
-  $('gas').textContent = ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? '🔒 GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
+  $('gas').textContent = desert && sandStuck ? 'INSABBIATO' : desert && flat ? 'FORATO' : desert && (routeAt(course, roadTime * 19.5).climb > .3) && !gas ? 'GAS O TI INSABBI' : ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? '🔒 GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
   $('gas').classList.toggle('locked', gasLock);
   { const tb = $('tractbox'); if (tb) { tb.hidden = !(tractOn && state === 'playing'); if (!tb.hidden) { tb.style.setProperty('--g', grip.toFixed(3)); tb.className = 'tractbox ' + (stalled ? 'stall' : grip > .94 ? 'spin' : grip < .12 ? 'low' : grip >= .28 && grip <= .84 ? 'ok' : ''); tb.querySelector('b').textContent = stalled ? 'SPINGI!' : grip > .94 ? 'PATTINA' : grip < .12 ? 'SI PIANTA' : grip >= .28 && grip <= .84 ? 'TRAZIONE' : 'GAS'; } } }
   if (leap && live) {   // v59 · riquadro del salto: assetto della moto e metri
@@ -479,7 +480,7 @@ function resetRun() {
   rng = duel?.racing ? makeRng(duel.seed) : mode === 3 ? makeRng(P.todayKey()) : makeRng((Date.now() ^ (Math.random() * 1e9)) >>> 0);
   applyLayout(true);
   bs = P.currentStats();
-  ice = !!P.MODES[mode].ice;
+  ice = !!P.MODES[mode].ice; desert = !!P.MODES[mode].desert; sandT = 0; sandStuck = flat = false; fixP = 0;
   slalomN = 0; lastFord = lastAnimal = lastTractor = -9; grip = .5; stallT = 0; stalled = false; pushP = 0; tractOn = false; wasTract = false; lastWaveFlash = -9; barT = 0; barsLeft = P.MODES[mode].vigne ? 1 : rule('bar') ? 2 : 0; nextBar = 15 + rng() * 8; setupGroupGhost();
   if (P.MODES[mode].ranch) objects.push({ l: -2.6, z: .78, type: 'farm', hit: false });   // v59 · la cascina del Gusta Ranch alla partenza
   leap = !!P.MODES[mode].leap; canyonX0 = null; canyonLand = 0; leapTurbo = false; leapMul = 1; leapZRate = .5; leapFree = 1; leapState = 0; leapPitch = leapW = leapDist = leapBest = 0; lastHopAt = -9; leapEndT = 0; leapPerfect = false;
@@ -687,6 +688,19 @@ function holeshot() {
 function hop() {
   if (state === 'countdown') { if (countdown < .5 + up.clutch * .1 && !holeDone) holePre = true; return; }
   if (state !== 'playing') return;
+  if (flat) {   // v106.7 · cambio della camera d'aria: ogni tocco è un pezzo del lavoro
+    fixP += 1 / 6; A.sfx.click?.(); shake = Math.max(shake, .12); buzz(15);
+    const steps = ['SMONTI LA RUOTA', 'TOGLI IL COPERTONE', 'CAMERA NUOVA', 'RIMONTI', 'GONFI', 'STRINGI I DADI'];
+    if (fixP >= .999) { flat = false; fixP = 0; toast('✅ CAMERA D’ARIA CAMBIATA: VAI!', 'green'); reward(60, 'MECCANICO DEL DESERTO!', 'trick', false); }
+    else toast('🔧 ' + steps[Math.min(5, Math.round(fixP * 6) - 1)] + ' · ' + Math.round(fixP * 6) + '/6', 'gold');
+    return;
+  }
+  if (sandStuck) {   // v106.7 · fuori dalla sabbia a spinte
+    pushP += .2; shake = Math.max(shake, .2); A.sfx.click?.(); buzz(12);
+    if (pushP >= 1) { sandStuck = false; sandT = 0; reward(80, 'FUORI DALLA SABBIA!', 'trick', false); toast('💪 FUORI! E ADESSO GAS', 'green'); }
+    else toast('💪 SPINGI! ' + Math.round(pushP * 100) + '%', 'gold');
+    return;
+  }
   if (stalled) {   // v84 · moto piantata in salita: ogni tocco è una spinta
     pushP += .2; shake = Math.max(shake, .2); A.sfx.click?.();
     if (pushP >= 1) { stalled = false; grip = .5; stallT = 0; reward(100, 'SPINTA EROICA!', 'trick', false); toast('💪 RIPARTITO! DOSA IL GAS', 'green'); }
@@ -1014,6 +1028,24 @@ function spawnWildSpecial(section) {
   }
   return false;
 }
+// v106.7 · Desertone: i cammelli attraversano la pista (uno o una piccola carovana), non si saltano
+let lastCamel = -9;
+function spawnDesertSpecial() {
+  if (wave - lastCamel < 3 || rng() > .3) return false;
+  lastCamel = wave;
+  const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
+  const dir = rng() < .5 ? 1 : -1, n = rng() < .4 ? 2 : 1, first = Math.floor(rng() * 3);
+  for (let i = 0; i < n; i++) { const lEnd = i ? (first + 1 + Math.floor(rng() * 2)) % 3 : first, k = dir * 2.0 / .83; add(lEnd - (.91 - (.08 - i * .2)) * k, .08 - i * .2, 'camel', { roll: true, lEnd, k, cross: dir }); }
+  const beerLane = [0, 1, 2].find(l => l !== first) ?? 1;
+  add(beerLane, .02, 'coin'); add(beerLane, -.08, 'coin');
+  toast(n > 1 ? '🐪 CAROVANA DI CAMMELLI IN PISTA!' : '🐪 CAMMELLO IN PISTA!', 'gold');
+  prevSafe = beerLane; wave++; return true;
+}
+function puncture() {
+  if (flat) return;
+  flat = true; fixP = 0; run.flats = (run.flats || 0) + 1; breakCombo(); mistake(); A.sfx.hit(); shake = Math.max(shake, .5); buzz([40, 60, 40]);
+  bigCall('FORATO!'); toast('🔧 CAMBIA LA CAMERA D’ARIA: TOCCA SALTA 6 VOLTE', 'red');
+}
 // v81 · Gusta Ranch: il Gusta passa con il trattore e la trincia di traverso alla pista, a dare fastidio
 let lastTractor = -9;
 function spawnRanchSpecial(force = false) {
@@ -1263,6 +1295,7 @@ function spawnWaveCore() {
   { const rr = routeAt(course, roadTime * 19.5);   // v85 · in salita con la trazione si pensa solo al gas: niente ostacoli, solo birre
     if (feat('traction') && (rr.climb > .3 || rr.grade > .04) && !leap) { const l = Math.floor(rng() * 3); for (let i = 0; i < 3; i++) objects.push({ l, z: -.08 * i, type: 'coin', hit: false }); wave++; return; } }
   if (P.MODES[mode].wild && wave > 1 && spawnWildSpecial(routeAt(course, roadTime * 19.5).id)) return;
+  if (desert && wave > 1 && spawnDesertSpecial()) return;
   const r = routeAt(course, roadTime * 19.5), section = r.id, diff = P.MODES[mode].difficulty;
   const add = (l, z, type, extra = {}) => objects.push({ l, z, type, hit: false, ...extra });
   const md = P.MODES[mode];
@@ -1270,7 +1303,7 @@ function spawnWaveCore() {
   const zSpeed = (1 + diff * .35 + elapsed / 100) * speedNow * 19.5 / 55;
 
   // Mulattiera: frana! Un sasso rotola giù dalla parete e attraversa le corsie.
-  if (section === 3 && wave > 1 && wave - lastSpecial > 2 && rng() < .3 + diff * .07) {
+  if (section === 3 && !md.desert && wave > 1 && wave - lastSpecial > 2 && rng() < .3 + diff * .07) {
     lastSpecial = wave;
     const lEnd = Math.floor(rng() * 3), k = 3.2 / .83;
     add(lEnd - (.91 - .08) * k, .08, 'rollRock', { roll: true, lEnd, k });
@@ -1296,7 +1329,7 @@ function spawnWaveCore() {
   }
 
   // Tronco di traverso: si passa solo saltando, con birre al volo come premio.
-  if (!md.ranch && (section === 0 || section === 2) && wave > 2 && wave - lastBigLog > 3 && rng() < .2 + diff * .04) {
+  if (!md.ranch && !md.desert && (section === 0 || section === 2) && wave > 2 && wave - lastBigLog > 3 && rng() < .2 + diff * .04) {
     lastBigLog = wave;
     add(1, .08, 'bigLog');
     for (let k = -2; k <= 2; k++) {
@@ -1865,6 +1898,16 @@ function update(dt) {
     else { stallT = 0; if (grip >= .28 - up.ecu * .03 && grip <= .84 + up.ecu * .03) { tractMul = 1.08; score += dt * 40; } }
   } else if (!tractOn) { grip += (.5 - grip) * Math.min(1, dt * 2); stallT = 0; stalled = false; }
   if (stalled) tractMul = .04;
+  // v106.7 · Desertone: sulle dune senza gas la moto affonda e si pianta; con la gomma a terra si sta fermi a ripararla
+  if (desert && state === 'playing') {
+    const dune = route.climb > .3 || route.grade > .03;
+    if (dune && !run.duneHint) { run.duneHint = 1; bigCall('DUNA: GAS APERTO!'); toast('🏜 SULLE DUNE TIENI IL GAS (TOCCA GAS PER BLOCCARLO) O TI INSABBI', 'gold'); }
+    if (dune && !gas && !sandStuck && jump <= 0 && turbo <= 0) sandT += dt; else sandT = Math.max(0, sandT - dt * 1.5);
+    if (sandT > .15 && !sandStuck) tractMul *= Math.max(.3, 1 - sandT * .5);
+    if (sandT > 1.5 && !sandStuck) { sandStuck = true; pushP = 0; breakCombo(); A.sfx.splash(); bigCall('INSABBIATO!'); toast('👆 TOCCA SALTA PER SPINGERE FUORI LA MOTO', 'gold'); buzz(60); }
+    if (sandStuck) tractMul = .03;
+    if (flat) tractMul = 0;
+  }
   if (rule('noturbo')) charge = 0;
   if (barT > 0) barT = Math.max(0, barT - dt);
   if (has('sprint') && course > GAME_LENGTH * .75 && !run.sprintCall && state === 'playing') { run.sprintCall = 1; bigCall('SPRINT FINALE!'); toast('💨 ULTIMO QUARTO: +10% VELOCITÀ E PUNTI DOPPI', 'gold'); A.sfx.turbo(); A.sayRider?.('maggie_sprint'); }   // v96
@@ -2056,6 +2099,11 @@ function update(dt) {
           toast('🔥 GRAPPA! SUPER SALTO E INVINCIBILE', 'gold'); braulio();
         }
       }
+    } else if (o.type === 'thorns') {   // v106.7 · spine del Desertone: saltale o buchi
+      if (gap < .42) { o.collected = true;
+        if (clearsObstacle('thorns', lift)) { run.jumps++; reward(120, 'SPINE SALTATE!', 'jump'); }
+        else if (grappa > 0 || turbo > 0 || crash > 0 || invincible > 0) reward(30, 'SPINE SCHIVATE', 'near', false);
+        else puncture(); }
     } else if (o.type === 'water') {
       if (gap < .42 && has('dry')) { o.collected = true; reward(150, 'ACQUA? MAI!', 'trick', false); A.sfx.hit(); }
       else if (gap < .42 && lift < OBSTACLE_HEIGHT.water + .06 && turbo <= 0 && grappa <= 0) {

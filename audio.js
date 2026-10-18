@@ -474,8 +474,9 @@ const SONGS = {
 };
 for (const [i, [f, n]] of Object.entries(SONGS)) STYLES[i] = { ...STYLES[i], file: 'musica/' + f + '.mp3', name: n };
 STYLES[15] = { ...STYLES[10], file: 'musica/same-blood.mp3', name: 'Same Blood · Il GaBbAH' };   // v105.4 · Notturna con le frontali: Same Blood
-STYLES[16] = { ...STYLES[0], file: 'musica/angelo-vs-gabbah.mp3', name: 'Angelo vs Gabbah · Il GaBbAH' };   // v105.4 · sfide a due (duello)
-export const DUEL_STYLE = 16;
+STYLES[16] = { ...STYLES[0], file: 'musica/ethereal-hammer.mp3', name: 'Ethereal Hammer · Il GaBbAH' };   // v106.7 · Il Desertone
+STYLES[17] = { ...STYLES[0], file: 'musica/angelo-vs-gabbah.mp3', name: 'Angelo vs Gabbah · Il GaBbAH' };   // v105.4 · sfide a due (duello)
+export const DUEL_STYLE = 17;
 for (let i = 0; i < STYLES.length; i++) if (!STYLES[i].file) STYLES[i] = { ...STYLES[i], file: 'musica/giro-easy.mp3', name: 'Giro Easy · Il GaBbAH' };
 // v57 · brani registrati (MP3): caricati una volta sola; la canzone riparte da dove si era fermata al giro prima.
 const songBuf = {}, songPos = {}, songLoad = {};

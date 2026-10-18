@@ -41,6 +41,8 @@ export const OBSTACLE_HEIGHT = {
   deer: 1.3,      // v103 · cervo (Frontali)
   dolmen: 2.3,    // v103 · i dolmen di Costa: pietre enormi, non si saltano
   trincia: 2.6,   // v81 · trattore con la trincia del Gusta (non si salta)
+  camel: 2.1,     // v106.7 · cammello del Desertone: non si salta
+  thorns: .42,    // v106.7 · cespuglio di spine: saltalo o fori la gomma
 };
 
 export function jumpHeight(remaining, duration = JUMP_DURATION, height = JUMP_HEIGHT) {
@@ -262,6 +264,8 @@ export const TRACK_SEGS = {
   15: [[50, 0], [60, -1], [30, 0], [60, 1.1], [40, -.8], [50, 0], [70, 1.2], [40, 0], [60, -1.2], [40, .8], [50, 0], [60, -1], [120, 0]],
   // MontaFiga: lo slalom scende in diagonale nel bosco
   12: [[80, 0], [140, .45], [80, 0], [140, -.45], [80, 0], [120, .4], [160, 0]],
+  // v106.7 · Il Desertone: curvoni larghi tra le dune
+  16: [[80, 0], [120, .5], [60, 0], [100, -.6], [50, 0], [60, .9], [60, -.9], [80, 0], [120, .45], [60, 0], [70, -.7], [160, 0]],
 };
 const SHAPES = new Map();
 export function trackShape(id, variant = 0, len = 1800) {

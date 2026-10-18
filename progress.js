@@ -49,6 +49,10 @@ export const MODES = [
   { id: 15, short: 'FRONTALI', name: 'Notturna con le frontali', desc: 'Buio pesto nel bosco, niente lampi: vedi solo dove punta la frontale del casco, che segue la curva. I compagni li riconosci dalle lucine.', night: true, frontali: true, difficulty: 2, sky: 1, limit: 58, unlock: 5, dense: .02,
     obs: { 0: ['root', 'rock', 'log', 'stump'], 1: ['puddle', 'root', 'rock'], 2: ['step', 'rock', 'root', 'log'], 3: ['rock', 'step', 'stump', 'root'] },
     layout: [{ t: 0, len: 5, name: 'PARTENZA AL BUIO' }, { t: 0, len: 9, name: 'IL BOSCO NERO' }, { t: 1, len: 6, down: 1, name: 'DISCESA DEI GUFI' }, { t: 3, len: 9, name: 'LA PIETRAIA' }, { t: 2, len: 9, climb: .6, name: 'SALITA DELLE LUCCIOLE' }, { t: 0, len: 8, name: 'IL SENTIERO DEI CINGHIALI' }, { t: 1, len: 6, down: 1, name: 'RIENTRO AL RIFUGIO' }] },
+  // v106.7 · Il Desertone: dune dove ti insabbi senza gas, cammelli che attraversano, spine che bucano la gomma
+  { id: 16, short: 'DESERTO', name: 'Il Desertone', desc: 'Dune, sassi e cammelli. Sulle dune tieni il gas o ti insabbi; occhio alle spine: se buchi ti fermi a cambiare la camera d’aria e perdi tempo.', desert: true, difficulty: 1, sky: 6, limit: 61, unlock: 3,
+    obs: { 0: ['rock', 'thorns', 'rock', 'thorns'], 1: ['thorns', 'rock', 'puddle', 'thorns'], 2: ['rock', 'thorns', 'rock'], 3: ['rock', 'rock', 'thorns'] },
+    layout: [{ t: 0, len: 6, name: 'LA PISTA DEL SERIR' }, { t: 2, len: 9, climb: 1, name: 'LE PRIME DUNE' }, { t: 0, len: 6, down: 1, name: 'GIÙ DAL CORDONE' }, { t: 3, len: 8, name: 'LA HAMMADA' }, { t: 2, len: 10, climb: 1, name: 'IL MARE DI SABBIA' }, { t: 1, len: 6, name: 'L’OASI' }, { t: 2, len: 9, climb: 1, name: 'LA GRANDE DUNA' }, { t: 0, len: 6, down: 1, name: 'VERSO IL BIVACCO' }] },
 ];
 // v59 · percorsi tolti dal menu (restano nell'elenco per non mescolare record e classifiche già salvati)
 export const SHOWN = () => MODES.filter(m => !m.hidden);
