@@ -1460,3 +1460,6 @@ aside#hub { gap: 10px; }
 @keyframes festafall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(110vh) rotate(540deg); opacity: 0; } }
 .festa-fuochi i { width: 14px; height: 14px; margin: -7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 14px 4px var(--c); opacity: 0; animation: festaboom 1.5s ease-out 2 forwards; }
 @keyframes festaboom { 0% { opacity: 1; transform: scale(.3); box-shadow: 0 0 14px 4px var(--c); } 70% { opacity: 1; } 100% { opacity: 0; transform: scale(1); box-shadow: 0 -90px 0 0 var(--c), 64px -64px 0 0 var(--c), 90px 0 0 0 var(--c), 64px 64px 0 0 var(--c), 0 90px 0 0 var(--c), -64px 64px 0 0 var(--c), -90px 0 0 0 var(--c), -64px -64px 0 0 var(--c), 0 0 30px 10px var(--c); } }
+/* v107 · in salita il tasto gas dice cosa fare: rosso che pulsa se pattini o ti pianti */
+.gas.warn { background: #ff4d3d !important; color: #fff !important; animation: gaswarn .45s ease-in-out infinite alternate !important; }
+@keyframes gaswarn { from { transform: scale(1); box-shadow: 0 0 0 0 #ff4d3d99; } to { transform: scale(1.06); box-shadow: 0 0 22px 4px #ff4d3d88; } }

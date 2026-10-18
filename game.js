@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=106.7';
-import { createWorld } from './scene3d.js?v=106.7';
-import * as A from './audio.js?v=106.7';
-import * as P from './progress.js?v=106.7';
-import { createMud } from './mudfx.js?v=106.7';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=106.7';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=106.7';
-import * as C from './classifica.js?v=106.7';
-import * as D from './duel.js?v=106.7';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107';
+import { createWorld } from './scene3d.js?v=107';
+import * as A from './audio.js?v=107';
+import * as P from './progress.js?v=107';
+import { createMud } from './mudfx.js?v=107';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=107';
+import * as C from './classifica.js?v=107';
+import * as D from './duel.js?v=107';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=106.7').then(m => {
+import('./piloti.js?v=107').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -64,7 +64,7 @@ const SKILLS = {
   'Alex': { id: 'rocket', icon: '🚀', name: 'Partenza a razzo', desc: 'Parte con il turbo già carico e nei primi 8 s va il 10% più forte.' },
   'Albertone': { id: 'tank', icon: '🐻', name: 'Carrarmato', desc: 'Le botte lo fermano la metà del tempo e la protezione dopo un urto dura 1 s in più.' },
   'Erika': { id: 'angel', icon: '💘', name: 'Ci pensa Giacu', desc: 'La prima botta di ogni giro non le costa la moto: arriva Giacu e la rimette in sella.' },
-  'Maggie': { id: 'sprint', icon: '💨', name: 'Sprint finale', desc: 'Nell’ultimo quarto di giro va il 10% più forte e fa punti doppi.' },
+  'Maggie': { id: 'sprint', icon: '⚡', name: 'Sprint finale', desc: 'Nell’ultimo quarto di giro va il 10% più forte e fa punti doppi.' },
   'Guccio': { id: 'blessed', icon: '⛪', name: 'Benedetto da San Braulio', desc: 'La grappa dura il 50% in più e gli ricarica metà turbo.' },
   'Gusta': { id: 'mulcher', icon: '🚜', name: 'Trinciatutto', desc: 'Alberi, tronchi e ceppi non gli costano la moto: li trincia e fa punti. Al Gusta Ranch la sua trincia lo lascia passare.' },
   'Albo': { id: 'dry', icon: '🚱', name: 'Acqua? Mai', desc: 'Immune alla bottiglia d’acqua: la spacca e fa punti.' },
@@ -267,6 +267,7 @@ async function setTilt(on) {
 let wasClimb = false, throttleSlip = 0, overT = 0, wasSweet = false, gasLock = false, gasDownAt = 0, noClimbT = 0;
 let ice = false, drift = 0, driftT = 0, driftSum = 0, driftPend = 0, driftChain = 0, driftGap = 9, driftScore = 0, driftBest = 0, driftCount = 0, snowT = 0, bendNow = 0, lastWall = -9, driftM = 0, driftMP = 0;   // v92 · metri percorsi di traverso
 // v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
+let draftT = 0, draftR = null, draftSaid = -9, lastDraftAt = -9, catchT = 0;   // v107 · scia dietro ai compagni e rimonta
 let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos = '';
 let weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0 }, nextFlash = 5, weatherPlan = [], weatherSaid = '', lastRainMud = 0;
 const curLift = () => jumpHeight(jump, jumpDur, jumpH);
@@ -404,6 +405,7 @@ function hud() {
   $('gas').setAttribute('aria-pressed', String(gas));
   $('gas').textContent = desert && sandStuck ? 'INSABBIATO' : desert && flat ? 'FORATO' : desert && (routeAt(course, roadTime * 19.5).climb > .3) && !gas ? 'GAS O TI INSABBI' : ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? '🔒 GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
   $('gas').classList.toggle('locked', gasLock);
+  { const warn = tractOn && state === 'playing' && !stalled && (grip > .94 || grip < .2); $('gas').classList.toggle('warn', warn); if (tractOn && state === 'playing' && !stalled) $('gas').textContent = grip > .94 ? 'PATTINA: MOLLA!' : grip < .2 ? 'DAI GAS!' : gas ? 'COSÌ! DOSA' : 'GAS'; }
   { const tb = $('tractbox'); if (tb) { tb.hidden = !(tractOn && state === 'playing'); if (!tb.hidden) { tb.style.setProperty('--g', grip.toFixed(3)); tb.className = 'tractbox ' + (stalled ? 'stall' : grip > .94 ? 'spin' : grip < .12 ? 'low' : grip >= .28 && grip <= .84 ? 'ok' : ''); tb.querySelector('b').textContent = stalled ? 'SPINGI!' : grip > .94 ? 'PATTINA' : grip < .12 ? 'SI PIANTA' : grip >= .28 && grip <= .84 ? 'TRAZIONE' : 'GAS'; } } }
   if (leap && live) {   // v59 · riquadro del salto: assetto della moto e metri
     $('driftbox').hidden = false;
@@ -481,7 +483,7 @@ function resetRun() {
   applyLayout(true);
   bs = P.currentStats();
   ice = !!P.MODES[mode].ice; desert = !!P.MODES[mode].desert; sandT = 0; sandStuck = flat = false; fixP = 0;
-  slalomN = 0; lastFord = lastAnimal = lastTractor = -9; grip = .5; stallT = 0; stalled = false; pushP = 0; tractOn = false; wasTract = false; lastWaveFlash = -9; barT = 0; barsLeft = P.MODES[mode].vigne ? 1 : rule('bar') ? 2 : 0; nextBar = 15 + rng() * 8; setupGroupGhost();
+  slalomN = 0; draftT = catchT = 0; draftR = null; draftSaid = lastDraftAt = -9; lastFord = lastAnimal = lastTractor = -9; grip = .5; stallT = 0; stalled = false; pushP = 0; tractOn = false; wasTract = false; lastWaveFlash = -9; barT = 0; barsLeft = P.MODES[mode].vigne ? 1 : rule('bar') ? 2 : 0; nextBar = 15 + rng() * 8; setupGroupGhost();
   if (P.MODES[mode].ranch) objects.push({ l: -2.6, z: .78, type: 'farm', hit: false });   // v59 · la cascina del Gusta Ranch alla partenza
   leap = !!P.MODES[mode].leap; canyonX0 = null; canyonLand = 0; leapTurbo = false; leapMul = 1; leapZRate = .5; leapFree = 1; leapState = 0; leapPitch = leapW = leapDist = leapBest = 0; lastHopAt = -9; leapEndT = 0; leapPerfect = false;
   gev = !!P.MODES[mode].gev; gevZ = 9; gevThrow = 4.5; gevArm = gevLost = 0; gevGone = false; gevShout = 0; gevSide = 1; gevFine = 0;
@@ -685,6 +687,17 @@ function holeshot() {
   holeDone = true; holePre = false; turbo = Math.max(turbo, 2.2 + up.clutch * .3); score += 150; run.holeshot = 1;
   A.sfx.turbo(); buzz([40, 40, 70]); shake = Math.max(shake, .25); bigCall('PARTENZA A RAZZO!'); pop('+150 PARTENZA', 'gold'); fxKind = 'trick'; fxSerial++;
 }
+// v107 · SALTO TOLLERANTE: se un ostacolo saltabile ti arriva addosso a terra, hai ancora 0,12 s per premere SALTA
+const GRACE = .1;
+function graceWait(o) {
+  const h = OBSTACLE_HEIGHT[o.type];
+  if (h === undefined || h + .06 > JUMP_HEIGHT || leap || o.fly > 0) return false;
+  if (turbo > 0 || grappa > 0 || invincible > 0 || crash > 0 || (wheelie && (o.type === 'root' || o.type === 'puddle'))) return false;
+  if (o.graceAt === undefined) { if (jump > 0) return false; o.graceAt = elapsed; }
+  if (jump > 0 && elapsed - o.graceAt > 0 && jumpDur - jump < GRACE + .02) { o.graceJump = true; return false; }   // ha saltato durante la tolleranza
+  if (elapsed - o.graceAt < GRACE && jump <= 0) { o.hit = false; return true; }   // aspetta ancora un attimo
+  return false;
+}
 function hop() {
   if (state === 'countdown') { if (countdown < .5 + up.clutch * .1 && !holeDone) holePre = true; return; }
   if (state !== 'playing') return;
@@ -711,7 +724,7 @@ function hop() {
   lastHopAt = elapsed;
   if (leap && leapState === 2) return;   // v59 · in volo dal trampolino non si risalta
   if (jump <= 0) takeoff();
-  else if (jump < .18) jumpBuffer = .2; // premuto un attimo prima di atterrare: salta appena tocca terra
+  else if (jump < .24) jumpBuffer = .26;   // v107 · buffer più largo // premuto un attimo prima di atterrare: salta appena tocca terra
 }
 
 // Impennata: tieni premuto IMPENNA (o S / freccia giù). Più dura, più punti; oltre 3 secondi la ruota torna giù.
@@ -1568,7 +1581,7 @@ function updateRivals(dt, travelStep, route, diff) {
     // ritmo del compagno: segue la pendenza come te (sempre col gas aperto), con un "elastico" per restare in gara
     const rr = routeAt(course, (roadTime * 19.5) + r.gap);
     let pace = paceFor(rr, true, 0, 0) * r.skill * (1 - rr.rough * .06);
-    if (r.gap > 70) pace *= .88; else if (r.gap < -30) pace *= 1.25;
+    if (r.gap > 70) pace *= .85; else if (r.gap > 40) pace *= .92; else if (r.gap < -30) pace *= 1.25;   // v107 · se ti staccano troppo rallentano prima: resti in gara
     // v45 · anche i compagni danno gas: ogni tanto uno scatto di turbo
     r.turboT = (r.turboT ?? 6 + rng() * 10) - dt;
     if (r.turboT < 0) { pace *= 1.3; if (r.turboT < -2.5) r.turboT = 8 + rng() * 10; }
@@ -1595,7 +1608,7 @@ function updateRivals(dt, travelStep, route, diff) {
     if (prev < 0 && r.gap >= 0) { // ti passa lui
       pop(r.name.toUpperCase() + ': SUUUKA!', 'white'); rivalSay(r); suuka();
     } else if (prev > 0 && r.gap <= 0) { // lo passi tu
-      score += 250; run.passes = (run.passes || 0) + 1; pop('SORPASSO SU ' + r.name.toUpperCase() + ' +250', 'gold'); A.sfx.near();
+      const sc = elapsed - lastDraftAt < 1.2; score += sc ? 400 : 250; run.passes = (run.passes || 0) + 1; if (sc) run.draftPasses = (run.draftPasses || 0) + 1; pop(sc ? '⚡ SORPASSO IN SCIA SU ' + r.name.toUpperCase() + ' +400' : 'SORPASSO SU ' + r.name.toUpperCase() + ' +250', 'gold'); A.sfx.near(); if (sc) buzz([10, 30, 10]);
     }
   }
 }
@@ -1893,7 +1906,7 @@ function update(dt) {
   if (tractOn && !run.tractHint) { run.tractHint = 1; bigCall('SALITA: DOSA IL GAS!'); toast('⛽ APRI E CHIUDI IL GAS: TIENI LA LANCETTA NEL VERDE', 'gold'); }
   if (tractOn && !stalled) {
     grip = Math.max(0, Math.min(1, grip + (gas ? .36 : -.6) * dt));
-    if (grip > .94) { tractMul = .58; if (elapsed - spinMsgAt > 2.5) { spinMsgAt = elapsed; toast('🔥 PATTINA! MOLLA UN FILO IL GAS', 'red'); } }
+    if (grip > .94) { tractMul = .72; if (elapsed - spinMsgAt > 2.5) { spinMsgAt = elapsed; toast('🔥 PATTINA! MOLLA UN FILO IL GAS', 'red'); } }
     else if (grip < .12 - up.ecu * .015) { tractMul = .45; stallT += dt; if (stallT > 2.2 + up.ecu * .15) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); toast('👆 TOCCA SALTA PIÙ VOLTE PER SPINGERE LA MOTO', 'gold'); } }
     else { stallT = 0; if (grip >= .28 - up.ecu * .03 && grip <= .84 + up.ecu * .03) { tractMul = 1.08; score += dt * 40; } }
   } else if (!tractOn) { grip += (.5 - grip) * Math.min(1, dt * 2); stallT = 0; stalled = false; }
@@ -1910,8 +1923,16 @@ function update(dt) {
   }
   if (rule('noturbo')) charge = 0;
   if (barT > 0) barT = Math.max(0, barT - dt);
-  if (has('sprint') && course > GAME_LENGTH * .75 && !run.sprintCall && state === 'playing') { run.sprintCall = 1; bigCall('SPRINT FINALE!'); toast('💨 ULTIMO QUARTO: +10% VELOCITÀ E PUNTI DOPPI', 'gold'); A.sfx.turbo(); A.sayRider?.('maggie_sprint'); }   // v96
-  const speedT = tractMul * paceFor(route, gas || has('climb'), ice ? 0 : turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (cornerLine > 0 ? 1.07 : cornerLine < 0 ? .93 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
+  if (has('sprint') && course > GAME_LENGTH * .75 && !run.sprintCall && state === 'playing') { run.sprintCall = 1; bigCall('SPRINT FINALE!'); toast('⚡ ULTIMO QUARTO: +10% VELOCITÀ E PUNTI DOPPI', 'gold'); A.sfx.turbo(); A.sayRider?.('maggie_sprint'); }   // v96
+  // v107 · SCIA: stai dietro a un compagno, nella sua corsia, e vai più forte (poi lo passi)
+  { let dr = null;
+    if (!ice && !leap && crash <= 0) for (const r of rivals) if (r.gap > 2.5 && r.gap < 17 && Math.abs(r.lx - px) < .55) { dr = r; break; }
+    draftT = dr ? draftT + dt : Math.max(0, draftT - dt * 2.5); if (dr) draftR = dr;
+    if (draftT > .5) { lastDraftAt = elapsed; if (elapsed - draftSaid > 6) { draftSaid = elapsed; pop('⚡ IN SCIA A ' + draftR.name.toUpperCase() + '!', 'white'); buzz(10); } }
+    // v107 · RIMONTA: ultimo e staccato (dopo una botta) = un filo di spinta per rientrare in gara
+    const ahead = rivals.filter(r => r.gap > 0 && !r.duel), far = !ice && !leap && rivals.length && ahead.length === rivals.length && Math.min(...ahead.map(r => r.gap)) > 30;
+    catchT = far ? Math.min(1, catchT + dt * .5) : Math.max(0, catchT - dt); }
+  const speedT = (draftT > .5 ? 1.07 : 1) * (1 + catchT * .05) * tractMul * paceFor(route, gas || has('climb'), ice ? 0 : turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (cornerLine > 0 ? 1.07 : cornerLine < 0 ? .93 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
   // Discesa: "Campa giù!"
   if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); }
   if (route.down < .15) downAnnounced = false;
@@ -2100,8 +2121,9 @@ function update(dt) {
         }
       }
     } else if (o.type === 'thorns') {   // v106.7 · spine del Desertone: saltale o buchi
+      if (gap < .42 && graceWait(o)) continue;
       if (gap < .42) { o.collected = true;
-        if (clearsObstacle('thorns', lift)) { run.jumps++; reward(120, 'SPINE SALTATE!', 'jump'); }
+        if (o.graceJump || clearsObstacle('thorns', lift)) { run.jumps++; reward(120, 'SPINE SALTATE!', 'jump'); }
         else if (grappa > 0 || turbo > 0 || crash > 0 || invincible > 0) reward(30, 'SPINE SCHIVATE', 'near', false);
         else puncture(); }
     } else if (o.type === 'water') {
@@ -2112,6 +2134,9 @@ function update(dt) {
         fxKind = 'splash'; fxSerial++; A.sfx.water(); A.say('acqua'); flash('blue');
         toast('💧 ACQUA?! ORECCHIE DA CONIGLIO!', 'blue');
       } else if (gap < .42) { o.collected = true; reward(80, lift > .5 ? 'ACQUA SALTATA!' : 'ACQUA SPACCATA!', 'near', false); }
+    } else if (gap < (ice ? .33 : .37) && graceWait(o)) { continue;
+    } else if (o.graceJump && gap < (ice ? .33 : .37)) {   // v107 · salto al volo: premuto un attimo in ritardo, vale lo stesso
+      o.collected = true; run.jumps++; run.lateJumps = (run.lateJumps || 0) + 1; reward(o.type === 'puddle' ? 60 : 100, o.type === 'puddle' ? 'ASCIUTTO AL VOLO!' : 'SALTO AL VOLO!', 'jump');
     } else if (gap < (ice ? .33 : .37)) {   // v49 · ostacoli un filo più tolleranti (sul ghiaccio ancora di più)
       if (turbo > 0 || grappa > 0) { o.collected = true; reward(50, grappa > 0 ? 'GRAPPA POWER!' : 'GAS A MARTELLO!', 'smash', false); shake = Math.max(shake, .35); }
       else if (clearsObstacle(o.type, lift)) {
@@ -2151,11 +2176,11 @@ function update(dt) {
       } else if (invincible <= 0) {
         if (elapsed - lastRiderHit > 5) { lastRiderHit = elapsed; riderLine('hit'); }
         if (ice) endDrift(false);
-        lives--; run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0) + (bs.protect || 0); breakCombo(); charge = Math.max(0, charge - 20); mistake();
+        lives--; run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0) + (bs.protect || 0); breakCombo(); charge = Math.max(0, charge - 10); mistake();
         fxKind = 'hit'; fxSerial++; shake = 1; A.sfx.hit(); flash('hit');
         // v58 · dopo una botta la fila subito dopo si apre: niente botte a catena mentre la moto riparte
         for (const q of objects) if (q !== o && !q.hit && q.z > .66 && q.z < .91 && OBSTACLE_HEIGHT[q.type] !== undefined && q.type !== 'water') q.collected = true;
-        crash = 1; stun = .9 * (bs.protect ? .7 : 1) * (has('tank') ? .5 : 1); if (has('tank')) invincible += 1; slowmo = .35; slowScale = .4; jump = 0;
+        crash = 1; stun = .65 * (bs.protect ? .7 : 1) * (has('tank') ? .5 : 1); if (has('tank')) invincible += 1; slowmo = .35; slowScale = .4; jump = 0;
         if (wheelie) endWheelie(false);
         if (o.type === 'dolmen') run.dolmenHit = 1;
         const lines = { trincia: 'TRINCIATO DAL GUSTA.', rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hen: 'COCCODÈ. PIUME OVUNQUE.', grapeCrate: 'MOSTO DAPPERTUTTO.', dolmen: 'IL DOLMEN DI COSTA NON SI SPOSTA.', cow: 'MUUU. LA MUCCA HA VINTO.', manhole: 'DENTRO IL TOMBINO.', boar: 'IL CINGHIALE NON PERDONA.', deer: 'CORNA DEL CERVO.', rollHay: 'ARROTOBALLATO DAL GUSTA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
@@ -2894,7 +2919,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 106.7;
+const GAME_VERSION = 107;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -3271,7 +3296,7 @@ if (/debug/.test(location.hash)) {
 
 // Aggancio per i test automatici (non usato dal gioco).
 window.__edt = { get state() { return state; }, get cornerLine() { return cornerLine; }, get rb() { return curBend(); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
-  get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
+  get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get flat() { return flat; }, get sandStuck() { return sandStuck; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, get runPlan() { return runPlan; }, get forkPath() { return forkPath; }, replay: startReplay, recFake() { recClock += 1 / 30; replayBuf.push({ t: recClock, s: cloneSnap(drawState()) }); while (replayBuf[0].t < recClock - REPLAY_SEC) replayBuf.shift(); }, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
 
 // v96 · i comandi di prova (__edt) esistono solo in locale o con ?dev=1: dal sito pubblico non si possono usare per truccare i giri
