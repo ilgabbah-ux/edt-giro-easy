@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107';
-import { createWorld } from './scene3d.js?v=107';
-import * as A from './audio.js?v=107';
-import * as P from './progress.js?v=107';
-import { createMud } from './mudfx.js?v=107';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=107';
-import * as C from './classifica.js?v=107';
-import * as D from './duel.js?v=107';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.1';
+import { createWorld } from './scene3d.js?v=107.1';
+import * as A from './audio.js?v=107.1';
+import * as P from './progress.js?v=107.1';
+import { createMud } from './mudfx.js?v=107.1';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.1';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=107.1';
+import * as C from './classifica.js?v=107.1';
+import * as D from './duel.js?v=107.1';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=107').then(m => {
+import('./piloti.js?v=107.1').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -72,6 +72,15 @@ const SKILLS = {
 let skill = '';
 const has = id => skill === id;
 const photoURL = name => PHOTOS[name] ? (FOTO[PHOTOS[name]] || null) : null;
+// v107.1 · schede piloti "ufficiali": ritratto da studio, numero di gara, fascia col nome, abilità con icona a linea
+const SKILL_IC = { steady: 'compass', stones: 'rock', drifter: 'snow', sommelier: 'wine', turbo: 'bolt', nose: 'magnet', climb: 'mountain', amphibious: 'wave', scrub: 'scrub', lion: 'helmetplus', downhill: 'downhill', veteran: 'stopwatch', spring: 'spring', precise: 'target', wheelie: 'wheelie', schettino: 'anchor', rocket: 'rocket', tank: 'shield', angel: 'heart', sprint: 'flag', blessed: 'chapel', mulcher: 'tractor', dry: 'nowater' };
+function riderCardHTML(name, i) {
+  const k = PHOTOS[name], sk = SKILLS[name] || {}, nm = name.replace('Il ', '');
+  const pic = k ? `<img class="rc-photo" src="img/piloti/${k}.webp" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=window.__edtFoto('${k}')">` : `<span class="rc-photo rc-initials">${nm.slice(0, 2).toUpperCase()}</span>`;
+  return `${pic}<span class="rc-num">${String(i + 1).padStart(2, '0')}</span><span class="rc-tag">IN SELLA</span>
+    <span class="rc-bar"><b class="rc-name">${name.startsWith('Il ') ? '<small>IL</small>' : ''}${nm}</b><span class="rc-skill" title="${sk.desc || ''}">${icon(SKILL_IC[sk.id] || 'star')}<span>${sk.name || ''}</span></span></span>`;
+}
+window.__edtFoto = k => FOTO[k] || '';
 function avatarHTML(name, cls = '') {
   const url = photoURL(name);
   return url
@@ -2919,7 +2928,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 107;
+const GAME_VERSION = 107.1;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -2928,7 +2937,7 @@ $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in al
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function renderSide() {
   $('ridergrid').innerHTML = RIDERS.map((name, i) => `<button type="button" class="rideroption" data-rider="${name}" aria-pressed="${name === profile.rider}" aria-label="Scegli ${name}">
-    ${avatarHTML(name)}<span class="name">${name.replace('Il ', '')}</span><span class="skill" title="${SKILLS[name]?.desc || ''}"><span class="noicx">${SKILLS[name]?.icon || ''}</span> ${SKILLS[name]?.name || ''}</span><span class="num">#${String(i + 1).padStart(2, '0')}</span>${RIDER_VOICE[name] ? '<i class="voiced" title="Parla con la sua voce">' + icon('speaker') + '</i>' : ''}</button>`).join('');
+    ${riderCardHTML(name, i)}${RIDER_VOICE[name] ? '<i class="voiced" title="Parla con la sua voce">' + icon('speaker') + '</i>' : ''}</button>`).join('');
   document.querySelectorAll('[data-rider]').forEach(b => b.onclick = () => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;
     profile.rider = b.dataset.rider; P.save(); A.unlock(); if (riderVoice()) { A.preloadRider(riderVoice()); riderLine('start'); } else A.sfx.click();
