@@ -1376,7 +1376,7 @@ export function createWorld(canvas) {
     // il busto segue la guida: avanti col gas e quando sei in piedi, indietro in impennata, di lato in piega
     riderPivot.rotation.set(leanX, 0, leanZ);
     const B = rRig.bones, R = rRig.rest;
-    B.spine.quaternion.setFromEuler(new T.Euler(leanX * .4, 0, leanZ * .5)); B.chest.quaternion.identity(); B.neck.quaternion.setFromEuler(new T.Euler(-leanX * .6, 0, 0));
+    B.spine.quaternion.setFromEuler(new T.Euler(leanX * .4, 0, leanZ * .5)); B.chest.quaternion.setFromEuler(new T.Euler(-.32 + standK * .1, 0, 0)); B.chest.scale.set(.86, 1.1, .84); B.spine.scale.set(.92, 1.04, .9);   // v107.3 · busto più asciutto e lungo: maglia da cross, non un sacco B.neck.quaternion.setFromEuler(new T.Euler(-leanX * .6 + .12, 0, 0));   // v107.3 · petto aperto e collo su: niente pilota "insaccato"
     bike.updateMatrixWorld(true);
     const fitE = BIKE_FIT.enduro, ryE = riderY0 + fitE[3] + .118 - 1.43;
     for (const [n, sd] of [['R', 1], ['L', -1]]) {
@@ -1384,7 +1384,7 @@ export function createWorld(canvas) {
       const j = joints.find(jj => jj.side === sd);
       _gl.copy(RV('wrist' + n)).add(HIP); _gl.y += ryE; _gl.x -= sd * fitE[0]; _gl.y -= fitE[1]; _gl.z -= fitE[2];
       _tg.copy(j.grip.position).add(_gl); front.localToWorld(_tg);
-      _pw.copy(RV('elbow' + n)).add(_gl.set(sd * .45, .12 + .1 * standK, .12)); rRig.mesh.localToWorld(_pw);   // gomiti alti e in fuori, come i piloti veri
+      _pw.copy(RV('elbow' + n)).add(_gl.set(sd * .45, .02 + .1 * standK, .12)); rRig.mesh.localToWorld(_pw);   // v107.3 gomiti in fuori ma spalle basse · gomiti alti e in fuori, come i piloti veri
       ik2(B['uarm' + n], B['farm' + n], R['hand' + n], _tg, _pw);
       // piedi: sulla pedana (ferma rispetto al telaio); in derapata il piede interno esce in avanti
       _tg.copy(RV('ankle' + n)).add(HIP).add(rider.position);
@@ -1396,7 +1396,7 @@ export function createWorld(canvas) {
     }
     // casco sul collo del modello
     B.neck.getWorldPosition(_neck); body.worldToLocal(_neck);
-    head.position.set(_neck.x, _neck.y + .095, _neck.z + .015); head.scale.setScalar(.8);
+    head.position.set(_neck.x, _neck.y + .2, _neck.z + .06); head.scale.setScalar(.92);   // v107.3 · casco più su (si vede il collo) e a misura vera
   }
 
 
@@ -2605,7 +2605,7 @@ export function createWorld(canvas) {
     h.traverse(o => { if (o.name === 'fx' || o.name === 'fxcam') o.visible = false; if (o.isMesh && o.userData.helmGlb) { o.material = o.material.clone(); tintable(o.material, hT); o.castShadow = false; return; } if (o.isMesh) { if (o.material === helmetMat) o.material = helm; else if (o.material === accent) o.material = acc; else if (o.material === plastic) o.material = bm(o.material); o.castShadow = false; } });
     body.updateMatrixWorld(true);
     const nk = NECK.sit.clone().add(HIP); nk.y += ry; body.localToWorld(nk); tb.worldToLocal(nk);
-    h.position.set(nk.x, nk.y + .095, nk.z + .015); h.rotation.set(0, 0, 0); h.scale.setScalar(.8);
+    h.position.set(nk.x, nk.y + .15, nk.z + .05); h.rotation.set(0, 0, 0); h.scale.setScalar(.9);
     // v106.1 · pilota del compagno su un perno al bacino: si piega, ondeggia e ammortizza mentre guida
     const piv = new T.Group(); piv.position.set(HIP.x, HIP.y + ry, HIP.z); body.add(piv); body.updateMatrixWorld(true); piv.attach(rm); piv.attach(tb);
     const md = finishRival(r, root, body, wheelsOut, false); md.piv = piv; md.pivY = piv.position.y; return md;
