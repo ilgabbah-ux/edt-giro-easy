@@ -4,7 +4,8 @@
 
 // v89 · voci caricate dopo il menu (il gioco si apre prima); chi le usa aspetta vociReady
 let VOCI = {};
-const vociReady = import('./voci.js?v=107.1').then(m => { VOCI = m.VOCI; }).catch(() => {});
+let vociP = null;   // v107.2 · le voci arrivano al primo tocco (o dopo 12 s), non durante il caricamento del menu
+const vociReady = () => vociP || (vociP = import('./voci.js?v=107.2').then(m => { VOCI = m.VOCI; }).catch(() => { vociP = null; }));
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -87,7 +88,7 @@ export function isEnabled() { return enabled; }
 
 function loadVoices() {
   if (loading) return loading;
-  loading = vociReady.then(() => Promise.all(Object.entries(VOICE_FILES).map(async ([key, url]) => {
+  loading = vociReady().then(() => Promise.all(Object.entries(VOICE_FILES).map(async ([key, url]) => {
     if (VOCI[key]) {
       const bin = atob(VOCI[key]), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -160,7 +161,7 @@ const extraState = {};
 async function loadExtra(key) {
   if (extraState[key] !== undefined) return extraState[key];
   extraState[key] = null;
-  await vociReady;
+  await vociReady();
   // Voci incorporate: decodifica diretta, senza rete.
   if (VOCI[key]) {
     try {
@@ -215,8 +216,8 @@ export async function testVoices(onStep) {
 // Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
 // v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio
 let VOCI_PILOTI = {}, vpLoad = null;
-export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=107.1').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
-setTimeout(loadRiderVoices, 2500);
+export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=107.2').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
+setTimeout(() => { vociReady(); loadRiderVoices(); }, 12000);
 const riderBuf = new Map();
 export const hasRiderVoice = key => !!VOCI_PILOTI[key];
 function decodeRider(key) {

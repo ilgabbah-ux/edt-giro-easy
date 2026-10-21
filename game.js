@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.1';
-import { createWorld } from './scene3d.js?v=107.1';
-import * as A from './audio.js?v=107.1';
-import * as P from './progress.js?v=107.1';
-import { createMud } from './mudfx.js?v=107.1';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.1';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=107.1';
-import * as C from './classifica.js?v=107.1';
-import * as D from './duel.js?v=107.1';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.2';
+import { createWorld } from './scene3d.js?v=107.2';
+import * as A from './audio.js?v=107.2';
+import * as P from './progress.js?v=107.2';
+import { createMud } from './mudfx.js?v=107.2';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.2';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=107.2';
+import * as C from './classifica.js?v=107.2';
+import * as D from './duel.js?v=107.2';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=107.1').then(m => {
+import('./piloti.js?v=107.2').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -449,7 +449,7 @@ function reward(points, label, kind = 'coin', chain = true) {
   if (run) run.maxMult = Math.max(run.maxMult, m);
   const earned = Math.round(points * m * (turbo > 0 ? 2 : 1) * (1 + (bs.points || 0)) * (rule('jumps') && (kind === 'jump' || kind === 'perfect' || kind === 'trick') ? 2 : 1));
   score += earned;
-  if (earned >= 150 || kind === 'perfect') markHighlight(label, earned * (kind === 'perfect' ? 1.6 : 1));
+  if ((kind === 'perfect' || ((kind === 'jump' || kind === 'trick' || kind === 'smash') && earned >= 150)) && !/COMBO|BIRR|BRAVO/.test(label)) markHighlight(label, earned * (kind === 'perfect' ? 1.6 : 1));   // v107.2 · solo i momenti da far vedere (niente combo e birre)
   if (turbo <= 0) charge = Math.min(100, charge + ({ jump: 20, perfect: 26, trick: 10, near: 8, smash: 0 }[kind] ?? 6) * (1 + up.tank * .1) * (has('turbo') ? 1.4 : 1) * (1 + (bs.turbo || 0)));
   fxKind = kind; fxSerial++;
   pop(label + ' +' + earned, kind === 'jump' || kind === 'perfect' ? 'white' : kind === 'trick' ? 'blue' : kind === 'near' ? 'small' : 'gold');
@@ -1303,7 +1303,7 @@ function duelNoPlan() { return false; }
 // Le distanze tra loro non cambiano; restano dove sono i cartelli legati al paesaggio (bivio) e le cose lanciate.
 const Z_AHEAD = .32, Z_FIXED = new Set(['forkSplit', 'forkShort', 'forkSafe', 'heli', 'gevmark', 'landpad', 'mboard', 'bigRamp', 'speedpad']);
 function spawnWave() {
-  if (tut) return;   // v107.2 · giro guidato: niente ostacoli finché non hai provato le mosse
+  if (tut || (coachOn && !ice && !leap && !duel?.racing)) return;   // v107.2 · giro guidato: niente ostacoli finché non hai provato le mosse
   const before = new Set(objects);
   spawnWaveCore();
   if (leap) return;
@@ -1862,6 +1862,7 @@ function tutSay(html, hold = true) {
 function tutPulse(id) { for (const b of ['jump', 'boost', 'left', 'right']) $(b)?.classList.toggle('tutpulse', b === id || (id === 'steer' && (b === 'left' || b === 'right'))); }
 function tutStart() {
   tut = { step: 0, t: 0, px0: px, tries: 0, log: null, jumps0: run.jumps };
+  objects = objects.filter(o => OBSTACLE_HEIGHT[o.type] === undefined && o.type !== 'tree');   // pista pulita per le prove
   tutSay(`<b class="tstep">1/4</b> ${icon('chevrons')} ${touchDevice ? 'STERZA: TIENI IL DITO A SINISTRA O A DESTRA' : 'STERZA CON LE FRECCE ← →'}`); tutPulse('steer');
 }
 function tutEnd() {
@@ -1871,24 +1872,24 @@ function tutEnd() {
 function tutUpdate(dt) {
   const T = tut; T.t += dt; timeLimit += dt;   // il giro guidato non consuma il tempo
   if (T.step === 0) {
-    if (Math.abs(px - T.px0) > .8 || T.t > 7) { T.step = 1; T.t = 0; tutSay(`<b class="tstep">2/4</b> ${icon('log')} TRONCO IN ARRIVO: ${touchDevice ? 'TOCCA SALTA' : 'PREMI SPAZIO'} QUANDO TI ARRIVA SOTTO`); tutPulse('jump'); }
+    if ((Math.abs(px - T.px0) > .8 && T.t > 2) || T.t > 8) { T.step = 1; T.t = 0; tutSay(`<b class="tstep">2/4</b> ${icon('log')} TRONCO IN ARRIVO: ${touchDevice ? 'TOCCA SALTA' : 'PREMI SPAZIO'} QUANDO TI ARRIVA SOTTO`); tutPulse('jump'); }
   } else if (T.step === 1) {
     if (!T.log) { T.log = { l: Math.round(px), z: -.05, type: 'log', hit: false }; objects.push(T.log); T.jumps0 = run.jumps; }
     else if (T.log.z > .86 && run.jumps === T.jumps0 && jump <= 0 && !T.miss) { invincible = Math.max(invincible, .5); T.miss = true; }   // mancato: niente botta, si riprova
     else if (T.log.z > 1 || T.log.collected || T.log.hit && T.log.z > .95) {
       if (run.jumps > T.jumps0) { T.step = 2; T.t = 0; reward(100, 'BRAVO!', 'trick', false); tutPulse(null);
         const r = [...rivals].filter(r => !r.duel).sort((a, b) => Math.abs(a.gap) - Math.abs(b.gap))[0];
-        if (r) { r.gap = 11; r.lane = Math.round(px); r.lx = r.lane; r.laneT = 9; T.r = r; tutSay(`<b class="tstep">3/4</b> ${icon('bolt')} METTITI DIETRO A ${r.name.toUpperCase()}, NELLA SUA CORSIA: PRENDI LA SCIA`); }
+        if (r) { r.gap = 11; r.lane = Math.round(px); r.lx = r.lane; r.laneT = 9; T.r = r; tutSay(`<b class="tstep">3/4</b> ${icon('bolt')} METTITI DIETRO ${/^[AEIOU]/i.test(r.name) ? 'AD' : 'A'} ${r.name.toUpperCase()}, NELLA SUA CORSIA: PRENDI LA SCIA`); }
         else { T.step = 3; }
       } else { T.log = null; T.miss = false; T.tries++; tutSay(`<b class="tstep">2/4</b> ${icon('log')} RIPROVA: ${touchDevice ? 'TOCCA SALTA' : 'PREMI SPAZIO'} UN ATTIMO PRIMA DEL TRONCO`); if (T.tries > 2) { T.step = 2; T.t = 9; } }
     }
   } else if (T.step === 2) {
     if (T.r) { T.r.laneT = Math.max(T.r.laneT, 2); if (T.r.gap < 6) T.r.gap += dt * 6; }   // il compagno ti aspetta finché non sei in scia
     if (draftT > .6 && !T.inDraft) { T.inDraft = true; T.t = 0; tutSay(`<b class="tstep">3/4</b> ${icon('bolt')} SEI IN SCIA: VAI PIÙ FORTE!`); }
-    if ((T.inDraft && T.t > 2.2) || T.t > 10) { T.step = 3; T.t = 0; }
+    if ((T.inDraft && T.t > 2.4) || T.t > 12) { T.step = 3; T.t = 0; }
   } else if (T.step === 3) {
     if (T.t < .1) { charge = 100; tutSay(`<b class="tstep">4/4</b> ${icon('rocket')} TURBO PIENO: ${touchDevice ? 'TOCCA TURBO' : 'PREMI B'}`); tutPulse('boost'); }
-    if (turbo > 0 || T.t > 9) tutEnd();
+    if ((turbo > 0 && T.t > 1.2) || T.t > 10) tutEnd();
   }
 }
 function coachUpdate() {
@@ -2324,7 +2325,11 @@ function cloneSnap(s) {
 function recordReplay(s) {
   const now = performance.now() / 1000;
   if (now - recLast < 1 / 30) return;
-  recClock += Math.min(now - recLast, .1); recLast = now;
+  const step = Math.min(now - recLast, .1); recLast = now;
+  pushSnap(s, step);
+}
+function pushSnap(s, step) {
+  recClock += step;
   replayBuf.push({ t: recClock, s: cloneSnap(s) });
   while (replayBuf.length && replayBuf[0].t < recClock - REPLAY_SEC) replayBuf.shift();
   for (const p of hlPend.splice(0)) {   // v107.2 · un momento forte finito: si tengono i suoi 4 s per la clip
@@ -3123,7 +3128,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 107.1;
+const GAME_VERSION = 107.2;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -3503,7 +3508,7 @@ if (/debug/.test(location.hash)) {
 // Aggancio per i test automatici (non usato dal gioco).
 window.__edt = { get state() { return state; }, get cornerLine() { return cornerLine; }, get rb() { return curBend(); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get flat() { return flat; }, get sandStuck() { return sandStuck; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
-  get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, get runPlan() { return runPlan; }, get forkPath() { return forkPath; }, replay: startReplay, recFake() { recClock += 1 / 30; replayBuf.push({ t: recClock, s: cloneSnap(drawState()) }); while (replayBuf[0].t < recClock - REPLAY_SEC) replayBuf.shift(); }, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
+  get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, get runPlan() { return runPlan; }, get forkPath() { return forkPath; }, replay: startReplay, recFake() { pushSnap(drawState(), 1 / 30); }, get highlights() { return highlights.map(h => ({ label: h.label, w: Math.round(h.w), n: h.frames.length })); }, startClip, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
 
 // v96 · i comandi di prova (__edt) esistono solo in locale o con ?dev=1: dal sito pubblico non si possono usare per truccare i giri
 { const DEV = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || /[?&]dev=1(&|$)/.test(location.search);

@@ -2,9 +2,9 @@
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { GLTFLoader } from './GLTFLoader.js';
 import { DRACOLoader } from './DRACOLoader.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=107.1';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=107.2';
 import * as T from './three.module.min.js';
-import { RIDER_PARTS } from './pilota3d.js?v=107.1';
+import { RIDER_PARTS } from './pilota3d.js?v=107.2';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
@@ -1269,7 +1269,7 @@ export function createWorld(canvas) {
   const RV = k => new T.Vector3(...RJ[k]);
   let rRig = null;
   // v107.2 · numero di gara e nome stampati sulla schiena del pilota 3D (come le schede piloti): segue il busto
-  const BACK_P = new T.Vector3(0, .452, -.004), BACK_RX = -.48;
+  const BACK_P = new T.Vector3(0, .418, .012), BACK_RX = -.5;
   function backNumCanvas(name, number, jersey) {
     const c = document.createElement('canvas'); c.width = 256; c.height = 160; const x = c.getContext('2d');
     const col = new T.Color(jersey), lum = col.r * .3 + col.g * .59 + col.b * .11, ink = lum > .5 ? '#15191c' : '#fbf7ec', edge = lum > .5 ? '#ffffffb0' : '#000000a0';
@@ -1281,7 +1281,7 @@ export function createWorld(canvas) {
   }
   function backNumMesh(tex) {
     const m = new T.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: .35, roughness: .9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-    const p = new T.Mesh(new T.PlaneGeometry(.27, .17), m); p.rotation.x = BACK_RX; p.renderOrder = 2; p.userData.keep = true; p.name = 'backnum'; p.castShadow = false;
+    const p = new T.Mesh(new T.PlaneGeometry(.38, .238), m); p.rotation.x = BACK_RX; p.renderOrder = 2; p.userData.keep = true; p.name = 'backnum'; p.castShadow = false;
     return p;
   }
   const backCanvasP = document.createElement('canvas'); backCanvasP.width = 256; backCanvasP.height = 160;
