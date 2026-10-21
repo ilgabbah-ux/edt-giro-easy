@@ -449,6 +449,7 @@ function reward(points, label, kind = 'coin', chain = true) {
   if (run) run.maxMult = Math.max(run.maxMult, m);
   const earned = Math.round(points * m * (turbo > 0 ? 2 : 1) * (1 + (bs.points || 0)) * (rule('jumps') && (kind === 'jump' || kind === 'perfect' || kind === 'trick') ? 2 : 1));
   score += earned;
+  if (earned >= 150 || kind === 'perfect') markHighlight(label, earned * (kind === 'perfect' ? 1.6 : 1));
   if (turbo <= 0) charge = Math.min(100, charge + ({ jump: 20, perfect: 26, trick: 10, near: 8, smash: 0 }[kind] ?? 6) * (1 + up.tank * .1) * (has('turbo') ? 1.4 : 1) * (1 + (bs.turbo || 0)));
   fxKind = kind; fxSerial++;
   pop(label + ' +' + earned, kind === 'jump' || kind === 'perfect' ? 'white' : kind === 'trick' ? 'blue' : kind === 'near' ? 'small' : 'gold');
@@ -473,7 +474,7 @@ function resetRun() {
   gas = false; wet = 0; routePhase = -1; lane = px = 1; jump = jumpBuffer = elapsed = score = spawn = invincible = 0; lives = 3; objects = [];
   combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
   lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
-  replayBuf = []; recClock = 0; recLast = 0; replay = null;
+  replayBuf = []; recClock = 0; recLast = 0; replay = null; highlights = []; hlPend = [];
   ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
   grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9; lastRiderHit = -99;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
@@ -504,6 +505,7 @@ function resetRun() {
   if (duel?.racing) { rivals = [duel.entry]; gGhost = null; duel.opp.c = 0; duel.opp.end = null; duel.me = null; duel.ahead = false; Object.assign(duel.entry, { gap: 0, lx: 1, lift: 0 }); }
 }
 function start() {
+  world?.preloadObstacles?.();   // v107.2 · al primo giro arrivano i modelli degli ostacoli
   if (!world) return;
   if (touchDevice) goFull();
   if (!fsOK && isIOS && !standalone && !iosHinted) { iosHinted = true; setTimeout(() => toast('SCHERMO INTERO: CONDIVIDI → AGGIUNGI A HOME'), 4200); }
@@ -694,7 +696,7 @@ function takeoff() {
 let holePre = false, holeDone = false;
 function holeshot() {
   holeDone = true; holePre = false; turbo = Math.max(turbo, 2.2 + up.clutch * .3); score += 150; run.holeshot = 1;
-  A.sfx.turbo(); buzz([40, 40, 70]); shake = Math.max(shake, .25); bigCall('PARTENZA A RAZZO!'); pop('+150 PARTENZA', 'gold'); fxKind = 'trick'; fxSerial++;
+  A.sfx.turbo(); buzz([40, 40, 70]); shake = Math.max(shake, .25); bigCall('PARTENZA A RAZZO!'); pop('+150 PARTENZA', 'gold'); markHighlight('PARTENZA A RAZZO!', 700); fxKind = 'trick'; fxSerial++;
 }
 // v107 · SALTO TOLLERANTE: se un ostacolo saltabile ti arriva addosso a terra, hai ancora 0,12 s per premere SALTA
 const GRACE = .1;
@@ -1301,6 +1303,7 @@ function duelNoPlan() { return false; }
 // Le distanze tra loro non cambiano; restano dove sono i cartelli legati al paesaggio (bivio) e le cose lanciate.
 const Z_AHEAD = .32, Z_FIXED = new Set(['forkSplit', 'forkShort', 'forkSafe', 'heli', 'gevmark', 'landpad', 'mboard', 'bigRamp', 'speedpad']);
 function spawnWave() {
+  if (tut) return;   // v107.2 · giro guidato: niente ostacoli finché non hai provato le mosse
   const before = new Set(objects);
   spawnWaveCore();
   if (leap) return;
@@ -1547,7 +1550,7 @@ function setupRace() {
   const others = RIDERS.filter(r => r !== profile.rider).sort(() => rng() - .5).slice(0, 3);
   const starts = [-7, 26, 58], lvSoft = P.levelInfo().level <= 2 ? .955 : P.levelInfo().level <= 4 ? .98 : 1, skills = [1.09, 1.04, .99].map(k => k * lvSoft);   // v81 · ai primi livelli i compagni vanno un filo più piano   // v48 · un filo più forti (salite più dure anche per loro)
   rivals = P.MODES[mode].leap ? [] : others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
-  coachStep = 0; coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
+  coachStep = 0; tut = null; tutPulse(null); coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
   lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
   // Meteo: un cambio a metà giro (pioggia, nebbia o tramonto), diverso a ogni gara; la Sfida del giorno è uguale per tutti.
   const kinds = ['rain', 'fog', 'dusk'], k = kinds[Math.floor(rng() * 3)];
@@ -1596,6 +1599,7 @@ function updateRivals(dt, travelStep, route, diff) {
     if (r.turboT < 0) { pace *= 1.3; if (r.turboT < -2.5) r.turboT = 8 + rng() * 10; }
     if (elapsed < 2.5) pace *= .9 + elapsed * .04;
     const prev = r.gap;
+    if (tut && tut.r !== r) { r.gap += 0; continue; }   // v107.2 · durante il giro guidato i compagni ti aspettano
     r.gap += (dt * base * pace) - travelStep;
     // cambi di corsia: mai addosso al giocatore quando lo affianca
     r.laneT -= dt;
@@ -1617,7 +1621,7 @@ function updateRivals(dt, travelStep, route, diff) {
     if (prev < 0 && r.gap >= 0) { // ti passa lui
       pop(r.name.toUpperCase() + ': SUUUKA!', 'white'); rivalSay(r); suuka();
     } else if (prev > 0 && r.gap <= 0) { // lo passi tu
-      const sc = elapsed - lastDraftAt < 1.2; score += sc ? 400 : 250; run.passes = (run.passes || 0) + 1; if (sc) run.draftPasses = (run.draftPasses || 0) + 1; pop(sc ? '⚡ SORPASSO IN SCIA SU ' + r.name.toUpperCase() + ' +400' : 'SORPASSO SU ' + r.name.toUpperCase() + ' +250', 'gold'); A.sfx.near(); if (sc) buzz([10, 30, 10]);
+      const sc = elapsed - lastDraftAt < 1.2; score += sc ? 400 : 250; run.passes = (run.passes || 0) + 1; if (sc) run.draftPasses = (run.draftPasses || 0) + 1; pop(sc ? '⚡ SORPASSO IN SCIA SU ' + r.name.toUpperCase() + ' +400' : 'SORPASSO SU ' + r.name.toUpperCase() + ' +250', 'gold'); markHighlight(sc ? 'SORPASSO IN SCIA SU ' + r.name.toUpperCase() : 'SORPASSO SU ' + r.name.toUpperCase(), sc ? 1300 : 800); A.sfx.near(); if (sc) buzz([10, 30, 10]);
     }
   }
 }
@@ -1850,8 +1854,46 @@ const ICE_COACH = () => [
   [15, '🌀 TROPPO GAS = SCIVOLI FUORI E FAI TESTACODA'],
   [20, '🚩 PASSA LE PORTE BLU DI TRAVERSO PER IL BONUS'],
 ];
+// v107.2 · PRIMO GIRO GUIDATO: ogni passo aspetta che tu faccia la mossa; il gioco prepara la situazione e il cronometro resta fermo
+let tut = null;
+function tutSay(html, hold = true) {
+  const el = $('coach'); el.innerHTML = html; el.classList.remove('show', 'hold'); void el.offsetWidth; el.classList.add(hold ? 'hold' : 'show');
+}
+function tutPulse(id) { for (const b of ['jump', 'boost', 'left', 'right']) $(b)?.classList.toggle('tutpulse', b === id || (id === 'steer' && (b === 'left' || b === 'right'))); }
+function tutStart() {
+  tut = { step: 0, t: 0, px0: px, tries: 0, log: null, jumps0: run.jumps };
+  tutSay(`<b class="tstep">1/4</b> ${icon('chevrons')} ${touchDevice ? 'STERZA: TIENI IL DITO A SINISTRA O A DESTRA' : 'STERZA CON LE FRECCE ← →'}`); tutPulse('steer');
+}
+function tutEnd() {
+  tut = null; tutPulse(null); coachOn = false; P.profile.tutorialDone = true; P.save();
+  tutSay(`${icon('flag')} SEI PRONTO! ADESSO È GARA VERA`, false); A.sfx.mission?.();
+}
+function tutUpdate(dt) {
+  const T = tut; T.t += dt; timeLimit += dt;   // il giro guidato non consuma il tempo
+  if (T.step === 0) {
+    if (Math.abs(px - T.px0) > .8 || T.t > 7) { T.step = 1; T.t = 0; tutSay(`<b class="tstep">2/4</b> ${icon('log')} TRONCO IN ARRIVO: ${touchDevice ? 'TOCCA SALTA' : 'PREMI SPAZIO'} QUANDO TI ARRIVA SOTTO`); tutPulse('jump'); }
+  } else if (T.step === 1) {
+    if (!T.log) { T.log = { l: Math.round(px), z: -.05, type: 'log', hit: false }; objects.push(T.log); T.jumps0 = run.jumps; }
+    else if (T.log.z > .86 && run.jumps === T.jumps0 && jump <= 0 && !T.miss) { invincible = Math.max(invincible, .5); T.miss = true; }   // mancato: niente botta, si riprova
+    else if (T.log.z > 1 || T.log.collected || T.log.hit && T.log.z > .95) {
+      if (run.jumps > T.jumps0) { T.step = 2; T.t = 0; reward(100, 'BRAVO!', 'trick', false); tutPulse(null);
+        const r = [...rivals].filter(r => !r.duel).sort((a, b) => Math.abs(a.gap) - Math.abs(b.gap))[0];
+        if (r) { r.gap = 11; r.lane = Math.round(px); r.lx = r.lane; r.laneT = 9; T.r = r; tutSay(`<b class="tstep">3/4</b> ${icon('bolt')} METTITI DIETRO A ${r.name.toUpperCase()}, NELLA SUA CORSIA: PRENDI LA SCIA`); }
+        else { T.step = 3; }
+      } else { T.log = null; T.miss = false; T.tries++; tutSay(`<b class="tstep">2/4</b> ${icon('log')} RIPROVA: ${touchDevice ? 'TOCCA SALTA' : 'PREMI SPAZIO'} UN ATTIMO PRIMA DEL TRONCO`); if (T.tries > 2) { T.step = 2; T.t = 9; } }
+    }
+  } else if (T.step === 2) {
+    if (T.r) { T.r.laneT = Math.max(T.r.laneT, 2); if (T.r.gap < 6) T.r.gap += dt * 6; }   // il compagno ti aspetta finché non sei in scia
+    if (draftT > .6 && !T.inDraft) { T.inDraft = true; T.t = 0; tutSay(`<b class="tstep">3/4</b> ${icon('bolt')} SEI IN SCIA: VAI PIÙ FORTE!`); }
+    if ((T.inDraft && T.t > 2.2) || T.t > 10) { T.step = 3; T.t = 0; }
+  } else if (T.step === 3) {
+    if (T.t < .1) { charge = 100; tutSay(`<b class="tstep">4/4</b> ${icon('rocket')} TURBO PIENO: ${touchDevice ? 'TOCCA TURBO' : 'PREMI B'}`); tutPulse('boost'); }
+    if (turbo > 0 || T.t > 9) tutEnd();
+  }
+}
 function coachUpdate() {
   if (!coachOn) return;
+  if (!ice && !leap && !duel?.racing) { if (!tut && elapsed > .8) tutStart(); if (tut) tutUpdate(lastDt); return; }
   const list = ice ? ICE_COACH() : COACH();
   if (coachStep < list.length && elapsed >= list[coachStep][0]) {
     const el = $('coach'); el.innerHTML = list[coachStep][1].replace('<br>', ' '); el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
@@ -1861,7 +1903,9 @@ function coachUpdate() {
 }
 
 // ---------- Ciclo di gioco ----------
+let lastDt = 1 / 60;
 function update(dt) {
+  lastDt = dt;
   if (state === 'countdown') {
     countdown -= dt;
     const n = Math.ceil(countdown);
@@ -2078,7 +2122,7 @@ function update(dt) {
       if (near && (!o.air || lift > 1.15) && crash <= 0) {
         o.collected = true; const n = P.findGold(mode, o.gi); run.gold = (run.gold || 0) + 1; run.caps += 10; score += 1000;
         A.sfx.power(); A.sfx.perfect?.(); flash('gold'); fxKind = 'power'; fxSerial++; slowmo = .25; slowScale = .5;
-        bigCall(`🏆 BOCCALE D'ORO ${n}/3!`); toast(n === 3 ? '🏆 TUTTI E 3 I BOCCALI D’ORO DI QUESTO PERCORSO! +10 🍺' : '🏆 BOCCALE D’ORO TROVATO! +1000 · +10 🍺', 'gold');
+        bigCall(`🏆 BOCCALE D'ORO ${n}/3!`); markHighlight('BOCCALE D’ORO ' + n + '/3!', 1800); toast(n === 3 ? '🏆 TUTTI E 3 I BOCCALI D’ORO DI QUESTO PERCORSO! +10 🍺' : '🏆 BOCCALE D’ORO TROVATO! +1000 · +10 🍺', 'gold');
         if (touchDevice && navigator.vibrate) try { buzz([20, 50, 20, 50, 60]); } catch {}
       } else { o.collected = true; if (!run.goldMiss) { run.goldMiss = 1; pop(o.air ? '🏆 BOCCALE D’ORO IN ARIA: SALTA!' : '🏆 BOCCALE D’ORO SUL BORDO!', 'gold'); } }
       continue;
@@ -2185,6 +2229,7 @@ function update(dt) {
       } else if (invincible <= 0) {
         if (elapsed - lastRiderHit > 5) { lastRiderHit = elapsed; riderLine('hit'); }
         if (ice) endDrift(false);
+        markHighlight('BOTTA!', 650);
         lives--; run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0) + (bs.protect || 0); breakCombo(); charge = Math.max(0, charge - 10); mistake();
         fxKind = 'hit'; fxSerial++; shake = 1; A.sfx.hit(); flash('hit');
         // v58 · dopo una botta la fila subito dopo si apre: niente botte a catena mentre la moto riparte
@@ -2282,6 +2327,24 @@ function recordReplay(s) {
   recClock += Math.min(now - recLast, .1); recLast = now;
   replayBuf.push({ t: recClock, s: cloneSnap(s) });
   while (replayBuf.length && replayBuf[0].t < recClock - REPLAY_SEC) replayBuf.shift();
+  for (const p of hlPend.splice(0)) {   // v107.2 · un momento forte finito: si tengono i suoi 4 s per la clip
+    if (recClock < p.at + HL_POST) { hlPend.push(p); continue; }
+    const frames = replayBuf.filter(f => f.t >= p.at - HL_PRE && f.t <= p.at + HL_POST);
+    if (frames.length < 40) continue;
+    const near = highlights.find(h => Math.abs(h.at - p.at) < 3.2);
+    if (near) { if (near.w >= p.w) continue; highlights.splice(highlights.indexOf(near), 1); }
+    highlights.push({ ...p, frames });
+    if (highlights.length > 3) highlights.splice(highlights.indexOf(highlights.reduce((a, b) => a.w <= b.w ? a : b)), 1);
+  }
+}
+// v107.2 · CLIP DEL GIRO: i momenti forti (salti perfetti, sorpassi, boccali, botte…) diventano un video verticale da condividere
+const HL_PRE = 2.6, HL_POST = 1.4;
+let highlights = [], hlPend = [];
+function markHighlight(label, w) {
+  if (state !== 'playing' || replay || clip) return;
+  const last = hlPend[hlPend.length - 1];
+  if (last && recClock - last.at < 1.2) { if (w > last.w) Object.assign(last, { label, w }); return; }
+  hlPend.push({ label, w, at: recClock });
 }
 const replayReady = () => replayBuf.length > 30;
 function startReplay(rec = false) {
@@ -2346,6 +2409,137 @@ function lastVideoInfo() {
   const res = ice ? Math.round(driftM) + ' m di traverso' : leap ? C.fmtJump(leapBest || 0) : run.finishTime ? run.finishTime.toFixed(1).replace('.', ',') + ' s' : score.toLocaleString('it-IT') + ' punti';
   return { line: `${who} · ${md.id === 3 ? 'Sfida del giorno' : md.name} · ${res}`, text: `🎬 ${who} su ${md.id === 3 ? 'Sfida del giorno' : md.name}: ${res}. Guarda che giro! Prova a fare meglio 👉 ` };
 }
+
+// ----- v107.2 · clip verticale: intro con la scheda del pilota, i 3 momenti migliori, l'arrivo, il risultato -----
+let clip = null;
+const CLIP_W = 720, CLIP_H = 1280;
+function clipSegments() {
+  const segs = [{ kind: 'intro', dur: 1.8 }];
+  const hl = [...highlights].sort((a, b) => a.at - b.at);
+  for (const h of hl) segs.push({ kind: 'play', frames: h.frames, label: h.label });
+  const lastAt = hl.length ? hl[hl.length - 1].at + HL_POST : -99;
+  const tail = replayBuf.filter(f => f.t >= Math.max(lastAt, recClock - (hl.length ? 3.2 : 9)));
+  if (tail.length > 30) segs.push({ kind: 'play', frames: tail, label: hl.length ? (run.finishTime ? 'AL RIFUGIO!' : 'FINALE') : '' });
+  segs.push({ kind: 'outro', dur: 3 });
+  return segs;
+}
+async function startClip() {
+  if (!replayReady() || replay || clip) return;
+  const sid = duel?.racing ? A.DUEL_STYLE : mode;
+  if (!A.clipSongReady(sid)) { toast('PREPARO LA CANZONE PER LA CLIP…', 'gold'); await Promise.race([A.preloadSong(sid), new Promise(r => setTimeout(r, 6000))]); if (replay || clip) return; }
+  if (!window.MediaRecorder || !canvas.captureStream) { toast('📵 QUESTO TELEFONO NON SA REGISTRARE IL VIDEO', 'red'); return; }
+  const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  const type = types.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch { return false; } });
+  if (!type) { toast('📵 QUESTO TELEFONO NON SA REGISTRARE IL VIDEO', 'red'); return; }
+  const c2 = document.createElement('canvas'); c2.width = CLIP_W; c2.height = CLIP_H;
+  const g = c2.getContext('2d');
+  const vs = c2.captureStream(30), song = A.clipAudio(duel?.racing ? A.DUEL_STYLE : mode);
+  const stream = new MediaStream([...vs.getVideoTracks(), ...(song ? song.stream.getAudioTracks() : [])]);
+  let mr; try { mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 4500000 }); } catch { song?.stop(); toast('📵 QUESTO TELEFONO NON SA REGISTRARE IL VIDEO', 'red'); return; }
+  const chunks = []; mr.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  const info = clipInfo();
+  const photo = new Image(); const k = PHOTOS[profile.rider]; if (k) { photo.src = 'img/piloti/' + k + '.webp'; photo.onerror = () => { photo.onerror = null; photo.src = FOTO[k] || ''; }; }
+  const segs = clipSegments(), total = segs.reduce((a, s) => a + (s.dur || (s.frames[s.frames.length - 1].t - s.frames[0].t)), 0);
+  clip = { segs, si: 0, t: 0, all: 0, total, g, c2, mr, chunks, info, photo, song, type, cancelled: false };
+  mr.onstop = () => { const c = clip || {}; song?.stop(); if (c.cancelled || !chunks.length) return; const ext = type.includes('mp4') ? 'mp4' : 'webm'; offerVideo(new File(chunks, 'giro-easy-clip.' + ext, { type: type.split(';')[0] }), info); };
+  $('overlay').classList.add('hidden');
+  const b = $('replaybar'); b.hidden = false; b.classList.add('rec'); $('rpslow').hidden = true; $('rplabel').textContent = '● CLIP';
+  mr.start(250); A.sfx.click?.();
+}
+function clipInfo() {
+  const md = P.MODES[mode], who = C.getNick() || profile.rider, i = RIDERS.indexOf(profile.rider);
+  const big = ice ? Math.round(driftM) + ' m' : leap ? C.fmtJump(leapBest || 0) : run.finishTime ? run.finishTime.toFixed(1).replace('.', ',') + ' s' : score.toLocaleString('it-IT');
+  const sub = ice ? 'DI TRAVERSO' : leap ? 'DI SALTO' : run.finishTime ? 'AL RIFUGIO' : 'PUNTI EDT';
+  return { who, rider: profile.rider, num: String(i + 1).padStart(2, '0'), skill: SKILLS[profile.rider]?.name || '', track: md.id === 3 ? 'Sfida del giorno' : md.name,
+    big, sub, pos: run.position && !ice && !leap ? run.position + '° SU ' + (rivals.length + 1) : '', pts: Math.floor(score).toLocaleString('it-IT'),
+    line: `${who} · ${md.id === 3 ? 'Sfida del giorno' : md.name} · ${big}`, text: `🎬 ${who} su ${md.id === 3 ? 'Sfida del giorno' : md.name}: ${big}${run.position && !ice && !leap ? ' (' + run.position + '°)' : ''}. Battimi se ci riesci 👉 ` };
+}
+function clipStep(dt) {
+  const c = clip, seg = c.segs[c.si];
+  c.t += dt; c.all += dt;
+  let lt = c.t, done = false;
+  if (seg.kind === 'play') {
+    const f0 = seg.frames[0].t, f1 = seg.frames[seg.frames.length - 1].t;
+    let i = 0; while (i < seg.frames.length - 1 && seg.frames[i + 1].t - f0 <= lt) i++;
+    world?.render(seg.frames[i].s);
+    done = lt >= f1 - f0;
+  } else {
+    const ref = (c.segs.find(s => s.kind === 'play') || {}).frames, last = [...c.segs].reverse().find(s => s.kind === 'play')?.frames;
+    const fr = seg.kind === 'intro' ? ref?.[0] : last?.[last.length - 1];
+    if (fr) world?.render(fr.s);
+    done = lt >= seg.dur;
+  }
+  clipDraw(c, seg, lt);
+  $('rpfill').style.width = Math.min(100, c.all / c.total * 100) + '%';
+  if (seg.kind === 'outro' && lt > seg.dur - 1) c.song?.fade(1);
+  if (done) { c.si++; c.t = 0; if (c.si >= c.segs.length) endClip(false); }
+}
+function endClip(cancel) {
+  const c = clip; if (!c) return;
+  c.cancelled = cancel; clip = null; $('replaybar').hidden = true; $('replaybar').classList.remove('rec');
+  try { c.mr.stop(); } catch {} if (cancel) c.song?.stop();
+  renderResultAgain();
+}
+// disegno della clip (tela 720×1280): la scena 3D ritagliata in verticale + grafica EDT
+function clipDraw(c, seg, lt) {
+  const g = c.g, W = CLIP_W, H = CLIP_H, sw = canvas.width, sh = canvas.height;
+  let cw = sw, ch = sh; if (sw / sh > W / H) cw = sh * W / H; else ch = sw * H / W;
+  g.drawImage(canvas, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, W, H);
+  const Y = '#ffcf16', R = '#e3301c', D = 'Anton, Impact, sans-serif', U = '"Barlow Condensed", "Arial Narrow", sans-serif';
+  const ease = x => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
+  const grad = (y0, y1, a0, a1) => { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, `rgba(10,10,8,${a0})`); gr.addColorStop(1, `rgba(10,10,8,${a1})`); g.fillStyle = gr; g.fillRect(0, y0, W, y1 - y0); };
+  const slant = (x, y, w, h, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(x + h * .35, y); g.lineTo(x + w, y); g.lineTo(x + w - h * .35, y + h); g.lineTo(x, y + h); g.closePath(); g.fill(); };
+  g.textBaseline = 'alphabetic';
+  if (seg.kind === 'play') {
+    grad(0, 190, .75, 0); grad(H - 330, H, 0, .85);
+    // testata: EDT e numero del pilota
+    slant(28, 40, 300, 54, Y); g.fillStyle = '#111'; g.font = `italic 400 34px ${D}`; g.fillText('EDT · GIRO EASY', 52, 80);
+    g.textAlign = 'right'; g.fillStyle = '#fff'; g.font = `italic 400 58px ${D}`; g.fillText(c.info.num, W - 30, 96);
+    g.font = `italic 700 26px ${U}`; g.fillStyle = Y; g.fillText(c.info.rider.toUpperCase(), W - 30, 128); g.textAlign = 'left';
+    // didascalia del momento
+    if (seg.label) {
+      const a = ease(lt / .35), x = -60 + a * 60;
+      g.globalAlpha = a; g.font = `italic 400 ${seg.label.length > 22 ? 52 : 64}px ${D}`;
+      const tw = Math.min(W - 60, g.measureText(seg.label).width + 70);
+      slant(x + 24, H - 290, tw, 86, R); g.fillStyle = '#fff'; g.fillText(seg.label, x + 56, H - 224); g.globalAlpha = 1;
+    }
+    g.font = `italic 700 30px ${U}`; g.fillStyle = '#fffd'; g.fillText(c.info.track.toUpperCase(), 40, H - 120);
+    g.fillStyle = Y; g.fillRect(40, H - 104, 120, 6);
+  } else {
+    g.fillStyle = 'rgba(12,12,10,.72)'; g.fillRect(0, 0, W, H);
+    g.save(); g.globalAlpha = .12; g.fillStyle = Y; g.translate(W * .62, 0); g.rotate(.32); g.fillRect(0, -200, 70, H * 1.6); g.restore();
+    const a = ease(lt / .5);
+    if (seg.kind === 'intro') {
+      // scheda del pilota
+      const px = 110, py = 210 + (1 - a) * 60, pw = 500, ph = 560;
+      g.globalAlpha = a;
+      g.save(); g.beginPath(); g.moveTo(px, py); g.lineTo(px + pw, py); g.lineTo(px + pw, py + ph - 40); g.lineTo(px + pw - 40, py + ph); g.lineTo(px, py + ph); g.closePath(); g.clip();
+      g.fillStyle = '#1a1b17'; g.fillRect(px, py, pw, ph);
+      if (c.photo.complete && c.photo.naturalWidth) g.drawImage(c.photo, px, py, pw, pw);
+      const gr = g.createLinearGradient(0, py + pw * .55, 0, py + pw); gr.addColorStop(0, 'rgba(20,21,18,0)'); gr.addColorStop(1, 'rgba(20,21,18,1)'); g.fillStyle = gr; g.fillRect(px, py, pw, pw);
+      g.restore();
+      g.fillStyle = R; g.fillRect(px, py + pw - 6, pw, 8);
+      g.textAlign = 'right'; g.lineWidth = 3; g.strokeStyle = '#fff'; g.font = `italic 400 120px ${D}`; g.strokeText(c.info.num, px + pw - 22, py + 120); g.textAlign = 'left';
+      g.fillStyle = '#fff'; g.font = `italic 400 76px ${D}`; g.fillText(c.info.rider.toUpperCase(), px + 24, py + ph + 20 - 4);
+      g.fillStyle = Y; g.font = `italic 700 30px ${U}`; g.fillText(c.info.skill.toUpperCase(), px + 26, py + ph + 62);
+      g.globalAlpha = ease((lt - .3) / .5);
+      slant(60, 1010, 600, 70, Y); g.fillStyle = '#111'; g.font = `italic 400 44px ${D}`; g.fillText(c.info.track.toUpperCase().slice(0, 24), 96, 1061);
+      g.fillStyle = '#fff'; g.font = `italic 700 30px ${U}`; g.fillText('ENDURO DRINKING TEAM · GIRO EASY', 64, 1130);
+      g.globalAlpha = 1;
+    } else {
+      g.globalAlpha = a;
+      g.fillStyle = Y; g.font = `italic 700 38px ${U}`; g.fillText(c.info.track.toUpperCase(), 60, 300);
+      g.fillStyle = '#fff'; g.font = `italic 400 ${c.info.big.length > 8 ? 150 : 190}px ${D}`; g.fillText(c.info.big, 52, 500);
+      g.fillStyle = Y; g.font = `italic 400 48px ${D}`; g.fillText(c.info.sub, 60, 566);
+      if (c.info.pos) { slant(50, 620, 360, 96, R); g.fillStyle = '#fff'; g.font = `italic 400 64px ${D}`; g.fillText(c.info.pos, 90, 690); }
+      g.fillStyle = '#fffc'; g.font = `italic 700 34px ${U}`; g.fillText(c.info.who.toUpperCase() + ' · ' + c.info.pts + ' PUNTI', 60, 780);
+      g.globalAlpha = ease((lt - .6) / .5);
+      slant(40, 930, 640, 120, Y); g.fillStyle = '#111'; g.font = `italic 400 66px ${D}`; g.fillText('BATTIMI SE CI RIESCI', 80, 1012);
+      g.fillStyle = '#fff'; g.font = `700 30px ${U}`; g.fillText(publicGameURL.replace(/^https?:\/\//, '').replace(/\/$/, ''), 60, 1110);
+      g.globalAlpha = 1;
+    }
+  }
+}
 let replayFile = null;
 function offerVideo(file, info) {
   replayFile = { file, info };
@@ -2372,8 +2566,8 @@ function offerVideo(file, info) {
 document.addEventListener('click', e => {
   const id = e.target.closest?.('button')?.id;
   if (id === 'replaybtn') startReplay(false);
-  else if (id === 'replayvid') startReplay(true);
-  else if (id === 'rpclose') endReplay(true);
+  else if (id === 'replayvid') startClip();
+  else if (id === 'rpclose') { if (clip) endClip(true); else endReplay(true); }
   else if (id === 'rpslow' && replay) { replay.speed = replay.speed === 1 ? .4 : 1; $('rpslow').textContent = replay.speed === 1 ? '🐢 RALLENTA' : '▶ VELOCITÀ NORMALE'; }
 });
 
@@ -2383,6 +2577,7 @@ function frame(t) {
   last = t;
   pollPad();
   if (replay) { replayStep(dt); mudFx.update(dt); requestAnimationFrame(frame); return; }
+  if (clip) { clipStep(dt); mudFx.update(dt); requestAnimationFrame(frame); return; }
   update(dt);
   mudFx.update(dt);
   if (state === 'ready' || state === 'ended') roadTime += dt * .25; // il sentiero scorre piano dietro ai menu
@@ -2627,7 +2822,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
       <button class="primary big" id="again"><span>UN ALTRO GIRO</span>${icon('chevrons')}</button>
       <button class="secondary hot" id="shareScore">📸 MANDA LA CARTOLINA</button>
       ${ghostChallengeHTML(score)}
-      ${replayReady() ? '<button class="secondary replaybtn" id="replaybtn" type="button">🎬 RIVEDI GLI ULTIMI 10 s</button><button class="secondary replaybtn hot" id="replayvid" type="button">🎥 FAI IL VIDEO PER IL GRUPPO</button>' : ''}
+      ${replayReady() ? '<button class="secondary replaybtn" id="replaybtn" type="button">🎬 RIVEDI GLI ULTIMI 10 s</button><button class="secondary replaybtn hot" id="replayvid" type="button">🎥 CLIP DEL GIRO (VIDEO PER LE STORIE)</button>' : ''}
       <button class="secondary shopsec" id="shopres">🔧 OFFICINA</button>
       <button class="secondary" id="menu">MENU</button>
     </div>`;
@@ -3240,7 +3435,9 @@ iconizeEl(document.querySelector('.howpanel'));
 // ---------- App installabile (Android, PC, iPhone) e funzionamento offline ----------
 if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.EDT_PUBLIC_URL) {
   const hadSW = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => {});
+  // v107.2 · alla prima visita il gioco offline si prepara dopo, così non ruba rete al caricamento della prima partita
+  const reg = () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => {});
+  if (hadSW) reg(); else setTimeout(reg, 20000);
   // v39 · quando arriva una versione nuova del gioco, la pagina si ricarica da sola (solo se non stai correndo).
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {

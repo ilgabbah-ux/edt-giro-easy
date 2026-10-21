@@ -498,7 +498,7 @@ function loadSong(file) {
   })().finally(() => { songLoad[file] = null; });
   return songLoad[file];
 }
-export function preloadSong(styleId) { const st = STYLES[styleId % STYLES.length]; if (st?.file && ensure()) loadSong(st.file); }
+export function preloadSong(styleId) { const st = STYLES[styleId % STYLES.length]; return st?.file && ensure() ? loadSong(st.file) : Promise.resolve(null); }
 function playSong(m) {
   const buf = songBuf[m.style.file];
   if (!buf || music !== m || m.src) return;
@@ -626,3 +626,17 @@ export function musicStop(now = false) {
   setTimeout(() => { clearInterval(m.timer); if (!music && musicBus) musicBus.gain.value = musicOn ? MUSIC_VOL : 0; }, 1500);
 }
 export const musicPlaying = () => !!music;
+// v107.2 · colonna sonora della clip del giro: la canzone del tracciato (dal ritornello circa), dentro il video e nelle casse
+export function clipAudio(styleId) {
+  if (!ensure() || !ctx.createMediaStreamDestination) return null;
+  const st = STYLES[styleId] || STYLES[styleId % STYLES.length], buf = st?.file && songBuf[st.file];
+  if (!buf) return null;
+  const dest = ctx.createMediaStreamDestination(), t = ctx.currentTime + .05;
+  const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.95, t + .5);
+  src.connect(g); g.connect(dest); g.connect(master);
+  src.start(t, Math.min(buf.duration * .3, 45));
+  return { stream: dest.stream, fade(sec) { g.gain.setTargetAtTime(0, ctx.currentTime, sec / 3); }, stop() { try { src.stop(); } catch {} } };
+}
+export function clipSongReady(styleId) { const st = STYLES[styleId] || STYLES[styleId % STYLES.length]; return !!(st?.file && songBuf[st.file]); }
+

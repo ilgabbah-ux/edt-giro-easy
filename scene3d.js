@@ -1268,6 +1268,29 @@ export function createWorld(canvas) {
     ['shoulder' + n]: [sd * .17, .45, -.16], ['elbow' + n]: [sd * .33, .31, -.36], ['wrist' + n]: [sd * .41, .25, -.52], ['hand' + n]: [sd * .43, .24, -.59] });
   const RV = k => new T.Vector3(...RJ[k]);
   let rRig = null;
+  // v107.2 · numero di gara e nome stampati sulla schiena del pilota 3D (come le schede piloti): segue il busto
+  const BACK_P = new T.Vector3(0, .452, -.004), BACK_RX = -.48;
+  function backNumCanvas(name, number, jersey) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 160; const x = c.getContext('2d');
+    const col = new T.Color(jersey), lum = col.r * .3 + col.g * .59 + col.b * .11, ink = lum > .5 ? '#15191c' : '#fbf7ec', edge = lum > .5 ? '#ffffffb0' : '#000000a0';
+    x.textAlign = 'center'; x.lineJoin = 'round';
+    x.font = 'italic 400 104px Anton, Impact, sans-serif'; x.lineWidth = 8; x.strokeStyle = edge; x.strokeText(String(number).padStart(2, '0'), 128, 104); x.fillStyle = ink; x.fillText(String(number).padStart(2, '0'), 128, 104);
+    x.font = 'italic 400 30px Anton, Impact, sans-serif'; x.lineWidth = 5; const nm = String(name).replace(/^Il /, '').toUpperCase();
+    x.strokeText(nm, 128, 146, 230); x.fillText(nm, 128, 146, 230);
+    return c;
+  }
+  function backNumMesh(tex) {
+    const m = new T.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: .35, roughness: .9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    const p = new T.Mesh(new T.PlaneGeometry(.27, .17), m); p.rotation.x = BACK_RX; p.renderOrder = 2; p.userData.keep = true; p.name = 'backnum'; p.castShadow = false;
+    return p;
+  }
+  const backCanvasP = document.createElement('canvas'); backCanvasP.width = 256; backCanvasP.height = 160;
+  const backTexP = new T.CanvasTexture(backCanvasP); backTexP.colorSpace = T.SRGBColorSpace; backTexP.anisotropy = 4;
+  let backKey = '';
+  function paintBack(name, number, jersey) {
+    const key = name + number + jersey; if (key === backKey) return; backKey = key;
+    const src = backNumCanvas(name, number, jersey), x = backCanvasP.getContext('2d'); x.clearRect(0, 0, 256, 160); x.drawImage(src, 0, 0); backTexP.needsUpdate = true;
+  }
   function buildRiderRig(geo, mat) {
     // ossa: [nome, padre, giunto dove sta l'osso, giunto dove punta]
     const defs = [['root', null, 'root', 'spine'], ['spine', 'root', 'spine', 'chest'], ['chest', 'spine', 'chest', 'neck'], ['neck', 'chest', 'neck', 'head']];
@@ -1298,6 +1321,7 @@ export function createWorld(canvas) {
     const gs = sit.geometry.clone(); gs.applyMatrix4(new T.Matrix4().compose(new T.Vector3(), sit.quaternion, sit.scale));
     rRig = buildRiderRig(gs, m);
     rRig.mesh.castShadow = true; rRig.mesh.receiveShadow = true; rRig.mesh.userData.keep = true; riderPivot.add(rRig.mesh);
+    { const bn = backNumMesh(backTexP); bn.position.copy(BACK_P).sub(RV('chest')); rRig.bones.chest.add(bn); }
     riderGlb = { mesh: rRig.mesh }; customKey = '';
   });
   let riderStatic = null;
@@ -1864,7 +1888,9 @@ export function createWorld(canvas) {
   const OBJ_GLB = { camel: ['camel'], log: ['log'], bigLog: ['biglog'], cow: ['cow'], boar: ['boar'], deer: ['deer'], heli: ['heli'], hay: ['hay'], rollHay: ['hay', 'z'], hen: ['hen'], trincia: ['tractor'] };
   const objGlb = {};
   const OBJ_BASE = { log: [0, 0, Math.PI / 2], biglog: [0, Math.PI / 2, 0], deer: [0, Math.PI / 2, 0], hen: [0, Math.PI / 2, 0], hay: [0, Math.PI / 2, 0], tractor: [0, Math.PI, 0] };
-  for (const k of new Set(Object.values(OBJ_GLB).map(v => v[0]))) gltf.load(`img/models/obs_${k}.glb?t=1`, gg => {
+  // v107.2 · i modelli degli ostacoli non si scaricano più tutti all'avvio (≈1,5 MB): partono al primo giro, o quando serve quell'ostacolo
+  const obsAsked = new Set();
+  function loadObsGlb(k) { if (obsAsked.has(k)) return; obsAsked.add(k); gltf.load(`img/models/obs_${k}.glb?t=1`, gg => {
     const grp = new T.Group(); const list = []; gg.scene.traverse(o => { if (o.isMesh) list.push(o); });
     gg.scene.updateMatrixWorld(true);
     const base = OBJ_BASE[k] ? new T.Matrix4().makeRotationFromEuler(new T.Euler(...OBJ_BASE[k])) : null;   // modelli girati: lato lungo su x, muso verso +x
@@ -1872,7 +1898,9 @@ export function createWorld(canvas) {
       const m = new T.Mesh(geo, o.material); m.castShadow = true; m.receiveShadow = true; grp.add(m); }
     const b = new T.Box3().setFromObject(grp); objGlb[k] = { grp, box: b };
     for (const t of Object.keys(OBJ_GLB)) if (OBJ_GLB[t][0] === k && pools[t]) pools[t].length = 0;   // i prossimi oggetti nascono già col modello vero
-  }, undefined, () => {});
+  }, undefined, () => {}); }
+  function preloadObstacles() { for (const k of new Set(Object.values(OBJ_GLB).map(v => v[0]))) loadObsGlb(k); }
+  setTimeout(preloadObstacles, 12000);   // se non parti subito, si scaricano comunque con calma
   const _bx = new T.Box3(), _bm = new T.Matrix4();
   function glbSwap(g, type) {
     const spec = OBJ_GLB[type]; const G = spec && objGlb[spec[0]]; if (!G) return;
@@ -1896,6 +1924,7 @@ export function createWorld(canvas) {
     host.add(c); g.userData.glb = true;
   }
   function makeObstacle(type) {
+    if (OBJ_GLB[type]) loadObsGlb(OBJ_GLB[type][0]);
     while (pools[type]?.length) { const pg = pools[type].pop(); if (pg.userData.glb || !OBJ_GLB[type] || !objGlb[OBJ_GLB[type][0]]) return pg; }   // v106 · i vecchi a blocchi non si riusano più quando c'è il modello vero
     const g = new T.Group(); g.userData.type = type;
     if (type === 'rock') {
@@ -2566,6 +2595,7 @@ export function createWorld(canvas) {
     // pilota seduto in sella
     const ry = riderY0 + fit[3] + .118 - 1.43;
     const rm = new T.Mesh(riderStatic, riderMat(jT, pT)); rm.position.set(HIP.x, HIP.y + ry, HIP.z); body.add(rm);
+    { const tx = new T.CanvasTexture(backNumCanvas(r.name, r.number, r.livery.jersey)); tx.colorSpace = T.SRGBColorSpace; const bn = backNumMesh(tx); bn.position.copy(BACK_P); rm.add(bn); }
     // casco: copia di quello del giocatore con il colore del compagno, sul collo del modello
     const helm = pmat(r.livery.helmet, .25), acc = pmat(r.livery.accent, .4);
     if (envTex) for (const m of [helm, acc]) { m.envMap = envTex; m.envMapIntensity = .9; }
@@ -2858,6 +2888,7 @@ export function createWorld(canvas) {
     applyCustom(s.bikeLook, s.parts, s.livery);
     syncBikeModel();
     paintDecal(s.riderName || 'EDT', s.riderNumber || 1, s.livery?.jersey || '#fcd326');
+    paintBack(s.riderName || 'EDT', s.riderNumber || 1, s.livery?.jersey || '#fcd326');
     skyUniforms.uTime.value = now / 1000;
 
     canyon = s.canyon || null;
@@ -3191,5 +3222,5 @@ export function createWorld(canvas) {
   }
 
   resize();
-  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace };
+  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles };
 }

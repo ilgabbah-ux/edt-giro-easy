@@ -1496,3 +1496,11 @@ aside#hub { gap: 10px; }
 .rideroption .rc-tag { top: 32px; }
 .rideroption .rc-photo { height: 69%; object-position: 50% 35%; }
 .rideroption::before { background: linear-gradient(180deg, transparent 50%, #141512 69%), linear-gradient(115deg, transparent 72%, #ffcf1620 72% 75%, transparent 75%); }
+/* v107.2 · giro guidato: il messaggio resta finché non fai la mossa, il tasto da usare pulsa */
+.coach.hold { visibility: visible; opacity: 1; animation: coachIn .3s ease-out; font-size: clamp(13px, 1.6vw, 16px); padding: 7px 16px; max-width: min(86vw, 520px); }
+@keyframes coachIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.coach .tstep { display: inline-block; margin-right: 6px; padding: 0 6px; background: var(--y); color: #111; font-style: italic; }
+.coach .ic { width: 1.2em; height: 1.2em; vertical-align: -.22em; color: var(--y); }
+.ctrl.tutpulse { animation: tutpulse .7s ease-in-out infinite alternate !important; box-shadow: 0 0 0 3px var(--y), 0 0 22px var(--y) !important; }
+@keyframes tutpulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+@media (max-height: 500px) and (orientation: landscape) { .coach.hold { transform: translateX(-50%); animation: none; } }
