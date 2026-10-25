@@ -1549,3 +1549,27 @@ aside#hub { gap: 10px; }
 .potwwa { position: relative; flex: none; align-self: flex-end; padding: 6px 9px; border-radius: 8px; background: #25d366; color: #06230f; font: 700 11px/1.1 var(--ui); text-align: center; text-decoration: none; max-width: 86px; }
 .potw.mine { border-color: var(--y); box-shadow: 0 0 0 2px #ffd40044, 0 0 24px #ffd40033; }
 @media (max-width: 420px) { .potw { flex-wrap: wrap; } .potwwa { max-width: none; width: 100%; } .dailychip { flex-wrap: wrap; } .dailychip .chdots { width: 100%; padding-left: 36px; } .dailychip .chdots i { flex: 1; } }
+/* v107.4 · rivale personale */
+.rivalbar { display: flex; align-items: center; gap: 12px; width: 100%; margin: 8px 0 2px; padding: 10px 12px; text-align: left; color: #fff3de; background: linear-gradient(100deg, #3a1410, #1b1714 65%); border: 1px solid #e8361f99; border-radius: 10px; cursor: pointer; }
+.rivalbar[hidden] { display: none; }
+.rivalbar .avatar { width: 46px; height: 46px; border-color: #e8361f; }
+.rivalbar .rvt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rivalbar small { font: 12px var(--display); letter-spacing: 1.5px; color: #ff8a6a; }
+.rivalbar b { font: 20px/1.05 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rivalbar em { font-style: normal; font-size: 12.5px; color: var(--muted); }
+.rivalbar .rvgo { flex: none; max-width: 92px; padding: 6px 8px; border-radius: 8px; background: var(--r); color: #fff; font: 700 11px/1.15 var(--ui); text-align: center; }
+.dailychip.risk { border-color: #ff7a3c; background: linear-gradient(100deg, #4a2010, #171a12 70%); }
+.dailychip.risk small, .dailychip.risk .chi { color: #ff9a5c; }
+.dailychip.risk em { color: #ffd2b8; font-weight: 700; }
+.dailychip .chwa { flex: none; padding: 6px 9px; border-radius: 8px; background: #25d366; color: #06230f; font: 700 11px var(--ui); text-decoration: none; }
+/* v107.4 · derby del giorno */
+.derbychip { display: flex; align-items: center; gap: 6px; width: 100%; margin: 8px 0 2px; padding: 9px 12px; color: #fff3de; background: linear-gradient(100deg, #10243a, #15181b 65%); border: 1px solid #4aa3ff88; border-radius: 10px; }
+.derbychip.done { opacity: .7; }
+.derbychip .avatar { width: 38px; height: 38px; border-color: #4aa3ff; }
+.derbychip .dzvs { font: 16px var(--display); color: #4aa3ff; }
+.derbychip .dzt { flex: 1; min-width: 0; display: flex; flex-direction: column; margin-left: 6px; }
+.derbychip small { font: 12px var(--display); letter-spacing: 1.5px; color: #7cc0ff; }
+.derbychip b { font: 17px/1.1 var(--display); } .derbychip em b { font: inherit; color: var(--y); }
+.derbychip em { font-style: normal; font-size: 12px; color: var(--muted); }
+.derbywin { display: flex; align-items: center; gap: 8px; margin: 6px 0; padding: 8px 10px; border-radius: 8px; background: #10243a; border: 1px solid #4aa3ff88; color: #fff; font: 700 13px var(--ui); }
+.derbywin span { flex: 1; } .derbywin b { color: var(--y); }
