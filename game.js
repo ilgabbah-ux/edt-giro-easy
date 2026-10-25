@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.4';
-import { createWorld } from './scene3d.js?v=107.4';
-import * as A from './audio.js?v=107.4';
-import * as P from './progress.js?v=107.4';
-import { createMud } from './mudfx.js?v=107.4';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.4';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=107.4';
-import * as C from './classifica.js?v=107.4';
-import * as D from './duel.js?v=107.4';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.5';
+import { createWorld } from './scene3d.js?v=107.5';
+import * as A from './audio.js?v=107.5';
+import * as P from './progress.js?v=107.5';
+import { createMud } from './mudfx.js?v=107.5';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.5';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=107.5';
+import * as C from './classifica.js?v=107.5';
+import * as D from './duel.js?v=107.5';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=107.4').then(m => {
+import('./piloti.js?v=107.5').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -1559,6 +1559,7 @@ function setupRace() {
   const starts = [-7, 26, 58], lvSoft = P.levelInfo().level <= 2 ? .955 : P.levelInfo().level <= 4 ? .98 : 1, skills = [1.09, 1.04, .99].map(k => k * lvSoft);   // v81 · ai primi livelli i compagni vanno un filo più piano   // v48 · un filo più forti (salite più dure anche per loro)
   rivals = P.MODES[mode].leap ? [] : others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
   for (const r of rivals) if (dz.includes(r.name)) r.derby = true;
+  for (const r of rivals) if (r.name === 'Maggie') r.livery = { plastic: '#f3a6c6', accent: '#5a3426', jersey: '#f4f1ec', pants: '#6b4030', helmet: '#f3a6c6' };   // v107.5 · Maggie con la sua tuta bianca, marrone e rosa
   { const ch = champRival(); for (const r of rivals) if (r.name === ch) { r.champ = true; r.livery = { ...r.livery, helmet: '#e3b021' }; } }   // v107.3 · il pilota del campione della settimana corre col casco d'oro
   coachStep = 0; tut = null; tutPulse(null); coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
   lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
@@ -3248,7 +3249,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 107.4;
+const GAME_VERSION = 107.5;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
