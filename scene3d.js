@@ -1292,7 +1292,7 @@ export function createWorld(canvas) {
     const src = backNumCanvas(name, number, jersey), x = backCanvasP.getContext('2d'); x.clearRect(0, 0, 256, 160); x.drawImage(src, 0, 0); backTexP.needsUpdate = true;
   }
   // v107.3 · maglia "Sono un endurista semplice": stampa davanti sul petto del pilota (si carica solo se la scegli)
-  const FRONT_P = new T.Vector3(0, .37, -.262), FRONT_RX = -.5;
+  const FRONT_P = new T.Vector3(0, .445, -.272), FRONT_RX = -.38;
   let frontPrint = null, shirtNow = '';
   function setShirt(id = '') {
     if (id === shirtNow || !frontPrint) return; shirtNow = id;
