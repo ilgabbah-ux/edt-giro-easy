@@ -232,7 +232,7 @@ function decodeRider(key) {
   riderBuf.set(key, p);
   return p;
 }
-export function preloadRider(id) { if (ensure()) for (const k of ['start', 'hit', 'win']) decodeRider(id + '_' + k); }
+export function preloadRider(id) { if (ensure()) for (const k of ['start', 'hit', 'win']) decodeRider(id + '_' + k); if (id === 'erika' && ensure()) decodeRider('giacu_save'); }
 export async function sayRider(key) {
   if (!Object.keys(VOCI_PILOTI).length) await loadRiderVoices();
   if (!enabled || !ensure() || !VOCI_PILOTI[key]) return false;

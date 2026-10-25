@@ -32,7 +32,7 @@ const RIDERS = ['Il Gabbah', 'Angelo', 'Miti', 'Claudio', 'Max', 'Purcello', 'Ci
 const PHOTOS = { 'Il Gabbah': 'gabbah', 'Angelo': 'angelo', 'Linus': 'linus', 'Costa': 'costa', 'Purcello': 'purcello', 'Renard': 'renard', 'Miti': 'miti', 'Mirco': 'mirco', 'Max': 'max', 'Paletta': 'paletta',
   'Claudio': 'claudio', 'Ciprian': 'ciprian', 'Luigi': 'luigi', 'Andrea': 'andrea', 'Brizio': 'brizio', 'Sergio': 'sergio', 'Albo': 'albo', 'Alex': 'alex', 'Erika': 'erika-face', 'Albertone': 'albertone', 'Maggie': 'maggie', 'Guccio': 'guccio', 'Gusta': 'gusta' };
 // Piloti con la loro voce (battute registrate su ElevenLabs): partenza, botta, arrivo.
-const RIDER_VOICE = { 'Il Gabbah': 'gabbah', 'Angelo': 'angelo', 'Miti': 'miti', 'Costa': 'costa', 'Linus': 'linus', 'Purcello': 'purcello', 'Mirco': 'mirco', 'Renard': 'renard', 'Gusta': 'gusta' };
+const RIDER_VOICE = { 'Il Gabbah': 'gabbah', 'Angelo': 'angelo', 'Miti': 'miti', 'Costa': 'costa', 'Linus': 'linus', 'Purcello': 'purcello', 'Mirco': 'mirco', 'Renard': 'renard', 'Gusta': 'gusta', 'Alex': 'alex', 'Erika': 'erika' };   // v107.3 · voci clonate di Alex ed Erika (+ Giacu che la rimette in sella)
 const riderVoice = () => RIDER_VOICE[profile.rider];
 let lastRiderHit = -99;
 function riderLine(kind) {
@@ -2226,6 +2226,7 @@ function update(dt) {
         fxKind = 'hit'; fxSerial++; A.sfx.hit(); flash('hit');
         if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika();
         toast('💘 CI PENSA GIACU! MOTO SALVA', 'green');
+        if (A.hasRiderVoice?.('giacu_save')) { lastRiderHit = elapsed; A.sayRider('erika_hit'); setTimeout(() => A.sayRider('giacu_save'), 1700); }
       } else if (invincible <= 0 && skidLeft > 0) {
         // v96 · paramotore: la botta si prende ma la moto resta
         skidLeft--; invincible = 1.4; crash = .5; stun = .45; shake = .7; jump = 0; breakCombo(); mistake(); A.sfx.hit(); fxKind = 'hit'; fxSerial++; flash('hit');
