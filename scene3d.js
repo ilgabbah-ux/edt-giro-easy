@@ -2,9 +2,9 @@
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { GLTFLoader } from './GLTFLoader.js';
 import { DRACOLoader } from './DRACOLoader.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=107.2';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=107.3';
 import * as T from './three.module.min.js';
-import { RIDER_PARTS } from './pilota3d.js?v=107.2';
+import { RIDER_PARTS } from './pilota3d.js?v=107.3';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
@@ -1291,6 +1291,14 @@ export function createWorld(canvas) {
     const key = name + number + jersey; if (key === backKey) return; backKey = key;
     const src = backNumCanvas(name, number, jersey), x = backCanvasP.getContext('2d'); x.clearRect(0, 0, 256, 160); x.drawImage(src, 0, 0); backTexP.needsUpdate = true;
   }
+  // v107.3 · maglia "Sono un endurista semplice": stampa davanti sul petto del pilota (si carica solo se la scegli)
+  const FRONT_P = new T.Vector3(0, .37, -.262), FRONT_RX = -.5;
+  let frontPrint = null, shirtNow = '';
+  function setShirt(id = '') {
+    if (id === shirtNow || !frontPrint) return; shirtNow = id;
+    if (id && !frontPrint.material.map) new T.TextureLoader().load('img/maglia-' + id + '.webp', t => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; frontPrint.material.map = t; frontPrint.material.needsUpdate = true; frontPrint.visible = shirtNow === id; });
+    frontPrint.visible = !!id && !!frontPrint.material.map;
+  }
   function buildRiderRig(geo, mat) {
     // ossa: [nome, padre, giunto dove sta l'osso, giunto dove punta]
     const defs = [['root', null, 'root', 'spine'], ['spine', 'root', 'spine', 'chest'], ['chest', 'spine', 'chest', 'neck'], ['neck', 'chest', 'neck', 'head']];
@@ -1322,6 +1330,9 @@ export function createWorld(canvas) {
     rRig = buildRiderRig(gs, m);
     rRig.mesh.castShadow = true; rRig.mesh.receiveShadow = true; rRig.mesh.userData.keep = true; riderPivot.add(rRig.mesh);
     { const bn = backNumMesh(backTexP); bn.position.copy(BACK_P).sub(RV('chest')); rRig.bones.chest.add(bn); }
+    { frontPrint = new T.Mesh(new T.PlaneGeometry(.34, .177), new T.MeshStandardMaterial({ transparent: true, alphaTest: .3, roughness: .95, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+      frontPrint.rotation.set(FRONT_RX, Math.PI, 0); frontPrint.position.copy(FRONT_P).sub(RV('chest')); frontPrint.renderOrder = 2; frontPrint.userData.keep = true; frontPrint.name = 'frontprint'; frontPrint.castShadow = false; frontPrint.visible = false;
+      rRig.bones.chest.add(frontPrint); shirtNow = '-'; }
     riderGlb = { mesh: rRig.mesh }; customKey = '';
   });
   let riderStatic = null;
@@ -2889,6 +2900,7 @@ export function createWorld(canvas) {
     syncBikeModel();
     paintDecal(s.riderName || 'EDT', s.riderNumber || 1, s.livery?.jersey || '#fcd326');
     paintBack(s.riderName || 'EDT', s.riderNumber || 1, s.livery?.jersey || '#fcd326');
+    setShirt(s.livery?.shirt || '');
     skyUniforms.uTime.value = now / 1000;
 
     canyon = s.canyon || null;

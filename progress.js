@@ -75,6 +75,8 @@ export const LIVERIES = [
   { id: 'nonna', name: 'Pantofola della Nonna', icon: '👵', level: 6, plastic: '#f3b6c8', accent: '#8a5a3a', jersey: '#f7d6df', pants: '#8a5a3a', helmet: '#f3b6c8', pattern: 'fiori', ink: '#ffffff', jerseyPattern: true },
   { id: 'fango', name: 'Fango d’Annata', icon: '💩', level: 7, plastic: '#7b5a39', accent: '#c9a26a', jersey: '#8a6a45', pants: '#4b3420', helmet: '#a07a4c', pattern: 'schizzi', ink: '#4a3220', jerseyPattern: true },
   { id: 'scacchi', name: 'Bandiera a Scacchi', icon: '🏴', level: 8, plastic: '#f4f4f0', accent: '#e93825', jersey: '#141414', pants: '#141414', helmet: '#f4f4f0', pattern: 'scacchi', ink: '#141414' },
+  // v107.3 · la maglia vera del club: si sblocca tornando 3 giorni di fila (forziere del giorno)
+  { id: 'semplice', name: 'Endurista Semplice', icon: '👕', level: 1, streak: 3, shirt: 'semplice', plastic: '#e93825', accent: '#141414', jersey: '#f4f3ee', pants: '#1c1e20', helmet: '#1b1b1b' },
   { id: 'oro', name: 'Oro Leggenda', icon: '🏆', level: 9, plastic: '#d9a826', accent: '#111111', jersey: '#141414', pants: '#141414', helmet: '#e7b934', pattern: 'righe', ink: '#f6d46a' },
 ];
 
@@ -309,12 +311,31 @@ export function levelInfo(xp = data.xp) {
   return { level, grade, into: xp - floor, need, pct: (xp - floor) / need };
 }
 
+export const liveryOpen = (l, level = levelInfo().level) => l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
 export function unlockedLiveries(level = levelInfo().level) {
-  return LIVERIES.filter(l => l.level <= level);
+  return LIVERIES.filter(l => liveryOpen(l, level));
 }
 export function currentLivery() {
   const lv = LIVERIES.find(l => l.id === data.livery);
-  return lv && lv.level <= levelInfo().level ? lv : LIVERIES[0];
+  return lv && liveryOpen(lv) ? lv : LIVERIES[0];
+}
+
+// ---------- v107.3 · Forziere del giorno: al primo giro di ogni giorno, più birre se torni tutti i giorni di fila ----------
+export const CHEST = [20, 30, 40, 50, 60, 80, 120];
+const dayIndex = (d = new Date()) => Math.round(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12).getTime() / 864e5);
+export function dailyInfo() {
+  const g = data.daily || {}, today = dayIndex();
+  const done = g.last === today, alive = done || g.last === today - 1;
+  const next = done ? g.n : alive ? (g.n || 0) + 1 : 1;
+  return { done, streak: alive ? g.n || 0 : 0, next, beers: CHEST[Math.min(next, CHEST.length) - 1], best: g.best || 0, lost: !alive && (g.n || 0) > 1 ? g.n : 0 };
+}
+export function claimDaily() {
+  const info = dailyInfo(); if (info.done) return null;
+  const before = unlockedLiveries().map(l => l.id);
+  data.daily = { last: dayIndex(), n: info.next, best: Math.max(info.best, info.next) };
+  data.beers += info.beers; save();
+  const fresh = unlockedLiveries().filter(l => !before.includes(l.id));
+  return { n: info.next, beers: info.beers, lost: info.lost, wallet: data.beers, fresh, tomorrow: CHEST[Math.min(info.next + 1, CHEST.length) - 1] };
 }
 
 // ---------- Sfida del giorno ----------

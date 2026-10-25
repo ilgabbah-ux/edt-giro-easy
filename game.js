@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.2';
-import { createWorld } from './scene3d.js?v=107.2';
-import * as A from './audio.js?v=107.2';
-import * as P from './progress.js?v=107.2';
-import { createMud } from './mudfx.js?v=107.2';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.2';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=107.2';
-import * as C from './classifica.js?v=107.2';
-import * as D from './duel.js?v=107.2';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.3';
+import { createWorld } from './scene3d.js?v=107.3';
+import * as A from './audio.js?v=107.3';
+import * as P from './progress.js?v=107.3';
+import { createMud } from './mudfx.js?v=107.3';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.3';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=107.3';
+import * as C from './classifica.js?v=107.3';
+import * as D from './duel.js?v=107.3';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=107.2').then(m => {
+import('./piloti.js?v=107.3').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -593,6 +593,7 @@ function finish(win, reason = '') {
   hud();
   $('banner').classList.remove('show');
   renderResult(win, res, reason, timeBonus);
+  if (!tut) { const chest = P.claimDaily() || pendingChest; pendingChest = null; if (chest) setTimeout(() => { if (state === 'ended' && !$('chestpop')) showChest(chest); else pendingChest = chest; }, win ? 2200 : 1100); }
   if (gev) A.sfx.whistle();
   if (win) buzz([60, 70, 60, 70, 160]);
   if (win) celebrate(P.currentParts().festa?.id);
@@ -1550,6 +1551,7 @@ function setupRace() {
   const others = RIDERS.filter(r => r !== profile.rider).sort(() => rng() - .5).slice(0, 3);
   const starts = [-7, 26, 58], lvSoft = P.levelInfo().level <= 2 ? .955 : P.levelInfo().level <= 4 ? .98 : 1, skills = [1.09, 1.04, .99].map(k => k * lvSoft);   // v81 · ai primi livelli i compagni vanno un filo più piano   // v48 · un filo più forti (salite più dure anche per loro)
   rivals = P.MODES[mode].leap ? [] : others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
+  { const ch = champRival(); for (const r of rivals) if (r.name === ch) { r.champ = true; r.livery = { ...r.livery, helmet: '#e3b021' }; } }   // v107.3 · il pilota del campione della settimana corre col casco d'oro
   coachStep = 0; tut = null; tutPulse(null); coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
   lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
   // Meteo: un cambio a metà giro (pioggia, nebbia o tramonto), diverso a ogni gara; la Sfida del giorno è uguale per tutti.
@@ -1620,7 +1622,9 @@ function updateRivals(dt, travelStep, route, diff) {
     // sorpassi
     if (prev < 0 && r.gap >= 0) { // ti passa lui
       pop(r.name.toUpperCase() + ': SUUUKA!', 'white'); rivalSay(r); suuka();
+      if (r.champ && !r.champSaid1) { r.champSaid1 = 1; setTimeout(() => toast('👑 ' + rpick(CHAMP_PASS_ME).replace('{n}', r.name.toUpperCase()), 'gold'), 900); }
     } else if (prev > 0 && r.gap <= 0) { // lo passi tu
+      if (r.champ && !r.champSaid2) { r.champSaid2 = 1; run.champPass = 1; setTimeout(() => toast('👑 ' + rpick(CHAMP_PASSED).replace('{n}', r.name.toUpperCase()), 'green'), 700); }
       const sc = elapsed - lastDraftAt < 1.2; score += sc ? 400 : 250; run.passes = (run.passes || 0) + 1; if (sc) run.draftPasses = (run.draftPasses || 0) + 1; pop(sc ? '⚡ SORPASSO IN SCIA SU ' + r.name.toUpperCase() + ' +400' : 'SORPASSO SU ' + r.name.toUpperCase() + ' +250', 'gold'); markHighlight(sc ? 'SORPASSO IN SCIA SU ' + r.name.toUpperCase() : 'SORPASSO SU ' + r.name.toUpperCase(), sc ? 1300 : 800); A.sfx.near(); if (sc) buzz([10, 30, 10]);
     }
   }
@@ -2710,6 +2714,8 @@ function renderReady() {
     </div>
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : (A.STYLES[mode] || A.STYLES[0]).name}</small></span>${icon('chevrons')}</button>
     <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
+    ${dailyChipHTML()}
+    ${C.enabled() ? '<div class="potw" id="potw" hidden></div>' : ''}
     ${C.enabled() ? '<button class="cupbar" id="cupbar" type="button" hidden><span class="cupi">🏆</span><span class="cupt"><small>COPPA DELLA SETTIMANA</small><b id="cuplead">…</b><em id="cupme"></em></span><span class="cupx" id="cupprev"></span></button>' : ''}
     <div class="quickrow">
       <button class="qbtn" id="opengarage" type="button"><span class="qi">🎨</span><b>GARAGE</b><small>livree e moto</small></button>
@@ -2880,12 +2886,13 @@ function cupListHTML(list, me = '') {
 }
 function cupBar(d) {
   const bar = $('cupbar'); if (!bar) return;
-  const w = d?.week; if (!w) { bar.hidden = true; return; }
+  const w = d?.week; if (!w) { bar.hidden = true; potwCard(null); return; }
   bar.hidden = false;
   const lead = w.list[0], me = cupMine(w), left = cupDaysLeft();
   $('cuplead').textContent = lead ? `1° ${lead.n} · ${lead.p} pt` : 'nessuno ancora: prendila tu!';
   $('cupme').textContent = (me ? `tu ${me.pos}° · ${me.p} pt · ` : '') + (left ? `finisce tra ${left} ${left === 1 ? 'giorno' : 'giorni'}` : 'ultimo giorno!');
-  $('cupprev').innerHTML = w.prev ? `<small>VINCITORE SCORSA SETTIMANA</small>👑 ${w.prev.n}` : '';
+  $('cupprev').innerHTML = '';
+  potwCard(w);
   showPodium(w);
 }
 // v96 · statistiche di sempre del pilota
@@ -2944,6 +2951,63 @@ function ghostChallengeHTML(sc) {
   const url = publicGameURL + '?fantasma=' + encodeURIComponent(nick) + '&p=' + mode;
   const text = `👻 ${nick} ti sfida su ${trackName(mode)} a Giro Easy: il suo record è in classifica. Batti il suo fantasma 👉 ${url}`;
   return `<a class="secondary wabtn ghostbtn" target="_blank" rel="noopener" href="${waLink(text)}">👻 SFIDA UN AMICO A BATTERE IL TUO FANTASMA</a>`;
+}
+// v107.3 · Forziere del giorno: al primo giro di ogni giorno birre gratis, di più se torni tutti i giorni di fila
+const dotsHTML = (n, now = 0) => `<span class="chdots">${P.CHEST.map((b, i) => `<i class="${i < n ? 'on' : ''} ${i === now - 1 ? 'now' : ''}" title="giorno ${i + 1}: +${b}"><u>${i + 1}</u></i>`).join('')}</span>`;
+function dailyChipHTML() {
+  const d = P.dailyInfo(), shirt = P.LIVERIES.find(l => l.streak), needShirt = shirt && !P.liveryOpen(shirt);
+  const sub = d.done ? `Preso! Torna domani: <b>+${P.CHEST[Math.min(d.next + 1, P.CHEST.length) - 1]} 🍺</b>` : `Fai un giro oggi e prendi <b>+${d.beers} 🍺</b>`;
+  const note = d.lost ? `Ieri non sei passato: serie azzerata (eri a ${d.lost})` : needShirt ? `${shirt.streak} giorni di fila = la maglia “Sono un endurista semplice”` : d.done ? `${d.streak} ${d.streak === 1 ? 'giorno' : 'giorni'} di fila` : d.streak ? `${d.streak} ${d.streak === 1 ? 'giorno' : 'giorni'} di fila: non spezzare la serie` : '7 giorni di fila = +120 🍺 al giorno';
+  return `<div class="dailychip ${d.done ? 'done' : 'ready'}" id="dailychip"><span class="chi">🎁</span><span class="cht"><small>FORZIERE DEL GIORNO</small><b>${sub}</b><em>${note}</em></span>${dotsHTML(d.done ? d.streak : d.streak, d.done ? 0 : d.next)}</div>`;
+}
+let pendingChest = null;
+function showChest(c) {
+  if (!c) return;
+  const el = document.createElement('div'); el.className = 'podium chestpop'; el.id = 'chestpop';
+  el.innerHTML = `<div class="podbox chestbox"><small>${c.n === 1 ? 'PRIMO GIRO DI OGGI' : c.n + ' GIORNI DI FILA'}</small><b class="podtitle">FORZIERE DEL GIORNO</b>
+    <div class="chest"><i class="lid"></i><i class="box"></i><span class="chbeer">+${c.beers} 🍺</span></div>
+    ${dotsHTML(c.n, c.n)}
+    ${c.lost ? `<p class="chlost">Ieri hai saltato: la serie da ${c.lost} giorni è ripartita da 1.</p>` : ''}
+    ${c.fresh.length ? `<div class="chshirt"><img src="img/maglia-${c.fresh[0].shirt || 'semplice'}.webp" alt=""><span>MAGLIA SBLOCCATA: <b>${c.fresh[0].name.toUpperCase()}</b><small>la trovi nel garage, tra le livree</small></span></div>` : ''}
+    <p>Torna domani: <b>+${c.tomorrow} 🍺</b>. Se salti un giorno si riparte da capo. <small>In cassa: ${c.wallet} 🍺</small></p>
+    <button class="primary" type="button" id="chestok"><span>${c.fresh.length ? 'LA METTO SUBITO' : 'ALLA SALUTE'}</span></button></div>`;
+  topLayer().appendChild(el); iconizeEl(el);
+  A.sfx.perfect?.(); buzz([40, 60, 40, 60, 120]);
+  requestAnimationFrame(() => el.classList.add('open'));
+  $('chestok').onclick = () => { if (c.fresh.length) { profile.livery = c.fresh[0].id; P.save(); } el.remove(); A.sfx.click(); renderSide(); };
+}
+// v107.3 · Pilota della settimana con sfottò: scheda nel menu, casco d'oro anche al suo pilota quando è tra i compagni
+const rpick = a => a[Math.floor(Math.random() * a.length)];
+const dayPick = a => a[P.todayKey() % a.length];
+const champRival = () => { const p = C.cached()?.week?.prev; return p && !isChamp() && p.r !== profile.rider ? p.r : ''; };
+const CHAMP_PASS_ME = ['{n} COL CASCO D’ORO TI SALUTA DA DAVANTI', '{n}: “IL CASCO D’ORO NON SI PRESTA”', 'TI HA PASSATO IL CAMPIONE: ORA SAI PERCHÉ HA VINTO', '{n} TI HA LASCIATO IL FANGO DEL CAMPIONE'];
+const CHAMP_PASSED = ['HAI PASSATO IL CASCO D’ORO! {n} STASERA OFFRE LUI', 'SORPASSO SUL CAMPIONE: {n} DICE CHE AVEVA IL SOLE NEGLI OCCHI', '{n} DIETRO DI TE: IL CASCO D’ORO PESA, EH?', 'IL CAMPIONE DELLA SETTIMANA TI VEDE LA TARGA'];
+const POTW_JAB = [
+  '{n} ha vinto la coppa. Dice che è talento, il gruppo dice culo.',
+  '{n} gira col casco d’oro: si vede da lontano, così sai chi superare.',
+  'Una settimana da re per {n}. Poi torna a spingere in salita come tutti.',
+  '{n} ha vinto perché voi eravate al bar. Rimediate.',
+  'Il casco d’oro di {n} pesa tre etti in più: approfittatene in salita.',
+  '{n} è il pilota della settimana. Ha già chiesto lo sconto al bar.',
+  'Battere {n} questa settimana non dà punti in più, ma lo sfottò vale doppio.',
+];
+const POTW_ME = [
+  'Sei tu. Goditela: questa settimana tutti corrono per batterti.',
+  'Casco d’oro in testa fino a domenica. Vedi di non cadere davanti a tutti.',
+  'Re del gruppo per sette giorni. Al bar offri tu, è la regola.',
+  'Sei il pilota della settimana: ogni sorpasso che prendi lo sanno tutti.',
+];
+function potwCard(w) {
+  const el = $('potw'); if (!el) return;
+  const c = w?.prev; if (!c) { el.hidden = true; return; }
+  const me = isChamp(), line = (me ? dayPick(POTW_ME) : dayPick(POTW_JAB)).replace(/\{n\}/g, c.n);
+  const wa = me ? `👑 Questa settimana il pilota della settimana di Giro Easy sono io (${c.p} punti coppa). Casco d’oro in testa: chi mi batte? 👉 ${publicGameURL}`
+    : `👑 ${c.n}, goditi il casco d’oro finché dura: questa settimana la coppa di Giro Easy te la porto via io. 👉 ${publicGameURL}`;
+  el.hidden = false; el.classList.toggle('mine', me);
+  el.innerHTML = `<span class="potwav">${RIDERS.includes(c.r) ? avatarHTML(c.r) : '<i class="noav"></i>'}<i class="potwcrown">👑</i></span>
+    <span class="potwt"><small>PILOTA DELLA SETTIMANA${me ? ' · SEI TU' : ''}</small><b>${c.n}</b><em>${c.p} pt coppa${c.w ? ' · ' + c.w + ' ' + (c.w === 1 ? 'percorso vinto' : 'percorsi vinti') : ''} · casco d’oro fino a domenica</em><q>${line}</q></span>
+    <a class="potwwa" target="_blank" rel="noopener" href="${waLink(wa)}">${me ? 'VANTATI NEL GRUPPO' : 'SFOTTILO NEL GRUPPO'}</a>`;
+  iconizeEl(el);
 }
 // v106.5 · chi ha vinto la coppa della settimana scorsa corre col casco d'oro per tutta la settimana
 const isChamp = () => { try { return !!crownOf(C.getNick()); } catch { return false; } };
@@ -3128,7 +3192,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 107.2;
+const GAME_VERSION = 107.3;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
@@ -3152,14 +3216,14 @@ function renderSide() {
   $('shopside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady)); };
   $('bikeside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes')); };
   $('liveries').innerHTML = P.LIVERIES.map(l => {
-    const locked = l.level > info.level;
-    return `<button type="button" class="livery ${l.id === current.id ? 'active' : ''}" data-livery="${l.id}" ${locked ? 'aria-disabled="true"' : ''} title="${locked ? 'Si sblocca al livello ' + l.level : l.name}">
-      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}"><b class="lvicon">${l.icon || ''}</b></i><span>${locked ? '🔒 LIV ' + l.level : l.name}</span></button>`;
+    const locked = !P.liveryOpen(l, info.level), why = l.streak ? `Si sblocca tornando ${l.streak} giorni di fila (forziere del giorno)` : 'Si sblocca al livello ' + l.level;
+    return `<button type="button" class="livery ${l.id === current.id ? 'active' : ''} ${l.shirt ? 'shirt' : ''}" data-livery="${l.id}" ${locked ? 'aria-disabled="true"' : ''} title="${locked ? why : l.name}">
+      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}">${l.shirt ? `<img class="lvshirt" src="img/maglia-${l.shirt}.webp" alt="" loading="lazy">` : `<b class="lvicon">${l.icon || ''}</b>`}</i><span>${locked ? (l.streak ? '🔒 ' + l.streak + ' GIORNI DI FILA' : '🔒 LIV ' + l.level) : l.name}</span></button>`;
   }).join('');
   document.querySelectorAll('[data-livery]').forEach(b => b.onclick = () => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;
     const l = P.LIVERIES.find(x => x.id === b.dataset.livery);
-    if (l.level > P.levelInfo().level) { b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); return; }
+    if (!P.liveryOpen(l)) { if (l.streak) toast('TORNA ' + l.streak + ' GIORNI DI FILA E LA MAGLIA È TUA (OGGI: ' + P.dailyInfo().streak + ')'); b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); return; }
     profile.livery = l.id; P.save(); A.sfx.click(); renderSide();
   });
 

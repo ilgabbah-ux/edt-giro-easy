@@ -1504,3 +1504,48 @@ aside#hub { gap: 10px; }
 .ctrl.tutpulse { animation: tutpulse .7s ease-in-out infinite alternate !important; box-shadow: 0 0 0 3px var(--y), 0 0 22px var(--y) !important; }
 @keyframes tutpulse { from { transform: scale(1); } to { transform: scale(1.08); } }
 @media (max-height: 500px) and (orientation: landscape) { .coach.hold { transform: translateX(-50%); animation: none; } }
+/* v107.3 · maglia "Sono un endurista semplice" nel selettore livree: la stampa vera su fondo bianco */
+.livery.shirt i { background: #f4f3ee; display: grid; place-items: center; overflow: hidden; }
+.livery .lvshirt { width: 40px; height: auto; transform: skewX(12deg); }
+/* v107.3 · forziere del giorno (menu + finestra) */
+.dailychip { display: flex; align-items: center; gap: 10px; width: 100%; margin: 8px 0 2px; padding: 9px 12px; color: #fff3de; background: linear-gradient(100deg, #2b3a14, #171a12 65%); border: 1px solid #9be15d77; border-radius: 10px; }
+.dailychip.done { background: #1b1d17; border-color: #3a3d33; }
+.dailychip .chi { font-size: 26px; color: #9be15d; }
+.dailychip.ready .chi { animation: chwob 1.6s ease-in-out infinite; }
+.dailychip .cht { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dailychip small { font: 12px var(--display); letter-spacing: 1.5px; color: #9be15d; }
+.dailychip b { font: 700 14px/1.2 var(--ui); } .dailychip b b { color: var(--y); }
+.dailychip em { font-style: normal; font-size: 12px; color: var(--muted); }
+.chdots { display: flex; gap: 3px; flex: none; }
+.chdots i { width: 13px; height: 18px; border-radius: 3px; background: #2c2f27; border: 1px solid #44473d; display: grid; place-items: center; }
+.chdots i u { text-decoration: none; font: 700 9px var(--ui); color: #777a6e; }
+.chdots i.on { background: #9be15d; border-color: #9be15d; } .chdots i.on u { color: #12160c; }
+.chdots i.now { box-shadow: 0 0 0 2px var(--y); }
+.chdots i:last-child { width: 17px; }
+@keyframes chwob { 0%, 70%, 100% { transform: rotate(0) } 76% { transform: rotate(-12deg) } 84% { transform: rotate(10deg) } 92% { transform: rotate(-5deg) } }
+.chestbox .chdots { justify-content: center; margin: 4px 0 12px; } .chestbox .chdots i { width: 26px; height: 30px; } .chestbox .chdots i u { font-size: 12px; }
+.chest { position: relative; width: 120px; height: 96px; margin: 6px auto 10px; }
+.chest .box { position: absolute; left: 10px; right: 10px; bottom: 0; height: 52px; border-radius: 6px; background: linear-gradient(#8a5524, #5a3412); box-shadow: inset 0 0 0 4px #c9932f, inset 0 -14px #0003; }
+.chest .box::after { content: ''; position: absolute; left: 50%; top: 6px; width: 16px; height: 18px; margin-left: -8px; border-radius: 3px; background: var(--y); }
+.chest .lid { position: absolute; left: 6px; right: 6px; bottom: 50px; height: 30px; border-radius: 16px 16px 4px 4px; background: linear-gradient(#a8692c, #6b3e15); box-shadow: inset 0 0 0 4px #c9932f; transform-origin: 50% 100%; transition: transform .5s cubic-bezier(.3, 1.8, .5, 1) .25s; }
+.chestpop.open .chest .lid { transform: translateY(-14px) rotate(-24deg); }
+.chest .chbeer { position: absolute; left: 0; right: 0; bottom: 40px; font: 34px var(--display); color: var(--y); text-shadow: 0 2px 0 #000, 0 0 20px #ffd40088; opacity: 0; transform: translateY(20px) scale(.6); transition: all .6s cubic-bezier(.3, 1.6, .5, 1) .55s; }
+.chestpop.open .chest .chbeer { opacity: 1; transform: translateY(-36px) scale(1); }
+.chestbox .chlost { color: #ff9a7a; }
+.chshirt { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 8px; background: #f4f3ee; border-radius: 8px; color: #141414; text-align: left; }
+.chshirt img { width: 120px; height: auto; } .chshirt span { font: 700 12px/1.25 var(--ui); } .chshirt b { display: block; font: 18px var(--display); } .chshirt small { color: #555; }
+/* v107.3 · pilota della settimana */
+.potw { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; margin: 8px 0 2px; padding: 12px 12px 12px 10px; color: #fff3de; background: radial-gradient(120% 140% at 0 0, #5a440c, #1d1a12 60%); border: 1px solid #ffcf16aa; border-radius: 12px; overflow: hidden; }
+.potw[hidden] { display: none; }
+.potw::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, transparent 0 18px, #ffd4000a 18px 36px); pointer-events: none; }
+.potwav { position: relative; flex: none; }
+.potwav .avatar { width: 64px; height: 64px; border: 3px solid #e3b021; box-shadow: 0 0 18px #ffcf1666; }
+.potwcrown { position: absolute; top: -10px; left: 50%; transform: translateX(-50%) rotate(-8deg); font-style: normal; color: var(--y); font-size: 20px; filter: drop-shadow(0 1px 1px #000); }
+.potwt { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.potwt small { font: 12px var(--display); letter-spacing: 1.5px; color: var(--y); }
+.potwt b { font: 24px/1 var(--display); letter-spacing: .5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.potwt em { font-style: normal; font-size: 12px; color: #d6c9a8; }
+.potwt q { margin-top: 4px; font: italic 600 13px/1.25 var(--ui); color: #fff; quotes: '“' '”'; }
+.potwwa { position: relative; flex: none; align-self: flex-end; padding: 6px 9px; border-radius: 8px; background: #25d366; color: #06230f; font: 700 11px/1.1 var(--ui); text-align: center; text-decoration: none; max-width: 86px; }
+.potw.mine { border-color: var(--y); box-shadow: 0 0 0 2px #ffd40044, 0 0 24px #ffd40033; }
+@media (max-width: 420px) { .potw { flex-wrap: wrap; } .potwwa { max-width: none; width: 100%; } .dailychip { flex-wrap: wrap; } .dailychip .chdots { width: 100%; padding-left: 36px; } .dailychip .chdots i { flex: 1; } }
