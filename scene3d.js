@@ -2806,15 +2806,20 @@ export function createWorld(canvas) {
     if (q === 2) { sun.castShadow = false; renderer.shadowMap.enabled = false; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); }
     if (q === 3) { pixelRatio = Math.min(pixelRatio, 1.15); renderer.setPixelRatio(pixelRatio); resize(); }
     if (q === 4) { pixelRatio = Math.min(pixelRatio, 1); renderer.setPixelRatio(pixelRatio); resize(); }
+    // v107.6 · schermi grandi (tablet): due gradini in più sotto 1, dove la grana non si nota e l'iPad respira
+    if (q === 5) { pixelRatio = Math.min(pixelRatio, .85); renderer.setPixelRatio(pixelRatio); resize(); }
+    if (q === 6) { pixelRatio = Math.min(pixelRatio, .72); renderer.setPixelRatio(pixelRatio); resize(); }
   }
+  const bigScreen = () => Math.min(innerWidth, innerHeight) >= 600 && (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+  const maxQ = () => bigScreen() ? 6 : 4;
   function adaptQuality() {
     const now = performance.now(), dt = now - lastNow; lastNow = now;
     if (dt > 200) return;
     frameAvg += (dt - frameAvg) * .05; frames++;
-    if (frames > 120 && frameAvg > 27 && quality < 4) { frames = 0; goodFrames = 0; quality++; stepQuality(quality); saveQ(quality); }
-    if (quality > 0 && frameAvg < 21) { if (++goodFrames === 600) saveQ(quality - 1); } else goodFrames = 0;   // va liscio da un pezzo: la prossima volta si riparte un gradino più su
+    if (frames > 90 && frameAvg > (bigScreen() ? 21 : 27) && quality < maxQ()) { frames = 0; goodFrames = 0; quality++; stepQuality(quality); saveQ(quality); }
+    if (quality > 0 && frameAvg < (bigScreen() ? 18 : 21)) { if (++goodFrames === 600) saveQ(quality - 1); } else goodFrames = 0;   // va liscio da un pezzo: la prossima volta si riparte un gradino più su
   }
-  queueMicrotask(() => { let q = 0; try { q = Math.min(4, +localStorage.getItem(QKEY) || 0); } catch {} while (quality < q) stepQuality(++quality); });
+  queueMicrotask(() => { let q = null; try { const v = localStorage.getItem(QKEY); if (v !== null) q = Math.min(maxQ(), +v || 0); } catch {} if (q === null) q = bigScreen() ? 2 : 0; while (quality < q) stepQuality(++quality); });   // v107.6 · tablet al primo avvio: si parte già senza ombre
 
   let leapFollow = 0, camLift = 0, camX = 0, lastRender = performance.now(), wasAir = false, shakeX = 0, shakeY = 0;
 

@@ -1584,4 +1584,6 @@ aside#hub { gap: 10px; }
   .rightctrl .wheelie { min-width: 120px; }
   .controls .boost { position: absolute; right: 0; bottom: 100px; width: 280px; height: 70px; min-width: 0; font-size: 19px; }
   .dash { bottom: 114px; right: 310px; }
+  main { grid-template-columns: minmax(0, 1fr); }   /* v107.6 · su tablet il gioco prende tutta la larghezza: piloti, garage e classifica sotto, come sul telefono */
+  .shell { max-width: 100vw; }
 }
