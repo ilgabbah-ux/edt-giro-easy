@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.8';
-import { createWorld } from './scene3d.js?v=107.8';
-import * as A from './audio.js?v=107.8';
-import * as P from './progress.js?v=107.8';
-import { createMud } from './mudfx.js?v=107.8';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=107.8';
-import * as C from './classifica.js?v=107.8';
-import * as D from './duel.js?v=107.8';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.9';
+import { createWorld } from './scene3d.js?v=107.9';
+import * as A from './audio.js?v=107.9';
+import * as P from './progress.js?v=107.9';
+import { createMud } from './mudfx.js?v=107.9';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.9';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=107.9';
+import * as C from './classifica.js?v=107.9';
+import * as D from './duel.js?v=107.9';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=107.8').then(m => {
+import('./piloti.js?v=107.9').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -414,7 +414,7 @@ function hud() {
   $('gas').hidden = !needGas;
   $('gas').classList.toggle('held', gas);
   $('gas').setAttribute('aria-pressed', String(gas));
-  $('gas').textContent = desert && sandStuck ? 'INSABBIATO' : desert && flat ? 'FORATO' : desert && (routeAt(course, roadTime * 19.5).climb > .3) && !gas ? 'GAS O TI INSABBI' : ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? '🔒 GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
+  $('gas').textContent = stalled || (desert && sandStuck) ? 'SPINGI! TOCCA TOCCA' : desert && flat ? 'FORATO' : desert && (routeAt(course, roadTime * 19.5).climb > .3) && !gas ? 'GAS O TI INSABBI' : ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? '🔒 GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
   $('gas').classList.toggle('locked', gasLock);
   { const warn = tractOn && state === 'playing' && !stalled && (grip > .94 || grip < .2); $('gas').classList.toggle('warn', warn); if (tractOn && state === 'playing' && !stalled) $('gas').textContent = grip > .94 ? 'PATTINA: MOLLA!' : grip < .2 ? 'DAI GAS!' : gas ? 'COSÌ! DOSA' : 'GAS'; }
   { const tb = $('tractbox'); if (tb) { tb.hidden = !(tractOn && state === 'playing'); if (!tb.hidden) { tb.style.setProperty('--g', grip.toFixed(3)); tb.className = 'tractbox ' + (stalled ? 'stall' : grip > .94 ? 'spin' : grip < .12 ? 'low' : grip >= .28 && grip <= .84 ? 'ok' : ''); tb.querySelector('b').textContent = stalled ? 'SPINGI!' : grip > .94 ? 'PATTINA' : grip < .12 ? 'SI PIANTA' : grip >= .28 && grip <= .84 ? 'TRAZIONE' : 'GAS'; } } }
@@ -773,7 +773,8 @@ function mistake() {
 }
 
 // v49 · GAS: tieni premuto = gas finché tieni; un tocco veloce = GAS BLOCCATO fino alla fine della salita (sul ghiaccio solo tenuto: va dosato)
-$('gas').onpointerdown = e => { e.preventDefault(); if (state === 'playing') { gas = true; gasDownAt = performance.now(); $('gas').setPointerCapture(e.pointerId); } };
+$('gas').onpointerdown = e => { e.preventDefault(); if (state === 'playing' && (stalled || sandStuck || flat)) { hop(); return; }   // v107.9 · moto piantata: anche il tasto GAS spinge (prima serviva SALTA e su iPad non si capiva)
+  if (state === 'playing') { gas = true; gasDownAt = performance.now(); $('gas').setPointerCapture(e.pointerId); } };
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) $('gas').addEventListener(ev, () => {
   if (!gasDownAt) return;
   const tap = performance.now() - gasDownAt < 230; gasDownAt = 0;
@@ -1977,7 +1978,7 @@ function update(dt) {
   if (tractOn && !stalled) {
     grip = Math.max(0, Math.min(1, grip + (gas ? .36 : -.6) * dt));
     if (grip > .94) { tractMul = .72; if (elapsed - spinMsgAt > 2.5) { spinMsgAt = elapsed; toast('🔥 PATTINA! MOLLA UN FILO IL GAS', 'red'); } }
-    else if (grip < .12 - up.ecu * .015) { tractMul = .45; stallT += dt; if (stallT > 2.2 + up.ecu * .15) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); toast('👆 TOCCA SALTA PIÙ VOLTE PER SPINGERE LA MOTO', 'gold'); } }
+    else if (grip < .12 - up.ecu * .015) { tractMul = .45; stallT += dt; if (stallT > 2.2 + up.ecu * .15) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); toast('👆 PIANTATO! TOCCA PIÙ VOLTE GAS O SALTA PER SPINGERE', 'gold'); } }
     else { stallT = 0; if (grip >= .28 - up.ecu * .03 && grip <= .84 + up.ecu * .03) { tractMul = 1.08; score += dt * 40; } }
   } else if (!tractOn) { grip += (.5 - grip) * Math.min(1, dt * 2); stallT = 0; stalled = false; }
   if (stalled) tractMul = .04;
@@ -3259,7 +3260,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 107.8;
+const GAME_VERSION = 107.9;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
