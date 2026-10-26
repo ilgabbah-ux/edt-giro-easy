@@ -1573,3 +1573,15 @@ aside#hub { gap: 10px; }
 .derbychip em { font-style: normal; font-size: 12px; color: var(--muted); }
 .derbywin { display: flex; align-items: center; gap: 8px; margin: 6px 0; padding: 8px 10px; border-radius: 8px; background: #10243a; border: 1px solid #4aa3ff88; color: #fff; font: 700 13px var(--ui); }
 .derbywin span { flex: 1; } .derbywin b { color: var(--y); }
+/* v107.6 · tablet in orizzontale (iPad): comandi grandi ai lati, turbo sopra SALTA a portata di pollice destro */
+@media (pointer: coarse) and (orientation: landscape) and (min-height: 501px) {
+  .controls { left: 14px; right: 14px; bottom: 14px; }
+  .steer { gap: 10px; }
+  .steer .ctrl { min-width: 100px; height: 88px; font-size: 42px; }
+  .rightctrl { display: flex; gap: 10px; align-items: flex-end; }
+  .rightctrl .ctrl { height: 88px; }
+  .rightctrl .jump { padding: 0 40px; font-size: 26px; }
+  .rightctrl .wheelie { min-width: 120px; }
+  .controls .boost { position: absolute; right: 0; bottom: 100px; width: 280px; height: 70px; min-width: 0; font-size: 19px; }
+  .dash { bottom: 114px; right: 310px; }
+}

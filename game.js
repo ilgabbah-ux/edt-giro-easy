@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.5';
-import { createWorld } from './scene3d.js?v=107.5';
-import * as A from './audio.js?v=107.5';
-import * as P from './progress.js?v=107.5';
-import { createMud } from './mudfx.js?v=107.5';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.5';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=107.5';
-import * as C from './classifica.js?v=107.5';
-import * as D from './duel.js?v=107.5';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=107.6';
+import { createWorld } from './scene3d.js?v=107.6';
+import * as A from './audio.js?v=107.6';
+import * as P from './progress.js?v=107.6';
+import { createMud } from './mudfx.js?v=107.6';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=107.6';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=107.6';
+import * as C from './classifica.js?v=107.6';
+import * as D from './duel.js?v=107.6';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=107.5').then(m => {
+import('./piloti.js?v=107.6').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -547,6 +547,7 @@ function go() {
   if (isChamp() && !run.champSaid) { run.champSaid = 1; setTimeout(() => toast('👑 CASCO D’ORO: HAI VINTO LA COPPA DELLA SETTIMANA SCORSA', 'gold'), 1400); }
   setTimeout(() => { if (state !== 'countdown') $('countdown').className = 'countdown'; }, 700);
   toast('VAI CICCIO!'); if (!riderLine('start')) voice('Vai Ciccio!', true);
+  if (touchDevice && !tiltOn) { let seen = '1'; try { seen = localStorage.getItem('edt-tilt-tip'); localStorage.setItem('edt-tilt-tip', '1'); } catch {} if (!seen) setTimeout(() => toast('📱 PUOI STERZARE INCLINANDO: ATTIVALO DALLA PAUSA', 'gold'), 3500); }   // v107.6
   if (startBoosts.length) setTimeout(() => toast('🎁 ' + startBoosts.join(' · '), 'green'), 1500);
   if (gev) { setTimeout(() => { if (state === 'playing') { bigCall('ARRIVANO LE GEV!'); A.sfx.whistle(); } }, 900); setTimeout(() => { if (state === 'playing') toast(`HAI ${lives} TENTATIVI: FINITI QUELLI ARRIVA LA MULTA`, 'red'); }, 2600); }
 }
@@ -614,9 +615,11 @@ function pause() {
       <p>Nessuno resta indietro.</p>
       <button class="primary" id="resume"><span>RIPARTIAMO</span>${icon('chevrons')}</button><br>
       <button class="secondary" id="musictoggle" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
+      ${touchDevice ? `<button class="secondary" id="tiltpause" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}
       <button class="secondary" id="quit">ABBANDONA IL GIRO</button>`;
     $('resume').onclick = pause;
     $('musictoggle').onclick = () => { A.setMusic(!A.isMusicOn()); $('musictoggle').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'); };
+    if ($('tiltpause')) $('tiltpause').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltpause').innerHTML = iconize('📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO')); if (on) toast('📱 INCLINA IL DISPOSITIVO A DESTRA E SINISTRA PER STERZARE', 'green'); };   // v107.6 · il giroscopio si accende anche dalla pausa
     $('quit').onclick = () => { state = 'ready'; setDisabled(false); renderReady(); };
     $('pause').innerHTML = icon('play'); $('pause').setAttribute('aria-label', 'Riprendi');
     hud();
@@ -3249,7 +3252,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 107.5;
+const GAME_VERSION = 107.6;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
