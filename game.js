@@ -2811,6 +2811,12 @@ function iceTable(win) {
   const rows = [{ n: profile.rider, d: Math.round(driftScore), me: true }, ...rivals.map(r => ({ n: r.name, d: Math.round(r.drift) }))].sort((a, b) => b.d - a.d);
   return `<br>❄ <b>${run.position}° su ${rows.length}</b> nella gara di derapate${run.position === 1 && win ? ' · re del ghiaccio +500' : ''}<span class="icetable">${rows.map((r, i) => `<span class="${r.me ? 'me' : ''}"><i>${i + 1}°</i>${r.n}<b>${r.d.toLocaleString('it-IT')}</b></span>`).join('')}</span>`;
 }
+// v107.6 · risultati: MENU e UN ALTRO GIRO sempre in alto (su tablet i bottoni in fondo restavano fuori schermo)
+document.addEventListener('click', e => {
+  if (state !== 'ended') return;
+  if (e.target.closest('#resmenu')) { A.sfx.click(); renderReady(); }
+  else if (e.target.closest('#resagain')) $('again')?.click();
+});
 function renderResult(win, res, reason = '', timeBonus = 0) {
   const rank = win ? (score >= 30000 ? 'LEGGENDA EDT' : score >= 15000 ? 'MANICO DEL GIORNO' : 'MISSIONE COMPIUTA') : 'GIRO DIVERSAMENTE EASY';
   const md = P.MODES[mode];
@@ -2818,6 +2824,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   $('overlay').classList.remove('hidden');
   setMenu(true);
   $('card').innerHTML = `
+    <div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button><button class="resagain" id="resagain" type="button">UN ALTRO GIRO ›</button></div>
     <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
     <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${leap ? (win ? `${leapBest.toFixed(1).replace('.', ',')} METRI<br><em>IN PIEDI!</em>` : 'SALTO<br><em>NULLO.</em>') : gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
