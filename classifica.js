@@ -71,7 +71,26 @@ export function loadArchive() { return archive ? Promise.resolve(archive) : call
 
 export function submit({ name, score, mode, rider, time, win, v, g, b }) {
   const p = { action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round((time || 0) * 10) / 10, win: win ? 1 : 0, v: v || '', g: g || '', b: b ?? '', k: getCode() };
-  return call(p).then(d => { if (d.taken) return d; flushPending(); return d; }).catch(e => { queue(p); throw e; });
+  return call(p).then(d => { if (d.taken) { hold(p); return d; } unhold(p); flushPending(); if (heldCount()) flushHeld(); return d; }).catch(e => { queue(p); throw e; });
+}
+// v108 · giri rifiutati perché il nome è di un altro telefono: restano da parte e partono appena metti il codice pilota (o cambi nome)
+const HELD_KEY = 'edt-giro-easy-held';
+function readHeld() { try { return JSON.parse(localStorage.getItem(HELD_KEY) || '[]'); } catch { return []; } }
+function writeHeld(list) { try { localStorage.setItem(HELD_KEY, JSON.stringify(list.slice(-15))); } catch {} }
+function hold(p) { const list = readHeld(); if (!list.some(x => x.mode === p.mode && x.score === p.score && x.day === p.day)) list.push(p); writeHeld(list); }
+export const heldCount = () => readHeld().length;
+function unhold(p) { writeHeld(readHeld().filter(x => !(x.mode === p.mode && x.score === p.score && x.day === p.day))); }
+export async function flushHeld() {
+  if (!enabled()) return { sent: 0, left: heldCount() };
+  const nick = getNick(); let sent = 0;
+  for (const p of readHeld()) {
+    try {
+      const d = await call({ ...p, name: nick || p.name, k: getCode() });
+      if (d.taken) break;   // codice ancora sbagliato: restano tutti da parte
+      sent++; writeHeld(readHeld().filter(x => !(x.mode === p.mode && x.score === p.score && x.day === p.day)));
+    } catch { break; }
+  }
+  return { sent, left: heldCount() };
 }
 // v57 · punteggi non inviati (rete assente o lenta): restano sul telefono e partono da soli appena la classifica risponde.
 const PEND_KEY = 'edt-giro-easy-pending';
@@ -86,7 +105,7 @@ export async function flushPending() {
   flushing = true; let sent = 0;
   try {
     for (const p of list) {
-      try { const d = await call({ ...p, k: getCode() }); if (!d.taken) sent++; writePending(readPending().filter(x => !(x.name === p.name && x.mode === p.mode && x.score === p.score && x.day === p.day))); }
+      try { const d = await call({ ...p, k: getCode() }); if (!d.taken) sent++; else hold(p); writePending(readPending().filter(x => !(x.name === p.name && x.mode === p.mode && x.score === p.score && x.day === p.day))); }
       catch { break; }
     }
   } finally { flushing = false; }

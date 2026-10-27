@@ -1603,3 +1603,22 @@ aside#hub { gap: 10px; }
   .speedfx { background: url(img/speedfx.webp) center / cover no-repeat; -webkit-mask: none; mask: none; will-change: transform, opacity; }
   .ctrl { backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+/* v108 · codice pilota nella classifica */
+.pilotbox { margin: 10px 0 6px; padding: 10px 12px; background: #ffffff0d; border-left: 4px solid var(--y); font: 600 14px/1.35 var(--ui); }
+.pilotbox p { margin: 0 0 4px; }
+.pcoderow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pcode { font: 800 18px var(--ui); letter-spacing: 2px; color: var(--y); text-transform: uppercase; }
+.pheld { color: #ffb36b; }
+.pother summary { cursor: pointer; color: #cfc5ae; margin-top: 4px; }
+.pform { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.pform input { flex: 1 1 120px; min-width: 0; }
+/* v108 · sfida al fantasma di un amico dalla classifica */
+.board li.ghostable { cursor: pointer; }
+.board li.ghostable:hover, .board li.ghostable:active { background: #ffcf1614; }
+.gsfida { display: inline-block; vertical-align: middle; margin-left: 8px; font-style: italic; font: italic 800 11px var(--ui); letter-spacing: 1px; color: #241c11; background: var(--y); padding: 3px 7px; clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+/* v108 · contatore di fluidità (si accende dalla pausa) */
+.perfhud { position: absolute; left: 50%; transform: translateX(-50%); top: 132px; z-index: 6; pointer-events: none; padding: 4px 10px; background: #000c; color: #7dffb6; font: 700 12px/1.2 ui-monospace, Menlo, monospace; white-space: nowrap; border-left: 3px solid currentColor; }
+.perfhud.mid { color: #ffd34d; } .perfhud.bad { color: #ff7a5c; }
+.perfhud[hidden] { display: none; }
+/* v108 · riassunto della settimana per WhatsApp */
+.wasum { display: block; margin: 10px 0 4px; padding: 12px 14px; text-align: center; text-decoration: none; background: #25d366; color: #0b1a10; font: italic 800 15px var(--ui); letter-spacing: 1px; }

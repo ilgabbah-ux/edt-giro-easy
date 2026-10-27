@@ -17,7 +17,7 @@
 <meta name="description" content="Il gioco arcade EDT. Schiva gli ostacoli, salta i tronchi, completa le missioni e sopravvivi al taglio di Angelo.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23ffcf16'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='Arial' font-weight='900' font-size='34' fill='%23e3301c'%3EE%3C/text%3E%3C/svg%3E">
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=108">
+<link rel="stylesheet" href="style.css?v=108.1">
 </head>
 <body>
 <div class="shell">
@@ -42,6 +42,7 @@
       <div class="vignette" aria-hidden="true"></div>
       <div id="tipcard" class="tipcard" aria-live="polite"></div>
 
+      <div id="perfhud" class="perfhud" hidden></div>
       <div class="hud">
         <div class="hudleft">
           <div class="scorebox" id="scorebox"><small>PUNTI EDT</small><b id="score">00000</b></div>
@@ -161,6 +162,6 @@
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="game.js?v=108"></script>
+<script type="module" src="game.js?v=108.1"></script>
 </body>
 </html>

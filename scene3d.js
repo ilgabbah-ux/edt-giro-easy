@@ -2,9 +2,9 @@
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { GLTFLoader } from './GLTFLoader.js';
 import { DRACOLoader } from './DRACOLoader.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=108';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=108.1';
 import * as T from './three.module.min.js';
-import { RIDER_PARTS } from './pilota3d.js?v=108';
+import { RIDER_PARTS } from './pilota3d.js?v=108.1';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
@@ -2842,12 +2842,32 @@ export function createWorld(canvas) {
   const maxQ = () => bigScreen() ? 6 : 4;
   function adaptQuality() {
     const now = performance.now(), dt = now - lastNow; lastNow = now;
+    if (dt < 1000) { perf.n++; perf.acc += dt; if (dt > perf.worst) perf.worst = dt; if (dt > 50) perf.hitches++; }   // v108 · contatore di fluidità
     if (dt > 200) return;
     frameAvg += (dt - frameAvg) * .05; frames++;
     if (frames > 90 && frameAvg > (bigScreen() ? 21 : 27) && quality < maxQ()) { frames = 0; goodFrames = 0; quality++; stepQuality(quality); saveQ(quality); }
     if (quality > 0 && frameAvg < (bigScreen() ? 18 : 21)) { if (++goodFrames === 600) saveQ(quality - 1); } else goodFrames = 0;   // va liscio da un pezzo: la prossima volta si riparte un gradino più su
   }
-  queueMicrotask(() => { let q = null; try { const v = localStorage.getItem(QKEY); if (v !== null) q = Math.min(maxQ(), +v || 0); } catch {} if (q === null) q = bigScreen() ? 2 : 0; while (quality < q) stepQuality(++quality); });   // v107.6 · tablet al primo avvio: si parte già senza ombre
+  // v108 · "grafica leggera" scelta a mano dalla pausa, e numeri per il contatore di fluidità
+  const LITE_KEY = 'edt-lite', PR0 = pixelRatio, perf = { n: 0, acc: 0, worst: 0, hitches: 0 };
+  let lite = false; try { lite = localStorage.getItem(LITE_KEY) === '1'; } catch {}
+  const liteQ = () => bigScreen() ? 5 : 4;
+  function setLite(on) {
+    lite = !!on; try { localStorage.setItem(LITE_KEY, lite ? '1' : '0'); } catch {}
+    if (lite) { while (quality < liteQ()) stepQuality(++quality); }
+    else {
+      quality = 0; frames = 0; goodFrames = 0; frameAvg = 16; pixelRatio = PR0; renderer.setPixelRatio(pixelRatio); resize();
+      sun.shadow.mapSize.set(1536, 1536); sun.shadow.map?.dispose(); sun.shadow.map = null; sun.castShadow = true; renderer.shadowMap.enabled = true;
+      scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); saveQ(0);
+    }
+    return lite;
+  }
+  function perfInfo() {
+    const r = { fps: perf.acc ? Math.round(perf.n * 1000 / perf.acc) : 0, worst: Math.round(perf.worst), hitches: perf.hitches, q: quality, pr: +(pixelRatio).toFixed(2), calls: renderer.info.render.calls, lite };
+    perf.n = perf.acc = perf.worst = 0; return r;
+  }
+  const resetPerf = () => { perf.hitches = 0; };
+  queueMicrotask(() => { let q = null; try { const v = localStorage.getItem(QKEY); if (v !== null) q = Math.min(maxQ(), +v || 0); } catch {} if (q === null) q = bigScreen() ? 2 : 0; if (lite) q = Math.max(q, liteQ()); while (quality < q) stepQuality(++quality); });   // v107.6 · tablet al primo avvio: si parte già senza ombre
 
   let leapFollow = 0, camLift = 0, camX = 0, lastRender = performance.now(), wasAir = false, shakeX = 0, shakeY = 0;
 
@@ -3267,5 +3287,5 @@ export function createWorld(canvas) {
   }
 
   resize();
-  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp };
+  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, perfInfo, resetPerf };
 }

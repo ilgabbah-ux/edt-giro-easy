@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108';
-import { createWorld } from './scene3d.js?v=108';
-import * as A from './audio.js?v=108';
-import * as P from './progress.js?v=108';
-import { createMud } from './mudfx.js?v=108';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=108';
-import * as C from './classifica.js?v=108';
-import * as D from './duel.js?v=108';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.1';
+import { createWorld } from './scene3d.js?v=108.1';
+import * as A from './audio.js?v=108.1';
+import * as P from './progress.js?v=108.1';
+import { createMud } from './mudfx.js?v=108.1';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.1';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=108.1';
+import * as C from './classifica.js?v=108.1';
+import * as D from './duel.js?v=108.1';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=108').then(m => {
+import('./piloti.js?v=108.1').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -508,7 +508,8 @@ function resetRun() {
 }
 function start() {
   world?.preloadObstacles?.();   // v107.2 · al primo giro arrivano i modelli degli ostacoli
-  try { world?.warmUp?.(); } catch {}   // v108 · shader e texture pronti prima del via: niente scatti alla prima apparizione
+  try { world?.warmUp?.(); } catch {}
+  world?.resetPerf?.();   // v108 · shader e texture pronti prima del via: niente scatti alla prima apparizione
   if (!world) return;
   if (touchDevice) goFull();
   if (!fsOK && isIOS && !standalone && !iosHinted) { iosHinted = true; setTimeout(() => toast('SCHERMO INTERO: CONDIVIDI → AGGIUNGI A HOME'), 4200); }
@@ -607,6 +608,18 @@ function finish(win, reason = '') {
   renderSide();
 }
 
+// v108 · pausa: grafica leggera a mano e contatore di fluidità (fotogrammi al secondo, scatti) da mandare a Claude con una foto
+const liteLabel = () => '⚙ GRAFICA LEGGERA: ' + (world?.isLite?.() ? 'SÌ' : 'NO');
+const perfLabel = () => '⏱ CONTATORE FLUIDITÀ: ' + (perfOn ? 'SÌ' : 'NO');
+let perfOn = false, perfAt = 0; try { perfOn = localStorage.getItem('edt-perf') === '1'; } catch {}
+function perfHud(force) {
+  const el = $('perfhud'); if (!el) return;
+  el.hidden = !perfOn; if (!perfOn || !world?.perfInfo) return;
+  const now = performance.now(); if (!force && now - perfAt < 1000) return; perfAt = now;
+  const r = world.perfInfo();
+  el.className = 'perfhud ' + (r.fps >= 50 ? 'ok' : r.fps >= 30 ? 'mid' : 'bad');
+  el.textContent = `${r.fps} FPS · picco ${r.worst} ms · scatti ${r.hitches} · Q${r.q}${r.lite ? ' leggera' : ''} · ×${r.pr} · ${r.calls} oggetti`;
+}
 function pause() {
   if (state === 'playing' || state === 'countdown') {
     gas = false; A.stopVoice(); A.engineStop(); A.musicStop();
@@ -617,11 +630,15 @@ function pause() {
       <button class="primary" id="resume"><span>RIPARTIAMO</span>${icon('chevrons')}</button><br>
       <button class="secondary" id="musictoggle" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
       ${touchDevice ? `<button class="secondary" id="tiltpause" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}
+      <button class="secondary" id="litepause" type="button">${liteLabel()}</button>
+      <button class="secondary" id="perfpause" type="button">${perfLabel()}</button>
       <button class="secondary" id="quit">ABBANDONA IL GIRO</button>`;
     $('resume').onclick = pause;
     $('musictoggle').onclick = () => { A.setMusic(!A.isMusicOn()); $('musictoggle').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'); };
     if ($('tiltpause')) $('tiltpause').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltpause').innerHTML = iconize('📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO')); if (on) toast('📱 INCLINA IL DISPOSITIVO A DESTRA E SINISTRA PER STERZARE', 'green'); };   // v107.6 · il giroscopio si accende anche dalla pausa
     $('quit').onclick = () => { state = 'ready'; setDisabled(false); renderReady(); };
+    $('litepause').onclick = () => { world?.setLite?.(!world.isLite()); $('litepause').innerHTML = iconize(liteLabel()); toast(world?.isLite?.() ? '⚙ GRAFICA LEGGERA: MENO OMBRE E DETTAGLI, PIÙ FLUIDO' : '✨ GRAFICA PIENA', 'green'); };   // v108
+    $('perfpause').onclick = () => { perfOn = !perfOn; try { localStorage.setItem('edt-perf', perfOn ? '1' : '0'); } catch {} $('perfpause').innerHTML = iconize(perfLabel()); perfHud(true); };
     $('pause').innerHTML = icon('play'); $('pause').setAttribute('aria-label', 'Riprendi');
     hud();
   } else if (state === 'paused') {
@@ -2605,7 +2622,7 @@ function frame(t) {
   update(dt);
   mudFx.update(dt);
   if (state === 'ready' || state === 'ended') roadTime += dt * .25; // il sentiero scorre piano dietro ai menu
-  draw();
+  draw(); if (perfOn) perfHud();
   requestAnimationFrame(frame);
 }
 
@@ -2739,7 +2756,7 @@ function renderReady() {
       ${C.enabled() ? '<button class="qbtn" id="opengroup" type="button"><span class="qi">🏆</span><b>CLASSIFICA</b><small id="grouplead">del gruppo</small></button>' : ''}
       <button class="qbtn" id="openmissions" type="button" aria-expanded="false"><span class="qi">🏁</span><b>MISSIONI</b><small>${missions.length} attive · 🗓 ${P.weeklyMissions().filter(m => m.done).length}/3</small></button>
     </div>
-    <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul><button class="linkbtn statsbtn" type="button" id="openstats">📊 STATISTICHE E TROFEI ›</button><div class="wkhead">🗓 MISSIONI DELLA SETTIMANA · uguali per tutti, cambiano il lunedì</div><ul class="weekly">${P.weeklyMissions().map(m => `<li class="${m.done ? 'done' : ''}"><span class="mtext">${m.done ? '✔ ' : ''}${m.text}</span><span class="mxp">+${m.beers} 🍺</span></li>`).join('')}</ul></div>
+    <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul><button class="linkbtn statsbtn" type="button" id="openstats">⏱ STATISTICHE E TROFEI ›</button><div class="wkhead">🗓 MISSIONI DELLA SETTIMANA · uguali per tutti, cambiano il lunedì</div><ul class="weekly">${P.weeklyMissions().map(m => `<li class="${m.done ? 'done' : ''}"><span class="mtext">${m.done ? '✔ ' : ''}${m.text}</span><span class="mxp">+${m.beers} 🍺</span></li>`).join('')}</ul></div>
     <div class="mhead tracks">${icon('flag')} CAMBIA PERCORSO <button class="linkbtn alltracks" id="alltracks" type="button">📋 TUTTI I TRACCIATI ›</button></div>
     <div class="modes" role="radiogroup" aria-label="Percorso">
       ${P.SHOWN().map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
@@ -2890,7 +2907,8 @@ const MODE_LABEL = m => m === 3 ? 'SFIDA ' + P.todayLabel() : P.MODES[m].short;
 function groupListHTML(list, me = '', m = -1) {
   if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
   const mine = C.cleanNick(me).toLowerCase();
-  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${crownOf(e.n)}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto${e.b >= 75 ? ' · livelli Leggenda' : ''}">${e.b >= 120 ? '👑' : e.b >= 100 ? '💎' : e.b >= 76 ? '🏅' : '🔧'}${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`).join('');
+  const gh = ghostable(m);
+  return list.map((e, i) => { const canG = gh && e.g && e.g.length > 8 && !(mine && e.n.toLowerCase() === mine); return `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}${canG ? ' ghostable' : ''}"${canG ? ` data-ghostn="${e.n}" data-ghostm="${m}" title="Corri contro il suo fantasma"` : ''}><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${crownOf(e.n)}${canG ? '<em class="gsfida">👻 SFIDA</em>' : ''}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto${e.b >= 75 ? ' · livelli Leggenda' : ''}">${e.b >= 120 ? '👑' : e.b >= 100 ? '💎' : e.b >= 76 ? '🏅' : '🔧'}${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`; }).join('');
 }
 // v48 · classifica dei tempi migliori al rifugio
 function timeListHTML(list, me = '', m = -1) {
@@ -3155,7 +3173,7 @@ function groupResult(runInfo) {
 ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 Coppa della settimana: <b>${me.pos}°</b> con ${me.p} pt${d.week.list[0] && me.pos > 1 ? ` (1° ${d.week.list[0].n}: ${d.week.list[0].p} pt)` : ''}</p>` : ''; })()}
       <ol class="board gboard">${groupListHTML(list.slice(0, 5), nick, runInfo.mode)}</ol>
       <div class="grow"><button class="secondary" type="button" id="gall">TUTTA LA CLASSIFICA</button><button class="linkbtn" type="button" id="gnick">non sei ${nick}?</button></div>
-      <p class="gcode">🔑 Il tuo codice pilota: <b>${C.getCode()}</b> · ti serve per usare il nome <b>${nick}</b> su un altro telefono.</p>`;
+      <p class="gcode">🔒 Il tuo codice pilota: <b>${C.getCode()}</b> · ti serve per usare il nome <b>${nick}</b> su un altro telefono.</p>`;
     $('gall').onclick = () => renderGroup(() => renderResultAgain(), runInfo.mode);
     $('gnick').onclick = () => { C.setNick(''); groupResult({ ...runInfo, sent: null }); };
   };
@@ -3166,10 +3184,18 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
   C.submit({ ...payload, name: nick, v: String(GAME_VERSION), b: P.UPGRADES.reduce((a, u) => a + P.upgradeLevel(u.id), 0) }).then(d => {
     if (d.taken) {   // v89 · nome già prenotato da un altro telefono
       if (!$('groupres')) return;
-      $('groupres').innerHTML = `<div class="ghead">🔒 NOME GIÀ USATO</div><p><b>${nick}</b> è già il nome di un altro pilota del gruppo. Se sei tu, scrivi il tuo <b>codice pilota</b> (lo trovi in classifica sul telefono dove giochi di solito); altrimenti cambia nome.</p>
+      $('groupres').innerHTML = `<div class="ghead">🔒 NOME GIÀ USATO</div><p><b>${nick}</b> è già il nome di un altro pilota del gruppo. Se sei tu, scrivi il tuo <b>codice pilota</b> (lo trovi in classifica sul telefono dove giochi di solito); altrimenti cambia nome.</p><p class="note">Il giro non è perso: resta da parte${C.heldCount() > 1 ? ' insieme ad altri ' + (C.heldCount() - 1) : ''} e parte da solo appena metti il codice giusto (o un nome tuo).</p>
         <form class="nickrow" id="codeform"><input id="codein" maxlength="12" autocomplete="off" placeholder="codice pilota"><button class="primary" type="submit"><span>ENTRA</span></button></form>
         <div class="grow"><button class="linkbtn" type="button" id="gnick2">cambia nome</button></div>`;
-      $('codeform').onsubmit = e => { e.preventDefault(); if (C.setCode($('codein').value).length >= 4) groupResult({ ...runInfo, sent: null }); };
+      $('codeform').onsubmit = async e => {   // v108 · col codice partono anche i giri messi da parte
+        e.preventDefault(); if (C.setCode($('codein').value).length < 4) return;
+        $('groupres').innerHTML = `<div class="ghead">🔒 CONTROLLO IL CODICE…</div>`;
+        const r = await C.flushHeld();
+        if (!r.sent) { toast('🔒 CODICE NON GIUSTO PER ' + nick.toUpperCase(), 'red'); groupResult({ ...runInfo, sent: null }); return; }
+        toast('🔒 CODICE OK: ' + (r.sent === 1 ? 'GIRO INVIATO' : r.sent + ' GIRI INVIATI'), 'green');
+        const d = C.cached();   // la risposta dell'invio porta già la classifica aggiornata
+        groupResult(d ? { ...runInfo, sent: d, sentAs: nick } : { ...runInfo, sent: null });
+      };
       $('gnick2').onclick = () => { C.setNick(''); groupResult({ ...runInfo, sent: null }); };
       return;
     }
@@ -3210,6 +3236,54 @@ function renderTracks(back) {
   $('card').scrollTop = 0;
 }
 let groupArch = false;   // v79 · archivio delle stagioni passate
+// v108 · riassunto della settimana pronto per WhatsApp: coppa, podio della settimana scorsa e i re dei record
+function weekSummaryText(d) {
+  const w = d.week || {}, dd = s => s ? s.slice(8) + '/' + s.slice(5, 7) : '', med = ['🥇', '🥈', '🥉'];
+  const L = [`🏆 GIRO EASY · COPPA EDT dal ${dd(w.from)} al ${dd(w.to)}`];
+  if (w.list?.length) { L.push('', 'Questa settimana (per ora):'); w.list.slice(0, 5).forEach((e, i) => L.push(`${med[i] || (i + 1) + '.'} ${e.n} · ${e.p} pt${e.w ? ` (${e.w} ${e.w === 1 ? 'vittoria' : 'vittorie'})` : ''}`)); }
+  else L.push('', 'Questa settimana nessuno ha ancora fatto punti coppa: il primo posto è libero!');
+  const p3 = w.prev3?.length ? w.prev3 : w.prev ? [w.prev] : [];
+  if (p3.length) { L.push('', 'Podio della settimana scorsa:'); p3.forEach((e, i) => L.push(`${med[i]} ${e.n} · ${e.p} pt`)); }
+  const rec = [];
+  const ice = C.metresFor(d)?.[0]; if (ice) rec.push(`🌀 Re della derapata: ${ice.n} · ${C.fmtMetres(ice.t)}`);
+  const jmp = C.jumpsFor(d)?.[0]; if (jmp) rec.push(`📏 Salto più lungo: ${jmp.n} · ${C.fmtJump(jmp.t)}`);
+  const fast = C.timesFor(d, 0)?.[0]; if (fast) rec.push(`⏱ Giro easy più veloce: ${fast.n} · ${C.fmtTime(fast.t)}`);
+  if (rec.length) L.push('', 'Record della stagione:', ...rec);
+  L.push('', '🎮 Prova a batterli: ' + publicGameURL);
+  return L.join('\n');
+}
+// v108 · codice pilota sempre a portata: si vede, si copia, e si può usare quello dell'altro telefono
+function pilotBoxHTML(nick) {
+  const held = C.heldCount();
+  return `<div class="pilotbox"><p>${nick ? `In classifica come <b>${nick}</b>.` : 'Il tuo nome lo scegli alla fine del primo giro.'}</p>
+    <p class="pcoderow">🔒 Codice pilota: <b class="pcode">${C.getCode()}</b><button type="button" class="linkbtn" id="pcopy">COPIA</button></p>
+    ${held ? `<p class="pheld">${held === 1 ? 'Un giro aspetta' : held + ' giri aspettano'} il codice giusto per entrare in classifica.</p>` : ''}
+    <details class="pother"${held ? ' open' : ''}><summary>Giochi già con questo nome su un altro telefono o tablet?</summary>
+      <form class="nickrow pform" id="pform"><input id="pnick" maxlength="16" autocomplete="nickname" placeholder="nome in classifica" value="${nick || C.cleanNick(profile.rider)}"><input id="pcodein" maxlength="12" autocomplete="off" placeholder="codice pilota"><button class="primary" type="submit"><span>ENTRA</span></button></form>
+      <p class="note">Il codice lo trovi in questa stessa pagina sull'altro telefono.</p></details></div>`;
+}
+function wirePilotBox(redraw) {
+  $('pcopy')?.addEventListener('click', () => { const c = C.getCode(); (navigator.clipboard?.writeText(c) || Promise.reject()).then(() => toast('🔒 CODICE COPIATO', 'green')).catch(() => toast('🔒 IL TUO CODICE: ' + c.toUpperCase(), 'gold')); });
+  $('pform')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const n = C.cleanNick($('pnick').value), c = $('pcodein').value;
+    if (!n) return;
+    if (C.setCode(c).length < 4) { toast('🔒 SCRIVI IL CODICE DELL’ALTRO TELEFONO', 'red'); return; }
+    C.setNick(n); A.sfx.click();
+    if (C.heldCount()) { const r = await C.flushHeld(); toast(r.sent ? '🔒 CODICE OK: ' + r.sent + (r.sent === 1 ? ' GIRO INVIATO' : ' GIRI INVIATI') : '🔒 CODICE NON GIUSTO PER ' + n.toUpperCase(), r.sent ? 'green' : 'red'); }
+    else toast('🔒 FATTO: ORA SEI ' + n.toUpperCase() + ' ANCHE QUI', 'green');
+    renderSide(); redraw();
+  });
+}
+// v108 · tocchi un amico in classifica e corri contro il suo fantasma su quel percorso
+function ghostable(m) { const md = P.MODES[m]; return !!md && !md.ice && md.random !== 'run' && !md.leap && !md.hidden; }
+document.addEventListener('click', e => { const li = e.target.closest?.('[data-ghostn]'); if (li && (state === 'ready' || state === 'ended')) ghostChallenge(li.dataset.ghostn, Number(li.dataset.ghostm)); });
+function ghostChallenge(n, m) {
+  const md = P.MODES[m]; if (!md) return;
+  if (!P.isUnlocked(md, P.levelInfo().level)) { toast(`🔒 SI SBLOCCA AL LIVELLO ${md.unlock}`, 'red'); return; }
+  A.sfx.click(); ghostWant = { n, m }; mode = m; profile.mode = m; P.save(); applyLayout(); renderSide();
+  toast('👻 SFIDA AL FANTASMA DI ' + n.toUpperCase(), 'gold'); start();
+}
 function renderGroup(back, m = mode) {
   if (state !== 'ended') state = 'ready';
   setMenu(true); $('overlay').classList.remove('hidden');
@@ -3224,10 +3298,10 @@ function renderGroup(back, m = mode) {
       <div class="boardtabs gtabs">${groupArch ? '' : `<button type="button" class="cuptab ${m === 'cup' ? 'active' : ''}" data-gmode="cup">🏆 COPPA</button>`}${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
       ${m === 'cup' ? (() => { const w = d?.week, me = cupMine(w, nick); return `<p class="gsub">COPPA DELLA SETTIMANA${w ? ` · dal ${w.from.slice(8)}/${w.from.slice(5, 7)} al ${w.to.slice(8)}/${w.to.slice(5, 7)}` : ''} · si azzera ogni lunedì</p>
       <p class="note cupnote">In ogni percorso i primi 8 della settimana prendono <b>10-8-6-5-4-3-2-1</b> punti coppa: vince chi ne somma di più. Più percorsi fai, più punti puoi prendere.${w?.prev ? `<br>👑 Vincitore della settimana scorsa: <b>${w.prev.n}</b> (${w.prev.p} pt)` : ''}${me ? `<br>Tu sei <b>${me.pos}°</b> con <b>${me.p} pt</b>.` : ''}</p>
-      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : !d ? '<p class="gwait">Carico la coppa…</p>' : w ? `<ol class="board gboard">${cupListHTML(w.list, nick)}</ol>` : '<p class="gwait">La coppa si accende appena è aggiornato lo script della classifica.</p>'}`; })() : `<div class="kindtabs"><button type="button" class="${groupKind === 'score' ? 'active' : ''}" data-gkind="score">🏆 PUNTI</button><button type="button" class="${groupKind === 'time' ? 'active' : ''}" data-gkind="time">${m === C.JUMP_MODE ? '📏 SALTO PIÙ LUNGO' : m === C.ICE_MODE ? '🌀 METRI DI DERAPATA' : '⏱ TEMPI MIGLIORI'}</button></div>
+      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : !d ? '<p class="gwait">Carico la coppa…</p>' : w ? `<ol class="board gboard">${cupListHTML(w.list, nick)}</ol>` : '<p class="gwait">La coppa si accende appena è aggiornato lo script della classifica.</p>'}${d && w ? `<a class="secondary wasum" id="wasum" href="${waLink(weekSummaryText(d))}" target="_blank" rel="noopener">🏁 MANDA IL RIASSUNTO NEL GRUPPO</a>` : ''}`; })() : `<div class="kindtabs"><button type="button" class="${groupKind === 'score' ? 'active' : ''}" data-gkind="score">🏆 PUNTI</button><button type="button" class="${groupKind === 'time' ? 'active' : ''}" data-gkind="time">${m === C.JUMP_MODE ? '📏 SALTO PIÙ LUNGO' : m === C.ICE_MODE ? '🌀 METRI DI DERAPATA' : '⏱ TEMPI MIGLIORI'}</button></div>
       <p class="gsub">PS${psOf(P.MODES[m])} · ${m === 3 ? 'Sfida del ' + P.todayLabel() + ' (si azzera ogni giorno)' : P.MODES[m].name} · migliori 10, un record a testa</p>
       ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard ${groupKind === 'time' ? 'timeboard' : ''}">${groupKind === 'time' ? timeListHTML(C.timesFor(d, m), nick, m) : groupListHTML(d.boards?.[m], nick, m)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}`}
-      <p class="note">${nick ? `In classifica come <b>${nick}</b>.` : 'Il tuo nome lo scegli alla fine del primo giro.'}</p>
+      ${pilotBoxHTML(nick)}
       <div class="actions"><button class="primary" id="gback"><span>INDIETRO</span></button><button class="secondary" id="greload">AGGIORNA</button></div>`;
     iconizeEl($('card'));
     document.querySelectorAll('[data-gmode]').forEach(b => b.onclick = () => { m = b.dataset.gmode === 'cup' ? 'cup' : Number(b.dataset.gmode); draw(C.cached()); });
@@ -3236,6 +3310,7 @@ function renderGroup(back, m = mode) {
       groupArch = b.dataset.season === 'arch'; A.sfx.click();
       if (groupArch && !C.cachedArchive()) { draw(null); C.loadArchive().then(() => draw(C.cached())).catch(() => draw(null, true)); } else draw(C.cached());
     });
+    wirePilotBox(() => draw(C.cached()));
     $('gback').onclick = back;
     $('greload').onclick = () => { draw(null); C.load(true).then(x => draw(x)).catch(() => draw(null, true)); };
   };
@@ -3261,7 +3336,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 108;
+const GAME_VERSION = 108.1;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
