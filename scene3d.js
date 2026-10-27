@@ -2,9 +2,9 @@
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { GLTFLoader } from './GLTFLoader.js';
 import { DRACOLoader } from './DRACOLoader.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=108.1';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=108.2';
 import * as T from './three.module.min.js';
-import { RIDER_PARTS } from './pilota3d.js?v=108.1';
+import { RIDER_PARTS } from './pilota3d.js?v=108.2';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
@@ -2850,7 +2850,7 @@ export function createWorld(canvas) {
   }
   // v108 · "grafica leggera" scelta a mano dalla pausa, e numeri per il contatore di fluidità
   const LITE_KEY = 'edt-lite', PR0 = pixelRatio, perf = { n: 0, acc: 0, worst: 0, hitches: 0 };
-  let lite = false; try { lite = localStorage.getItem(LITE_KEY) === '1'; } catch {}
+  let lite = false; try { const v = localStorage.getItem(LITE_KEY); lite = v === null ? bigScreen() : v === '1'; } catch {}   // v108.2 · su tablet (iPad) si parte già con la grafica leggera: si può togliere dalla pausa
   const liteQ = () => bigScreen() ? 5 : 4;
   function setLite(on) {
     lite = !!on; try { localStorage.setItem(LITE_KEY, lite ? '1' : '0'); } catch {}
