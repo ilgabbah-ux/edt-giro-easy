@@ -2,9 +2,9 @@
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { GLTFLoader } from './GLTFLoader.js';
 import { DRACOLoader } from './DRACOLoader.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=107.9';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=108';
 import * as T from './three.module.min.js';
-import { RIDER_PARTS } from './pilota3d.js?v=107.9';
+import { RIDER_PARTS } from './pilota3d.js?v=108';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
@@ -1909,9 +1909,10 @@ export function createWorld(canvas) {
       const m = new T.Mesh(geo, o.material); m.castShadow = true; m.receiveShadow = true; grp.add(m); }
     const b = new T.Box3().setFromObject(grp); objGlb[k] = { grp, box: b };
     for (const t of Object.keys(OBJ_GLB)) if (OBJ_GLB[t][0] === k && pools[t]) pools[t].length = 0;   // i prossimi oggetti nascono già col modello vero
+    warmSoon(k);
   }, undefined, () => {}); }
   function preloadObstacles() { for (const k of new Set(Object.values(OBJ_GLB).map(v => v[0]))) loadObsGlb(k); }
-  setTimeout(preloadObstacles, 12000);   // se non parti subito, si scaricano comunque con calma
+  setTimeout(preloadObstacles, 4000);   // v108 · prima: così i modelli arrivano (e si preparano) mentre sei ancora nel menu   // se non parti subito, si scaricano comunque con calma
   const _bx = new T.Box3(), _bm = new T.Matrix4();
   function glbSwap(g, type) {
     const spec = OBJ_GLB[type]; const G = spec && objGlb[spec[0]]; if (!G) return;
@@ -1934,6 +1935,33 @@ export function createWorld(canvas) {
     if (spec[1] === 'z') { c.position.x = pc.x - gc.z * k; c.position.z = pc.z + gc.x * k; } else { c.position.x -= gc.x * (type === 'bigLog' ? 1 / gs.x : k); c.position.z -= gc.z * (type === 'bigLog' ? ps.y / gs.y : k); }
     host.add(c); g.userData.glb = true;
   }
+  // v108 · iPad: la prima volta che compare un ostacolo (o arriva il suo modello vero) Safari deve preparare shader e texture
+  // e la gara si inchioda un attimo. Qui li prepariamo tutti in anticipo (menu o conto alla rovescia) e li lasciamo pronti nei pool.
+  const WARM_TYPES = ['bar', 'barrier', 'bigLog', 'bigRamp', 'boar', 'boulder', 'cairn', 'camel', 'chamois', 'coin', 'cone', 'cow', 'farm', 'ford', 'forkSafe', 'forkShort', 'forkSplit', 'gate', 'goat', 'grapeCrate', 'grappa', 'hay', 'hayCart', 'helmet', 'hen', 'ibex', 'landpad', 'log', 'manhole', 'marmot', 'mboard', 'pigpen', 'puddle', 'ramp', 'rock', 'rollHay', 'shortcut', 'sign', 'snowman', 'speedpad', 'step', 'stump', 'thorns', 'tree', 'trincia', 'tyre', 'water', 'wine'];
+  const warmDone = new Set(), TEX_KEYS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap', 'bumpMap'];
+  let warmTimer = 0;
+  function warmUp(onlyKey) {
+    const made = [];
+    for (const t of WARM_TYPES) {
+      if (onlyKey && OBJ_GLB[t]?.[0] !== onlyKey) continue;
+      const tag = t + (OBJ_GLB[t] && objGlb[OBJ_GLB[t][0]] ? ':glb' : '');
+      if (warmDone.has(tag)) continue;
+      try {
+        const m = makeObstacle(t); m.position.set(0, -60, 0);
+        if (OBSTACLE_HEIGHT[t] !== undefined && !m.userData.refl) { const r = new T.Sprite(reflMat); r.scale.set(1.5, .75, 1); r.position.y = Math.min(2.2, OBSTACLE_HEIGHT[t] + .3); r.name = 'fx'; m.add(r); m.userData.refl = r; }
+        scene.add(m); made.push([t, m]); warmDone.add(tag);
+      } catch (e) { warmDone.add(tag); }
+    }
+    if (!made.length) return;
+    try {
+      renderer.compile(scene, camera);
+      const seen = new Set();
+      scene.traverse(o => { const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const mt of mats) for (const k of TEX_KEYS) { const tx = mt[k]; if (tx && !seen.has(tx) && tx.image) { seen.add(tx); try { renderer.initTexture(tx); } catch {} } } });
+    } catch {}
+    for (const [t, m] of made) { scene.remove(m); (pools[t] ||= []).push(m); }
+  }
+  // dopo l'arrivo di un modello vero, prepara i suoi ostacoli appena il browser respira
+  function warmSoon(k) { clearTimeout(warmTimer); warmTimer = setTimeout(() => warmUp(), 250); }
   function makeObstacle(type) {
     if (OBJ_GLB[type]) loadObsGlb(OBJ_GLB[type][0]);
     while (pools[type]?.length) { const pg = pools[type].pop(); if (pg.userData.glb || !OBJ_GLB[type] || !objGlb[OBJ_GLB[type][0]]) return pg; }   // v106 · i vecchi a blocchi non si riusano più quando c'è il modello vero
@@ -3239,5 +3267,5 @@ export function createWorld(canvas) {
   }
 
   resize();
-  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles };
+  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp };
 }
