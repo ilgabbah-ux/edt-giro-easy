@@ -1622,3 +1622,13 @@ aside#hub { gap: 10px; }
 .perfhud[hidden] { display: none; }
 /* v108 · riassunto della settimana per WhatsApp */
 .wasum { display: block; margin: 10px 0 4px; padding: 12px 14px; text-align: center; text-decoration: none; background: #25d366; color: #0b1a10; font: italic 800 15px var(--ui); letter-spacing: 1px; }
+/* v108.3 · il tuo pilota (chi non è dell'EDT) */
+.rideroption.customnew { border: 2px dashed #ffcf1688; background: #ffcf160d; }
+.rideroption.customnew .rc-initials { color: var(--y); font-size: 64px; }
+.rideroption.custom .rc-initials { color: #ffcf16aa; }
+.rideroption .rc-edit { position: absolute; right: 6px; top: 34px; z-index: 3; width: 26px; height: 26px; display: grid; place-items: center; background: #000a; color: var(--y); border-radius: 50%; }
+.rideroption .rc-edit svg { width: 15px; height: 15px; }
+.customform { display: grid; gap: 12px; margin-top: 10px; max-width: 420px; }
+.customform label { display: grid; gap: 4px; font: italic 800 13px var(--ui); letter-spacing: 1px; color: var(--y); }
+.customform input { font: 700 20px var(--ui); padding: 10px 12px; background: #0b0c09; color: #fff; border: 1px solid #ffffff44; }
+.cerr { min-height: 1.2em; margin: 0; color: #ff7a5c; font: 600 14px var(--ui); }

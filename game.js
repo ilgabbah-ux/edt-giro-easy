@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.2';
-import { createWorld } from './scene3d.js?v=108.2';
-import * as A from './audio.js?v=108.2';
-import * as P from './progress.js?v=108.2';
-import { createMud } from './mudfx.js?v=108.2';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.2';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=108.2';
-import * as C from './classifica.js?v=108.2';
-import * as D from './duel.js?v=108.2';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.3';
+import { createWorld } from './scene3d.js?v=108.3';
+import * as A from './audio.js?v=108.3';
+import * as P from './progress.js?v=108.3';
+import { createMud } from './mudfx.js?v=108.3';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.3';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=108.3';
+import * as C from './classifica.js?v=108.3';
+import * as D from './duel.js?v=108.3';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=108.2').then(m => {
+import('./piloti.js?v=108.3').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -92,7 +92,10 @@ function avatarHTML(name, cls = '') {
 
 // ---------- Stato ----------
 const profile = P.profile;
-if (!RIDERS.includes(profile.rider)) profile.rider = RIDERS[0];
+// v108.3 · chi non è dell'EDT si crea il suo pilota (nome e numero) e può correre anche coi piloti EDT
+const isCustom = () => !!profile.custom && profile.rider === profile.custom.name && !RIDERS.includes(profile.rider);
+const riderNum = () => isCustom() ? profile.custom.num : RIDERS.indexOf(profile.rider) + 1;
+if (!RIDERS.includes(profile.rider) && !isCustom()) profile.rider = RIDERS[0];
 let mode = Math.min(P.MODES.length - 1, Math.max(0, profile.mode | 0));
 if (P.MODES[mode]?.hidden) mode = 0;   // v59 · percorso tolto: si torna al Giro easy
 if (!P.isUnlocked(P.MODES[mode])) mode = 0;
@@ -2342,7 +2345,7 @@ function drawState() {
     wheelie: wheelie ? 1 : 0, ears: earsOn(), grappa, water: waterT,
     courseScale: GAME_LENGTH / (courseLength(P.MODES[mode].difficulty) * 19.5), objects, invincible, roadTime, wheelPhase, turbo, combo, fxKind, fxSerial,
     gas, wet, magnet, whip, shake, crash, speed: speedNow,
-    riderName: profile.rider, riderNumber: RIDERS.indexOf(profile.rider) + 1,
+    riderName: profile.rider, riderNumber: riderNum(),
     livery: raceLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, bikeId: P.currentBike().id, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
     leapPitch: leap && leapState === 2 ? leapPitch : undefined, leapCam: leap && leapState === 2, canyon: leap && canyonX0 !== null ? { x0: canyonX0, len: canyonLen, land: canyonLand } : null,
     gev: gev ? { L: 1 + gevSide * 2.15, z: gevZ, arm: gevArm, t: elapsed } : null,
@@ -2491,7 +2494,7 @@ function clipInfo() {
   const md = P.MODES[mode], who = C.getNick() || profile.rider, i = RIDERS.indexOf(profile.rider);
   const big = ice ? Math.round(driftM) + ' m' : leap ? C.fmtJump(leapBest || 0) : run.finishTime ? run.finishTime.toFixed(1).replace('.', ',') + ' s' : score.toLocaleString('it-IT');
   const sub = ice ? 'DI TRAVERSO' : leap ? 'DI SALTO' : run.finishTime ? 'AL RIFUGIO' : 'PUNTI EDT';
-  return { who, rider: profile.rider, num: String(i + 1).padStart(2, '0'), skill: SKILLS[profile.rider]?.name || '', track: md.id === 3 ? 'Sfida del giorno' : md.name,
+  return { who, rider: profile.rider, num: String(riderNum()).padStart(2, '0'), skill: SKILLS[profile.rider]?.name || '', track: md.id === 3 ? 'Sfida del giorno' : md.name,
     big, sub, pos: run.position && !ice && !leap ? run.position + '° SU ' + (rivals.length + 1) : '', pts: Math.floor(score).toLocaleString('it-IT'),
     line: `${who} · ${md.id === 3 ? 'Sfida del giorno' : md.name} · ${big}`, text: `🎬 ${who} su ${md.id === 3 ? 'Sfida del giorno' : md.name}: ${big}${run.position && !ice && !leap ? ' (' + run.position + '°)' : ''}. Battimi se ci riesci 👉 ` };
 }
@@ -2731,7 +2734,7 @@ function renderReady() {
       <h1 class="title"><span class="t1">TRANQUILLI,</span><span class="t2">È UN GIRO <em>EASY.</em></span></h1></div>
     </div>
     <div class="profilerow">
-      <button class="pilotchip" id="pilotchip" type="button"><span class="platenum">${String(RIDERS.indexOf(profile.rider) + 1).padStart(2, '0')}</span>${avatarHTML(profile.rider)}<span class="pctext"><small>PILOTA · TOCCA PER CAMBIARE</small><b>${profile.rider}</b><em class="skillline"><span class="noicx">${sk.icon || ''}</span> ${sk.name || ''}</em>${P.bestTitle() ? `<em class="colltitle">${P.bestTitle()}</em>` : ''}</span></button>
+      <button class="pilotchip" id="pilotchip" type="button"><span class="platenum">${String(riderNum()).padStart(2, '0')}</span>${avatarHTML(profile.rider)}<span class="pctext"><small>PILOTA · TOCCA PER CAMBIARE</small><b>${profile.rider}</b><em class="skillline"><span class="noicx">${sk.icon || ''}</span> ${sk.name || ''}</em>${P.bestTitle() ? `<em class="colltitle">${P.bestTitle()}</em>` : ''}</span></button>
       <div class="lvlbox"><span class="lvlnum"><small>LIV</small>${info.level}</span><span class="lvltext"><b>${info.grade.toUpperCase()}</b><i><u style="width:${Math.round(info.pct * 100)}%"></u></i><small>${info.into}/${info.need} XP</small></span></div>
     </div>
     <div class="trackhero sky${md.sky ?? 0} ${md.ice ? 'icy' : ''} ${art ? 'hasart' : ''} ${heroDir ? 'in' + heroDir : ''}" id="trackhero">
@@ -3336,16 +3339,56 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 108.2;
+const GAME_VERSION = 108.3;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
 setInterval(() => { if (state !== 'playing' && C.pendingCount()) C.flushPending().catch(() => {}); }, 120000);
 $('edition').textContent = 'GIRO EASY · V' + GAME_VERSION;   // il numero in alto segue sempre la versione
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
+function customCardHTML() {
+  const c = profile.custom;
+  if (!c) return `<button type="button" class="rideroption customnew" id="mycustom" aria-label="Crea il tuo pilota"><span class="rc-photo rc-initials">+</span><span class="rc-bar"><b class="rc-name">CREA IL TUO</b><span class="rc-skill"><span>pilota: nome e numero</span></span></span></button>`;
+  return `<button type="button" class="rideroption custom" id="mycustom" aria-pressed="${isCustom()}" aria-label="Il tuo pilota ${c.name}">${riderCardHTML(c.name, c.num - 1)}<i class="rc-edit" title="Modifica">${icon('wrench')}</i></button>`;
+}
+function renderCustom(back) {
+  if (state !== 'ended') state = 'ready';
+  setMenu(true); $('overlay').classList.remove('hidden');
+  const c = profile.custom || { name: '', num: 1 + Math.floor(Math.random() * 98) };
+  $('card').innerHTML = `<div class="eyebrow">NON SEI DELL'EDT? NESSUN PROBLEMA</div>
+    <h1 class="shoptitle">IL TUO<br><em>PILOTA.</em></h1>
+    <p>Scegli il nome che vedi in gara e in classifica e il numero sulla tabella. Puoi sempre correre anche coi piloti dell'EDT.</p>
+    <form class="customform" id="customform">
+      <label>NOME<input id="cname" maxlength="16" autocomplete="nickname" placeholder="Es. Il Fulmine" value="${c.name}"></label>
+      <label>NUMERO<input id="cnum" type="number" inputmode="numeric" min="1" max="99" value="${c.num}"></label>
+      <p class="cerr" id="cerr"></p>
+      <div class="actions"><button class="primary" type="submit"><span>IN SELLA!</span></button><button class="secondary" type="button" id="cback">INDIETRO</button></div>
+    </form>`;
+  iconizeEl($('card'));
+  $('cback').onclick = back;
+  $('customform').onsubmit = e => {
+    e.preventDefault();
+    const name = C.cleanNick($('cname').value), num = Math.round(+$('cnum').value);
+    const err = t => { $('cerr').textContent = t; A.sfx.click(); };
+    if (name.length < 2) return err('Scrivi un nome di almeno 2 lettere.');
+    if (RIDERS.some(r => r.toLowerCase() === name.toLowerCase() || r.replace('Il ', '').toLowerCase() === name.toLowerCase())) return err('Questo è un pilota EDT: scegline un altro.');
+    if (!(num >= 1 && num <= 99)) return err('Il numero va da 1 a 99.');
+    const old = profile.custom?.name;
+    profile.custom = { name, num }; profile.rider = name; P.save();
+    if (!C.getNick() || C.getNick() === old) C.setNick(name);   // il nome in classifica segue il pilota (se non ne hai già scelto un altro)
+    A.unlock(); A.sfx.click(); toast('🏁 ' + name.toUpperCase() + ' #' + num + ' È IN SELLA', 'green');
+    renderSide(); renderReady();
+  };
+  $('cname').focus?.();
+}
 function renderSide() {
-  $('ridergrid').innerHTML = RIDERS.map((name, i) => `<button type="button" class="rideroption" data-rider="${name}" aria-pressed="${name === profile.rider}" aria-label="Scegli ${name}">
+  $('ridergrid').innerHTML = customCardHTML() + RIDERS.map((name, i) => `<button type="button" class="rideroption" data-rider="${name}" aria-pressed="${name === profile.rider}" aria-label="Scegli ${name}">
     ${riderCardHTML(name, i)}${RIDER_VOICE[name] ? '<i class="voiced" title="Parla con la sua voce">' + icon('speaker') + '</i>' : ''}</button>`).join('');
+  $('mycustom')?.addEventListener('click', e => {
+    if (state === 'playing' || state === 'paused' || state === 'countdown') return;
+    if (!profile.custom || e.target.closest('.rc-edit') || isCustom()) { renderCustom(() => { renderSide(); renderReady(); }); return; }
+    profile.rider = profile.custom.name; P.save(); A.unlock(); A.sfx.click(); renderSide(); if (state === 'ready') renderReady();
+  });
   document.querySelectorAll('[data-rider]').forEach(b => b.onclick = () => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;
     profile.rider = b.dataset.rider; P.save(); A.unlock(); if (riderVoice()) { A.preloadRider(riderVoice()); riderLine('start'); } else A.sfx.click();
@@ -3408,7 +3451,7 @@ function renderSide() {
 
 // ---------- v68 · Sfida 1 contro 1 dal vivo ----------
 let duel = null;
-const duelInfo = () => { const l = P.currentLivery(); return { t: 'hi', n: C.cleanNick(C.getNick() || profile.rider), r: profile.rider, num: RIDERS.indexOf(profile.rider) + 1, liv: { plastic: l.plastic, accent: l.accent, jersey: l.jersey, pants: l.pants, helmet: l.helmet } }; };
+const duelInfo = () => { const l = P.currentLivery(); return { t: 'hi', n: C.cleanNick(C.getNick() || profile.rider), r: profile.rider, num: riderNum(), liv: { plastic: l.plastic, accent: l.accent, jersey: l.jersey, pants: l.pants, helmet: l.helmet } }; };
 function duelNew() {
   duel = { racing: false, seed: 0, status: '', opp: { n: 'AVVERSARIO', r: '', c: 0, x: 1, l: 0, end: null }, me: null, ahead: false, lastSend: 0, lastMsg: 0,
     entry: { name: 'AVVERSARIO', duel: true, gap: 0, lane: 1, lx: 1, lean: 0, lift: 0, number: 2, livery: { plastic: '#1e7fd8', accent: '#ffffff', jersey: '#1e7fd8', pants: '#202020', helmet: '#ffffff' } } };
