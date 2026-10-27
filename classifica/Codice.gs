@@ -12,6 +12,7 @@
 // v89 · NOMI PROTETTI: k = codice pilota del telefono. Il primo che usa un nome lo prenota (foglio "Nomi", solo l'impronta
 //       del codice, non il codice). Chi usa lo stesso nome con un codice diverso non entra in classifica (taken: true).
 //       b = livello della moto (somma dei potenziamenti dell'officina), mostrato accanto al nome.
+// v108.5 · edtName: i nomi dei piloti EDT e quelli prenotati prima del 28/10/2026 vanno sempre nella classifica EDT (il gioco si sposta da solo).
 // v108.3 · DUE CLASSIFICHE: grp = 'edt' (amici dell'Enduro Drinking Team) o 'pub' (tutti gli altri). Colonna L del foglio:
 //       'pub' per i giri pubblici, vuota per l'EDT (così tutte le righe vecchie restano dell'EDT). Classifiche, tempi e coppa
 //       si fanno separati per gruppo; i nomi protetti restano unici per tutti.
@@ -24,6 +25,9 @@ function minvOf_(p) { return Math.max(0, Math.round(Number(p.minv) || 0)); }    
 const MAX_SCORE = 250000;
 const CUP = [10, 8, 6, 5, 4, 3, 2, 1];
 const ACTIVE = [0, 1, 2, 3, 9, 10, 11, 12, 13, 14, 15];   // percorsi nel menu (4-8 tolti nella v59)
+// v108.5 · i piloti EDT del gioco, e chi aveva già un nome in classifica prima delle due classifiche, stanno sempre nella classifica EDT
+const EDT_NAMES = ['albertone', 'albo', 'alex', 'andrea', 'angelo', 'brizio', 'ciprian', 'claudio', 'costa', 'daniel', 'erika', 'gabbah', 'guccio', 'gusta', 'il gabbah', 'linus', 'luigi', 'maggie', 'max', 'mirco', 'miti', 'paletta', 'purcello', 'renard', 'sergio', 'siro'];
+const EDT_CUTOFF = new Date('2026-10-28T00:00:00+01:00');
 
 function sheet_() {
   const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
@@ -53,6 +57,15 @@ function claim_(name, k) {
   if (!k) return true;   // client vecchio su nome libero: passa ma non prenota
   s.appendRow([key, hash_(k), new Date()]);
   return true;
+}
+
+function edtName_(name) {
+  const key = name.toLowerCase();
+  if (EDT_NAMES.indexOf(key) >= 0) return true;
+  const s = names_(), last = s.getLastRow();
+  if (last < 2) return false;
+  const row = s.getRange(2, 1, last - 1, 3).getValues().find(r => String(r[0]) === key);
+  return !!row && row[2] instanceof Date && row[2] < EDT_CUTOFF;
 }
 
 function ymd_(v) { return v instanceof Date ? Utilities.formatDate(v, 'Europe/Rome', 'yyyy-MM-dd') : String(v).slice(0, 10); }
@@ -134,7 +147,7 @@ function reply_(obj, cb) {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   const day = /^\d{4}-\d{2}-\d{2}$/.test(p.day || '') ? p.day : Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd');
-  let saved = false, taken = false;
+  let saved = false, taken = false, edtName = false;
   if (p.action === 'add') {
     const name = clean_(p.name, 16);
     const score = Math.round(Number(p.score));
@@ -149,19 +162,20 @@ function doGet(e) {
       try {
         const k = /^[a-z0-9]{4,12}$/.test(p.k || '') ? p.k : '';
         if (!claim_(name, k)) { taken = true; throw new Error('taken'); }
+        edtName = edtName_(name);   // v108.5 · nome EDT: il giro va nella classifica EDT anche da un telefono nuovo
         const g = /^[0-9a-z]{2,320}$/.test(p.g || '') ? p.g : '';
         const sh = sheet_();
         if (sh.getRange(1, 10).getValue() === '') sh.getRange(1, 10).setValue('Fantasma').setFontWeight('bold');
         if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Moto').setFontWeight('bold');
         if (sh.getRange(1, 12).getValue() === '') sh.getRange(1, 12).setValue('Gruppo').setFontWeight('bold');
-        sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0))), p.grp === 'pub' ? 'pub' : '']);
+        sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0))), p.grp === 'pub' && !edtName ? 'pub' : '']);
         saved = true;
       } catch (err) { if (!taken) throw err; } finally { lock.releaseLock(); }
     }
   }
   const minv = Math.max(0, Math.round(Number(p.minv) || 0));
   const act = String(p.act || '').split(',').map(Number).filter(m => m >= 0 && m < MODES && String(p.act).length);
-  const grp = p.grp === 'pub' ? 'pub' : 'edt';
+  const grp = p.grp === 'pub' && !edtName ? 'pub' : 'edt';
   const b = boards_(day, minv, act.length ? act : ACTIVE, grp);
-  return reply_({ ok: true, iceDesc: true, grp: grp, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
+  return reply_({ ok: true, iceDesc: true, grp: grp, edtName: edtName, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
 }

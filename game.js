@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.4';
-import { createWorld } from './scene3d.js?v=108.4';
-import * as A from './audio.js?v=108.4';
-import * as P from './progress.js?v=108.4';
-import { createMud } from './mudfx.js?v=108.4';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.4';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=108.4';
-import * as C from './classifica.js?v=108.4';
-import * as D from './duel.js?v=108.4';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.5';
+import { createWorld } from './scene3d.js?v=108.5';
+import * as A from './audio.js?v=108.5';
+import * as P from './progress.js?v=108.5';
+import { createMud } from './mudfx.js?v=108.5';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.5';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=108.5';
+import * as C from './classifica.js?v=108.5';
+import * as D from './duel.js?v=108.5';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=108.4').then(m => {
+import('./piloti.js?v=108.5').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -3206,6 +3206,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
       return;
     }
     runInfo.sent = d; runInfo.sentAs = nick; lastGroupRun = runInfo;
+    if (d.joinedEdt) toast('🏁 SEI UN PILOTA EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green');   // v108.5
     show(d); renderSide(); refreshCardPreview(); waBrag(d, runInfo, nick, beforeList);
   }).catch(() => {
     if (!$('groupres')) return;
@@ -3362,7 +3363,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 108.4;
+const GAME_VERSION = 108.5;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

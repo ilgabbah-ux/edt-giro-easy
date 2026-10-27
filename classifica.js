@@ -75,6 +75,7 @@ async function call(params, keep = true) {
     data = await r.json();
   } catch { data = await jsonp(url); }
   if (!data?.ok) throw new Error('risposta');
+  if (data.edtName && !isEdt()) { try { localStorage.setItem(EDT_KEY, '1'); } catch {} data.joinedEdt = true; }   // v108.5 · pilota EDT riconosciuto dal nome: entra da solo nella classifica EDT
   if (!keep) return data;
   if (!('minv' in data)) delete data.week;   // script vecchio: niente stagioni, niente coppa (non sarebbe giusta)
   cache = data; cacheAt = Date.now();
