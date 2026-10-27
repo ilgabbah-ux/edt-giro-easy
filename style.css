@@ -1632,3 +1632,10 @@ aside#hub { gap: 10px; }
 .customform label { display: grid; gap: 4px; font: italic 800 13px var(--ui); letter-spacing: 1px; color: var(--y); }
 .customform input { font: 700 20px var(--ui); padding: 10px 12px; background: #0b0c09; color: #fff; border: 1px solid #ffffff44; }
 .cerr { min-height: 1.2em; margin: 0; color: #ff7a5c; font: 600 14px var(--ui); }
+/* v108.3 · classifica EDT / di tutti */
+.grptabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
+.grptabs button { padding: 10px; background: #1f201a; color: #cfc5ae; border: 0; font: italic 800 15px var(--ui); letter-spacing: 1px; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); display: flex; align-items: center; justify-content: center; gap: 6px; }
+.grptabs button.active { background: var(--y); color: #241c11; }
+.grptabs svg { width: 16px; height: 16px; }
+.pedt { color: #e8ded0; } .pedt svg { width: 14px; height: 14px; color: var(--y); vertical-align: -2px; }
+.seasontabs[hidden] { display: none; }

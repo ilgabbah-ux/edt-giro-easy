@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.3';
-import { createWorld } from './scene3d.js?v=108.3';
-import * as A from './audio.js?v=108.3';
-import * as P from './progress.js?v=108.3';
-import { createMud } from './mudfx.js?v=108.3';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.3';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=108.3';
-import * as C from './classifica.js?v=108.3';
-import * as D from './duel.js?v=108.3';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.4';
+import { createWorld } from './scene3d.js?v=108.4';
+import * as A from './audio.js?v=108.4';
+import * as P from './progress.js?v=108.4';
+import { createMud } from './mudfx.js?v=108.4';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.4';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=108.4';
+import * as C from './classifica.js?v=108.4';
+import * as D from './duel.js?v=108.4';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=108.3').then(m => {
+import('./piloti.js?v=108.4').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -96,6 +96,9 @@ const profile = P.profile;
 const isCustom = () => !!profile.custom && profile.rider === profile.custom.name && !RIDERS.includes(profile.rider);
 const riderNum = () => isCustom() ? profile.custom.num : RIDERS.indexOf(profile.rider) + 1;
 if (!RIDERS.includes(profile.rider) && !isCustom()) profile.rider = RIDERS[0];
+// v108.3 · due classifiche: chi giocava già prima di questa versione è dell'EDT; i nuovi entrano con la parola segreta o il link d'invito
+if (!C.edtDecided()) C.setEdt((profile.xp || 0) > 0 && !profile.custom);
+const grpLabel = () => C.isEdt() ? 'CLASSIFICA EDT' : 'CLASSIFICA DI TUTTI';
 let mode = Math.min(P.MODES.length - 1, Math.max(0, profile.mode | 0));
 if (P.MODES[mode]?.hidden) mode = 0;   // v59 · percorso tolto: si torna al Giro easy
 if (!P.isUnlocked(P.MODES[mode])) mode = 0;
@@ -1666,8 +1669,8 @@ function updateRivals(dt, travelStep, route, diff) {
 function setupGroupGhost() {
   gGhost = null; gGhostPassed = false;
   if (ice || P.MODES[mode].random === 'run' || P.MODES[mode].leap) return;
-  const bl = C.cached()?.boards?.[mode] || [];
-  const want = ghostWant && ghostWant.m === mode ? bl.find(e => e.g && e.g.length > 8 && e.n.toLowerCase() === ghostWant.n.toLowerCase()) : null;   // v106.5 · sfida da link
+  const bl = C.cached()?.boards?.[mode] || [], ob = C.cachedGroup(C.myGrp() === 'edt' ? 'pub' : 'edt')?.boards?.[mode] || [];
+  const want = ghostWant && ghostWant.m === mode ? [...bl, ...ob].find(e => e.g && e.g.length > 8 && e.n.toLowerCase() === ghostWant.n.toLowerCase()) : null;   // v106.5 · sfida da link
   const top = want || bl.find(e => e.g && e.g.length > 8);
   if (!top) return;
   const pts = C.decodeGhost(top.g); if (pts.length < 5) return;
@@ -3161,7 +3164,7 @@ function groupResult(runInfo) {
   const box = $('groupres'); if (!box) return;
   const nick = C.getNick();
   if (!nick) {
-    box.innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO</div>
+    box.innerHTML = `<div class="ghead">🏆 ${grpLabel()}</div>
       <p>Metti il tuo nome: il punteggio va nella classifica di tutto l'EDT.</p>
       <form class="nickrow" id="nickform"><input id="nickin" maxlength="16" autocomplete="nickname" placeholder="Il tuo nome" value="${C.cleanNick(profile.rider)}"><button class="primary" type="submit"><span>INVIA</span></button></form>`;
     $('nickform').onsubmit = e => { e.preventDefault(); const n = C.cleanNick($('nickin').value); if (!n) return; C.setNick(n); groupResult(runInfo); };
@@ -3171,7 +3174,7 @@ function groupResult(runInfo) {
     if (!$('groupres')) return;
     const pos = C.positionOf(d, runInfo.mode, nick), list = d.boards?.[runInfo.mode] || [];
     const best = list.find(e => e.n.toLowerCase() === nick.toLowerCase());
-    $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div>
+    $('groupres').innerHTML = `<div class="ghead">🏆 ${grpLabel()} · ${MODE_LABEL(runInfo.mode)}</div>
       <p class="gpos">${pos ? `<b>${nick}</b> è <b class="big">${pos}°</b>${best && best.s > runInfo.score ? ` (record ${best.s.toLocaleString('it-IT')})` : ''}` : `<b>${nick}</b>: fuori dai primi 10. Dopo migliora!`}</p>${(() => { const tl = C.timesFor(d, runInfo.mode), ti = tl.findIndex(e => e.n.toLowerCase() === nick.toLowerCase()); const jb = runInfo.mode === C.JUMP_MODE, ib = runInfo.mode === C.ICE_MODE, fm = jb ? C.fmtJump : ib ? C.fmtMetres : C.fmtTime; return ti >= 0 ? `<p class="gpos">${jb ? '📏 Salto più lungo' : ib ? '🌀 Metri di derapata' : '⏱ Tempi migliori'}: <b>${ti + 1}°</b> con ${fm(tl[ti].t)}${tl[0] && ti > 0 ? ` (1° ${tl[0].n}: ${fm(tl[0].t)})` : ''}</p>` : ''; })()}
 ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 Coppa della settimana: <b>${me.pos}°</b> con ${me.p} pt${d.week.list[0] && me.pos > 1 ? ` (1° ${d.week.list[0].n}: ${d.week.list[0].p} pt)` : ''}</p>` : ''; })()}
       <ol class="board gboard">${groupListHTML(list.slice(0, 5), nick, runInfo.mode)}</ol>
@@ -3181,7 +3184,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
     $('gnick').onclick = () => { C.setNick(''); groupResult({ ...runInfo, sent: null }); };
   };
   if (runInfo.sent && runInfo.sentAs === nick) { show(runInfo.sent); return; }
-  box.innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO · ${MODE_LABEL(runInfo.mode)}</div><p class="gwait">Invio il punteggio di <b>${nick}</b>…</p>`;
+  box.innerHTML = `<div class="ghead">🏆 ${grpLabel()} · ${MODE_LABEL(runInfo.mode)}</div><p class="gwait">Invio il punteggio di <b>${nick}</b>…</p>`;
   const { sent, sentAs, ...payload } = runInfo;
   const beforeList = (C.cached()?.boards?.[runInfo.mode] || []).map(e => e.n);
   C.submit({ ...payload, name: nick, v: String(GAME_VERSION), b: P.UPGRADES.reduce((a, u) => a + P.upgradeLevel(u.id), 0) }).then(d => {
@@ -3206,7 +3209,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
     show(d); renderSide(); refreshCardPreview(); waBrag(d, runInfo, nick, beforeList);
   }).catch(() => {
     if (!$('groupres')) return;
-    $('groupres').innerHTML = `<div class="ghead">🏆 CLASSIFICA DEL GRUPPO</div><p>La classifica non risponde (rete lenta o assente). <b>Punteggio messo da parte</b>: parte da solo appena c'è rete.</p><button class="secondary" type="button" id="gretry">RIPROVA ADESSO</button>`;
+    $('groupres').innerHTML = `<div class="ghead">🏆 ${grpLabel()}</div><p>La classifica non risponde (rete lenta o assente). <b>Punteggio messo da parte</b>: parte da solo appena c'è rete.</p><button class="secondary" type="button" id="gretry">RIPROVA ADESSO</button>`;
     $('gretry').onclick = () => groupResult(runInfo);
   });
 }
@@ -3263,10 +3266,20 @@ function pilotBoxHTML(nick) {
     ${held ? `<p class="pheld">${held === 1 ? 'Un giro aspetta' : held + ' giri aspettano'} il codice giusto per entrare in classifica.</p>` : ''}
     <details class="pother"${held ? ' open' : ''}><summary>Giochi già con questo nome su un altro telefono o tablet?</summary>
       <form class="nickrow pform" id="pform"><input id="pnick" maxlength="16" autocomplete="nickname" placeholder="nome in classifica" value="${nick || C.cleanNick(profile.rider)}"><input id="pcodein" maxlength="12" autocomplete="off" placeholder="codice pilota"><button class="primary" type="submit"><span>ENTRA</span></button></form>
-      <p class="note">Il codice lo trovi in questa stessa pagina sull'altro telefono.</p></details></div>`;
+      <p class="note">Il codice lo trovi in questa stessa pagina sull'altro telefono.</p></details>
+    ${C.isEdt() ? `<p class="pedt">${icon('crown')} Sei nella <b>classifica EDT</b>.${C.myInvite() ? ` <a class="linkbtn" id="edtinv" target="_blank" rel="noopener" href="${waLink('🏁 Entra nella classifica EDT di Giro Easy: ' + publicGameURL + '?edt=' + C.myInvite())}">INVITA UN AMICO EDT</a>` : ''}</p>`
+      : `<details class="pother"><summary>Sei dell'Enduro Drinking Team?</summary>
+      <form class="nickrow pform" id="edtform"><input id="edtword" maxlength="40" autocomplete="off" placeholder="parola segreta"><button class="primary" type="submit"><span>ENTRA</span></button></form>
+      <p class="note">Con la parola segreta (o il link d'invito del gruppo WhatsApp) entri nella classifica degli amici.</p></details>`}</div>`;
 }
 function wirePilotBox(redraw) {
   $('pcopy')?.addEventListener('click', () => { const c = C.getCode(); (navigator.clipboard?.writeText(c) || Promise.reject()).then(() => toast('🔒 CODICE COPIATO', 'green')).catch(() => toast('🔒 IL TUO CODICE: ' + c.toUpperCase(), 'gold')); });
+  $('edtform')?.addEventListener('submit', async e => {
+    e.preventDefault(); const w = $('edtword').value;
+    if (!(await C.checkSecret(w))) { toast('PAROLA SEGRETA SBAGLIATA', 'red'); A.sfx.click(); return; }
+    C.setEdt(true); C.rememberSecret(w); A.sfx.click(); toast('🏁 BENVENUTO NELL’EDT: DA ORA SEI NELLA CLASSIFICA DEGLI AMICI', 'green');
+    groupView = 'edt'; redraw(); C.load(true).then(() => { redraw(); renderSide(); }).catch(() => {});
+  });
   $('pform')?.addEventListener('submit', async e => {
     e.preventDefault();
     const n = C.cleanNick($('pnick').value), c = $('pcodein').value;
@@ -3287,16 +3300,21 @@ function ghostChallenge(n, m) {
   A.sfx.click(); ghostWant = { n, m }; mode = m; profile.mode = m; P.save(); applyLayout(); renderSide();
   toast('👻 SFIDA AL FANTASMA DI ' + n.toUpperCase(), 'gold'); start();
 }
+let groupView = null;   // v108.3 · 'edt' o 'pub': quale classifica stai guardando
 function renderGroup(back, m = mode) {
   if (state !== 'ended') state = 'ready';
   setMenu(true); $('overlay').classList.remove('hidden');
   const nick = C.getNick();
+  groupView = C.myGrp();
   const draw = (d0, err) => {
-    const d = groupArch ? C.cachedArchive() : d0;
+    const mine = groupView === C.myGrp(); if (!mine) groupArch = false;
+    const d = groupArch ? C.cachedArchive() : mine ? d0 : C.cachedGroup(groupView);
     if (groupArch && m === 'cup') m = mode;
-    $('card').innerHTML = `<div class="eyebrow">ENDURO DRINKING TEAM · TUTTI I TELEFONI</div>
-      <h1 class="shoptitle">CLASSIFICA<br><em>DEL GRUPPO.</em></h1>
-      <div class="seasontabs"><button type="button" class="${groupArch ? '' : 'active'}" data-season="now">STAGIONE ${C.SEASON.n} · DALLA V${C.SEASON.from}</button><button type="button" class="${groupArch ? 'active' : ''}" data-season="arch">📜 ARCHIVIO</button></div>
+    $('card').innerHTML = `<div class="eyebrow">${groupView === 'edt' ? 'ENDURO DRINKING TEAM · SOLO GLI AMICI' : 'CHIUNQUE GIOCHI A GIRO EASY'}</div>
+      <h1 class="shoptitle">CLASSIFICA<br><em>${groupView === 'edt' ? 'EDT.' : 'DI TUTTI.'}</em></h1>
+      <div class="grptabs"><button type="button" class="${groupView === 'edt' ? 'active' : ''}" data-grp="edt">${icon('crown')} EDT</button><button type="button" class="${groupView === 'pub' ? 'active' : ''}" data-grp="pub">TUTTI</button></div>
+      ${mine ? '' : `<p class="note">${groupView === 'edt' ? 'Questa è la classifica degli amici dell’EDT: la guardi, ma i tuoi giri vanno nella classifica di tutti.' : 'Questa è la classifica di chi non è dell’EDT: i tuoi giri vanno in quella EDT.'}</p>`}
+      <div class="seasontabs" ${mine ? '' : 'hidden'}><button type="button" class="${groupArch ? '' : 'active'}" data-season="now">STAGIONE ${C.SEASON.n} · DALLA V${C.SEASON.from}</button><button type="button" class="${groupArch ? 'active' : ''}" data-season="arch">📜 ARCHIVIO</button></div>
       <p class="note seasonnote">${groupArch ? 'Archivio: giri di tutte le versioni, anche con regole diverse (velocità, punti e tempi massimi cambiati). Solo per ricordo: <b>non si confrontano</b>.' : `Contano solo i giri fatti con le regole di adesso (dalla versione ${C.SEASON.from}), così tempi e punti si confrontano con lo stesso metro.`}</p>
       <div class="boardtabs gtabs">${groupArch ? '' : `<button type="button" class="cuptab ${m === 'cup' ? 'active' : ''}" data-gmode="cup">🏆 COPPA</button>`}${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
       ${m === 'cup' ? (() => { const w = d?.week, me = cupMine(w, nick); return `<p class="gsub">COPPA DELLA SETTIMANA${w ? ` · dal ${w.from.slice(8)}/${w.from.slice(5, 7)} al ${w.to.slice(8)}/${w.to.slice(5, 7)}` : ''} · si azzera ogni lunedì</p>
@@ -3314,8 +3332,13 @@ function renderGroup(back, m = mode) {
       if (groupArch && !C.cachedArchive()) { draw(null); C.loadArchive().then(() => draw(C.cached())).catch(() => draw(null, true)); } else draw(C.cached());
     });
     wirePilotBox(() => draw(C.cached()));
+    document.querySelectorAll('[data-grp]').forEach(b => b.onclick = () => {
+      groupView = b.dataset.grp; A.sfx.click();
+      if (groupView === C.myGrp()) draw(C.cached());
+      else { draw(null); C.loadGroup(groupView).then(() => draw(C.cached())).catch(() => draw(null, true)); }
+    });
     $('gback').onclick = back;
-    $('greload').onclick = () => { draw(null); C.load(true).then(x => draw(x)).catch(() => draw(null, true)); };
+    $('greload').onclick = () => { draw(null); (groupView === C.myGrp() ? C.load(true) : C.loadGroup(groupView)).then(() => draw(C.cached())).catch(() => draw(null, true)); };
   };
   draw(C.cached());
   C.load().then(d => draw(d)).catch(() => { if (!C.cached()) draw(null, true); });
@@ -3339,8 +3362,10 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 108.3;
+const GAME_VERSION = 108.4;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
+{ const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
+  if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
 setInterval(() => { if (state !== 'playing' && C.pendingCount()) C.flushPending().catch(() => {}); }, 120000);

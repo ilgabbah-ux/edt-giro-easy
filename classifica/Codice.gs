@@ -12,6 +12,9 @@
 // v89 · NOMI PROTETTI: k = codice pilota del telefono. Il primo che usa un nome lo prenota (foglio "Nomi", solo l'impronta
 //       del codice, non il codice). Chi usa lo stesso nome con un codice diverso non entra in classifica (taken: true).
 //       b = livello della moto (somma dei potenziamenti dell'officina), mostrato accanto al nome.
+// v108.3 · DUE CLASSIFICHE: grp = 'edt' (amici dell'Enduro Drinking Team) o 'pub' (tutti gli altri). Colonna L del foglio:
+//       'pub' per i giri pubblici, vuota per l'EDT (così tutte le righe vecchie restano dell'EDT). Classifiche, tempi e coppa
+//       si fanno separati per gruppo; i nomi protetti restano unici per tutti.
 const SHEET = 'Punteggi';
 const MODES = 20;           // percorsi 0..19 (9 Ice Scrophy, 10 MotoFogna, 11 Valle Argentera, 12 MontaFiga, 13 Anti-GEV · v57; spazio per quelli futuri)
 const DAILY = 3;
@@ -64,8 +67,9 @@ function monday_(day) {
 }
 function iso_(d) { return d.toISOString().slice(0, 10); }
 
-function valid_(r, m, minv) {
+function valid_(r, m, minv, grp) {
   if (Number(r[3]) !== m) return false;
+  if ((String(r[11] || '') === 'pub') !== (grp === 'pub')) return false;   // v108.3 · solo i giri del proprio gruppo
   if ((Number(r[8]) || 0) < minv) return false;   // v79 · solo la stagione richiesta
   if (String(r[1]).indexOf('TEST_CLAUDE') === 0) return false;   // v57 · righe di prova ignorate
   if (m === 2 && (Number(r[8]) || 0) < 59) return false;   // v59 · Taglio di Angelo ora è una gara di salto: contano solo i salti
@@ -73,12 +77,12 @@ function valid_(r, m, minv) {
 }
 
 // v78 · coppa: classifica della settimana per percorso → punti coppa
-function cup_(rows, from, to, minv, act) {
+function cup_(rows, from, to, minv, act, grp) {
   const tot = {};
   act.forEach(m => {
     const best = {};
     rows.forEach(r => {
-      if (!valid_(r, m, minv)) return;
+      if (!valid_(r, m, minv, grp)) return;
       const d = ymd_(r[0]); if (d < from || d > to) return;
       const k = String(r[1]).toLowerCase(), sc = Number(r[5]) || 0;
       if (!best[k] || sc > best[k].s) best[k] = { n: String(r[1]), r: String(r[2]), s: sc };
@@ -92,15 +96,15 @@ function cup_(rows, from, to, minv, act) {
   return Object.values(tot).sort((a, b) => b.p - a.p || b.w - a.w);
 }
 
-function boards_(day, minv, act) {
+function boards_(day, minv, act, grp) {
   const s = sheet_();
   const last = s.getLastRow();
-  const rows = last > 1 ? s.getRange(2, 1, last - 1, 11).getValues() : [];
+  const rows = last > 1 ? s.getRange(2, 1, last - 1, 12).getValues() : [];
   const out = {}, times = {};
   for (let m = 0; m < MODES; m++) {
     const best = {}, bestT = {};
     rows.forEach(r => {
-      if (!valid_(r, m, minv)) return;
+      if (!valid_(r, m, minv, grp)) return;
       if (m === DAILY && ymd_(r[4]) !== day) return;
       const k = String(r[1]).toLowerCase();
       const sc = Number(r[5]) || 0;
@@ -116,8 +120,8 @@ function boards_(day, minv, act) {
   const mon = monday_(day), sun = new Date(mon.getTime() + 6 * 864e5);
   const pmon = new Date(mon.getTime() - 7 * 864e5), psun = new Date(mon.getTime() - 864e5);
   // v96 · la settimana scorsa si giudica con tutti i suoi giri (anche se nel frattempo è iniziata una stagione nuova): podio dei primi 3
-  const prev3 = cup_(rows, iso_(pmon), iso_(psun), 0, act).slice(0, 3);
-  const week = { from: iso_(mon), to: iso_(sun), list: cup_(rows, iso_(mon), iso_(sun), minv, act).slice(0, 15), prev: prev3[0] || null, prev3: prev3, prevFrom: iso_(pmon) };
+  const prev3 = cup_(rows, iso_(pmon), iso_(psun), 0, act, grp).slice(0, 3);
+  const week = { from: iso_(mon), to: iso_(sun), list: cup_(rows, iso_(mon), iso_(sun), minv, act, grp).slice(0, 15), prev: prev3[0] || null, prev3: prev3, prevFrom: iso_(pmon) };
   return { out: out, times: times, week: week };
 }
 
@@ -149,13 +153,15 @@ function doGet(e) {
         const sh = sheet_();
         if (sh.getRange(1, 10).getValue() === '') sh.getRange(1, 10).setValue('Fantasma').setFontWeight('bold');
         if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Moto').setFontWeight('bold');
-        sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0)))]);
+        if (sh.getRange(1, 12).getValue() === '') sh.getRange(1, 12).setValue('Gruppo').setFontWeight('bold');
+        sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0))), p.grp === 'pub' ? 'pub' : '']);
         saved = true;
       } catch (err) { if (!taken) throw err; } finally { lock.releaseLock(); }
     }
   }
   const minv = Math.max(0, Math.round(Number(p.minv) || 0));
   const act = String(p.act || '').split(',').map(Number).filter(m => m >= 0 && m < MODES && String(p.act).length);
-  const b = boards_(day, minv, act.length ? act : ACTIVE);
-  return reply_({ ok: true, iceDesc: true, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
+  const grp = p.grp === 'pub' ? 'pub' : 'edt';
+  const b = boards_(day, minv, act.length ? act : ACTIVE, grp);
+  return reply_({ ok: true, iceDesc: true, grp: grp, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
 }

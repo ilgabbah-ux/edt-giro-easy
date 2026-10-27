@@ -11,6 +11,30 @@ export function setCode(c) { c = String(c || '').toLowerCase().replace(/[^a-z0-9
 
 export const enabled = () => !API.includes('__DEPLOY_ID__');
 
+// v108.3 · DUE CLASSIFICHE: quella dell'EDT (amici, con la parola segreta o il link d'invito) e quella di tutti gli altri.
+// Nel codice c'è solo l'impronta della parola segreta, non la parola.
+const EDT_KEY = 'edt-giro-easy-edt', EDT_HASH = 'f401ff4b20bae3a7f9c17d26ba1cba27acde4f08843f12de8a1c7413c8ba2473';
+export function isEdt() { try { return localStorage.getItem(EDT_KEY) === '1'; } catch { return false; } }
+export function edtDecided() { try { return localStorage.getItem(EDT_KEY) !== null; } catch { return true; } }
+export function setEdt(on) { try { localStorage.setItem(EDT_KEY, on ? '1' : '0'); } catch {} cache = null; cacheAt = 0; }
+export const myGrp = () => isEdt() ? 'edt' : 'pub';
+const normWord = w => String(w || '').toLowerCase().normalize('NFD').replace(/[^a-z]/g, '');
+export async function checkSecret(w) {
+  const n = normWord(w); if (!n || !crypto?.subtle) return false;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('edt|' + n));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('') === EDT_HASH;
+}
+// il link d'invito porta la parola (codificata): si manda solo nel gruppo WhatsApp dell'EDT
+export const inviteParam = w => btoa(normWord(w)).replace(/=+$/, '');
+export async function joinFromInvite(param) { try { const ok = await checkSecret(atob(param)); if (ok) setEdt(true); return ok; } catch { return false; } }
+let lastSecret = '';
+export const rememberSecret = w => { lastSecret = normWord(w); try { localStorage.setItem('edt-giro-easy-inv', inviteParam(w)); } catch {} };
+export const myInvite = () => { try { return localStorage.getItem('edt-giro-easy-inv') || ''; } catch { return ''; } };
+// classifica dell'altro gruppo, solo da guardare (non tocca la cache del proprio)
+const other = {};
+export function loadGroup(g) { if (g === myGrp()) return load(); if (other[g] && Date.now() - other[g].at < 45000) return Promise.resolve(other[g].d); return call({ action: 'top', day: dayISO(), grp: g }, false).then(d => { other[g] = { d, at: Date.now() }; return d; }); }
+export const cachedGroup = g => g === myGrp() ? cache : other[g]?.d || null;
+
 // v79 · STAGIONI: in classifica contano solo i giri fatti con le regole attuali (velocità, punteggi, tempi massimi).
 // Quando cambia qualcosa che sposta tempi o punti si alza "from" (e il numero della stagione): i giri vecchi
 // restano nel foglio e si vedono nell'archivio. ACTIVE = percorsi nel menu (solo questi danno punti coppa).
@@ -43,7 +67,7 @@ function jsonp(url, ms = 20000) {
 }
 async function call(params, keep = true) {
   if (!enabled()) throw new Error('off');
-  const url = API + '?' + new URLSearchParams({ minv: SEASON.from, act: ACTIVE, ...params }).toString();
+  const url = API + '?' + new URLSearchParams({ minv: SEASON.from, act: ACTIVE, grp: myGrp(), ...params }).toString();
   let data;
   try {
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 20000);   // v57 · telefono con rete lenta: più pazienza
