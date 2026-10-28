@@ -1423,7 +1423,7 @@ export function createWorld(canvas) {
       const j = joints.find(jj => jj.side === sd);
       _gl.copy(RV('wrist' + n)).add(HIP); _gl.y += ryE; _gl.x -= sd * fitE[0]; _gl.y -= fitE[1]; _gl.z -= fitE[2];
       _tg.copy(j.grip.position).add(_gl); front.localToWorld(_tg);
-      _pw.copy(RV('elbow' + n)).add(_gl.set(sd * .45, .02 + .1 * standK, .12)); rRig.mesh.localToWorld(_pw);   // v107.3 gomiti in fuori ma spalle basse · gomiti alti e in fuori, come i piloti veri
+      _pw.copy(RV('elbow' + n)).add(_gl.set(sd * .5, .06 + .18 * standK, .1)); rRig.mesh.localToWorld(_pw);   // v107.3 gomiti in fuori ma spalle basse · gomiti alti e in fuori, come i piloti veri
       ik2(B['uarm' + n], B['farm' + n], R['hand' + n], _tg, _pw);
       // piedi: sulla pedana (ferma rispetto al telaio); in derapata il piede interno esce in avanti
       _tg.copy(RV('ankle' + n)).add(HIP).add(rider.position);
@@ -3083,12 +3083,26 @@ export function createWorld(canvas) {
     bike.visible = s.invincible <= 0 || crash > 0 || blink;
 
     // Postura: in piedi su salti, salitoni e mulattiera; ammortizza con le gambe all'atterraggio.
-    const standTarget = crash > 0 ? 0 : s.jump > 0 ? 1 : (trail.rough > .4 || trail.climb > .4) ? .85 : s.gas ? .6 : boostAmount > 0 ? .45 : .12;
-    dyn.stand += (standTarget - dyn.stand) * Math.min(1, fdt * 6);
+    // v113 · pilota vivo (non più un soldatino): posizione d'attacco in piedi col busto sopra il manubrio, gambe che ammortizzano le buche,
+    // busto che ondeggia e lavora con la moto, si raccoglie nel salto e si schiaccia all'atterraggio
+    const roughK = Math.min(1, (trail.rough || 0) * 1.4), climbK = Math.max(0, Math.min(1, trail.climb || 0));
+    const standTarget = crash > 0 ? 0 : s.jump > 0 ? 1 : (roughK > .3 || climbK > .3) ? 1 : s.gas ? .85 : boostAmount > 0 ? .7 : .3;
+    dyn.stand += (standTarget - dyn.stand) * Math.min(1, fdt * 5);
+    dyn.clk = (dyn.clk || 0) + fdt;
+    const alive = playing && s.jump <= 0 && crash <= 0;
+    const bobAmp = alive ? (.012 + roughK * .03) * (.5 + dyn.stand * .5) : 0;
+    const bob = (Math.sin(dyn.clk * 9.1) * .6 + Math.sin(dyn.clk * 14.3 + 1.3) * .4) * bobAmp;
+    const sway = alive ? Math.sin(dyn.clk * 1.7) * .035 + Math.sin(dyn.clk * 4.3 + .5) * .02 * (.3 + roughK) : 0;
+    const tuck = s.jump > 0 ? Math.sin(phase * Math.PI) : 0;
+    if ((dyn.prevJump || 0) > 0 && s.jump <= 0) dyn.land = 1;
+    dyn.prevJump = s.jump; dyn.land = Math.max(0, (dyn.land || 0) - fdt * 3);
+    const landK = dyn.land > 0 ? Math.sin((1 - dyn.land) * Math.PI) : 0;
     const bounce = crash > 0 ? Math.sin((1 - crash) * Math.PI) * .32 : 0;
-    upper.position.set(lean * -.08, dyn.stand * (rRig ? .2 : .17) - Math.max(0, comp) * .9 + bounce, rRig ? dyn.stand * .07 - boostAmount * .02 : -dyn.stand * .07 - boostAmount * .015);   // v105.5 · in piedi il bacino va indietro sopra le pedane (posizione d'attacco)
+    upper.position.set(lean * -.08, dyn.stand * (rRig ? .3 : .17) - Math.max(0, comp) * .9 + bounce + bob - tuck * .07 - landK * .13,
+      rRig ? dyn.stand * .09 + tuck * .03 - boostAmount * .02 + (s.wheelie ? .05 : 0) : -dyn.stand * .07 - boostAmount * .015);
     body.rotation.x = -.08 - .3 * dyn.stand - grade * .2 - boostAmount * .05 - (s.gas ? .06 : 0) - dyn.pitch * .45 + crash * .5 + (s.wheelie ? .32 : 0);
-    syncRiderModel(dyn.stand, Math.max(-.55, Math.min(.25, (body.rotation.x + .08) * .7 - dyn.stand * .22)), Math.max(-.25, Math.min(.25, lean * .3 - dyn.iceLean * .35)), s.jump <= 0 && (s.ice ? s.driftOn : curShape) ? Math.max(-1, Math.min(1, dyn.iceLean * 2.2)) : 0);
+    const attackX = -(.3 + dyn.stand * .38) - climbK * .14 - Math.max(0, -grade) * -.25 - boostAmount * .07 + (s.wheelie ? .5 : 0) - dyn.pitch * .35 + tuck * .12 - landK * .14 + crash * .5 + bob * 1.5;
+    syncRiderModel(dyn.stand, Math.max(-.95, Math.min(.35, attackX)), Math.max(-.32, Math.min(.32, lean * .45 - dyn.iceLean * .4 + sway)), s.jump <= 0 && (s.ice ? s.driftOn : curShape) ? Math.max(-1, Math.min(1, dyn.iceLean * 2.2)) : 0);
     body.rotation.z = lean * .35 - dyn.iceLean * .45 - whip * .3 + (crash > 0 ? Math.sin(crash * 20) * crash * .3 : 0);
     head.rotation.y = dyn.steer * .9 + dyn.iceLean * .9;   // lo sguardo va verso l'uscita della curva
     { const inner = dyn.iceLean > 0 ? -1 : 1, deep = Math.min(1, Math.max(0, (Math.abs(dyn.iceLean) - .12) / .3));
@@ -3098,7 +3112,7 @@ export function createWorld(canvas) {
         j.legPivot.position.set(j.side * (.33 + .12 * j.out), 1.08 - .1 * j.out, .08 - .42 * j.out);
         j.legPivot.rotation.set(1.45 * j.out, 0, j.side * .55 * j.out);   // stivale avanti, verso la ruota davanti, e in fuori
       } }
-    head.rotation.x = rRig ? -(body.rotation.x + grade + dyn.pitch) - riderPivot.rotation.x * .2 + .08 : -(body.rotation.x + grade + dyn.pitch) * .55;   // v105.5 · lo sguardo resta sulla pista
+    head.rotation.x = rRig ? -(body.rotation.x + grade + dyn.pitch) + riderPivot.rotation.x * .35 + .1 : -(body.rotation.x + grade + dyn.pitch) * .55;   // v105.5 · lo sguardo resta sulla pista
     dyn.brake = Math.max(0, (dyn.brake || 0) - fdt * 2.5);
     brakeLightMat.emissiveIntensity = Math.max(.3 + dyn.brake * 2.2, (weatherNow.dusk || 0) * 1.6 + (weatherNow.fog || 0) * 1.2);
     fordTex.offset.x = (now / 1000 * .22) % 1;   // v97 · la corrente del guado scorre
