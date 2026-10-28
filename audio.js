@@ -65,7 +65,7 @@ function ensure() {
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     loadRealEngine();
     // v106.2 · tornando nel gioco (cambio app, schermo spento) l'audio riparte al primo tocco
-    const wake = () => { if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {}); };
+    const wake = () => { if (ctx && enabled && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {}); };
     // v109.7 · gioco in secondo piano (altra app, schermo spento, altra scheda): silenzio totale; al ritorno riprende
     const sleep = () => { if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {}); };
     document.addEventListener('visibilitychange', () => { if (document.hidden) sleep(); else wake(); });
@@ -73,7 +73,7 @@ function ensure() {
     for (const ev of ['pointerdown', 'touchend', 'keydown']) window.addEventListener(ev, wake, { passive: true, capture: true });
   }
   // v106.2 · anche 'interrupted' (iPhone dopo una chiamata, un'altra app o lo schermo spento): si riprende
-  if (ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
+  if (enabled && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
   return ctx;
 }
 
@@ -84,6 +84,7 @@ export function unlock() {
 
 export function setEnabled(v) {
   enabled = v;
+  try { if (ctx) { if (v) { if (ctx.state === 'suspended' && !document.hidden) ctx.resume().catch(() => {}); } else ctx.suspend().catch(() => {}); } } catch {}   // v109.8 · audio spento = motore audio fermo (non solo volume a zero): meno lavoro per il telefono
   if (master) master.gain.setTargetAtTime(v ? 1 : 0, ctx.currentTime, .03);
   if (!v) stopVoice();
 }
@@ -539,6 +540,7 @@ const MENU_OFF = 37.5, MENU_VOL = .5;   // v109 · nel menu: "Tranquilli, è un 
 let musicBus = null, gtrIn = null, music = null, musicOn = true;
 try { musicOn = localStorage.getItem('edt-music') !== '0'; } catch {}
 export const isMusicOn = () => musicOn;
+export const audioState = () => (enabled ? (ctx?.state || 'off') : 'muto');
 export function setMusic(v) {
   musicOn = v; try { localStorage.setItem('edt-music', v ? '1' : '0'); } catch {}
   if (musicBus) musicBus.gain.setTargetAtTime(v ? MUSIC_VOL : 0, ctx.currentTime, .1);
@@ -549,7 +551,7 @@ function musicGraph() {
   musicBus = ctx.createGain(); musicBus.gain.value = musicOn ? MUSIC_VOL : 0;
   musicBus.connect(duckBus);
   gtrIn = ctx.createGain(); gtrIn.gain.value = 2.2;
-  const sh = ctx.createWaveShaper(); sh.curve = shaperCurve(9); sh.oversample = '4x';
+  const sh = ctx.createWaveShaper(); sh.curve = shaperCurve(9); sh.oversample = 'none';   // v109.8 · era 4x: costava sempre, anche con le canzoni vere
   const cab = ctx.createBiquadFilter(); cab.type = 'lowpass'; cab.frequency.value = 3200; cab.Q.value = .8;
   const mid = ctx.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 800; mid.gain.value = -5;
   const out = ctx.createGain(); out.gain.value = .16;

@@ -1,7 +1,7 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
 import { createWorld } from './scene3d.js?v=b2e746c9';
-import * as A from './audio.js?v=b11f9feb';
+import * as A from './audio.js?v=22e3dd3c';
 import * as P from './progress.js?v=63266490';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
@@ -2954,7 +2954,7 @@ const freshPlayer = () => !C.isEdt() && (P.profile.totals?.runs || 0) <= 3;
 function perfRunHTML() {   // v109.6 · numeri della fluidità del giro appena fatto (solo col contatore acceso)
   const R = perfRun; perfRun = null; if (!perfOn || !R || R.n < 30) return '';
   const fps = Math.round(R.n * 1000 / R.ms), q = world?.perfInfo ? world.perfInfo() : {};
-  return `<div class="perfrun"><b>FLUIDITÀ DEL GIRO</b> ${fps} FPS medi · minimo ${R.minFps === 999 ? fps : Math.round(R.minFps)} · scatti ${R.hitch} su ${R.n} fotogrammi · picco ${Math.round(R.worst)} ms<br>JS ${(R.js / R.n).toFixed(1)} ms · 3D ${(R.gl / R.n).toFixed(1)} ms · resto ${Math.max(0, R.ms / R.n - R.js / R.n - R.gl / R.n).toFixed(1)} ms · Q${q.q ?? '?'}${q.lite ? ' leggera' : ''} · ×${q.pr ?? '?'} · ${q.calls ?? '?'} oggetti · ${innerWidth}×${innerHeight}@${devicePixelRatio} · v${GAME_VERSION}</div>`;
+  return `<div class="perfrun"><b>FLUIDITÀ DEL GIRO</b> ${fps} FPS medi · minimo ${R.minFps === 999 ? fps : Math.round(R.minFps)} · scatti ${R.hitch} su ${R.n} fotogrammi · picco ${Math.round(R.worst)} ms<br>JS ${(R.js / R.n).toFixed(1)} ms · 3D ${(R.gl / R.n).toFixed(1)} ms · resto ${Math.max(0, R.ms / R.n - R.js / R.n - R.gl / R.n).toFixed(1)} ms · Q${q.q ?? '?'}${q.lite ? ' leggera' : ''} · ×${q.pr ?? '?'} · ${q.calls ?? '?'} oggetti · ${innerWidth}×${innerHeight}@${devicePixelRatio} · audio ${A.audioState?.()} · inclina ${tiltOn ? 'sì' : 'no'} · v${GAME_VERSION}</div>`;
 }
 function renderResult(win, res, reason = '', timeBonus = 0) {
   const fresh = freshPlayer(), perfBox = perfRunHTML();
@@ -3501,7 +3501,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 109.7;
+const GAME_VERSION = 109.8;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
