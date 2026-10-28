@@ -94,6 +94,17 @@ let archive = null;
 export const cachedArchive = () => archive;
 export function loadArchive() { return archive ? Promise.resolve(archive) : call({ action: 'top', day: dayISO(), minv: 0 }, false).then(d => (archive = d)); }
 
+// v108.6 · contatore giocatori: aperture e primi giri del giorno (una volta al giorno per telefono), telefoni nuovi, giri finiti.
+// Nessun dato personale: solo un codice a caso del telefono.
+function devId() { try { let d = localStorage.getItem('edt-dev'); if (!d) { d = Array.from({ length: 10 }, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join(''); localStorage.setItem('edt-dev', d); } return d; } catch { return ''; } }
+export function hit(kind, v = '') {
+  if (!enabled()) return;
+  try {
+    if (kind !== 'run') { const k = 'edt-hit-' + kind, day = dayISO(); if (localStorage.getItem(k) === day) return; localStorage.setItem(k, day); }
+    const id = devId(); if (!id) return;
+    fetch(API + '?' + new URLSearchParams({ action: 'hit', kind, id, grp: myGrp(), v, day: dayISO() }).toString(), { mode: 'no-cors', keepalive: true }).catch(() => {});
+  } catch {}
+}
 export function submit({ name, score, mode, rider, time, win, v, g, b }) {
   const p = { action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round((time || 0) * 10) / 10, win: win ? 1 : 0, v: v || '', g: g || '', b: b ?? '', k: getCode() };
   return call(p).then(d => { if (d.taken) { hold(p); return d; } unhold(p); flushPending(); if (heldCount()) flushHeld(); return d; }).catch(e => { queue(p); throw e; });

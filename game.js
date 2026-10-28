@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.6';
-import { createWorld } from './scene3d.js?v=108.6';
-import * as A from './audio.js?v=108.6';
-import * as P from './progress.js?v=108.6';
-import { createMud } from './mudfx.js?v=108.6';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.6';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=108.6';
-import * as C from './classifica.js?v=108.6';
-import * as D from './duel.js?v=108.6';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.7';
+import { createWorld } from './scene3d.js?v=108.7';
+import * as A from './audio.js?v=108.7';
+import * as P from './progress.js?v=108.7';
+import { createMud } from './mudfx.js?v=108.7';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.7';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=108.7';
+import * as C from './classifica.js?v=108.7';
+import * as D from './duel.js?v=108.7';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=108.6').then(m => {
+import('./piloti.js?v=108.7').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -515,6 +515,7 @@ function resetRun() {
 function start() {
   world?.preloadObstacles?.();   // v107.2 · al primo giro arrivano i modelli degli ostacoli
   try { world?.warmUp?.(); } catch {}
+  C.hit('play', String(GAME_VERSION));
   world?.resetPerf?.();   // v108 · shader e texture pronti prima del via: niente scatti alla prima apparizione
   if (!world) return;
   if (touchDevice) goFull();
@@ -563,6 +564,7 @@ function go() {
 // v98 · finestre in primo piano (video, podio, sorpasso): dentro il gioco, che sul telefono e a schermo intero copre il resto della pagina
 function topLayer() { return document.fullscreenElement || document.webkitFullscreenElement || $('game') || document.body; }
 function finish(win, reason = '') {
+  if (state === 'playing') C.hit('run', String(GAME_VERSION));   // v108.6 · contatore: giro finito
   if (win && state === 'playing') { course = GAME_LENGTH; checkFlash(); }   // v97 · la sfida lampo 'seconda metà pulita' si chiude all'arrivo
   if ($('flashchip')) $('flashchip').hidden = true;
   forkHud(0); $('speedfx')?.classList.remove('on');
@@ -3364,7 +3366,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 108.6;
+const GAME_VERSION = 108.7;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3786,6 +3788,8 @@ $('installapp').onclick = async () => {
 syncSound(); $('fullscreen').innerHTML = icon('expand'); $('ovfull').innerHTML = icon('expand'); $('pause').innerHTML = icon('pause');
 syncShare();
 renderSide();
+try { if (!localStorage.getItem('edt-dev')) C.hit('new', String(GAME_VERSION)); } catch {}
+C.hit('open', String(GAME_VERSION));   // v108.6 · contatore giocatori
 let firstVisit = false; try { firstVisit = !C.isEdt() && !localStorage.getItem('edt-welcome') && !(P.profile.totals?.runs > 0); } catch {}
 if (firstVisit) renderWelcome(); else renderReady();
 if (worldError) {

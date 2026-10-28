@@ -20,7 +20,7 @@ const SHEET = 'Punteggi';
 const MODES = 20;           // percorsi 0..19 (9 Ice Scrophy, 10 MotoFogna, 11 Valle Argentera, 12 MontaFiga, 13 Anti-GEV · v57; spazio per quelli futuri)
 const DAILY = 3;
 const ICE = 9;
-const CAP = { 0: 200000, 1: 150000, 2: 60000, 3: 160000, 9: 120000, 10: 210000, 11: 150000, 12: 160000, 13: 230000, 14: 160000, 15: 160000 };   // v102 · rifatti col bot a potenziamenti tutti al massimo (moto, pilota, speciali, pezzi Factory): circa il doppio del suo punteggio migliore   // v96 · punteggio massimo credibile per percorso
+const CAP = { 0: 200000, 1: 150000, 2: 60000, 3: 160000, 9: 120000, 10: 210000, 11: 150000, 12: 160000, 13: 230000, 14: 160000, 15: 160000, 16: 160000 };   // v102 · rifatti col bot a potenziamenti tutti al massimo (moto, pilota, speciali, pezzi Factory): circa il doppio del suo punteggio migliore   // v96 · punteggio massimo credibile per percorso
 function minvOf_(p) { return Math.max(0, Math.round(Number(p.minv) || 0)); }              // v92 · Ice Scrofy: nel campo tempo ci sono i metri di derapata            // Sfida del giorno: classifica solo del giorno
 const MAX_SCORE = 250000;
 const CUP = [10, 8, 6, 5, 4, 3, 2, 1];
@@ -144,9 +144,42 @@ function reply_(obj, cb) {
   return ContentService.createTextOutput(txt).setMimeType(ContentService.MimeType.JSON);
 }
 
+// v108.6 · CONTATORE GIOCATORI: il gioco manda action=hit con kind = open (prima apertura del giorno), play (primo giro
+//       del giorno), new (primissima apertura su quel telefono), run (ogni giro finito). Una riga per evento nel foglio "Visite";
+//       il foglio "Riepilogo" fa i conti per giorno (dispositivi unici che aprono / giocano, nuovi, giri).
+const HIT_KINDS = ['open', 'play', 'new', 'run'];
+function visits_() {
+  const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
+  let s = ss.getSheetByName('Visite');
+  if (!s) {
+    s = ss.insertSheet('Visite'); s.getRange(1, 1, 1, 6).setValues([['Data', 'Giorno', 'Tipo', 'Dispositivo', 'Gruppo', 'Versione']]).setFontWeight('bold'); s.setFrozenRows(1);
+    let r = ss.getSheetByName('Riepilogo');
+    if (!r) { r = ss.insertSheet('Riepilogo'); r.getRange('A1').setFormula('=QUERY(Visite!B:E,"select B, count(D) where B is not null group by B pivot C order by B desc",1)'); r.getRange('H1').setValue('Aperture e giocatori = telefoni diversi al giorno · new = nuovi telefoni · run = giri finiti'); }
+  }
+  return s;
+}
+function hit_(p, day) {
+  const kind = String(p.kind || ''); if (HIT_KINDS.indexOf(kind) < 0) return;
+  const id = /^[a-z0-9]{6,16}$/.test(p.id || '') ? p.id : ''; if (!id) return;
+  const c = CacheService.getScriptCache(), k = 'h|' + kind + '|' + id + '|' + day;
+  if (kind !== 'run' && c.get(k)) return;   // un evento a testa al giorno (tranne i giri)
+  if (kind !== 'run') c.put(k, '1', 21600);
+  visits_().appendRow([new Date(), day, kind, id, p.grp === 'pub' ? 'pub' : 'edt', clean_(p.v, 8)]);
+}
+// v108.6 · SOTTO CARICO: le classifiche si rifanno al massimo ogni 20 s per gruppo (cache), e si ricalcolano subito dopo un giro salvato.
+function boardsCached_(day, minv, act, grp) {
+  const c = CacheService.getScriptCache(), key = ['b', grp, minv, act.join('.'), day, c.get('ver|' + grp) || '0'].join('|');
+  try { const hit = c.get(key); if (hit) return JSON.parse(hit); } catch (e) {}
+  const b = boards_(day, minv, act, grp);
+  try { const txt = JSON.stringify(b); if (txt.length < 95000) c.put(key, txt, 20); } catch (e) {}
+  return b;
+}
+function bump_(grp) { try { const c = CacheService.getScriptCache(); c.put('ver|' + grp, String(Date.now()), 21600); } catch (e) {} }
+
 function doGet(e) {
   const p = (e && e.parameter) || {};
   const day = /^\d{4}-\d{2}-\d{2}$/.test(p.day || '') ? p.day : Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd');
+  if (p.action === 'hit') { try { hit_(p, day); } catch (err) {} return reply_({ ok: true }, p.callback); }
   let saved = false, taken = false, edtName = false;
   if (p.action === 'add') {
     const name = clean_(p.name, 16);
@@ -169,13 +202,13 @@ function doGet(e) {
         if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Moto').setFontWeight('bold');
         if (sh.getRange(1, 12).getValue() === '') sh.getRange(1, 12).setValue('Gruppo').setFontWeight('bold');
         sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0))), p.grp === 'pub' && !edtName ? 'pub' : '']);
-        saved = true;
+        saved = true; bump_(p.grp === 'pub' && !edtName ? 'pub' : 'edt');
       } catch (err) { if (!taken) throw err; } finally { lock.releaseLock(); }
     }
   }
   const minv = Math.max(0, Math.round(Number(p.minv) || 0));
   const act = String(p.act || '').split(',').map(Number).filter(m => m >= 0 && m < MODES && String(p.act).length);
   const grp = p.grp === 'pub' && !edtName ? 'pub' : 'edt';
-  const b = boards_(day, minv, act.length ? act : ACTIVE, grp);
+  const b = boardsCached_(day, minv, act.length ? act : ACTIVE, grp);
   return reply_({ ok: true, iceDesc: true, grp: grp, edtName: edtName, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
 }
