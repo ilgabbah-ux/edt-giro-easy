@@ -159,6 +159,12 @@ export function buyUpgrade(id) {
   if (cost == null || data.beers < cost) return false;
   data.beers -= cost; data.upgrades[id] = upgradeLevel(id) + 1; save(); return true;
 }
+// v109.4 · si può tornare indietro: un livello alla volta o tutto, e si riprende l'80% delle birre spese
+export const REFUND = .8;
+export function upgradeRefund(id) { const l = upgradeLevel(id); if (!l) return 0; return Math.floor((UPGRADES.find(u => u.id === id)?.pro ? PRO_COSTS : COSTS)[l - 1] * REFUND); }
+export function sellUpgrade(id, doSave = true) { const r = upgradeRefund(id); if (!r) return 0; data.upgrades[id] = upgradeLevel(id) - 1; data.beers += r; if (doSave) save(); return r; }
+export function refundAllValue() { let t = 0; for (const u of UPGRADES) { const pc = u.pro ? PRO_COSTS : COSTS; for (let l = upgradeLevel(u.id); l > 0; l--) t += Math.floor(pc[l - 1] * REFUND); } return t; }
+export function resetUpgrades() { let t = 0; for (const u of UPGRADES) while (upgradeLevel(u.id) > 0) t += sellUpgrade(u.id, false); save(); return t; }
 
 // ---------- v44 · Moto nuove e accessori (officina) ----------
 // stats: speed = velocità, jump = salto, steer = sterzo, turbo = carica del turbo, wheelie = secondi di impennata in più, climb = salite

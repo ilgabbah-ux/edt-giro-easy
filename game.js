@@ -2,7 +2,7 @@
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
 import { createWorld } from './scene3d.js?v=35a8ead8';
 import * as A from './audio.js?v=3501fd57';
-import * as P from './progress.js?v=554b9dd4';
+import * as P from './progress.js?v=63266490';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=1bfbf87a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl } from './icons.js?v=e39ba266';
@@ -2714,7 +2714,7 @@ function renderShop(back, tab = shopTab) {
     return `<div class="upg ${lvl >= P.MAX_UPGRADE ? 'max' : ''}">
       <span class="ui">${u.icon}</span>
       <span class="ut"><b>${u.name}</b><small>${u.desc}</small><i class="pips">${Array.from({ length: P.MAX_UPGRADE }, (_, k) => `<u class="${k < lvl ? 'on' : ''} ${k >= P.LEGEND_FROM ? 'leg' : ''}"></u>`).join('')}</i>${lvl >= P.LEGEND_FROM ? `<em class="legtag">${lvl >= P.MAX_UPGRADE ? 'LEGGENDA COMPLETA' : lvl > P.LEGEND_FROM ? 'LEGGENDA ' + (lvl - P.LEGEND_FROM) + '/3' : 'PROSSIMO: LIVELLI LEGGENDA'}</em>` : ''}</span>
-      <button type="button" class="buy" data-buy="${u.id}" ${can ? '' : 'disabled'}>${cost == null ? 'MAX' : cost + ' 🍺'}</button>
+      <span class="ubtns"><button type="button" class="buy" data-buy="${u.id}" ${can ? '' : 'disabled'}>${cost == null ? 'MAX' : cost + ' 🍺'}</button>${lvl ? `<button type="button" class="sell" data-sell="${u.id}" title="Togli un livello e riprendi l'80% delle birre">− 1 · +${P.upgradeRefund(u.id)} 🍺</button>` : ''}</span>
     </div>`;
   };
   const cur = P.currentBike();
@@ -2743,6 +2743,7 @@ function renderShop(back, tab = shopTab) {
     <h1 class="shoptitle">${tab === 'style' ? 'FATTI<br><em>NOTARE.</em>' : tab === 'ice' ? 'CHIODI PER<br><em>ICE SCROPHY.</em>' : tab === 'bikes' ? 'SCEGLI<br><em>LA MOTO.</em>' : tab === 'parts' ? 'FALLA<br><em>TUA.</em>' : 'POTENZIA<br><em>MOTO E PILOTA.</em>'}</h1>
     <div class="wallet">🍺 <b>${P.profile.beers}</b> birre in cassa<small class="insella">In sella: ${cur.icon} ${cur.name}</small>${Object.keys(P.currentStats()).length ? `<small class="totstat">In gara: ${P.statLabel(P.currentStats())}</small>` : ''}</div>
     <div class="shoptabs">${tabs.map(([k, n]) => `<button type="button" class="${k === tab ? 'active' : ''}" data-tab="${k}">${n}</button>`).join('')}</div>
+    ${tab === 'upg' && P.refundAllValue() ? `<div class="respec"><span><b>Vuoi cambiare strada?</b><small>Togli i potenziamenti e riprendi l'80% delle birre: poi potenzi altro o compri un'altra moto.</small></span><button type="button" class="secondary" id="respec"><span>RICOMINCIA · +${P.refundAllValue()}</span>${icon('beer')}</button></div>` : ''}
     ${tab === 'upg' ? ['MOTO', 'PILOTA', 'SPECIALI'].map(g => `<div class="ugroup">${g === 'SPECIALI' ? 'SPECIALI · PER CHI HA FINITO TUTTO' : g}</div><div class="upgs">${P.UPGRADES.filter(u => u.group === g).map(card).join('')}</div>`).join('')
       : tab === 'bikes' ? `<div class="upgs">${P.BIKES.map(bikeCard).join('')}</div><p class="tip">Ogni moto cambia davvero la guida. I potenziamenti valgono per tutte.</p>`
       : tab === 'style' ? `${P.PARTS.filter(p => p.style).map(partRow).join('')}<p class="tip">Lo stile non dà vantaggi in gara: si vede e basta (in gara, nel garage e al traguardo).</p>
@@ -2756,6 +2757,13 @@ function renderShop(back, tab = shopTab) {
   document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
     if (P.buyUpgrade(b.dataset.buy)) { A.unlock(); A.sfx.power(); renderShop(back); renderSide(); }
   });
+  // v109.4 · togli un livello (80% delle birre indietro) o ricomincia da capo con due tocchi (il primo chiede conferma)
+  document.querySelectorAll('[data-sell]').forEach(b => b.onclick = () => { const r = P.sellUpgrade(b.dataset.sell); if (r) { A.unlock(); A.sfx.click(); toast(`+${r} 🍺 TORNATE IN CASSA`, 'gold'); renderShop(back); renderSide(); } });
+  if ($('respec')) $('respec').onclick = () => {
+    const b = $('respec');
+    if (!b.dataset.sure) { b.dataset.sure = '1'; b.classList.add('hot'); b.innerHTML = `<span>SICURO? TOCCA ANCORA · +${P.refundAllValue()}</span>${icon('beer')}`; setTimeout(() => { if (b.isConnected && b.dataset.sure) { delete b.dataset.sure; b.classList.remove('hot'); b.innerHTML = `<span>RICOMINCIA · +${P.refundAllValue()}</span>${icon('beer')}`; } }, 4000); return; }
+    const r = P.resetUpgrades(); A.unlock(); A.sfx.power(); toast(`POTENZIAMENTI TOLTI: +${r} 🍺 IN CASSA`, 'gold'); renderShop(back); renderSide();
+  };
   document.querySelectorAll('[data-bike]').forEach(b => b.onclick = () => {
     const was = P.ownsBike(b.dataset.bike);
     if (P.buyBike(b.dataset.bike)) { A.unlock(); was ? A.sfx.click() : A.sfx.power(); if (!was) toast('🏍 NUOVA MOTO: ' + P.currentBike().name.toUpperCase(), 'gold'); renderShop(back); renderSide(); }
