@@ -282,7 +282,20 @@ export function createWorld(canvas) {
   }
   // v109.8 · terreno: con la grafica alleggerita normali e colori si ricalcolano ogni pochi fotogrammi (sull'iPad era il lavoro più pesante)
   let terrainLite = false, terrainN = 0;
-  const DBG = { noTerrain: false, noScenery: false };   // v109.9 · test di fluidità: si può fermare il terreno o lo scenario per capire cosa pesa
+  const DBG = { noTerrain: false, noScenery: false };
+  // v109.10 · tablet lenti: materiali "lucidi" (PBR, clearcoat) sostituiti da materiali opachi semplici. Il test sull'iPad ha mostrato
+  // che il collo di bottiglia è proprio il disegno: aggiornamenti e audio pesano poco
+  let liteMats = false, liteMatsN = 0; const liteMatCache = new Map();
+  function toLambert(m) {
+    let l = liteMatCache.get(m); if (l) return l;
+    l = new T.MeshLambertMaterial({ color: m.color, map: m.map || null, emissive: m.emissive || 0x000000, emissiveMap: m.emissiveMap || null, emissiveIntensity: m.emissiveIntensity ?? 1, transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest, side: m.side, vertexColors: m.vertexColors, depthWrite: m.depthWrite, polygonOffset: m.polygonOffset, polygonOffsetFactor: m.polygonOffsetFactor, polygonOffsetUnits: m.polygonOffsetUnits, fog: m.fog, alphaMap: m.alphaMap || null });
+    l.userData.from = m; liteMatCache.set(m, l); return l;
+  }
+  function applyLiteMats() {
+    scene.traverse(o => { if (!o.isMesh || !o.material || Array.isArray(o.material)) return; const m = o.material;
+      if (liteMats) { if (m.isMeshStandardMaterial) { const l = toLambert(m); l.color.copy(m.color); if (m.emissive) l.emissive.copy(m.emissive); l.opacity = m.opacity; l.visible = m.visible; if (m.version !== l.userData.v) { l.map = m.map || null; l.transparent = m.transparent; l.needsUpdate = true; l.userData.v = m.version; } o.material = l; } }
+      else if (m.userData?.from) o.material = m.userData.from; });
+  }   // v109.9 · test di fluidità: si può fermare il terreno o lo scenario per capire cosa pesa
   function terrain(t) {
     terrainN++;
     const doNorm = !terrainLite || terrainN % 3 === 0, doCol = !terrainLite || terrainN % 4 === 0;
@@ -2848,6 +2861,7 @@ export function createWorld(canvas) {
     if (q === 7) { pixelRatio = Math.min(pixelRatio, .62); renderer.setPixelRatio(pixelRatio); resize(); }   // v109.2 · ultimo gradino, solo se scatta ancora con la grafica leggera
     // v109.7 · iPad che fatica ancora: la scheda grafica soffre le foglie "ritagliate" (alberi, filari, erba). Prima metà, poi via l'erba
     if (q === 8) { pixelRatio = Math.min(pixelRatio, .5); renderer.setPixelRatio(pixelRatio); resize(); for (const m of FOLIAGE) { m.userData.n0 ??= m.count; m.count = Math.ceil(m.userData.n0 * .5); } }
+    if (q >= 8) { liteMats = true; applyLiteMats(); }
     if (q === 9) { for (const m of [tufts, ferns, reeds, flowers, shrubs]) { m.userData.n0 ??= m.count; m.count = 0; } for (const m of [firA, firB, larchCards, leafCards, islandCards, vineLeaf]) m.count = Math.ceil(m.userData.n0 * .35); }
   }
   const bigScreen = () => Math.min(innerWidth, innerHeight) >= 600 && (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
@@ -2874,7 +2888,7 @@ export function createWorld(canvas) {
     if (lite) { while (quality < liteQ()) stepQuality(++quality); }
     else {
       for (const m of [...FOLIAGE, flowers]) if (m.userData.n0 != null) m.count = m.userData.n0;   // v109.7 · torna tutta la vegetazione
-      terrainLite = false; quality = 0; frames = 0; goodFrames = 0; frameAvg = 16; pixelRatio = PR0; renderer.setPixelRatio(pixelRatio); resize();
+      liteMats = false; applyLiteMats(); terrainLite = false; quality = 0; frames = 0; goodFrames = 0; frameAvg = 16; pixelRatio = PR0; renderer.setPixelRatio(pixelRatio); resize();
       sun.shadow.mapSize.set(1536, 1536); sun.shadow.map?.dispose(); sun.shadow.map = null; sun.castShadow = true; renderer.shadowMap.enabled = true;
       scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); saveQ(0);
     }
@@ -2959,6 +2973,7 @@ export function createWorld(canvas) {
   }
 
   function render(s) {
+    if (liteMats && ++liteMatsN % 45 === 0) applyLiteMats();   // v109.10 · anche per ostacoli, compagni e moto caricati dopo
     curveA = [3.8, 4.9, 3.1][s.variant || 0]; curveF = [.021, .027, .016][s.variant || 0];
     const now = performance.now(), fdt = Math.min(.07, s.dt || (now - lastRender) / 1000); lastRender = now;
     adaptQuality();
