@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.8';
-import { createWorld } from './scene3d.js?v=108.8';
-import * as A from './audio.js?v=108.8';
-import * as P from './progress.js?v=108.8';
-import { createMud } from './mudfx.js?v=108.8';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=108.8';
-import * as C from './classifica.js?v=108.8';
-import * as D from './duel.js?v=108.8';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.9';
+import { createWorld } from './scene3d.js?v=108.9';
+import * as A from './audio.js?v=108.9';
+import * as P from './progress.js?v=108.9';
+import { createMud } from './mudfx.js?v=108.9';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.9';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=108.9';
+import * as C from './classifica.js?v=108.9';
+import * as D from './duel.js?v=108.9';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=108.8').then(m => {
+import('./piloti.js?v=108.9').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -205,7 +205,9 @@ function buzz(p) {
   lastBuzz = now; try { return navigator.vibrate(pat); } catch { return false; }
 }
 let tiltOn = false, tiltSteer = 0, tiltZero = null, tiltRaw = 0;
-try { const st = localStorage.getItem('edt-tilt'); tiltOn = st === '1' || (st === null && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)); } catch {}   // v101.1 · sul telefono si sterza inclinando di serie (chi l'ha spento resta senza)
+try { const st = localStorage.getItem('edt-tilt'); tiltOn = st === '1' || (st === null && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)); } catch {}
+// v108.9 · sterzo inclinando = modo principale su telefono e tablet: si riaccende una volta per tutti (si spegne sempre dalla pausa)
+try { if (!localStorage.getItem('edt-tilt-v2') && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)) { localStorage.setItem('edt-tilt-v2', '1'); localStorage.setItem('edt-tilt', '1'); tiltOn = true; } } catch {}   // v101.1 · sul telefono si sterza inclinando di serie (chi l'ha spento resta senza)
 function tiltAngle(e) {
   const a = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0;
   if (a === 90) return e.beta;          // orizzontale, tasto home a destra
@@ -525,7 +527,7 @@ function start() {
   resetRun();
   state = 'countdown'; countdown = 3.2; countStep = 4; holePre = holeDone = false;
   { const tc = $('tipcard'), nb = (P.profile.totals?.runs || 0) < 3 && !C.isEdt();   // v108.8 · nei primi giri di chi arriva da fuori: i comandi a colpo d'occhio mentre parte il via
-    if (tc) { tc.innerHTML = nb ? `<small>COME SI GUIDA</small>${touchDevice ? 'Dito a <b>sinistra/destra</b> per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare' : '<b>← →</b> per sterzare · <b>SPAZIO</b> per saltare i tronchi · <b>↓</b> impenna · <b>B</b> turbo'}<br>Prendi le birre e arriva al rifugio prima del tempo!` : ''; tc.classList.toggle('show', nb); } }
+    if (tc) { tc.innerHTML = nb ? `<small>COME SI GUIDA</small>${touchDevice ? (tiltOn ? '<b>Inclina il telefono</b> a sinistra/destra per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare' : 'Dito a <b>sinistra/destra</b> per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare') : '<b>← →</b> per sterzare · <b>SPAZIO</b> per saltare i tronchi · <b>↓</b> impenna · <b>B</b> turbo'}<br>Prendi le birre e arriva al rifugio prima del tempo!` : ''; tc.classList.toggle('show', nb); } }
   setTimeout(() => { if (state === 'countdown') toast('🚀 TOCCA SALTA AL VIA = PARTENZA A RAZZO', 'gold'); }, 600);
   // v89 · primo giro su un percorso: il consiglio della sua meccanica sta nella cartolina del via (sparisce al VIA, non copre la gara)
   let firstTip = '';
@@ -1917,7 +1919,7 @@ function tutPulse(id) { for (const b of ['jump', 'boost', 'left', 'right']) $(b)
 function tutStart() {
   tut = { step: 0, t: 0, px0: px, tries: 0, log: null, jumps0: run.jumps };
   objects = objects.filter(o => OBSTACLE_HEIGHT[o.type] === undefined && o.type !== 'tree');   // pista pulita per le prove
-  tutSay(`<b class="tstep">1/4</b> ${icon('chevrons')} ${touchDevice ? 'STERZA: TIENI IL DITO A SINISTRA O A DESTRA' : 'STERZA CON LE FRECCE ← →'}`); tutPulse('steer');
+  tutSay(`<b class="tstep">1/4</b> ${icon('chevrons')} ${touchDevice ? (tiltOn ? 'STERZA: INCLINA IL TELEFONO A SINISTRA O A DESTRA' : 'STERZA: TIENI IL DITO A SINISTRA O A DESTRA') : 'STERZA CON LE FRECCE ← →'}`); tutPulse('steer');
 }
 function tutEnd() {
   tut = null; tutPulse(null); coachOn = false; P.profile.tutorialDone = true; P.save();
@@ -2787,7 +2789,7 @@ function renderReady() {
       <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}
     </div>
-    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare</span></p>`;
+    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>`;
   if ($('openstats')) $('openstats').onclick = () => { A.sfx.click(); showStats(); };
   $('openmissions').onclick = () => { const box = $('missionbox'), open = box.hidden; box.hidden = !open; $('openmissions').setAttribute('aria-expanded', String(open)); $('openmissions').classList.toggle('on', open); A.sfx.click(); };
   requestAnimationFrame(() => { const act = document.querySelector('.modes .mode.active'); if (act) act.parentElement.scrollLeft = act.offsetLeft - act.parentElement.clientWidth / 2 + act.offsetWidth / 2; });
@@ -3386,7 +3388,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 108.8;
+const GAME_VERSION = 108.9;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
