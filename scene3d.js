@@ -2,9 +2,9 @@
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { GLTFLoader } from './GLTFLoader.js';
 import { DRACOLoader } from './DRACOLoader.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=109';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=109.1';
 import * as T from './three.module.min.js';
-import { RIDER_PARTS } from './pilota3d.js?v=109';
+import { RIDER_PARTS } from './pilota3d.js?v=109.1';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
@@ -1009,7 +1009,7 @@ export function createWorld(canvas) {
       const a = i * Math.PI * 2 / 26;
       const rows = i % 2 ? [-.075, .075] : [0];
       for (const off of rows) { const k = mesh(knobGeo, treadMat, root); k.position.set(off, Math.cos(a) * .487, Math.sin(a) * .487); k.rotation.x = a; }
-      for (const side of [-1, 1]) { const k = mesh(knobGeo, treadMat, root); k.scale.set(.7, .8, .8); k.position.set(side * .118, Math.cos(a + .12) * .455, Math.sin(a + .12) * .455); k.rotation.set(a + .12, 0, side * .5); }
+      for (const side of [-1, 1]) { const k = mesh(knobGeo, treadMat, root); k.scale.set(.6, .7, .7); k.position.set(side * .108, Math.cos(a + .12) * .455, Math.sin(a + .12) * .455); k.rotation.set(a + .12, 0, side * .5); }
     }
     mergeByMaterial(root);
     wheels.push(root); return root;
@@ -1061,13 +1061,13 @@ export function createWorld(canvas) {
   const frontWheel = wheel(front, 0, .47, -.86 - STEER_Z); frontWheel.name = 'wheelF';
   // v46 · chiodi sulle gomme (Ice Scrophy): si vedono solo se montati in officina
   const studMat = new T.MeshStandardMaterial({ color: '#c9d2d6', roughness: .25, metalness: .85, emissive: '#000000' });
-  const studGeo = new T.ConeGeometry(.022, .07, 5);
+  const studGeo = new T.ConeGeometry(.011, .03, 5);   // v109.1 · chiodi piccoli, appena fuori dai tasselli (prima sembravano protuberanze)
   const studSets = [rearWheel, frontWheel].map(w => {
     const inst = new T.InstancedMesh(studGeo, studMat, 44); inst.name = 'fx'; inst.castShadow = false;
     const d = new T.Object3D();
     for (let i = 0; i < 22; i++) for (const side of [0, 1]) {
       const a = i * Math.PI * 2 / 22 + side * .14;
-      d.position.set((side ? 1 : -1) * .07, Math.cos(a) * .5, Math.sin(a) * .5); d.rotation.set(a, 0, 0); d.updateMatrix(); inst.setMatrixAt(i * 2 + side, d.matrix);
+      d.position.set((side ? 1 : -1) * .07, Math.cos(a) * .512, Math.sin(a) * .512); d.rotation.set(a, 0, 0); d.updateMatrix(); inst.setMatrixAt(i * 2 + side, d.matrix);
     }
     inst.visible = false; w.add(inst); return inst;
   });
