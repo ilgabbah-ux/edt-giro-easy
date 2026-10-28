@@ -1777,3 +1777,35 @@ aside#hub { gap: 10px; }
 @media (min-width: 1000px) and (min-height: 700px) { .card { width: min(660px, 56%); } .card p, .card small { font-size: 105%; } }
 .seg { font-size: max(8px, .7vw); }
 .stoff { font-style: normal; opacity: .28; }
+
+/* v114 · tasti per i pollici. Con l'inclinazione accesa (telefono e iPad) niente frecce:
+   pollice destro = SALTA (angolo) + IMPENNA sopra; pollice sinistro = TURBO + GAS sopra. "Mancino" li scambia. */
+.game.tiltmode { --tp: max(14px, env(safe-area-inset-bottom, 0px)); --tl: max(14px, env(safe-area-inset-left, 0px)); --tr: max(14px, env(safe-area-inset-right, 0px));
+  --bw: 132px; --bh: 86px; --sh: 58px; --gap: 10px; --lift: 0px; }
+.game.tiltmode .controls { position: absolute !important; inset: 0 !important; display: block !important; pointer-events: none; }
+.game.tiltmode .steer { display: none !important; }
+.game.tiltmode .rightctrl { display: contents !important; }
+.game.tiltmode .controls .ctrl, .game.tiltmode #gas { position: absolute !important; margin: 0 !important; transform: none !important; min-width: 0 !important; max-width: none !important; flex: none !important; box-sizing: border-box; }
+.game.tiltmode #jump { right: var(--tr); left: auto; bottom: calc(var(--tp) + var(--lift)); width: var(--bw); height: var(--bh); font-size: 25px; padding: 0 8px; }
+.game.tiltmode #wheelie { right: var(--tr); left: auto; bottom: calc(var(--tp) + var(--lift) + var(--bh) + var(--gap)); width: var(--bw); height: var(--sh); font-size: 16px; padding: 0 8px; }
+.game.tiltmode .controls #boost { left: var(--tl); right: auto; bottom: calc(var(--tp) + var(--lift)); width: calc(var(--bw) + 18px); height: var(--bh); font-size: 16px; padding: 0 12px; }
+.game.tiltmode #gas { left: var(--tl); right: auto; bottom: calc(var(--tp) + var(--lift) + var(--bh) + var(--gap)) !important; width: calc(var(--bw) + 18px); min-height: 0 !important; height: var(--sh); padding: 4px 8px !important; font-size: 17px !important; text-align: center; display: flex; align-items: center; justify-content: center; line-height: 1.05; }
+.game.tiltmode #gas[hidden] { display: none !important; }
+.game.tiltmode.lefty #jump, .game.tiltmode.lefty #wheelie { left: var(--tl); right: auto; }
+.game.tiltmode.lefty .controls #boost, .game.tiltmode.lefty #gas { right: var(--tr); left: auto; }
+/* verticale: cruscotto e missione sopra le due isole di tasti */
+.game.tiltmode .dash { left: 14px !important; right: 14px !important; bottom: calc(var(--tp) + var(--bh) + var(--sh) + 2 * var(--gap) + 6px) !important; }
+.game.tiltmode .flashchip { bottom: calc(var(--tp) + var(--bh) + var(--sh) + 2 * var(--gap) + 58px); }
+/* orizzontale sul telefono: isole sui lati, pista libera al centro, cruscotto in mezzo in basso */
+@media (orientation: landscape) and (max-height: 520px) {
+  .game.tiltmode { --bw: 136px; --bh: 78px; --sh: 50px; --gap: 8px; --tp: 14px; --tl: max(16px, env(safe-area-inset-left, 0px)); --tr: max(16px, env(safe-area-inset-right, 0px)); }
+  .game.tiltmode .dash { left: calc(var(--tl) + var(--bw) + 34px) !important; right: calc(var(--tr) + var(--bw) + 16px) !important; bottom: 10px !important; height: auto; }
+  .game.tiltmode .flashchip { bottom: calc(var(--tp) + var(--bh) + var(--sh) + 2 * var(--gap) + 8px); left: var(--tl); }
+}
+/* iPad e tablet: le mani tengono i lati, i tasti salgono a metà-bassa altezza sui bordi */
+@media (min-width: 700px) and (min-height: 600px) {
+  .game.tiltmode { --bw: 176px; --bh: 104px; --sh: 70px; --gap: 12px; --tl: max(22px, env(safe-area-inset-left, 0px)); --tr: max(22px, env(safe-area-inset-right, 0px)); --lift: 14vh; }
+  .game.tiltmode #jump { font-size: 30px; } .game.tiltmode #wheelie { font-size: 19px; } .game.tiltmode .controls #boost { font-size: 19px; } .game.tiltmode #gas { font-size: 20px !important; }
+  .game.tiltmode .dash { left: 22px !important; right: 22px !important; bottom: 14px !important; }
+  .game.tiltmode .flashchip { bottom: calc(var(--lift) + var(--tp) + var(--bh) + var(--sh) + 2 * var(--gap) + 12px); left: var(--tl); }
+}

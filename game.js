@@ -213,6 +213,7 @@ function buzz(p) {
   lastBuzz = now; try { return navigator.vibrate(pat); } catch { return false; }
 }
 let tiltOn = false, tiltSteer = 0, tiltZero = null, tiltRaw = 0;
+let lefty = false; try { lefty = localStorage.getItem('edt-lefty') === '1'; } catch {}   // v114 · tasti invertiti per i mancini
 try { const st = localStorage.getItem('edt-tilt'); tiltOn = st === '1' || (st === null && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)); } catch {}
 // v108.9 · sterzo inclinando = modo principale su telefono e tablet: si riaccende una volta per tutti (si spegne sempre dalla pausa)
 try { if (!localStorage.getItem('edt-tilt-v2') && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)) { localStorage.setItem('edt-tilt-v2', '1'); localStorage.setItem('edt-tilt', '1'); tiltOn = true; } } catch {}   // v101.1 · sul telefono si sterza inclinando di serie (chi l'ha spento resta senza)
@@ -424,6 +425,7 @@ function fixPanel() {
 }
 function hud() {
   fixPanel();
+  { const g = $('game'), tm = touchDevice && tiltOn; if (g.classList.contains('tiltmode') !== tm) g.classList.toggle('tiltmode', tm); if (g.classList.contains('lefty') !== lefty) g.classList.toggle('lefty', lefty); }   // v114 · tasti per i pollici
   const s = Math.floor(score);
   if (s !== shownScore) {
     $('score').textContent = String(s).padStart(5, '0');
@@ -701,6 +703,7 @@ function perfHud(force) {
   const n = perfT.n || 1, js = perfT.js / n, gl = perfT.gl / n, frameMs = r.fps ? 1000 / r.fps : 0; perfT.js = perfT.gl = perfT.n = 0;
   el.textContent = `${r.fps} FPS · picco ${r.worst} ms · scatti ${r.hitches} · Q${r.q}${r.lite ? ' leggera' : ''} · ×${r.pr} · ${r.calls} oggetti · JS ${js.toFixed(1)} · 3D ${gl.toFixed(1)} · resto ${Math.max(0, frameMs - js - gl).toFixed(0)} ms · ${innerWidth}×${innerHeight}@${devicePixelRatio}`;
 }
+const leftyLabel = () => '👆 SALTA A ' + (lefty ? 'SINISTRA' : 'DESTRA');
 function pause() {
   if (state === 'playing' || state === 'countdown') {
     gas = false; A.stopVoice(); A.engineStop(); A.musicStop();
@@ -712,10 +715,12 @@ function pause() {
       <div class="pausegrid"><button class="secondary" id="musictoggle" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
       ${touchDevice ? `<button class="secondary" id="tiltpause" type="button">📱 INCLINA: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}
       <button class="secondary" id="litepause" type="button">${liteLabel()}</button>
+      ${touchDevice ? `<button class="secondary" id="leftypause" type="button">${leftyLabel()}</button>` : ''}
       <button class="secondary" id="advpause" type="button">AVANZATE ›</button>
       <div class="pauseadv" id="pauseadv" hidden><button class="secondary" id="perfpause" type="button">${perfLabel()}</button>
       <button class="secondary" id="diagpause" type="button">TEST FLUIDITÀ (25 s)</button></div>
       <button class="secondary" id="quit">ABBANDONA IL GIRO</button><button class="secondary" id="exitgame" type="button">ESCI DAL GIOCO</button></div>`;
+    if ($('leftypause')) $('leftypause').onclick = () => { lefty = !lefty; try { localStorage.setItem('edt-lefty', lefty ? '1' : '0'); } catch {} $('leftypause').innerHTML = iconize(leftyLabel()); hud(); };
     $('advpause').onclick = () => { const a = $('pauseadv'); a.hidden = !a.hidden; $('advpause').textContent = a.hidden ? 'AVANZATE ›' : 'AVANZATE ‹'; };   // v112 · strumenti tecnici nascosti
     $('resume').onclick = pause;
     $('musictoggle').onclick = () => { A.setMusic(!A.isMusicOn()); $('musictoggle').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'); };
@@ -1054,6 +1059,12 @@ canvas.addEventListener('pointerdown', e => {
   // v44 · Touch più sensibile: tocca a sinistra/destra = corsia subito; trascina il dito = una corsia ogni ~1 cm
   // (anche più corsie di fila, senza staccare il dito); scorri in su = salto immediato; tocco al centro = salto.
   if (state !== 'playing') return;
+  if (touchDevice && tiltOn && !(flat || sandStuck || stalled)) {   // v114 · dito appena fuori da un tasto: conta come quel tasto
+    let best = null, bd = 30;
+    for (const id of ['jump', 'wheelie', 'boost', 'gas']) { const b = $(id); if (!b || b.hidden || !b.offsetParent) continue; const q = b.getBoundingClientRect();
+      const d = Math.hypot(Math.max(q.left - e.clientX, 0, e.clientX - q.right), Math.max(q.top - e.clientY, 0, e.clientY - q.bottom)); if (d < bd) { bd = d; best = b; } }
+    if (best) { e.preventDefault(); if (best.id === 'boost' && best.disabled) return; best.onpointerdown?.(e); return; }
+  }
   if (flat || sandStuck || stalled) { hop(); return; }   // v109 · forato o insabbiato: ogni tocco sullo schermo è una spinta / un pezzo del lavoro
   const r = canvas.getBoundingClientRect(), u = (e.clientX - r.left) / r.width;
   // v50 · guida libera: tieni il dito a sinistra/destra = sterzi finché tieni; trascina = la moto segue il dito
