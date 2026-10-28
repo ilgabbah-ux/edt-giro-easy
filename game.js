@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=109.2';
-import { createWorld } from './scene3d.js?v=109.2';
-import * as A from './audio.js?v=109.2';
-import * as P from './progress.js?v=109.2';
-import { createMud } from './mudfx.js?v=109.2';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=109.2';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=109.2';
-import * as C from './classifica.js?v=109.2';
-import * as D from './duel.js?v=109.2';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
+import { createWorld } from './scene3d.js?v=35a8ead8';
+import * as A from './audio.js?v=3501fd57';
+import * as P from './progress.js?v=554b9dd4';
+import { createMud } from './mudfx.js?v=ae45cf9e';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=1bfbf87a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=e39ba266';
+import * as C from './classifica.js?v=204cc127';
+import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=109.2').then(m => {
+import('./piloti.js?v=8bcd4edd').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -274,7 +274,7 @@ document.querySelectorAll('.howvideo video').forEach(v => { v.addEventListener('
 setInterval(() => {   // v66 · il pulsante del menu mostra se il telefono manda l'inclinazione
   const b = document.getElementById('tiltmenu'); if (!b || !b.offsetParent) return;
   const live = performance.now() - tiltSeen < 1200;
-  b.textContent = '📱 STERZO INCLINANDO: ' + (tiltOn ? 'SÌ' + (live ? ' · ' + Math.round(tiltRaw) + '°' : ' · NESSUN SEGNALE') : 'NO');
+  b.innerHTML = iconize('📱 STERZO INCLINANDO: ' + (tiltOn ? 'SÌ' + (live ? ' · ' + Math.round(tiltRaw) + '°' : ' · NESSUN SEGNALE') : 'NO'));
 }, 300);
 async function setTilt(on) {
   if (on && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -448,7 +448,7 @@ function hud() {
   $('gas').hidden = !needGas;
   $('gas').classList.toggle('held', gas);
   $('gas').setAttribute('aria-pressed', String(gas));
-  $('gas').textContent = stalled || (desert && sandStuck) ? 'SPINGI! TOCCA TOCCA' : desert && flat ? 'FORATO' : desert && (routeAt(course, roadTime * 19.5).climb > .3) && !gas ? 'GAS O TI INSABBI' : ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? '🔒 GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
+  $('gas').textContent = stalled || (desert && sandStuck) ? 'SPINGI! TOCCA TOCCA' : desert && flat ? 'FORATO' : desert && (routeAt(course, roadTime * 19.5).climb > .3) && !gas ? 'GAS O TI INSABBI' : ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? 'GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
   $('gas').classList.toggle('locked', gasLock);
   { const warn = tractOn && state === 'playing' && !stalled && (grip > .94 || grip < .2); $('gas').classList.toggle('warn', warn); if (tractOn && state === 'playing' && !stalled) $('gas').textContent = grip > .94 ? 'PATTINA: MOLLA!' : grip < .2 ? 'DAI GAS!' : gas ? 'COSÌ! DOSA' : 'GAS'; }
   { const tb = $('tractbox'); if (tb) { tb.hidden = !(tractOn && state === 'playing'); if (!tb.hidden) { tb.style.setProperty('--g', grip.toFixed(3)); tb.className = 'tractbox ' + (stalled ? 'stall' : grip > .94 ? 'spin' : grip < .12 ? 'low' : grip >= .28 && grip <= .84 ? 'ok' : ''); tb.querySelector('b').textContent = stalled ? 'SPINGI!' : grip > .94 ? 'PATTINA' : grip < .12 ? 'SI PIANTA' : grip >= .28 && grip <= .84 ? 'TRAZIONE' : 'GAS'; } } }
@@ -607,6 +607,7 @@ function finish(win, reason = '') {
   if (ice) endDrift(true);
   const timeBonus = win && !leap ? Math.round((timeLimit - elapsed) * (ice ? 40 : 100)) : 0;
   if (win) score += lives * 250 + timeBonus;
+  checkDailyGoal(win);
   if (leap) score = win ? Math.round(leapBest * 100) + (leapPerfect ? 500 : 0) + 7 : 0;   // v67 · il 7 finale segna i punteggi col salto in metri nel campo tempo   // v59 · al Taglio di Angelo conta solo il salto: 100 punti a metro (+500 stacco perfetto)
   run.timeLeft = win ? Math.floor(timeLimit - elapsed) : 0;
   run.finishTime = win ? elapsed : 0;
@@ -2453,8 +2454,8 @@ function startReplay(rec = false) {
   if (rec && !replay.rec) { replay = null; toast('📵 QUESTO TELEFONO NON SA REGISTRARE IL VIDEO', 'red'); return; }
   $('overlay').classList.add('hidden');
   const b = $('replaybar'); b.hidden = false; b.classList.toggle('rec', !!rec);
-  $('rpslow').hidden = !!rec; $('rpslow').textContent = '🐢 RALLENTA';
-  $('rplabel').textContent = rec ? '● REC' : '🎬 REPLAY';
+  $('rpslow').hidden = !!rec; $('rpslow').innerHTML = iconize('🐢 RALLENTA');
+  $('rplabel').innerHTML = iconize(rec ? '● REC' : '🎬 REPLAY');
   A.sfx.click?.();
 }
 function replayStep(dt) {
@@ -2668,7 +2669,7 @@ document.addEventListener('click', e => {
   if (id === 'replaybtn') startReplay(false);
   else if (id === 'replayvid') startClip();
   else if (id === 'rpclose') { if (clip) endClip(true); else endReplay(true); }
-  else if (id === 'rpslow' && replay) { replay.speed = replay.speed === 1 ? .4 : 1; $('rpslow').textContent = replay.speed === 1 ? '🐢 RALLENTA' : '▶ VELOCITÀ NORMALE'; }
+  else if (id === 'rpslow' && replay) { replay.speed = replay.speed === 1 ? .4 : 1; $('rpslow').innerHTML = iconize(replay.speed === 1 ? '🐢 RALLENTA' : '▶ VELOCITÀ NORMALE'); }
 });
 
 function frame(t) {
@@ -2808,6 +2809,7 @@ function renderReady() {
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : (A.STYLES[mode] || A.STYLES[0]).name}</small></span>${icon('chevrons')}</button>
     <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
     ${dailyChipHTML()}
+    ${goalChipHTML()}
     ${P.MODES[mode].leap ? '' : derbyChipHTML()}
     ${C.enabled() ? '<div class="potw" id="potw" hidden></div><button class="rivalbar" id="rivalbar" type="button" hidden></button>' : ''}
     ${C.enabled() ? '<button class="cupbar" id="cupbar" type="button" hidden><span class="cupi">🏆</span><span class="cupt"><small>COPPA DELLA SETTIMANA</small><b id="cuplead">…</b><em id="cupme"></em></span><span class="cupx" id="cupprev"></span></button>' : ''}
@@ -2837,8 +2839,8 @@ function renderReady() {
   $('openshop').onclick = () => renderShop(renderReady);
   $('opengarage').onclick = () => { A.sfx.click(); showHub('garage'); const sec = document.querySelector('[data-hub="garage"]'); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   $('alltracks').onclick = () => { A.sfx.click(); renderTracks(renderReady); };
-  if ($('vibramenu')) $('vibramenu').onclick = () => { hapticOn = !hapticOn; try { localStorage.setItem('edt-vibra', hapticOn ? '1' : '0'); } catch {} $('vibramenu').textContent = '📳 VIBRAZIONE: ' + (hapticOn ? 'SÌ' : 'NO'); $('vibramenu').classList.toggle('on', hapticOn); if (hapticOn) buzz([40, 50, 40]); };
-  if ($('tiltmenu')) $('tiltmenu').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltmenu').textContent = '📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO'); $('tiltmenu').classList.toggle('on', on); if (on) toast('📱 INCLINA IL TELEFONO A DESTRA E SINISTRA PER STERZARE', 'green'); };
+  if ($('vibramenu')) $('vibramenu').onclick = () => { hapticOn = !hapticOn; try { localStorage.setItem('edt-vibra', hapticOn ? '1' : '0'); } catch {} $('vibramenu').innerHTML = iconize('📳 VIBRAZIONE: ' + (hapticOn ? 'SÌ' : 'NO')); $('vibramenu').classList.toggle('on', hapticOn); if (hapticOn) buzz([40, 50, 40]); };
+  if ($('tiltmenu')) $('tiltmenu').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltmenu').innerHTML = iconize('📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO')); $('tiltmenu').classList.toggle('on', on); if (on) toast('📱 INCLINA IL TELEFONO A DESTRA E SINISTRA PER STERZARE', 'green'); };
   $('musicmenu').onclick = () => {
     A.unlock(); A.setMusic(!A.isMusicOn()); $('musicmenu').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO');
     if (A.isMusicOn()) A.menuMusic(); else A.musicStop();   // v109 · nel menu la canzone resta in sottofondo
@@ -2892,6 +2894,13 @@ function iceTable(win) {
   return `<br>❄ <b>${run.position}° su ${rows.length}</b> nella gara di derapate${run.position === 1 && win ? ' · re del ghiaccio +500' : ''}<span class="icetable">${rows.map((r, i) => `<span class="${r.me ? 'me' : ''}"><i>${i + 1}°</i>${r.n}<b>${r.d.toLocaleString('it-IT')}</b></span>`).join('')}</span>`;
 }
 // v107.6 · risultati: MENU e UN ALTRO GIRO sempre in alto (su tablet i bottoni in fondo restavano fuori schermo)
+// v109.3 · OBIETTIVO DI OGGI: un tocco e sei sul percorso giusto
+document.addEventListener('click', e => {
+  const g = e.target.closest?.('#goalchip'); if (!g || state !== 'ready') return;
+  const m = +g.dataset.goal; A.sfx.click();
+  if (m !== mode && P.MODES[m]) { mode = m; profile.mode = mode; P.save(); renderReady(); }
+  setTimeout(() => $('start')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 50);
+});
 document.addEventListener('click', e => {
   if (state !== 'ended') return;
   if (e.target.closest('#sfidaamico')) {   // v108.8 · il gioco gira da solo: ogni giro diventa una sfida da mandare
@@ -3068,6 +3077,23 @@ function ghostChallengeHTML(sc) {
 }
 // v107.3 · Forziere del giorno: al primo giro di ogni giorno birre gratis, di più se torni tutti i giorni di fila
 const dotsHTML = (n, now = 0) => `<span class="chdots">${P.CHEST.map((b, i) => `<i class="${i < n ? 'on' : ''} ${i === now - 1 ? 'now' : ''}" title="giorno ${i + 1}: +${b}"><u>${i + 1}</u></i>`).join('')}</span>`;
+// v109.3 · OBIETTIVO DI OGGI: un percorso e un tempo da battere, uguali per tutti nello stesso giorno (+30 birre)
+function dailyGoal() {
+  const lvl = P.levelInfo().level, list = P.SHOWN().filter(m => P.isUnlocked(m, lvl) && !m.leap && !m.ice && !m.random && !m.desert && m.id !== 3);
+  if (!list.length) return null;
+  const k = P.todayKey(), md = list[(k * 7 + 3) % list.length];
+  const t = Math.round(md.limit * (.8 + ((k % 5) * .02)));
+  return { m: md.id, t, name: md.name, done: P.profile.goalDay === k, beers: 30 };
+}
+function goalChipHTML() {
+  const g = dailyGoal(); if (!g) return '';
+  return `<button class="goalchip ${g.done ? 'done' : ''}" id="goalchip" type="button" data-goal="${g.m}"><span class="chi">🎯</span><span class="cht"><small>OBIETTIVO DI OGGI</small><b>${g.done ? 'Fatto! Domani ce n’è un altro' : `Arriva al rifugio su ${g.name} in meno di ${g.t} s`}</b><em>${g.done ? `+${g.beers} 🍺 presi` : `+${g.beers} 🍺 · tocca per andarci`}</em></span></button>`;
+}
+function checkDailyGoal(win) {
+  const g = dailyGoal(); if (!g || g.done || !win || mode !== g.m || leap || elapsed > g.t) return;
+  P.profile.goalDay = P.todayKey(); P.profile.beers += g.beers; P.save();
+  setTimeout(() => toast(`🎯 OBIETTIVO DI OGGI FATTO: +${g.beers} 🍺`, 'gold'), 1800);
+}
 function dailyChipHTML() {
   const d = P.dailyInfo(), shirt = P.LIVERIES.find(l => l.streak), needShirt = shirt && !P.liveryOpen(shirt);
   const sub = d.done ? `Preso! Torna domani: <b>+${P.CHEST[Math.min(d.next + 1, P.CHEST.length) - 1]} 🍺</b>` : `Fai un giro oggi e prendi <b>+${d.beers} 🍺</b>`;
@@ -3185,7 +3211,7 @@ function waBrag(d, runInfo, nick, beforeList) {
   const text = pos === 1 ? `👑 ${nick} ha appena preso il 1° posto su ${trackName(runInfo.mode)} a Giro Easy con ${pts} punti! ${v}, sei dietro: vieni a riprendertelo 👉 ${publicGameURL}`
     : `🏁 ${nick} ha superato ${passed.join(', ')} su ${trackName(runInfo.mode)} a Giro Easy: ora è ${pos}° con ${pts} punti. Chi lo ferma? 👉 ${publicGameURL}`;
   const a = document.createElement('a'); a.className = 'wabtn'; a.href = waLink(text); a.target = '_blank'; a.rel = 'noopener';
-  a.textContent = `📲 DILLO AL GRUPPO: HAI SUPERATO ${v.toUpperCase()}${passed.length > 1 ? ' E ALTRI ' + (passed.length - 1) : ''}`;
+  a.innerHTML = iconize(`📲 DILLO AL GRUPPO: HAI SUPERATO ${String(v).toUpperCase().replace(/[&<>"]/g, "")}${passed.length > 1 ? ' E ALTRI ' + (passed.length - 1) : ''}`);
   $('groupres').appendChild(a);
   myPositions(d, true);
 }
@@ -3214,10 +3240,11 @@ function checkOvertakes(d) {
   const nick = C.getNick();
   const text = hit.who ? `😤 ${hit.who} mi ha superato su ${trackName(hit.m)} a Giro Easy… goditela finché dura, me lo riprendo! 👉 ${publicGameURL}` : `😤 Mi hanno buttato fuori dai primi 10 su ${trackName(hit.m)} a Giro Easy. Non finisce qui! 👉 ${publicGameURL}`;
   const el = document.createElement('div'); el.className = 'overtake'; el.id = 'overtake';
-  el.innerHTML = `<button class="ox" type="button" id="otx" aria-label="Chiudi">✕</button>
-    <p>😱 ${hit.who ? `<b>${hit.who}</b> ti ha superato` : 'Sei uscito dai primi 10'} su <b>${trackName(hit.m)}</b></p>
-    <small>${hit.pos ? `Ora sei ${hit.pos}° nella classifica del gruppo.` : 'Torna in classifica!'}</small>
-    <div class="orow"><a class="wabtn" href="${waLink(text)}" target="_blank" rel="noopener">📲 RISPONDI NEL GRUPPO</a><button class="primary" type="button" id="otgo"><span>▶ RIPRENDITELO</span></button></div>`;
+  const edt = C.isEdt();   // v109.3 · per chi gioca nella classifica di tutti: niente "gruppo"
+  el.innerHTML = iconize(`<button class="ox" type="button" id="otx" aria-label="Chiudi">✕</button>
+    <p>😱 ${hit.who ? `<b>${String(hit.who).replace(/[&<>"]/g, '')}</b> ti ha superato` : 'Sei uscito dai primi 10'} su <b>${trackName(hit.m)}</b></p>
+    <small>${hit.pos ? `Ora sei ${hit.pos}° nella ${edt ? 'classifica del gruppo' : 'classifica di tutti'}.` : 'Torna in classifica!'}</small>
+    <div class="orow"><a class="wabtn" href="${waLink(text)}" target="_blank" rel="noopener">📲 ${edt ? 'RISPONDI NEL GRUPPO' : 'DILLO AGLI AMICI'}</a><button class="primary" type="button" id="otgo"><span>▶ RIPRENDITELO</span></button></div>`);
   topLayer().appendChild(el);
   $('otx').onclick = () => el.remove();
   $('otgo').onclick = () => { el.remove(); if (P.isUnlocked(P.MODES[hit.m])) { mode = hit.m; profile.mode = mode; P.save(); renderReady(); } };
@@ -3428,7 +3455,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 109.2;
+const GAME_VERSION = 109.3;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

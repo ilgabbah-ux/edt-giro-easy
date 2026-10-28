@@ -66,6 +66,47 @@ const P = {
   heart: '<path class="f" d="M12 20.3S3.5 15 3.5 9.1A4.4 4.4 0 0 1 12 7.2a4.4 4.4 0 0 1 8.5 1.9C20.5 15 12 20.3 12 20.3z"/>',
   chapel: '<path d="M12 2.5v4M10.3 4.2h3.4M5 21V12l7-5 7 5v9z"/><path class="f" d="M10 21v-4.5a2 2 0 0 1 4 0V21z"/>',
   tractor: '<circle cx="7" cy="16.5" r="4"/><circle cx="18" cy="18" r="2.5"/><path d="M4.5 12.5V6h6l2 6.5h7V16M11 16.5h4.5M15 12.5V9h3"/><circle class="f" cx="7" cy="16.5" r="1.2"/>',
+  // v109.3 · icone per le emoji che restavano (medaglie, animali, meteo, duello…)
+  medal1: '<path d="M8 2.5h3l1 4M16 2.5h-3"/><circle cx="12" cy="14.5" r="6.5"/><circle cx="12" cy="14.5" r="4.2" fill="#ffcf16" stroke="none"/>',
+  medal2: '<path d="M8 2.5h3l1 4M16 2.5h-3"/><circle cx="12" cy="14.5" r="6.5"/><circle cx="12" cy="14.5" r="4.2" fill="#c9ced3" stroke="none"/>',
+  medal3: '<path d="M8 2.5h3l1 4M16 2.5h-3"/><circle cx="12" cy="14.5" r="6.5"/><circle cx="12" cy="14.5" r="4.2" fill="#cd7f45" stroke="none"/>',
+  swords: '<path d="M4 3.5l9.5 9.5M20 3.5L10.5 13M4 3.5h3.5M4 3.5V7M20 3.5h-3.5M20 3.5V7"/><path d="M11 14.5l-4 4M13 14.5l4 4M5.5 16.5l2 2M18.5 16.5l-2 2"/>',
+  megaphone: '<path d="M3.5 10v4h3l9 5V5l-9 5z"/><path d="M6.5 14l1.4 5h2.4l-1-4.4M18.5 9.5a3.5 3.5 0 0 1 0 5"/>',
+  ruler: '<rect x="2.5" y="8" width="19" height="8" rx="1.2"/><path d="M6 8v3M9.5 8v4.5M13 8v3M16.5 8v4.5"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path class="f" d="M7 13h3v3H7z"/>',
+  film: '<rect x="3" y="6" width="13" height="12" rx="1.5"/><path d="M16 10.5l5-3v9l-5-3z"/>',
+  palette: '<path d="M12 3a9 9 0 0 0 0 18c1.6 0 1.9-1.2 1.3-2.3-.7-1.3.1-2.7 1.6-2.7H17a4 4 0 0 0 4-4c0-5-4-9-9-9z"/><path class="f" d="M7.5 11a1.2 1.2 0 1 0 0 .01zM10 7a1.2 1.2 0 1 0 0 .01zM14.5 7a1.2 1.2 0 1 0 0 .01z"/>',
+  hand: '<path d="M9 12V4.5a1.5 1.5 0 0 1 3 0V11M12 10.5V9a1.5 1.5 0 0 1 3 0v2M15 11a1.5 1.5 0 0 1 3 0v3.5a7 7 0 0 1-7 7c-2.5 0-4-1.2-5.4-3.2L4 15.6a1.5 1.5 0 0 1 2.4-1.7L9 16"/>',
+  nophone: '<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M4 4l16 16"/>',
+  back: '<path d="M10 6l-6 6 6 6M4.5 12H20"/>',
+  shuffle: '<path d="M3.5 7h3.5c4.5 0 5.5 10 10 10H20M3.5 17h3.5c1.8 0 3-1.6 4-3.5M13 9.5c1-1.5 2.2-2.5 4-2.5H20M17.5 4.5 20 7l-2.5 2.5M17.5 14.5 20 17l-2.5 2.5"/>',
+  paw: '<path class="f" d="M12 12.5c-2.8 0-5.5 3.6-5.5 5.6 0 1.6 1.3 2.4 2.7 2.4 1.2 0 1.8-.7 2.8-.7s1.6.7 2.8.7c1.4 0 2.7-.8 2.7-2.4 0-2-2.7-5.6-5.5-5.6z"/><circle cx="6" cy="10" r="1.9"/><circle cx="9.6" cy="6" r="1.9"/><circle cx="14.4" cy="6" r="1.9"/><circle cx="18" cy="10" r="1.9"/>',
+  cloud: '<path d="M7 18.5a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6A3.8 3.8 0 0 1 17.5 18.5z"/>',
+  rain: '<path d="M7 14.5a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6A3.8 3.8 0 0 1 17.5 14.5z"/><path d="M8 17.5l-1 3M12 17.5l-1 3M16 17.5l-1 3"/>',
+  sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8M18.7 18.7l-1.8-1.8M7.1 7.1 5.3 5.3"/>',
+  moon: '<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/>',
+  tree: '<path d="M12 2.5l5.5 7h-3l4.5 6.5H5l4.5-6.5h-3z"/><path d="M12 16v5.5"/>',
+  siren: '<path d="M6.5 18v-6a5.5 5.5 0 0 1 11 0v6"/><path d="M4.5 18h15v3h-15zM12 2.5v2M4.2 5.2l1.4 1.4M19.8 5.2l-1.4 1.4"/>',
+  home: '<path d="M3.5 11 12 3.5l8.5 7.5"/><path d="M5.5 9.5V20.5h13V9.5"/><path class="f" d="M10 20.5v-5h4v5z"/>',
+  road: '<path d="M8 3 4 21M16 3l4 18"/><path d="M12 4v3M12 10v4M12 17v4"/>',
+  heli: '<path d="M3 5h18M12 5v3"/><path d="M6 12a4 4 0 0 1 4-4h5a4 4 0 0 1 0 8h-5a4 4 0 0 1-4-4z"/><path d="M3 12h3M9 16l-1 3M15 16l1 3M6.5 19h11"/>',
+  drop2: '<path d="M12 2.8c3.3 4.7 6.3 8 6.3 11.4a6.3 6.3 0 0 1-12.6 0c0-3.4 3-6.7 6.3-11.4z"/>',
+  bang: '<path class="f" d="M12 2l1.8 5.5L19 4.8l-2.7 5.2L22 12l-5.7 2 2.7 5.2-5.2-2.7L12 22l-1.8-5.5L5 19.2l2.7-5.2L2 12l5.7-2L5 4.8l5.2 2.7z"/>',
+  save: '<path d="M4.5 3.5h12l3 3v14h-15z"/><path d="M8 3.5v5h8v-5M8 20.5v-6h8v6"/>',
+  clip: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 2.5h6v3H9zM8.5 10h7M8.5 13.5h7M8.5 17h4"/>',
+  unlock: '<rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 7.8-1.2"/>',
+  scroll: '<path d="M6 4.5h11a2 2 0 0 1 2 2V18a2.5 2.5 0 0 1-2.5 2.5H8"/><path d="M6 4.5a2 2 0 0 0-2 2v1.5h4V6.5a2 2 0 0 0-2-2zM8 8v10a2.5 2.5 0 0 1-5 0"/><path d="M11 9h5M11 12.5h5"/>',
+  shirt: '<path d="M8.5 3.5 3 6.5l2 4 2-1v11h10v-11l2 1 2-4-5.5-3a3.5 3.5 0 0 1-7 0z"/>',
+  ban: '<circle cx="12" cy="12" r="8.6"/><path d="M5.9 5.9l12.2 12.2"/>',
+  book: '<path d="M12 6.5C10 4.8 7 4.5 3.5 5v14c3.5-.5 6.5-.2 8.5 1.5 2-1.7 5-2 8.5-1.5V5c-3.5-.5-6.5-.2-8.5 1.5zM12 6.5v14"/>',
+  bulb: '<path d="M9 17.5h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.5 1 .5 1.6v2h6v-2c0-.6 0-1.2.5-1.6A6 6 0 0 0 12 3z"/>',
+  map: '<path d="M3.5 6 9 3.5l6 2.5 5.5-2.5V18L15 20.5 9 18l-5.5 2.5z"/><path d="M9 3.5V18M15 6v14.5"/>',
+  hole: '<ellipse cx="12" cy="15" rx="8.5" ry="3.5"/><path class="f" d="M12 13.2c-3.5 0-5.6.9-5.6 1.8s2.1 1.8 5.6 1.8 5.6-.9 5.6-1.8-2.1-1.8-5.6-1.8z"/>',
+  car: '<path d="M4 16v-3.5l2-5h12l2 5V16z"/><path d="M4 12.5h16"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/>',
+  climb: '<path d="M2.5 20.5 10 6l3 5 2-3 6.5 12.5z"/><path class="f" d="M15 4.5a1.5 1.5 0 1 0 0 .01z"/>',
+  face: '<circle cx="12" cy="12" r="8.6"/><path class="f" d="M9 10.2a1.1 1.1 0 1 0 0 .01zM15 10.2a1.1 1.1 0 1 0 0 .01z"/><path d="M8.5 15.2c2 1.6 5 1.6 7 0"/>',
+  heartline: '<path d="M12 20.3S3.5 15 3.5 9.1A4.4 4.4 0 0 1 12 7.2a4.4 4.4 0 0 1 8.5 1.9C20.5 15 12 20.3 12 20.3z"/>',
+  beers: '<path d="M3.5 8h8v10.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5zM12.5 8h8v10.5a1.5 1.5 0 0 1-1.5 1.5h-5a1.5 1.5 0 0 1-1.5-1.5z"/><path class="f" d="M3.5 6h8v2h-8zM12.5 6h8v2h-8z"/>',
 };
 
 export function icon(name, cls = '') {
@@ -75,6 +116,7 @@ export function icon(name, cls = '') {
 
 // Emoji → icona del gioco.
 const MAP = {
+  '🥇': 'medal1', '🏅': 'medal1', '🥈': 'medal2', '🥉': 'medal3', '⚔': 'swords', '📢': 'megaphone', '📏': 'ruler', '🗓': 'calendar', '🎬': 'film', '🎥': 'film', '🎨': 'palette', '👆': 'hand', '📵': 'nophone', '⬅': 'back', '➡': 'chevrons', '🔀': 'shuffle', '🔄': 'shuffle', '🚜': 'tractor', '🌧': 'rain', '⛈': 'rain', '🌫': 'cloud', '☀': 'sun', '🌅': 'sun', '🌇': 'sun', '🌑': 'moon', '🌲': 'tree', '🌾': 'tree', '🏔': 'mountain', '🧗': 'climb', '🚨': 'siren', '🚧': 'warn', '🚫': 'ban', '🏠': 'home', '🛖': 'home', '⛪': 'chapel', '🛣': 'road', '🚁': 'heli', '🌊': 'wave', '💥': 'bang', '💾': 'save', '📋': 'clip', '🔓': 'unlock', '📜': 'scroll', '📖': 'book', '💡': 'bulb', '🗺': 'map', '🧭': 'compass', '🕳': 'hole', '🚙': 'car', '👕': 'shirt', '📤': 'share', '🍻': 'beers', '💘': 'heartline', '⚓': 'anchor', '🚩': 'flag', '🏴': 'flag', '⛳': 'flag', '🏜': 'mountain', '🧹': 'gear', '⛸': 'snow', '🗿': 'rock', '🔱': 'crown', '🐪': 'paw', '🐷': 'paw', '🐢': 'paw', '🐄': 'paw', '🐻': 'paw', '🐔': 'paw', '🐗': 'paw', '🦌': 'paw', '🐐': 'paw', '🐆': 'paw', '🐝': 'paw', '🐂': 'paw', '🐹': 'paw', '🦬': 'paw', '😤': 'face', '😱': 'face', '🥴': 'face', '👴': 'face', '👵': 'face', '🤘': 'hand', '🍇': 'wine', '🍑': 'face', '💩': 'face',   // v109.3
   '📸': 'share', '📱': 'phone', '📲': 'phone', '📳': 'phone', '❄': 'snow', '🎵': 'speaker', '🔇': 'mute', '💪': 'bolt', '✅': 'check', '⚠': 'warn', '👉': 'chevrons', '🏍': 'wheelie',   // v109.2
   '🍺': 'beer', '🍷': 'wine', '🔥': 'flame', '💧': 'water', '🐰': 'rabbit', '🔧': 'wrench', '🎁': 'gift', '⏱': 'stopwatch',
   '👻': 'ghost', '⚡': 'bolt', '🔊': 'speaker', '🤠': 'wheelie', '🪨': 'rock', '⛰': 'mountain', '🎯': 'target', '🦘': 'spring',

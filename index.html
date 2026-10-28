@@ -26,7 +26,24 @@
 <meta name="description" content="Tranquilli, è un Giro Easy! Il gioco di enduro dell'Enduro Drinking Team: gratis dal telefono o dal computer. Crea il tuo pilota, salta i tronchi e arriva al rifugio prima del tempo.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23ffcf16'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-family='Arial' font-weight='900' font-size='34' fill='%23e3301c'%3EE%3C/text%3E%3C/svg%3E">
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=109.2">
+<link rel="stylesheet" href="style.css?v=2c4d52b5">
+<!-- v109.3 · il telefono scarica subito tutti i pezzi del gioco in parallelo, invece che uno dopo l'altro -->
+<link rel="modulepreload" href="game.js?v=5924b925">
+<link rel="modulepreload" href="scene3d.js?v=35a8ead8">
+<link rel="modulepreload" href="three.module.min.js">
+<link rel="modulepreload" href="three.core.min.js">
+<link rel="modulepreload" href="physics.js?v=adbab097">
+<link rel="modulepreload" href="audio.js?v=3501fd57">
+<link rel="modulepreload" href="progress.js?v=554b9dd4">
+<link rel="modulepreload" href="icons.js?v=e39ba266">
+<link rel="modulepreload" href="classifica.js?v=204cc127">
+<link rel="modulepreload" href="percorsi.js?v=1bfbf87a">
+<link rel="modulepreload" href="mudfx.js?v=ae45cf9e">
+<link rel="modulepreload" href="duel.js?v=db2f059d">
+<link rel="modulepreload" href="pilota3d.js?v=842708b6">
+<link rel="modulepreload" href="RoundedBoxGeometry.js">
+<link rel="modulepreload" href="GLTFLoader.js">
+<link rel="modulepreload" href="DRACOLoader.js">
 </head>
 <body>
 <div class="shell">
@@ -115,7 +132,7 @@
         </div>
       </div>
 
-      <div class="overlay" id="overlay"><button class="icon ovfull" id="ovfull" type="button" aria-label="Schermo intero" title="Schermo intero">⛶</button><div class="card" id="card"></div></div>
+      <div class="overlay" id="overlay"><button class="icon ovfull" id="ovfull" type="button" aria-label="Schermo intero" title="Schermo intero">⛶</button><div class="card" id="card"><div class="splash"><h1 class="title"><span class="t1">TRANQUILLI,</span><span class="t2">È UN GIRO <em>EASY.</em></span></h1><p class="splashsub">Sto scaldando il motore…</p><i class="splashbar"><s></s></i></div></div></div>
       <div id="confetti" class="confetti" aria-hidden="true"></div>
       <div id="mud" class="mud" aria-hidden="true"></div>
     </section>
@@ -173,6 +190,6 @@
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="game.js?v=109.2"></script>
+<script type="module" src="game.js?v=5924b925"></script>
 </body>
 </html>
