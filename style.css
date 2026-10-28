@@ -1742,7 +1742,7 @@ aside#hub { gap: 10px; }
 .diagbox small { color: #b8d8b8; }
 .diagbox .secondary { justify-self: end; }
 /* v112 · pausa pulita: niente comandi di gara né pulsante schermo intero sopra il menu; strumenti tecnici in AVANZATE */
-.game.paused .ovfull, .game.paused .controls, .game.paused #gas, .game.paused .dash, .game.paused #tipcard, .game.paused #coach { visibility: hidden; }
+.game.paused .ovfull, .game.paused .controls, .game.paused #gas, .game.paused .dash, .game.paused #tipcard, .game.paused #coach, .game.paused #flashchip { visibility: hidden; }
 .pauseadv { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .pauseadv[hidden] { display: none; }
 .pausegrid .secondary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

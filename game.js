@@ -704,7 +704,7 @@ function perfHud(force) {
 function pause() {
   if (state === 'playing' || state === 'countdown') {
     gas = false; A.stopVoice(); A.engineStop(); A.musicStop();
-    state = 'paused';
+    state = 'paused'; $('game').classList.add('paused');
     $('overlay').classList.remove('hidden'); $('coach').classList.remove('show'); $('tipcard')?.classList.remove('show');
     $('card').innerHTML = `<div class="eyebrow">SOSTA TECNICA</div><h1>ASPETTIAMO<br><em>IL GRUPPO.</em></h1>
       <p>Nessuno resta indietro.</p>
@@ -720,7 +720,7 @@ function pause() {
     $('resume').onclick = pause;
     $('musictoggle').onclick = () => { A.setMusic(!A.isMusicOn()); $('musictoggle').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'); };
     if ($('tiltpause')) $('tiltpause').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltpause').innerHTML = iconize('📱 INCLINA: ' + (on ? 'SÌ' : 'NO')); if (on) toast('📱 INCLINA IL DISPOSITIVO A DESTRA E SINISTRA PER STERZARE', 'green'); };   // v107.6 · il giroscopio si accende anche dalla pausa
-    $('quit').onclick = () => { state = 'ready'; setDisabled(false); renderReady(); };
+    $('quit').onclick = () => { state = 'ready'; $('game').classList.remove('paused'); setDisabled(false); renderReady(); };
     $('exitgame').onclick = exitGame;
     $('diagpause').onclick = () => { state = 'ready'; setDisabled(false); renderReady(); setTimeout(runDiag, 300); };   // v109.9 · il test gira con la pista che scorre dietro al menu
     $('litepause').onclick = () => { world?.setLite?.(!world.isLite()); $('litepause').innerHTML = iconize(liteLabel()); toast(world?.isLite?.() ? '⚙ GRAFICA LEGGERA: MENO OMBRE E DETTAGLI, PIÙ FLUIDO' : '✨ GRAFICA PIENA', 'green'); };   // v108
@@ -730,6 +730,7 @@ function pause() {
   } else if (state === 'paused') {
     if (touchDevice) goFull();
     state = countdown > 0 ? 'countdown' : 'playing';
+    $('game').classList.remove('paused');
     (A.setEngineProfile(P.currentBike().id), A.engineStart()); startMusic();
     $('overlay').classList.add('hidden');
     $('pause').innerHTML = icon('pause'); $('pause').setAttribute('aria-label', 'Pausa');
