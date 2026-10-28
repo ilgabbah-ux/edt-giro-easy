@@ -1789,12 +1789,12 @@ aside#hub { gap: 10px; }
 .game.tiltmode .rightctrl { display: contents !important; }
 .game.tiltmode .controls .ctrl, .game.tiltmode #gas { position: absolute !important; margin: 0 !important; transform: none !important; min-width: 0 !important; max-width: none !important; flex: none !important; box-sizing: border-box; }
 .game.tiltmode #jump { right: var(--tr); left: auto; bottom: calc(var(--tp) + var(--lift)); width: var(--BW); height: var(--BH); font-size: 25px; padding: 0 8px; }
-.game.tiltmode #wheelie { right: var(--tr); left: auto; bottom: calc(var(--tp) + var(--lift) + var(--BH) + var(--gap)); width: var(--BW); height: var(--SH); font-size: 16px; padding: 0 8px; }
+.game.tiltmode #wheelie { left: var(--tl); right: auto; bottom: calc(var(--tp) + var(--lift) + var(--BH) + var(--gap)); width: calc(var(--BW) + 18px); height: var(--SH); font-size: 16px; padding: 0 8px; }
 .game.tiltmode .controls #boost { left: var(--tl); right: auto; bottom: calc(var(--tp) + var(--lift)); width: calc(var(--BW) + 18px); height: var(--BH); font-size: 16px; padding: 0 12px; }
-.game.tiltmode #gas { left: var(--tl); right: auto; bottom: calc(var(--tp) + var(--lift) + var(--BH) + var(--gap)) !important; width: calc(var(--BW) + 18px); min-height: 0 !important; height: var(--SH); padding: 4px 8px !important; font-size: 17px !important; text-align: center; display: flex; align-items: center; justify-content: center; line-height: 1.05; }
+.game.tiltmode #gas { right: var(--tr); left: auto; bottom: calc(var(--tp) + var(--lift) + var(--BH) + var(--gap)) !important; width: var(--BW); min-height: 0 !important; height: var(--SH); padding: 4px 8px !important; font-size: 17px !important; text-align: center; display: flex; align-items: center; justify-content: center; line-height: 1.05; }
 .game.tiltmode #gas[hidden] { display: none !important; }
-.game.tiltmode.lefty #jump, .game.tiltmode.lefty #wheelie { left: var(--tl); right: auto; }
-.game.tiltmode.lefty .controls #boost, .game.tiltmode.lefty #gas { right: var(--tr); left: auto; }
+.game.tiltmode.lefty #jump, .game.tiltmode.lefty #gas { left: var(--tl); right: auto; }
+.game.tiltmode.lefty .controls #boost, .game.tiltmode.lefty #wheelie { right: var(--tr); left: auto; }
 /* verticale: cruscotto e missione sopra le due isole di tasti */
 .game.tiltmode .dash { left: 14px !important; right: 14px !important; bottom: calc(var(--tp) + var(--BH) + var(--SH) + 2 * var(--gap) + 6px) !important; }
 .game.tiltmode .flashchip { bottom: calc(var(--tp) + var(--BH) + var(--SH) + 2 * var(--gap) + 58px); }
@@ -1829,3 +1829,5 @@ aside#hub { gap: 10px; }
 .game.tiltmode .controls #boost:not(.ready) { transform: scale(.8) !important; transform-origin: 0 100%; }
 .game.tiltmode.lefty .controls #boost:not(.ready) { transform-origin: 100% 100%; }
 .game.tiltmode.boosting .controls #boost { transform: none !important; }
+
+/* v114.1 · GAS sopra SALTA (pollice destro), IMPENNA sopra TURBO (pollice sinistro) */

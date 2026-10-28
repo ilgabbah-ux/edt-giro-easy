@@ -1068,14 +1068,13 @@ canvas.addEventListener('pointerdown', e => {
     for (const id of ['jump', 'wheelie', 'boost', 'gas']) { const b = $(id); if (!b || b.hidden || !b.offsetParent) continue; const q = b.getBoundingClientRect();
       const d = Math.hypot(Math.max(q.left - e.clientX, 0, e.clientX - q.right), Math.max(q.top - e.clientY, 0, e.clientY - q.bottom)); if (d < bd) { bd = d; best = b; } }
     if (best) { e.preventDefault(); if (best.id === 'boost' && best.disabled) return; buzz(12); best.onpointerdown?.(e); return; }
-    // v115 · mezzo schermo è un tasto: lato SALTA = salto, altro lato = turbo (se carico) o gas
+    // v115 · mezzo schermo è un tasto: lato SALTA = salto, altro lato = turbo (se carico)
     const rr = canvas.getBoundingClientRect();
     if (e.clientY > rr.top + rr.height * .25) {
       e.preventDefault();
       const right = (e.clientX - rr.left) / rr.width > .5;
       if (right !== lefty) { buzz(12); hop(); return; }
       if (charge >= 100 && turbo <= 0) { buzz(18); boost(); return; }
-      if (!$('gas').hidden) { buzz(12); $('gas').onpointerdown(e); return; }
       return;
     }
   }
