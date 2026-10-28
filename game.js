@@ -3402,6 +3402,15 @@ function customCardHTML() {
   if (!c) return `<button type="button" class="rideroption customnew" id="mycustom" aria-label="Crea il tuo pilota"><span class="rc-photo rc-initials">+</span><span class="rc-bar"><b class="rc-name">CREA IL TUO</b><span class="rc-skill"><span>pilota: nome e numero</span></span></span></button>`;
   return `<button type="button" class="rideroption custom" id="mycustom" aria-pressed="${isCustom()}" aria-label="Il tuo pilota ${c.name}">${riderCardHTML(c.name, c.num - 1)}<i class="rc-edit" title="Modifica">${icon('wrench')}</i></button>`;
 }
+// v108.9 · video "come si gioca" (voce del Gabbah): a schermo sopra il gioco, si chiude toccando fuori o a fine video
+function showHowVideo() {
+  const m = document.createElement('div'); m.className = 'howmodal';
+  m.innerHTML = '<div class="howbox"><video src="img/come-si-gioca.mp4" poster="img/come-si-gioca.jpg" playsinline controls autoplay></video><button type="button" class="primary" id="howclose"><span>HO CAPITO, SI PARTE!</span></button></div>';
+  document.body.appendChild(m);
+  const close = () => { try { m.querySelector('video').pause(); } catch {} m.remove(); };
+  m.addEventListener('click', e => { if (e.target === m || e.target.closest('#howclose')) close(); });
+  m.querySelector('video').addEventListener('ended', () => setTimeout(close, 600));
+}
 // v108.6 · benvenuto per chi apre il gioco la prima volta senza conoscere l'EDT
 function renderWelcome() {
   try { localStorage.setItem('edt-welcome', '1'); } catch {}
@@ -3414,9 +3423,11 @@ function renderWelcome() {
     <ul class="wfacts"><li>${icon('pad')} Gratis, dal telefono o dal computer: niente da installare</li><li>${icon('helmet')} Corri coi piloti veri dell'Enduro Drinking Team… o crea il tuo</li><li>${icon('trophy')} Classifica online con chiunque giochi</li></ul>
     <button class="primary big" id="wcustom" type="button"><span>CREA IL TUO PILOTA</span></button>
     <button class="secondary" id="wplay" type="button">GIOCA SUBITO COI PILOTI EDT</button>
+    <button class="linkbtn wvideo" id="wvideo" type="button">▶ GUARDA COME SI GIOCA · 30 s</button>
   </div>`;
   iconizeEl($('card'));
   $('wcustom').onclick = () => { A.unlock(); A.sfx.click(); renderCustom(renderReady); };
+  $('wvideo').onclick = () => { A.sfx.click(); showHowVideo(); };
   $('wplay').onclick = () => { A.unlock(); A.sfx.click(); renderReady(); start(); };   // parte subito: il primo giro è quello guidato
 }
 function renderCustom(back) {
