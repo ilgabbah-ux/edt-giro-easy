@@ -552,7 +552,7 @@ function start() {
   if (!fsOK && isIOS && !standalone && !iosHinted && !inApp && P.profile.tutorialDone) { iosHinted = true; setTimeout(() => toast('SCHERMO INTERO: CONDIVIDI → AGGIUNGI A HOME'), 4200); }
   A.unlock(); A.stopVoice(); A.preloadExtras(); if (riderVoice()) A.preloadRider(riderVoice());
   A.preloadRivals(Object.values(RIDER_VOICE)); A.preloadSong(mode);
-  resetRun();
+  resetRun(); perfRun = null;
   state = 'countdown'; countdown = 3.2; countStep = 4; holePre = holeDone = false;
   { const tc = $('tipcard'), nb = (P.profile.totals?.runs || 0) < 3 && !C.isEdt();   // v108.8 · nei primi giri di chi arriva da fuori: i comandi a colpo d'occhio mentre parte il via
     if (tc) { tc.innerHTML = nb ? `<small>COME SI GUIDA</small>${touchDevice ? (tiltOn ? '<b>Inclina il telefono</b> a sinistra/destra per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare' : 'Dito a <b>sinistra/destra</b> per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare') : '<b>← →</b> per sterzare · <b>SPAZIO</b> per saltare i tronchi · <b>↓</b> impenna · <b>B</b> turbo'}<br>Prendi le birre e arriva al rifugio prima del tempo!` : ''; tc.classList.toggle('show', nb); } }
@@ -657,7 +657,11 @@ function finish(win, reason = '') {
 const liteLabel = () => '⚙ GRAFICA LEGGERA: ' + (world?.isLite?.() ? 'SÌ' : 'NO');
 const perfLabel = () => '⏱ CONTATORE FLUIDITÀ: ' + (perfOn ? 'SÌ' : 'NO');
 let perfOn = false, perfAt = 0, pausedDrawn = false;
-const perfT = { js: 0, gl: 0, n: 0 };   // v109.6 · tempo per fotogramma: logica del gioco (JS) e disegno 3D try { perfOn = localStorage.getItem('edt-perf') === '1'; } catch {}
+const perfT = { js: 0, gl: 0, n: 0 };
+// v109.6 · riepilogo di fluidità del giro (col contatore acceso): si mostra nella schermata dei risultati
+let perfRun = null;
+const perfRunReset = () => { perfRun = { n: 0, ms: 0, js: 0, gl: 0, hitch: 0, worst: 0, secN: 0, secMs: 0, minFps: 999, lastT: 0 }; };
+try { perfOn = localStorage.getItem('edt-perf') === '1'; } catch {}
 function perfHud(force) {
   const el = $('perfhud'); if (!el) return;
   el.hidden = !perfOn; if (!perfOn || !world?.perfInfo) return;
@@ -2693,7 +2697,9 @@ function frame(t) {
   const pb = performance.now();
   if (state !== 'paused' || !pausedDrawn) draw();   // v109.6 · in pausa la scena è ferma: basta disegnarla una volta
   pausedDrawn = state === 'paused';
-  if (perfOn) { const pc = performance.now(); perfT.js += pb - pa; perfT.gl += pc - pb; perfT.n++; perfHud(); }
+  if (perfOn) { const pc = performance.now(); perfT.js += pb - pa; perfT.gl += pc - pb; perfT.n++; perfHud();
+    if (state === 'playing') { if (!perfRun) perfRunReset(); const R = perfRun; if (R.lastT) { const fd = pa - R.lastT; if (fd < 1000) { R.n++; R.ms += fd; R.js += pb - pa; R.gl += pc - pb; if (fd > 50) R.hitch++; if (fd > R.worst) R.worst = fd; R.secN++; R.secMs += fd; if (R.secMs >= 1000) { R.minFps = Math.min(R.minFps, R.secN * 1000 / R.secMs); R.secN = 0; R.secMs = 0; } } } R.lastT = pa; }
+    else if (perfRun) perfRun.lastT = 0; }
   requestAnimationFrame(frame);
 }
 
@@ -2935,15 +2941,20 @@ document.addEventListener('click', e => {
 });
 // v109.4 · chi arriva da fuori, nei primi giri: niente battute EDT che non può capire
 const freshPlayer = () => !C.isEdt() && (P.profile.totals?.runs || 0) <= 3;
+function perfRunHTML() {   // v109.6 · numeri della fluidità del giro appena fatto (solo col contatore acceso)
+  const R = perfRun; perfRun = null; if (!perfOn || !R || R.n < 30) return '';
+  const fps = Math.round(R.n * 1000 / R.ms), q = world?.perfInfo ? world.perfInfo() : {};
+  return `<div class="perfrun"><b>FLUIDITÀ DEL GIRO</b> ${fps} FPS medi · minimo ${R.minFps === 999 ? fps : Math.round(R.minFps)} · scatti ${R.hitch} su ${R.n} fotogrammi · picco ${Math.round(R.worst)} ms<br>JS ${(R.js / R.n).toFixed(1)} ms · 3D ${(R.gl / R.n).toFixed(1)} ms · resto ${Math.max(0, R.ms / R.n - R.js / R.n - R.gl / R.n).toFixed(1)} ms · Q${q.q ?? '?'}${q.lite ? ' leggera' : ''} · ×${q.pr ?? '?'} · ${q.calls ?? '?'} oggetti · ${innerWidth}×${innerHeight}@${devicePixelRatio} · v${GAME_VERSION}</div>`;
+}
 function renderResult(win, res, reason = '', timeBonus = 0) {
-  const fresh = freshPlayer();
+  const fresh = freshPlayer(), perfBox = perfRunHTML();
   const rank = win ? (score >= 30000 ? 'LEGGENDA EDT' : score >= 15000 ? 'MANICO DEL GIORNO' : 'MISSIONE COMPIUTA') : 'GIRO DIVERSAMENTE EASY';
   const md = P.MODES[mode];
   const xpTotal = res.scoreXp + res.missionsXp;
   $('overlay').classList.remove('hidden');
   setMenu(true);
   $('card').innerHTML = `
-    <div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button><button class="resagain" id="resagain" type="button">UN ALTRO GIRO ›</button></div>${C.isEdt() ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
+    ${perfBox}<div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button><button class="resagain" id="resagain" type="button">UN ALTRO GIRO ›</button></div>${C.isEdt() ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
     <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
     <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${leap ? (win ? `${leapBest.toFixed(1).replace('.', ',')} METRI<br><em>IN PIEDI!</em>` : 'SALTO<br><em>NULLO.</em>') : gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : fresh ? 'PER UN<br><em>PELO!</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
@@ -3961,7 +3972,7 @@ if (/debug/.test(location.hash)) {
 }
 
 // Aggancio per i test automatici (non usato dal gioco).
-window.__edt = { get state() { return state; }, puncture() { puncture(); hud(); }, card(fmt) { return scoreCard(true, { isRecord: true }, fmt); }, get cornerLine() { return cornerLine; }, get rb() { return curBend(); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
+window.__edt = { get state() { return state; }, get perfRun() { return perfRun; }, puncture() { puncture(); hud(); }, card(fmt) { return scoreCard(true, { isRecord: true }, fmt); }, get cornerLine() { return cornerLine; }, get rb() { return curBend(); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get flat() { return flat; }, get sandStuck() { return sandStuck; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, get runPlan() { return runPlan; }, get forkPath() { return forkPath; }, replay: startReplay, recFake() { pushSnap(drawState(), 1 / 30); }, get highlights() { return highlights.map(h => ({ label: h.label, w: Math.round(h.w), n: h.frames.length })); }, startClip, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
 

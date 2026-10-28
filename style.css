@@ -1732,3 +1732,5 @@ aside#hub { gap: 10px; }
   .tipcard, .tipcard.show { left: 14px; top: 64px; width: min(270px, 38vw); transform: none; }
   .trackintro { left: 69%; width: min(56%, 440px); }
 }
+.perfrun { margin: 0 0 10px; padding: 8px 10px; font: 700 12px/1.45 ui-monospace, Menlo, monospace; color: #e8ffe8; background: #0b1a0bf0; border: 1px solid #3fd06b; border-radius: 8px; }
+.perfrun b { color: #3fd06b; }
