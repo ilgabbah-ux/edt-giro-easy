@@ -277,7 +277,7 @@ async function runDiag() {
   const D = world.dbg, ov = $('overlay'), wasSound = A.isEnabled();
   const box = document.createElement('div'); box.className = 'diagbox'; box.innerHTML = '<b>TEST FLUIDITÀ</b><span id="diagstep">preparo…</span>'; $('game').appendChild(box);
   ov.classList.add('hidden');
-  const measure = ms => new Promise(res => { const ts = []; const t0 = performance.now(); const tick = t => { ts.push(t); if (t - t0 < ms) requestAnimationFrame(tick); else { const d = []; for (let i = 1; i < ts.length; i++) d.push(ts[i] - ts[i - 1]); d.sort((a, b) => a - b); res({ fps: Math.round((ts.length - 1) * 1000 / (ts[ts.length - 1] - ts[0])), worst: Math.round(d[d.length - 1] || 0), med: Math.round(d[Math.floor(d.length / 2)] || 0) }); } }; requestAnimationFrame(tick); });
+  const measure = ms => new Promise(res => { const ts = diagStamps = []; const t0 = performance.now(); const tick = t => { if (t - t0 < ms) requestAnimationFrame(tick); else { diagStamps = null; if (ts.length < 2) { res({ fps: 0, worst: 0, med: 0 }); return; } const d = []; for (let i = 1; i < ts.length; i++) d.push(ts[i] - ts[i - 1]); d.sort((a, b) => a - b); res({ fps: Math.round((ts.length - 1) * 1000 / (ts[ts.length - 1] - ts[0])), worst: Math.round(d[d.length - 1] || 0), med: Math.round(d[Math.floor(d.length / 2)] || 0) }); } }; requestAnimationFrame(tick); });
   const steps = [['normale', () => {}], ['senza audio', () => A.setEnabled(false)], ['terreno fermo', () => { D.noTerrain = true; }], ['terreno + scenario fermi', () => { D.noScenery = true; }], ['niente 3D', () => { diagNoDraw = true; }]];
   const out = [];
   for (const [name, set] of steps) { set(); $('diagstep').textContent = name + '…'; await measure(600); const r = await measure(4000); out.push([name, r]); }
@@ -2711,7 +2711,11 @@ document.addEventListener('click', e => {
   else if (id === 'rpslow' && replay) { replay.speed = replay.speed === 1 ? .4 : 1; $('rpslow').innerHTML = iconize(replay.speed === 1 ? '🐢 RALLENTA' : '▶ VELOCITÀ NORMALE'); }
 });
 
+let capT = 0, diagStamps = null;
 function frame(t) {
+  // v110.1 · tablet lenti: 30 fotogrammi al secondo fissi (uno ogni due aggiornamenti dello schermo) invece di un ritmo che balla
+  if (world?.isUltra?.() && !replay && !clip) { if (t - capT < 25) { requestAnimationFrame(frame); return; } capT = t; }
+  if (diagStamps) diagStamps.push(t);   // il test di fluidità conta i fotogrammi veri del gioco
   // v43 · fino a 15 fotogrammi al secondo il gioco va alla stessa velocità (prima sotto i 25 rallentava)
   const dt = Math.min(.066, (t - last) / 1000 || 0);
   last = t;
@@ -3519,7 +3523,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 110;
+const GAME_VERSION = 111;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
