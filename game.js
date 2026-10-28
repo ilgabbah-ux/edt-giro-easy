@@ -656,14 +656,16 @@ function finish(win, reason = '') {
 // v108 · pausa: grafica leggera a mano e contatore di fluidità (fotogrammi al secondo, scatti) da mandare a Claude con una foto
 const liteLabel = () => '⚙ GRAFICA LEGGERA: ' + (world?.isLite?.() ? 'SÌ' : 'NO');
 const perfLabel = () => '⏱ CONTATORE FLUIDITÀ: ' + (perfOn ? 'SÌ' : 'NO');
-let perfOn = false, perfAt = 0; try { perfOn = localStorage.getItem('edt-perf') === '1'; } catch {}
+let perfOn = false, perfAt = 0, pausedDrawn = false;
+const perfT = { js: 0, gl: 0, n: 0 };   // v109.6 · tempo per fotogramma: logica del gioco (JS) e disegno 3D try { perfOn = localStorage.getItem('edt-perf') === '1'; } catch {}
 function perfHud(force) {
   const el = $('perfhud'); if (!el) return;
   el.hidden = !perfOn; if (!perfOn || !world?.perfInfo) return;
   const now = performance.now(); if (!force && now - perfAt < 1000) return; perfAt = now;
   const r = world.perfInfo();
   el.className = 'perfhud ' + (r.fps >= 50 ? 'ok' : r.fps >= 30 ? 'mid' : 'bad');
-  el.textContent = `${r.fps} FPS · picco ${r.worst} ms · scatti ${r.hitches} · Q${r.q}${r.lite ? ' leggera' : ''} · ×${r.pr} · ${r.calls} oggetti`;
+  const n = perfT.n || 1, js = perfT.js / n, gl = perfT.gl / n, frameMs = r.fps ? 1000 / r.fps : 0; perfT.js = perfT.gl = perfT.n = 0;
+  el.textContent = `${r.fps} FPS · picco ${r.worst} ms · scatti ${r.hitches} · Q${r.q}${r.lite ? ' leggera' : ''} · ×${r.pr} · ${r.calls} oggetti · JS ${js.toFixed(1)} · 3D ${gl.toFixed(1)} · resto ${Math.max(0, frameMs - js - gl).toFixed(0)} ms · ${innerWidth}×${innerHeight}@${devicePixelRatio}`;
 }
 function pause() {
   if (state === 'playing' || state === 'countdown') {
@@ -2684,10 +2686,14 @@ function frame(t) {
   pollPad();
   if (replay) { replayStep(dt); mudFx.update(dt); requestAnimationFrame(frame); return; }
   if (clip) { clipStep(dt); mudFx.update(dt); requestAnimationFrame(frame); return; }
+  const pa = performance.now();
   update(dt);
   mudFx.update(dt);
   if (state === 'ready' || state === 'ended') roadTime += dt * .25; // il sentiero scorre piano dietro ai menu
-  draw(); if (perfOn) perfHud();
+  const pb = performance.now();
+  if (state !== 'paused' || !pausedDrawn) draw();   // v109.6 · in pausa la scena è ferma: basta disegnarla una volta
+  pausedDrawn = state === 'paused';
+  if (perfOn) { const pc = performance.now(); perfT.js += pb - pa; perfT.gl += pc - pb; perfT.n++; perfHud(); }
   requestAnimationFrame(frame);
 }
 
@@ -3474,7 +3480,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 109.5;
+const GAME_VERSION = 109.6;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
