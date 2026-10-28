@@ -1741,3 +1741,39 @@ aside#hub { gap: 10px; }
 .diagbox table { width: 100%; border-collapse: collapse; } .diagbox td { padding: 4px 6px; border-bottom: 1px solid #3fd06b33; white-space: nowrap; }
 .diagbox small { color: #b8d8b8; }
 .diagbox .secondary { justify-self: end; }
+/* v112 · pausa pulita: niente comandi di gara né pulsante schermo intero sopra il menu; strumenti tecnici in AVANZATE */
+.game.paused .ovfull, .game.paused .controls, .game.paused #gas, .game.paused .dash, .game.paused #tipcard, .game.paused #coach { visibility: hidden; }
+.pauseadv { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pauseadv[hidden] { display: none; }
+.pausegrid .secondary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* v112 · risultati: barra in alto opaca, condivisione in una riga, testo leggibile sopra la scena */
+.restop { background: #0e0f0cf2; box-shadow: 0 6px 14px #0009; }
+.sharerow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 10px; }
+.sharerow .secondary { width: 100%; margin: 0; min-height: 46px; font-size: 15px; white-space: nowrap; }
+.resulttext { background: #0b0c09cc; padding: 8px 10px; border-radius: 8px; }
+.vernote { margin: 14px 0 0; text-align: right; font: 600 11px var(--ui); color: #ffffff55; }
+/* v112 · sul telefono pulsanti abbastanza grandi per il dito (almeno 44 px) */
+@media (pointer: coarse) {
+  .hud .icon, .icon { min-width: 46px; min-height: 44px; }
+  .thnav { min-width: 40px; min-height: 52px; }
+  .buy { min-height: 44px; }
+  .boardsrc button { min-height: 44px; }
+  .linkbtn { min-height: 44px; }
+  .edtsocial a { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 14px; }
+  .copybtn, [id$="copy"] { min-height: 44px; min-width: 52px; }
+}
+/* v112 · testi del menu leggibili sopra la scena 3D */
+.card .missions, .card .tip, .card .wkhead, .card .menufoot { background: #0b0c09d9; border-radius: 8px; padding: 8px 10px; }
+.pausegrid .secondary { background: #14150fe8; }
+/* v112 · officina: schede su due righe ordinate, titoli di sezione maiuscoli */
+.shoptabs { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.shoptabs button { display: inline-flex; flex-direction: row !important; align-items: center; justify-content: center; gap: 6px; }
+.ugroup { text-transform: uppercase; }
+/* v112 · stelle della difficoltà: quelle vuote si distinguono */
+.thchips span { letter-spacing: 1px; }
+/* v112 · nome del pilota lungo: va a capo invece di essere tagliato */
+.pctext b { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; line-height: 1.05; }
+/* v112 · tablet e computer: menu e risultati più larghi, scritte più grandi */
+@media (min-width: 1000px) and (min-height: 700px) { .card { width: min(660px, 56%); } .card p, .card small { font-size: 105%; } }
+.seg { font-size: max(8px, .7vw); }
+.stoff { font-style: normal; opacity: .28; }

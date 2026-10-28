@@ -67,6 +67,10 @@ const P = {
   chapel: '<path d="M12 2.5v4M10.3 4.2h3.4M5 21V12l7-5 7 5v9z"/><path class="f" d="M10 21v-4.5a2 2 0 0 1 4 0V21z"/>',
   tractor: '<circle cx="7" cy="16.5" r="4"/><circle cx="18" cy="18" r="2.5"/><path d="M4.5 12.5V6h6l2 6.5h7V16M11 16.5h4.5M15 12.5V9h3"/><circle class="f" cx="7" cy="16.5" r="1.2"/>',
   // v109.3 · icone per le emoji che restavano (medaglie, animali, meteo, duello…)
+  scissors: '<circle cx="6.5" cy="17.5" r="3"/><circle cx="17.5" cy="17.5" r="3"/><path d="M8.6 15.4 18.5 3.5M15.4 15.4 5.5 3.5"/>',
+  keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M6 13.5h.01M9.5 13.5h.01M13 13.5h.01M16.5 13.5h.01" stroke-width="2.4"/><path d="M8 16h8"/>',
+  nose: '<path d="M12 3.5c-1 4-3.2 7.5-4.6 10.4-.9 1.9.4 3.6 2.4 3.6.8 0 1.4-.5 2.2-.5s1.4.5 2.2.5c2 0 3.3-1.7 2.4-3.6C15.2 11 13 7.5 12 3.5z"/><path d="M9.6 17.5c.4 1.6 1.3 2.6 2.4 2.6s2-1 2.4-2.6"/>',
+  download: '<path d="M12 3.5v11M7.5 10 12 14.5 16.5 10"/><path d="M4.5 15.5V19a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-3.5"/>',
   medal1: '<path d="M8 2.5h3l1 4M16 2.5h-3"/><circle cx="12" cy="14.5" r="6.5"/><circle cx="12" cy="14.5" r="4.2" fill="#ffcf16" stroke="none"/>',
   medal2: '<path d="M8 2.5h3l1 4M16 2.5h-3"/><circle cx="12" cy="14.5" r="6.5"/><circle cx="12" cy="14.5" r="4.2" fill="#c9ced3" stroke="none"/>',
   medal3: '<path d="M8 2.5h3l1 4M16 2.5h-3"/><circle cx="12" cy="14.5" r="6.5"/><circle cx="12" cy="14.5" r="4.2" fill="#cd7f45" stroke="none"/>',
@@ -116,14 +120,16 @@ export function icon(name, cls = '') {
 
 // Emoji → icona del gioco.
 const MAP = {
+  '✂': 'scissors', '⌨': 'keyboard', '⛶': 'expand', '♫': 'speaker', '📥': 'download',   // v112
   '🥇': 'medal1', '🏅': 'medal1', '🥈': 'medal2', '🥉': 'medal3', '⚔': 'swords', '📢': 'megaphone', '📏': 'ruler', '🗓': 'calendar', '🎬': 'film', '🎥': 'film', '🎨': 'palette', '👆': 'hand', '📵': 'nophone', '⬅': 'back', '➡': 'chevrons', '🔀': 'shuffle', '🔄': 'shuffle', '🚜': 'tractor', '🌧': 'rain', '⛈': 'rain', '🌫': 'cloud', '☀': 'sun', '🌅': 'sun', '🌇': 'sun', '🌑': 'moon', '🌲': 'tree', '🌾': 'tree', '🏔': 'mountain', '🧗': 'climb', '🚨': 'siren', '🚧': 'warn', '🚫': 'ban', '🏠': 'home', '🛖': 'home', '⛪': 'chapel', '🛣': 'road', '🚁': 'heli', '🌊': 'wave', '💥': 'bang', '💾': 'save', '📋': 'clip', '🔓': 'unlock', '📜': 'scroll', '📖': 'book', '💡': 'bulb', '🗺': 'map', '🧭': 'compass', '🕳': 'hole', '🚙': 'car', '👕': 'shirt', '📤': 'share', '🍻': 'beers', '💘': 'heartline', '⚓': 'anchor', '🚩': 'flag', '🏴': 'flag', '⛳': 'flag', '🏜': 'mountain', '🧹': 'gear', '⛸': 'snow', '🗿': 'rock', '🔱': 'crown', '🐪': 'paw', '🐷': 'paw', '🐢': 'paw', '🐄': 'paw', '🐻': 'paw', '🐔': 'paw', '🐗': 'paw', '🦌': 'paw', '🐐': 'paw', '🐆': 'paw', '🐝': 'paw', '🐂': 'paw', '🐹': 'paw', '🦬': 'paw', '😤': 'face', '😱': 'face', '🥴': 'face', '👴': 'face', '👵': 'face', '🤘': 'hand', '🍇': 'wine', '🍑': 'face', '💩': 'face',   // v109.3
   '📸': 'share', '📱': 'phone', '📲': 'phone', '📳': 'phone', '❄': 'snow', '🎵': 'speaker', '🔇': 'mute', '💪': 'bolt', '✅': 'check', '⚠': 'warn', '👉': 'chevrons', '🏍': 'wheelie',   // v109.2
   '🍺': 'beer', '🍷': 'wine', '🔥': 'flame', '💧': 'water', '🐰': 'rabbit', '🔧': 'wrench', '🎁': 'gift', '⏱': 'stopwatch',
   '👻': 'ghost', '⚡': 'bolt', '🔊': 'speaker', '🤠': 'wheelie', '🪨': 'rock', '⛰': 'mountain', '🎯': 'target', '🦘': 'spring',
   '🐸': 'wave', '🌀': 'scrub', '🦁': 'helmetplus', '⬇': 'downhill', '🦊': 'eye', '🧓': 'stopwatch', '🚱': 'nowater', '🚀': 'rocket',
-  '✴': 'star', '⚙': 'gear', '🪝': 'shock', '⛽': 'fuel', '🛞': 'tyre', '⛑': 'helmet', '👃': 'radar', '🔒': 'lock', '✔': 'check', '▶': 'play', '🏁': 'flag', '🏆': 'trophy', '🪵': 'log', '🎮': 'pad', '🖱': 'mouse', '🧠': 'chip', '🛡': 'shield', '🪽': 'wing', '🎒': 'pack', '🦉': 'owl', '👑': 'crown', '💎': 'gem', '✨': 'sparkle',
+  '✴': 'star', '⚙': 'gear', '🪝': 'shock', '⛽': 'fuel', '🛞': 'tyre', '⛑': 'helmet', '👃': 'nose', '🔒': 'lock', '✔': 'check', '▶': 'play', '🏁': 'flag', '🏆': 'trophy', '🪵': 'log', '🎮': 'pad', '🖱': 'mouse', '🧠': 'chip', '🛡': 'shield', '🪽': 'wing', '🎒': 'pack', '🦉': 'owl', '👑': 'crown', '💎': 'gem', '✨': 'sparkle',
 };
 const RE = new RegExp('(' + Object.keys(MAP).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\uFE0F?', 'gu');
+export const hasEmoji = t => { RE.lastIndex = 0; return RE.test(t); };   // v112
 export function iconize(html) { return String(html).replace(RE, (m, e) => icon(MAP[e])); }
 export function iconName(emoji) { return MAP[String(emoji).replace('️', '')] || ''; }
 
