@@ -66,7 +66,10 @@ function ensure() {
     loadRealEngine();
     // v106.2 · tornando nel gioco (cambio app, schermo spento) l'audio riparte al primo tocco
     const wake = () => { if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {}); };
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+    // v109.7 · gioco in secondo piano (altra app, schermo spento, altra scheda): silenzio totale; al ritorno riprende
+    const sleep = () => { if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {}); };
+    document.addEventListener('visibilitychange', () => { if (document.hidden) sleep(); else wake(); });
+    window.addEventListener('pagehide', sleep);
     for (const ev of ['pointerdown', 'touchend', 'keydown']) window.addEventListener(ev, wake, { passive: true, capture: true });
   }
   // v106.2 · anche 'interrupted' (iPhone dopo una chiamata, un'altra app o lo schermo spento): si riprende

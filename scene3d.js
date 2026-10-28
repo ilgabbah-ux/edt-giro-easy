@@ -2838,15 +2838,20 @@ export function createWorld(canvas) {
     if (q === 5) { pixelRatio = Math.min(pixelRatio, .85); renderer.setPixelRatio(pixelRatio); resize(); }
     if (q === 6) { pixelRatio = Math.min(pixelRatio, .72); renderer.setPixelRatio(pixelRatio); resize(); }
     if (q === 7) { pixelRatio = Math.min(pixelRatio, .62); renderer.setPixelRatio(pixelRatio); resize(); }   // v109.2 · ultimo gradino, solo se scatta ancora con la grafica leggera
+    // v109.7 · iPad che fatica ancora: la scheda grafica soffre le foglie "ritagliate" (alberi, filari, erba). Prima metà, poi via l'erba
+    if (q === 8) { pixelRatio = Math.min(pixelRatio, .5); renderer.setPixelRatio(pixelRatio); resize(); for (const m of FOLIAGE) { m.userData.n0 ??= m.count; m.count = Math.ceil(m.userData.n0 * .5); } }
+    if (q === 9) { for (const m of [tufts, ferns, reeds, flowers, shrubs]) { m.userData.n0 ??= m.count; m.count = 0; } for (const m of [firA, firB, larchCards, leafCards, islandCards, vineLeaf]) m.count = Math.ceil(m.userData.n0 * .35); }
   }
   const bigScreen = () => Math.min(innerWidth, innerHeight) >= 600 && (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
-  const maxQ = () => (bigScreen() ? 6 : 4) + (lite ? 1 : 0);
+  const maxQ = () => (bigScreen() ? 6 : 4) + (lite ? (bigScreen() ? 3 : 1) : 0);
+  const FOLIAGE = [firA, firB, larchCards, leafCards, islandCards, vineLeaf, tufts, ferns, reeds, shrubs];
   function adaptQuality() {
     const now = performance.now(), dt = now - lastNow; lastNow = now;
     if (dt < 1000) { perf.n++; perf.acc += dt; if (dt > perf.worst) perf.worst = dt; if (dt > 50) perf.hitches++; }   // v108 · contatore di fluidità
     if (dt > 200) return;
     frameAvg += (dt - frameAvg) * .05; frames++;
-    if (frames > 90 && frameAvg > (bigScreen() ? 21 : 27) && quality < maxQ()) { frames = 0; goodFrames = 0; quality++; stepQuality(quality); saveQ(quality); }
+    // v109.7 · se va molto lento si scende di gradino in fretta
+    if (frames > (frameAvg > 40 ? 20 : 90) && frameAvg > (bigScreen() ? 21 : 27) && quality < maxQ()) { frames = 0; goodFrames = 0; quality++; stepQuality(quality); saveQ(quality); }
     // v109.2 · fluidità automatica: al massimo dei gradini e ancora lento per 3 secondi → grafica leggera da sola (una volta, e lo dico)
     else if (frames > 180 && !lite && !liteManual && frameAvg > (bigScreen() ? 22 : 28) && quality >= maxQ()) { frames = 0; setLite(true, true); onAutoLite?.(); }
     if (quality > 0 && frameAvg < (bigScreen() ? 18 : 21)) { if (++goodFrames === 600) saveQ(quality - 1); } else goodFrames = 0;   // va liscio da un pezzo: la prossima volta si riparte un gradino più su
@@ -2860,6 +2865,7 @@ export function createWorld(canvas) {
     lite = !!on; try { localStorage.setItem(LITE_KEY, lite ? '1' : '0'); if (!auto && !lite) { liteManual = true; localStorage.setItem('edt-lite-manual', '1'); } } catch {}
     if (lite) { while (quality < liteQ()) stepQuality(++quality); }
     else {
+      for (const m of [...FOLIAGE, flowers]) if (m.userData.n0 != null) m.count = m.userData.n0;   // v109.7 · torna tutta la vegetazione
       quality = 0; frames = 0; goodFrames = 0; frameAvg = 16; pixelRatio = PR0; renderer.setPixelRatio(pixelRatio); resize();
       sun.shadow.mapSize.set(1536, 1536); sun.shadow.map?.dispose(); sun.shadow.map = null; sun.castShadow = true; renderer.shadowMap.enabled = true;
       scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); saveQ(0);

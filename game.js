@@ -1,7 +1,7 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
-import { createWorld } from './scene3d.js?v=35a8ead8';
-import * as A from './audio.js?v=3501fd57';
+import { createWorld } from './scene3d.js?v=b2e746c9';
+import * as A from './audio.js?v=b11f9feb';
 import * as P from './progress.js?v=63266490';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
@@ -269,7 +269,15 @@ const askTilt = () => {
 };
 for (const ev of ['touchend', 'click']) document.addEventListener(ev, askTilt, { passive: true });
 // v109 · musica del menu: parte al primo tocco (prima il browser non lascia suonare) e resta in sottofondo finché non si parte
-document.addEventListener('click', () => { if ((state === 'ready' || state === 'ended') && !howPlaying()) { A.unlock(); A.menuMusic(); } }, { passive: true });
+let quietMenu = false;   // v109.7 · dopo "ESCI DAL GIOCO" la musica del menu non riparte da sola
+document.addEventListener('click', () => { if ((state === 'ready' || state === 'ended') && !howPlaying() && !quietMenu) { A.unlock(); A.menuMusic(); } }, { passive: true });
+// v109.7 · ESCI DAL GIOCO: chiude il giro, spegne tutti i suoni, esce dallo schermo intero e torna in cima alla pagina
+function exitGame() {
+  quietMenu = true; A.engineStop(); A.stopVoice(); A.musicStop(true);
+  state = 'ready'; setDisabled(false); renderReady();
+  if (inFull()) exitFull();
+  setTimeout(() => { window.scrollTo({ top: 0, behavior: 'auto' }); toast('A PRESTO! QUANDO VUOI RIPARTIRE TOCCA ACCENDI LA MOTO', 'green'); }, 350);
+}
 function howPlaying() { return !!document.querySelector('.howmodal') || [...document.querySelectorAll('.howvideo video')].some(v => !v.paused); }
 document.querySelectorAll('.howvideo video').forEach(v => { v.addEventListener('play', () => A.menuMusic(false)); v.addEventListener('pause', () => { if (state === 'ready' || state === 'ended') A.menuMusic(); }); });
 setInterval(() => {   // v66 · il pulsante del menu mostra se il telefono manda l'inclinazione
@@ -542,6 +550,7 @@ function resetRun() {
   if (duel?.racing) { rivals = [duel.entry]; gGhost = null; duel.opp.c = 0; duel.opp.end = null; duel.me = null; duel.ahead = false; Object.assign(duel.entry, { gap: 0, lx: 1, lift: 0 }); }
 }
 function start() {
+  quietMenu = false;
   world?.preloadObstacles?.();   // v107.2 · al primo giro arrivano i modelli degli ostacoli
   try { world?.warmUp?.(); } catch {}
   C.hit('play', String(GAME_VERSION));
@@ -683,11 +692,12 @@ function pause() {
       ${touchDevice ? `<button class="secondary" id="tiltpause" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}
       <button class="secondary" id="litepause" type="button">${liteLabel()}</button>
       <button class="secondary" id="perfpause" type="button">${perfLabel()}</button>
-      <button class="secondary" id="quit">ABBANDONA IL GIRO</button></div>`;
+      <button class="secondary" id="quit">ABBANDONA IL GIRO</button><button class="secondary" id="exitgame" type="button">ESCI DAL GIOCO</button></div>`;
     $('resume').onclick = pause;
     $('musictoggle').onclick = () => { A.setMusic(!A.isMusicOn()); $('musictoggle').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'); };
     if ($('tiltpause')) $('tiltpause').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltpause').innerHTML = iconize('📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO')); if (on) toast('📱 INCLINA IL DISPOSITIVO A DESTRA E SINISTRA PER STERZARE', 'green'); };   // v107.6 · il giroscopio si accende anche dalla pausa
     $('quit').onclick = () => { state = 'ready'; setDisabled(false); renderReady(); };
+    $('exitgame').onclick = exitGame;
     $('litepause').onclick = () => { world?.setLite?.(!world.isLite()); $('litepause').innerHTML = iconize(liteLabel()); toast(world?.isLite?.() ? '⚙ GRAFICA LEGGERA: MENO OMBRE E DETTAGLI, PIÙ FLUIDO' : '✨ GRAFICA PIENA', 'green'); };   // v108
     $('perfpause').onclick = () => { perfOn = !perfOn; try { localStorage.setItem('edt-perf', perfOn ? '1' : '0'); } catch {} $('perfpause').innerHTML = iconize(perfLabel()); perfHud(true); };
     $('pause').innerHTML = icon('play'); $('pause').setAttribute('aria-label', 'Riprendi');
@@ -2868,7 +2878,7 @@ function renderReady() {
   if ($('tiltmenu')) $('tiltmenu').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltmenu').innerHTML = iconize('📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO')); $('tiltmenu').classList.toggle('on', on); if (on) toast('📱 INCLINA IL TELEFONO A DESTRA E SINISTRA PER STERZARE', 'green'); };
   $('musicmenu').onclick = () => {
     A.unlock(); A.setMusic(!A.isMusicOn()); $('musicmenu').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO');
-    if (A.isMusicOn()) A.menuMusic(); else A.musicStop();   // v109 · nel menu la canzone resta in sottofondo
+    if (A.isMusicOn()) { quietMenu = false; A.menuMusic(); } else A.musicStop();   // v109 · nel menu la canzone resta in sottofondo
   };
   if ($('opengroup')) {
     $('opengroup').onclick = () => { showHub('classifica'); renderGroup(renderReady, mode); };
@@ -3491,7 +3501,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 109.6;
+const GAME_VERSION = 109.7;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
