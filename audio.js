@@ -5,7 +5,7 @@
 // v89 · voci caricate dopo il menu (il gioco si apre prima); chi le usa aspetta vociReady
 let VOCI = {};
 let vociP = null;   // v107.2 · le voci arrivano al primo tocco (o dopo 12 s), non durante il caricamento del menu
-const vociReady = () => vociP || (vociP = import('./voci.js?v=108.9').then(m => { VOCI = m.VOCI; }).catch(() => { vociP = null; }));
+const vociReady = () => vociP || (vociP = import('./voci.js?v=109').then(m => { VOCI = m.VOCI; }).catch(() => { vociP = null; }));
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -216,7 +216,7 @@ export async function testVoices(onStep) {
 // Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
 // v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio
 let VOCI_PILOTI = {}, vpLoad = null;
-export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=108.9').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
+export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=109').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
 setTimeout(() => { vociReady(); loadRiderVoices(); }, 12000);
 const riderBuf = new Map();
 export const hasRiderVoice = key => !!VOCI_PILOTI[key];
@@ -504,21 +504,22 @@ function playSong(m) {
   const buf = songBuf[m.style.file];
   if (!buf || music !== m || m.src) return;
   clearInterval(m.timer); m.timer = 0;   // basta riserva: parte la canzone vera
-  let off = songPos[m.style.file] || 0; if (off > buf.duration - 20) off = 0;
+  let off = m.menu ? MENU_OFF : songPos[m.style.file] || 0; if (off > buf.duration - 20) off = 0;
   const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
-  const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(SONG_VOL, ctx.currentTime, .25);
+  const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(m.menu ? SONG_VOL * MENU_VOL : SONG_VOL, ctx.currentTime, m.menu ? .8 : .25);
   src.connect(g); g.connect(musicBus); src.start(ctx.currentTime + .03, off);
   m.src = src; m.songGain = g; m.songT0 = ctx.currentTime + .03 - off;
 }
 function stopSong(m, fade) {
   if (!m.src) return;
   const buf = songBuf[m.style.file];
-  if (buf) songPos[m.style.file] = (ctx.currentTime - m.songT0) % buf.duration;
+  if (buf && !m.menu) songPos[m.style.file] = (ctx.currentTime - m.songT0) % buf.duration;
   const src = m.src, g = m.songGain; m.src = null;
   if (fade) { g.gain.setTargetAtTime(0, ctx.currentTime, .3); setTimeout(() => { try { src.stop(); } catch {} }, 1400); }
   else try { src.stop(); } catch {}
 }
 const SONG_VOL = 1.35;
+const MENU_OFF = 37.5, MENU_VOL = .5;   // v109 · nel menu: "Tranquilli, è un giro easy" in sottofondo, dal "Gas aperto" prima del ritornello
 let musicBus = null, gtrIn = null, music = null, musicOn = true;
 try { musicOn = localStorage.getItem('edt-music') !== '0'; } catch {}
 export const isMusicOn = () => musicOn;
@@ -603,7 +604,7 @@ export function musicStart(styleId = 0, opts = {}) {
   musicGraph();
   musicStop(true);
   const style = STYLES[styleId] || STYLES[styleId % STYLES.length];
-  const m = { style, n: 0, step: 60 / style.bpm / 4, next: ctx.currentTime + .08, transpose: opts.transpose || 0, intensity: .5, timer: 0 };
+  const m = { menu: !!opts.menu, style, n: 0, step: 60 / style.bpm / 4, next: ctx.currentTime + .08, transpose: opts.transpose || 0, intensity: .5, timer: 0 };
   if (!style.file) m.timer = setInterval(() => {
     if (!ctx || music !== m) return;
     while (m.next < ctx.currentTime + .14) {
@@ -627,6 +628,13 @@ export function musicStop(now = false) {
   setTimeout(() => { clearInterval(m.timer); if (!music && musicBus) musicBus.gain.value = musicOn ? MUSIC_VOL : 0; }, 1500);
 }
 export const musicPlaying = () => !!music;
+// v109 · musica del menu: la canzone del gioco a volume basso, continua finché non parti
+export function menuMusic(on = true) {
+  if (!on) { if (music?.menu) musicStop(); return; }
+  if (!musicOn || music?.menu || !ensure()) return;
+  if (ctx.state === 'suspended') ctx.resume?.().catch?.(() => {});
+  musicStart(0, { menu: true });
+}
 // v107.2 · colonna sonora della clip del giro: la canzone del tracciato (dal ritornello circa), dentro il video e nelle casse
 export function clipAudio(styleId) {
   if (!ensure() || !ctx.createMediaStreamDestination) return null;

@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.9';
-import { createWorld } from './scene3d.js?v=108.9';
-import * as A from './audio.js?v=108.9';
-import * as P from './progress.js?v=108.9';
-import { createMud } from './mudfx.js?v=108.9';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.9';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=108.9';
-import * as C from './classifica.js?v=108.9';
-import * as D from './duel.js?v=108.9';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=109';
+import { createWorld } from './scene3d.js?v=109';
+import * as A from './audio.js?v=109';
+import * as P from './progress.js?v=109';
+import { createMud } from './mudfx.js?v=109';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=109';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=109';
+import * as C from './classifica.js?v=109';
+import * as D from './duel.js?v=109';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=108.9').then(m => {
+import('./piloti.js?v=109').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -265,6 +265,10 @@ const askTilt = () => {
     DeviceOrientationEvent.requestPermission().catch(() => {});
 };
 for (const ev of ['touchend', 'click']) document.addEventListener(ev, askTilt, { passive: true });
+// v109 · musica del menu: parte al primo tocco (prima il browser non lascia suonare) e resta in sottofondo finché non si parte
+document.addEventListener('click', () => { if ((state === 'ready' || state === 'ended') && !howPlaying()) { A.unlock(); A.menuMusic(); } }, { passive: true });
+function howPlaying() { return !!document.querySelector('.howmodal') || [...document.querySelectorAll('.howvideo video')].some(v => !v.paused); }
+document.querySelectorAll('.howvideo video').forEach(v => { v.addEventListener('play', () => A.menuMusic(false)); v.addEventListener('pause', () => { if (state === 'ready' || state === 'ended') A.menuMusic(); }); });
 setInterval(() => {   // v66 · il pulsante del menu mostra se il telefono manda l'inclinazione
   const b = document.getElementById('tiltmenu'); if (!b || !b.offsetParent) return;
   const live = performance.now() - tiltSeen < 1200;
@@ -372,7 +376,23 @@ function flash(kind) {
 let shownScore = -1, shownLives = -1;
 function multiplier() { return Math.min(4, 1 + Math.floor(combo / 3)); }
 let lastPU = '', segErrors = 0;
+// v109 · gomma bucata o moto insabbiata: un riquadro fisso al centro dice cosa fare (prima c'era solo un avviso che spariva)
+let fixShown = '';
+function fixPanel() {
+  let el = $('fixpanel');
+  if (!el) { el = document.createElement('div'); el.id = 'fixpanel'; el.className = 'fixpanel'; el.hidden = true; $('game').appendChild(el); }
+  const how = touchDevice ? 'TOCCA LO SCHERMO' : 'PREMI SPAZIO (o clic)';
+  const k = state !== 'playing' ? '' : flat ? 'f' + Math.round(fixP * 6) : sandStuck ? 's' + Math.round(pushP * 5) : '';
+  if (k === fixShown) return; fixShown = k;
+  el.hidden = !k; if (!k) return;
+  const n = flat ? Math.round(fixP * 6) : Math.round(pushP * 5), tot = flat ? 6 : 5;
+  el.innerHTML = iconize(flat
+    ? `<b>🔧 HAI FORATO!</b><span><em>${how} ${tot - n} ${tot - n === 1 ? 'VOLTA' : 'VOLTE'}</em> per cambiare la camera d'aria, poi riparti</span>`
+    : `<b>💪 INSABBIATO!</b><span><em>${how} ${tot - n} ${tot - n === 1 ? 'VOLTA' : 'VOLTE'}</em> per spingere fuori la moto, poi GAS</span>`)
+    + `<i><s style="width:${Math.round(n / tot * 100)}%"></s></i>`;
+}
 function hud() {
+  fixPanel();
   const s = Math.floor(score);
   if (s !== shownScore) {
     $('score').textContent = String(s).padStart(5, '0');
@@ -576,6 +596,7 @@ function finish(win, reason = '') {
   if (duel?.racing) { duel.me = { s: Math.round(score), w: win ? 1 : 0, tm: +elapsed.toFixed(2), c: +course.toFixed(2), j: leap ? leapBest : 0 }; D.send({ t: 'end', ...duel.me }); }
   state = 'ended';
   A.engineStop(); A.stopVoice(); A.musicStop();
+  setTimeout(() => { if (state === 'ended' || state === 'ready') A.menuMusic(); }, 4000);   // v109 · dopo l'arrivo torna la canzone del menu
   setDisabled(false);
   if (ice) endDrift(true);
   const timeBonus = win && !leap ? Math.round((timeLimit - elapsed) * (ice ? 40 : 100)) : 0;
@@ -637,15 +658,15 @@ function pause() {
   if (state === 'playing' || state === 'countdown') {
     gas = false; A.stopVoice(); A.engineStop(); A.musicStop();
     state = 'paused';
-    $('overlay').classList.remove('hidden'); $('coach').classList.remove('show');
+    $('overlay').classList.remove('hidden'); $('coach').classList.remove('show'); $('tipcard')?.classList.remove('show');
     $('card').innerHTML = `<div class="eyebrow">SOSTA TECNICA</div><h1>ASPETTIAMO<br><em>IL GRUPPO.</em></h1>
       <p>Nessuno resta indietro.</p>
-      <button class="primary" id="resume"><span>RIPARTIAMO</span>${icon('chevrons')}</button><br>
-      <button class="secondary" id="musictoggle" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
+      <button class="primary" id="resume"><span>RIPARTIAMO</span>${icon('chevrons')}</button>
+      <div class="pausegrid"><button class="secondary" id="musictoggle" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
       ${touchDevice ? `<button class="secondary" id="tiltpause" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}
       <button class="secondary" id="litepause" type="button">${liteLabel()}</button>
       <button class="secondary" id="perfpause" type="button">${perfLabel()}</button>
-      <button class="secondary" id="quit">ABBANDONA IL GIRO</button>`;
+      <button class="secondary" id="quit">ABBANDONA IL GIRO</button></div>`;
     $('resume').onclick = pause;
     $('musictoggle').onclick = () => { A.setMusic(!A.isMusicOn()); $('musictoggle').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'); };
     if ($('tiltpause')) $('tiltpause').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltpause').innerHTML = iconize('📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO')); if (on) toast('📱 INCLINA IL DISPOSITIVO A DESTRA E SINISTRA PER STERZARE', 'green'); };   // v107.6 · il giroscopio si accende anche dalla pausa
@@ -863,6 +884,12 @@ $('ovfull').onclick = () => { if (inFull()) exitFull(); else goFull(); };
 // v106.6 · il pulsante dello schermo intero sparisce quando scorri le schede (copriva i prezzi in officina)
 $('overlay').addEventListener('scroll', e => { const y = e.target.scrollTop || 0; $('overlay').classList.toggle('scrolled', y > 30); }, { capture: true, passive: true });
 new MutationObserver(() => $('overlay').classList.remove('scrolled')).observe($('card'), { childList: true });
+// v109 · iPad: dopo aver fatto scorrere la pagina, il riquadro del menu (che scorre per conto suo) a volte non risponde più al dito.
+// A pagina ferma lo "risveglio" (Safari ricostruisce lo strato che scorre) e lo riporto in cima se la pagina è tornata in alto.
+{ let st = 0; window.addEventListener('scroll', () => { if (!touchDevice) return; clearTimeout(st); st = setTimeout(() => {
+  const c = $('card'); if (!c || state === 'playing') return;
+  const top = c.scrollTop; c.style.overflowY = 'hidden'; void c.offsetHeight; c.style.overflowY = ''; c.scrollTop = top;
+}, 180); }, { passive: true }); }
 // v48 · i pannelli a destra (pilota, garage, classifica, come si sopravvive) si aprono a tutto schermo con un tocco
 // e hanno il pulsante per tornare al menu principale.
 let maxPanel = null;
@@ -972,6 +999,7 @@ canvas.addEventListener('pointerdown', e => {
   // v44 · Touch più sensibile: tocca a sinistra/destra = corsia subito; trascina il dito = una corsia ogni ~1 cm
   // (anche più corsie di fila, senza staccare il dito); scorri in su = salto immediato; tocco al centro = salto.
   if (state !== 'playing') return;
+  if (flat || sandStuck || stalled) { hop(); return; }   // v109 · forato o insabbiato: ogni tocco sullo schermo è una spinta / un pezzo del lavoro
   const r = canvas.getBoundingClientRect(), u = (e.clientX - r.left) / r.width;
   // v50 · guida libera: tieni il dito a sinistra/destra = sterzi finché tieni; trascina = la moto segue il dito
   touch = { x: e.clientX, y: e.clientY, ax: e.clientX, ay: e.clientY, t: performance.now(), id: e.pointerId, zone: u < .36 ? -1 : u > .64 ? 1 : 0, drag: false, jumped: false, startPx: px };
@@ -1107,7 +1135,7 @@ function spawnDesertSpecial() {
 function puncture() {
   if (flat) return;
   flat = true; fixP = 0; run.flats = (run.flats || 0) + 1; breakCombo(); mistake(); A.sfx.hit(); shake = Math.max(shake, .5); buzz([40, 60, 40]);
-  bigCall('FORATO!'); toast('🔧 CAMBIA LA CAMERA D’ARIA: TOCCA SALTA 6 VOLTE', 'red');
+  bigCall('FORATO!'); hud();
 }
 // v81 · Gusta Ranch: il Gusta passa con il trattore e la trincia di traverso alla pista, a dare fastidio
 let lastTractor = -9;
@@ -2803,7 +2831,7 @@ function renderReady() {
   if ($('tiltmenu')) $('tiltmenu').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltmenu').textContent = '📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO'); $('tiltmenu').classList.toggle('on', on); if (on) toast('📱 INCLINA IL TELEFONO A DESTRA E SINISTRA PER STERZARE', 'green'); };
   $('musicmenu').onclick = () => {
     A.unlock(); A.setMusic(!A.isMusicOn()); $('musicmenu').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO');
-    if (A.isMusicOn()) { startMusic(); setTimeout(() => { if (state === 'ready') A.musicStop(); }, 6000); } else A.musicStop();
+    if (A.isMusicOn()) A.menuMusic(); else A.musicStop();   // v109 · nel menu la canzone resta in sottofondo
   };
   if ($('opengroup')) {
     $('opengroup').onclick = () => { showHub('classifica'); renderGroup(renderReady, mode); };
@@ -3388,7 +3416,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 108.9;
+const GAME_VERSION = 109;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3406,8 +3434,8 @@ function customCardHTML() {
 function showHowVideo() {
   const m = document.createElement('div'); m.className = 'howmodal';
   m.innerHTML = '<div class="howbox"><video src="img/come-si-gioca.mp4" poster="img/come-si-gioca.jpg" playsinline controls autoplay></video><button type="button" class="primary" id="howclose"><span>HO CAPITO, SI PARTE!</span></button></div>';
-  document.body.appendChild(m);
-  const close = () => { try { m.querySelector('video').pause(); } catch {} m.remove(); };
+  document.body.appendChild(m); A.menuMusic(false);
+  const close = () => { try { m.querySelector('video').pause(); } catch {} m.remove(); if (state === 'ready' || state === 'ended') A.menuMusic(); };
   m.addEventListener('click', e => { if (e.target === m || e.target.closest('#howclose')) close(); });
   m.querySelector('video').addEventListener('ended', () => setTimeout(close, 600));
 }
@@ -3845,7 +3873,7 @@ if (/debug/.test(location.hash)) {
 }
 
 // Aggancio per i test automatici (non usato dal gioco).
-window.__edt = { get state() { return state; }, get cornerLine() { return cornerLine; }, get rb() { return curBend(); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
+window.__edt = { get state() { return state; }, puncture() { puncture(); hud(); }, get cornerLine() { return cornerLine; }, get rb() { return curBend(); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get flat() { return flat; }, get sandStuck() { return sandStuck; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, get runPlan() { return runPlan; }, get forkPath() { return forkPath; }, replay: startReplay, recFake() { pushSnap(drawState(), 1 / 30); }, get highlights() { return highlights.map(h => ({ label: h.label, w: Math.round(h.w), n: h.frames.length })); }, startClip, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
 
