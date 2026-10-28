@@ -378,13 +378,18 @@ export function engineStart() {
   const ng = ctx.createGain(); ng.gain.value = .0;
   nz.connect(nf); nf.connect(ng); ng.connect(g);
   // v109.2 · motore più pieno: un basso sotto lo scarico che segue i giri
-  const sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = 45;
-  const sg = ctx.createGain(); sg.gain.value = 0; sub.connect(sg); sg.connect(g);
   // v109.2 · rumore delle gomme sul fondo: fango, sassi, sabbia, ghiaccio, terra (sale con la velocità, sparisce in aria)
-  const tz = ctx.createBufferSource(); tz.buffer = noiseBuffer; tz.loop = true; tz.playbackRate.value = .9;
-  const tf = ctx.createBiquadFilter(); tf.type = 'bandpass'; tf.frequency.value = 500; tf.Q.value = .8;
-  const tg = ctx.createGain(); tg.gain.value = 0; tz.connect(tf); tf.connect(tg); tg.connect(duckBus);
-  src.start(); nz.start(); sub.start(); tz.start();
+  // v110 · sui tablet lenti questi due strati non si creano (il test sull'iPad: l'audio costava circa 3 FPS)
+  let sub = null, sg = null, tz = null, tf = null, tg = null;
+  if (!liteAudio) {
+    sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = 45;
+    sg = ctx.createGain(); sg.gain.value = 0; sub.connect(sg); sg.connect(g);
+    tz = ctx.createBufferSource(); tz.buffer = noiseBuffer; tz.loop = true; tz.playbackRate.value = .9;
+    tf = ctx.createBiquadFilter(); tf.type = 'bandpass'; tf.frequency.value = 500; tf.Q.value = .8;
+    tg = ctx.createGain(); tg.gain.value = 0; tz.connect(tf); tf.connect(tg); tg.connect(duckBus);
+    sub.start(); tz.start();
+  }
+  src.start(); nz.start();
   engine = { src, drive, shaper, body, bark, g, nf, ng, nz, sub, sg, tz, tf, tg, real, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
   engineUpdate(.2, false, false, false);
 }
@@ -414,10 +419,12 @@ export function engineUpdate(speed, gas, turbo, airborne, surface = 'dirt') {
   e.g.gain.setTargetAtTime((.11 + load * .1) * (e.shiftT > 0 ? .55 : 1) * (e.real ? 1.25 : 1), t, .04);
   e.nf.frequency.setTargetAtTime(900 + e.rpm * 1300, t, .1);
   e.ng.gain.setTargetAtTime((.012 + e.rpm * .018) * EP.nz + (turbo ? .03 : 0), t, .1);
-  e.sub.frequency.setTargetAtTime(32 + e.rpm * 26, t, .06); e.sg.gain.setTargetAtTime((.05 + load * .06) * (e.shiftT > 0 ? .5 : 1), t, .06);
-  const sf = SURF[surface] || SURF.dirt, sp = Math.max(0, Math.min(1.4, speed));
-  e.tf.frequency.setTargetAtTime(sf[0] * (.8 + sp * .25), t, .15); e.tf.Q.setTargetAtTime(sf[1], t, .15);
-  e.tg.gain.setTargetAtTime(airborne || speed < .05 ? 0 : sf[2] * sp, t, airborne ? .03 : .12);
+  if (e.sub) {
+    e.sub.frequency.setTargetAtTime(32 + e.rpm * 26, t, .06); e.sg.gain.setTargetAtTime((.05 + load * .06) * (e.shiftT > 0 ? .5 : 1), t, .06);
+    const sf = SURF[surface] || SURF.dirt, sp = Math.max(0, Math.min(1.4, speed));
+    e.tf.frequency.setTargetAtTime(sf[0] * (.8 + sp * .25), t, .15); e.tf.Q.setTargetAtTime(sf[1], t, .15);
+    e.tg.gain.setTargetAtTime(airborne || speed < .05 ? 0 : sf[2] * sp, t, airborne ? .03 : .12);
+  }
   // rilascio del gas a giri alti: scoppiettii allo scarico
   e.popT -= 1 / 60;
   if (e.lastGas && !gas && e.rpm > 1.4 && e.popT <= 0) { e.popT = .8; for (let i = 0; i < 3; i++) noise(.035, 400 + Math.random() * 300, 2, .16, 'bandpass', .05 + i * (.06 + Math.random() * .05)); }
@@ -430,8 +437,8 @@ export function engineStop() {
   e.src.playbackRate.setTargetAtTime(.35, t, .25);
   e.g.gain.cancelScheduledValues(t);
   e.g.gain.setTargetAtTime(0.0001, t + .1, .18);
-  e.tg.gain.setTargetAtTime(0, t, .1); e.sg.gain.setTargetAtTime(0, t, .1);
-  setTimeout(() => { try { e.src.stop(); e.nz.stop(); e.sub.stop(); e.tz.stop(); } catch {} }, 1200);
+  e.tg?.gain.setTargetAtTime(0, t, .1); e.sg?.gain.setTargetAtTime(0, t, .1);
+  setTimeout(() => { try { e.src.stop(); e.nz.stop(); e.sub?.stop(); e.tz?.stop(); } catch {} }, 1200);
 }
 
 // ---------- Musica (v38) ----------
@@ -539,6 +546,8 @@ const SONG_VOL = 1.35;
 const MENU_OFF = 37.5, MENU_VOL = .5;   // v109 · nel menu: "Tranquilli, è un giro easy" in sottofondo, dal "Gas aperto" prima del ritornello
 let musicBus = null, gtrIn = null, music = null, musicOn = true;
 try { musicOn = localStorage.getItem('edt-music') !== '0'; } catch {}
+let liteAudio = false;
+export function setLiteAudio(v) { liteAudio = !!v; }
 export const isMusicOn = () => musicOn;
 export const audioState = () => (enabled ? (ctx?.state || 'off') : 'muto');
 export function setMusic(v) {

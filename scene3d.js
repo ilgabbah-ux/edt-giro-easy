@@ -289,6 +289,13 @@ export function createWorld(canvas) {
   function toLambert(m) {
     let l = liteMatCache.get(m); if (l) return l;
     l = new T.MeshLambertMaterial({ color: m.color, map: m.map || null, emissive: m.emissive || 0x000000, emissiveMap: m.emissiveMap || null, emissiveIntensity: m.emissiveIntensity ?? 1, transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest, side: m.side, vertexColors: m.vertexColors, depthWrite: m.depthWrite, polygonOffset: m.polygonOffset, polygonOffsetFactor: m.polygonOffsetFactor, polygonOffsetUnits: m.polygonOffsetUnits, fog: m.fog, alphaMap: m.alphaMap || null });
+    if (m.userData.tint) {   // la livrea sulle plastiche anche col materiale semplice
+      const tu = tintU.get(m) || bikeTint; l.onBeforeCompile = sh => { sh.uniforms.uTint = tu; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uTint;').replace('#include <map_fragment>', `#include <map_fragment>
+{ float lo = min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b)), hi = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+  float pm = smoothstep(.3, .5, lo) * (1.0 - smoothstep(.05, .12, (hi - lo) / max(hi, .01) * .5));
+  diffuseColor.rgb = mix(diffuseColor.rgb, uTint * (.35 + .75 * lo), pm); }`); };
+      l.customProgramCacheKey = () => 'bikeTintL';
+    }
     l.userData.from = m; liteMatCache.set(m, l); return l;
   }
   function applyLiteMats() {
@@ -1597,6 +1604,7 @@ export function createWorld(canvas) {
   // v105 · moto vere: modelli generati (Higgsfield) e sistemati in Blender, una per tipo di moto.
   // Le ruote restano quelle procedurali (girano e sterzano); il resto della moto procedurale si nasconde.
   // Le plastiche del modello prendono il colore della livrea.
+  let bikeIdNow = null;
   const BIKE_GLB = { edt250: 'enduro', gp125: 'enduro', ts300: 'enduro', mulo450: 'enduro', factory: 'enduro', trial: 'trial', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', pitbike: 'pitbike', bestia: 'bestia', hard300: 'hard300' };
   // misure prese dai modelli: manubrio (mezza larghezza, altezza, z) e sella, per mettere mani e sedere al posto giusto
   const BIKE_FIT = { enduro: [.44, 1.42, -.2, 1.106], trial: [.5, 1.45, -.27, .99], vintage: [.47, 1.39, -.26, .921], adventure: [.5, 1.5, -.25, 1.011], electric: [.46, 1.43, -.29, 1.133], dakar: [.4, 1.31, -.24, 1.063], hard300: [.46, 1.36, -.41, 1.065], bestia: [.5, 1.49, -.34, 1.173], pitbike: [.44, 1.2, -.3, .903] };   // [manubrio x, y, z, sella sotto il sedere]
@@ -1609,7 +1617,9 @@ export function createWorld(canvas) {
     walk(pitch); return procBike;
   }
   // plastiche: le parti bianche e non metalliche della texture prendono il colore della livrea
+  const tintU = new WeakMap();   // v110 · quale colore di livrea usa ogni materiale (serve ai materiali semplici dei tablet)
   function tintable(m, u = bikeTint) {
+    tintU.set(m, u);
     m.onBeforeCompile = sh => {
       sh.uniforms.uTint = u;
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uTint;')
@@ -1635,7 +1645,9 @@ export function createWorld(canvas) {
     }, undefined, e => { console.warn('bike glb', e); glbCache[key] = null; });
   }
   function setBikeModel(id) {
-    const key = BIKE_GLB[id] || null; glbWant = key;
+    bikeIdNow = id;
+    let key = BIKE_GLB[id] || null; if (key === 'enduro' && liteMats) key = 'enduro_lo';   // v110 · tablet lenti: la moto dei compagni (≈4 volte meno triangoli)
+    glbWant = key;
     if (key === (glbNow && glbNow.key)) return;
     if (glbNow) { for (const g of glbNow.parts) g.removeFromParent(); glbNow = null; for (const m of procBikeParts()) m.visible = true; rearWheel.visible = frontWheel.visible = true; customKey = ''; }
     if (!key) return;
@@ -1655,7 +1667,7 @@ export function createWorld(canvas) {
   function syncBikeModel() {
     helmTint.value.set(helmetMat.map && helmetMat.userData.base ? helmetMat.userData.base : helmetMat.color);
     if (riderGlb) { if (jerseyMat.map && jerseyMat.userData.base) riderJerseyTint.value.set(jerseyMat.userData.base); else riderJerseyTint.value.copy(jerseyMat.color); riderPantsTint.value.copy(pantsMat.color); }
-    const fit = glbNow && BIKE_FIT[glbNow.key];
+    const fit = glbNow && BIKE_FIT[glbNow.key.replace(/_lo$/, "")];
     rider.position.y = riderY0 + (fit ? (riderGlb ? fit[3] + .118 - 1.43 : fit[3] - 1.24) : 0); rider.position.z = 0;
     for (const j of joints) { if (!j.grip0) j.grip0 = j.grip.position.clone(); if (fit) j.grip.position.set(j.side * fit[0], fit[1], fit[2] - STEER_Z); else j.grip.position.copy(j.grip0); }
     if (!glbNow) return;
@@ -2861,7 +2873,7 @@ export function createWorld(canvas) {
     if (q === 7) { pixelRatio = Math.min(pixelRatio, .62); renderer.setPixelRatio(pixelRatio); resize(); }   // v109.2 · ultimo gradino, solo se scatta ancora con la grafica leggera
     // v109.7 · iPad che fatica ancora: la scheda grafica soffre le foglie "ritagliate" (alberi, filari, erba). Prima metà, poi via l'erba
     if (q === 8) { pixelRatio = Math.min(pixelRatio, .5); renderer.setPixelRatio(pixelRatio); resize(); for (const m of FOLIAGE) { m.userData.n0 ??= m.count; m.count = Math.ceil(m.userData.n0 * .5); } }
-    if (q >= 8) { liteMats = true; applyLiteMats(); }
+    if (q >= 8) { liteMats = true; applyLiteMats(); if (bikeIdNow) setBikeModel(bikeIdNow); }   // v110 · anche la moto in versione leggera
     if (q === 9) { for (const m of [tufts, ferns, reeds, flowers, shrubs]) { m.userData.n0 ??= m.count; m.count = 0; } for (const m of [firA, firB, larchCards, leafCards, islandCards, vineLeaf]) m.count = Math.ceil(m.userData.n0 * .35); }
   }
   const bigScreen = () => Math.min(innerWidth, innerHeight) >= 600 && (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
@@ -2888,7 +2900,7 @@ export function createWorld(canvas) {
     if (lite) { while (quality < liteQ()) stepQuality(++quality); }
     else {
       for (const m of [...FOLIAGE, flowers]) if (m.userData.n0 != null) m.count = m.userData.n0;   // v109.7 · torna tutta la vegetazione
-      liteMats = false; applyLiteMats(); terrainLite = false; quality = 0; frames = 0; goodFrames = 0; frameAvg = 16; pixelRatio = PR0; renderer.setPixelRatio(pixelRatio); resize();
+      liteMats = false; applyLiteMats(); if (bikeIdNow) setBikeModel(bikeIdNow); terrainLite = false; quality = 0; frames = 0; goodFrames = 0; frameAvg = 16; pixelRatio = PR0; renderer.setPixelRatio(pixelRatio); resize();
       sun.shadow.mapSize.set(1536, 1536); sun.shadow.map?.dispose(); sun.shadow.map = null; sun.castShadow = true; renderer.shadowMap.enabled = true;
       scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); saveQ(0);
     }
@@ -3320,5 +3332,5 @@ export function createWorld(canvas) {
   }
 
   resize();
-  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, perfInfo, resetPerf, dbg: DBG, set onAutoLite(f) { onAutoLite = f; } };
+  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, isUltra: () => liteMats, perfInfo, resetPerf, dbg: DBG, set onAutoLite(f) { onAutoLite = f; } };
 }

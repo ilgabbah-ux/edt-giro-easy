@@ -1,7 +1,7 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
-import { createWorld } from './scene3d.js?v=6ef9e26a';
-import * as A from './audio.js?v=22e3dd3c';
+import { createWorld } from './scene3d.js?v=57ff2df9';
+import * as A from './audio.js?v=6058e7da';
 import * as P from './progress.js?v=63266490';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
@@ -574,6 +574,7 @@ function start() {
   if (touchDevice) goFull();
   const inApp = /Instagram|FBAN|FBAV|FB_IAB|TikTok|musical_ly|Bytedance|Line\//i.test(navigator.userAgent);   // v109.4 · nel browser di Instagram/TikTok "Aggiungi a Home" non esiste
   if (!fsOK && isIOS && !standalone && !iosHinted && !inApp && P.profile.tutorialDone) { iosHinted = true; setTimeout(() => toast('SCHERMO INTERO: CONDIVIDI → AGGIUNGI A HOME'), 4200); }
+  A.setLiteAudio?.(!!world?.isUltra?.());   // v110 · tablet lenti: audio più leggero
   A.unlock(); A.stopVoice(); A.preloadExtras(); if (riderVoice()) A.preloadRider(riderVoice());
   A.preloadRivals(Object.values(RIDER_VOICE)); A.preloadSong(mode);
   resetRun(); perfRun = null;
@@ -3518,7 +3519,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 109.10;
+const GAME_VERSION = 110;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
