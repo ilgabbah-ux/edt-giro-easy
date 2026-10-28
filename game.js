@@ -442,13 +442,13 @@ function hud() {
   $('tracklabel').textContent = route.name + (wet > 0 ? ' · IMPANTANATO' : route.grade > .05 ? ' · SALITA ' + Math.round(route.grade * 100) + '%' : route.grade < -.05 ? ' · DISCESA ' + Math.round(-route.grade * 100) + '%' : '');
   const needGas = state === 'playing' && (ice || route.climb > .05 || route.rough > .05);
   if (needGas && !ice && !P.profile.gasHint && (P.profile.totals?.runs || 0) < 4 && !tut) {   // v109.2 · prima salita: cosa fare, col pulsante GAS che lampeggia
-    P.profile.gasHint = true; P.save(); tutSay(`${icon('mountain')} SALITA! TIENI PREMUTO <b>GAS</b> FINCHÉ NON SEI IN CIMA`, false);
+    P.profile.gasHint = true; P.save(); tutSay(`${icon('mountain')} SALITA! IL <b>GAS</b> VA DA SOLO: TU STERZA E SALTA · TOCCALO PER MOLLARE`, false);   // v109.4 · in salita il gas si blocca da solo
     $('gas').classList.add('tutpulse'); setTimeout(() => $('gas').classList.remove('tutpulse'), 4000);
   }
   $('gas').hidden = !needGas;
   $('gas').classList.toggle('held', gas);
   $('gas').setAttribute('aria-pressed', String(gas));
-  $('gas').textContent = stalled || (desert && sandStuck) ? 'SPINGI! TOCCA TOCCA' : desert && flat ? 'FORATO' : desert && (routeAt(course, roadTime * 19.5).climb > .3) && !gas ? 'GAS O TI INSABBI' : ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? 'GAS BLOCCATO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
+  $('gas').textContent = stalled || (desert && sandStuck) ? 'SPINGI! TOCCA TOCCA' : desert && flat ? 'FORATO' : desert && (routeAt(course, roadTime * 19.5).climb > .3) && !gas ? 'GAS O TI INSABBI' : ice ? (overT > .1 ? 'TROPPO! MOLLA' : gas ? 'TRAVERSO!' : 'GAS = DERAPA') : gasLock ? 'GAS AUTOMATICO' : gas ? 'GAS APERTO!' : 'TIENI GAS';
   $('gas').classList.toggle('locked', gasLock);
   { const warn = tractOn && state === 'playing' && !stalled && (grip > .94 || grip < .2); $('gas').classList.toggle('warn', warn); if (tractOn && state === 'playing' && !stalled) $('gas').textContent = grip > .94 ? 'PATTINA: MOLLA!' : grip < .2 ? 'DAI GAS!' : gas ? 'COSÌ! DOSA' : 'GAS'; }
   { const tb = $('tractbox'); if (tb) { tb.hidden = !(tractOn && state === 'playing'); if (!tb.hidden) { tb.style.setProperty('--g', grip.toFixed(3)); tb.className = 'tractbox ' + (stalled ? 'stall' : grip > .94 ? 'spin' : grip < .12 ? 'low' : grip >= .28 && grip <= .84 ? 'ok' : ''); tb.querySelector('b').textContent = stalled ? 'SPINGI!' : grip > .94 ? 'PATTINA' : grip < .12 ? 'SI PIANTA' : grip >= .28 && grip <= .84 ? 'TRAZIONE' : 'GAS'; } } }
@@ -837,7 +837,7 @@ $('gas').onpointerdown = e => { e.preventDefault(); if (state === 'playing' && (
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) $('gas').addEventListener(ev, () => {
   if (!gasDownAt) return;
   const tap = performance.now() - gasDownAt < 230; gasDownAt = 0;
-  if (tap && !ice && !feat('traction') && state === 'playing') { gasLock = !gasLock; noClimbT = 0; if (gasLock) toast('🔒 GAS BLOCCATO: TOCCA ANCORA PER MOLLARE', 'green'); }
+  if (tap && !ice && !feat('traction') && state === 'playing') { gasLock = !gasLock; noClimbT = 0; if (gasLock) toast('⛽ GAS AUTOMATICO: TOCCA ANCORA PER MOLLARE', 'green'); }
   gas = gasLock;
 });
 window.addEventListener('keyup', e => {
@@ -2785,7 +2785,7 @@ function renderReady() {
   const art = trackArt(md);
   const heroList = P.SHOWN().filter(m => P.isUnlocked(m, info.level));
   $('card').classList.toggle('newbie', (P.profile.totals?.runs || 0) < 3 && !C.isEdt());   // v108.6 · ai primi giri di chi arriva da fuori: menu essenziale
-  const heroLead = d => { const top = d?.boards?.[mode]?.[0]; return top ? `👑 1° NEL GRUPPO: <b>${top.n}</b> · ${top.s.toLocaleString('it-IT')}` : '👑 NESSUNO IN CLASSIFICA: IL PRIMO SEI TU'; };
+  const heroLead = d => { const top = d?.boards?.[mode]?.[0]; return top ? `👑 1° ${C.isEdt() ? 'NEL GRUPPO' : 'IN CLASSIFICA'}: <b>${top.n}</b> · ${top.s.toLocaleString('it-IT')}` : '👑 NESSUNO IN CLASSIFICA: IL PRIMO SEI TU'; };
   $('card').innerHTML = `
     <div class="menuhead">
       <img class="menushield" src="img/edt-shield.webp" alt="" width="453" height="520">
@@ -2816,7 +2816,7 @@ function renderReady() {
     <div class="quickrow">
       <button class="qbtn" id="opengarage" type="button"><span class="qi">🎨</span><b>GARAGE</b><small>livree e moto</small></button>
       <button class="qbtn" id="openshop" type="button"><span class="qi">🔧</span><b>OFFICINA</b><small>${P.profile.beers} 🍺</small></button>
-      ${C.enabled() ? '<button class="qbtn" id="opengroup" type="button"><span class="qi">🏆</span><b>CLASSIFICA</b><small id="grouplead">del gruppo</small></button>' : ''}
+      ${C.enabled() ? '<button class="qbtn" id="opengroup" type="button"><span class="qi">🏆</span><b>CLASSIFICA</b><small id="grouplead">' + (C.isEdt() ? 'del gruppo' : 'di tutti') + '</small></button>' : ''}
       <button class="qbtn" id="openmissions" type="button" aria-expanded="false"><span class="qi">🏁</span><b>MISSIONI</b><small>${missions.length} attive · 🗓 ${P.weeklyMissions().filter(m => m.done).length}/3</small></button>
     </div>
     <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul><button class="linkbtn statsbtn" type="button" id="openstats">⏱ STATISTICHE E TROFEI ›</button><div class="wkhead">🗓 MISSIONI DELLA SETTIMANA · uguali per tutti, cambiano il lunedì</div><ul class="weekly">${P.weeklyMissions().map(m => `<li class="${m.done ? 'done' : ''}"><span class="mtext">${m.done ? '✔ ' : ''}${m.text}</span><span class="mxp">+${m.beers} 🍺</span></li>`).join('')}</ul></div>
@@ -3009,7 +3009,7 @@ function cupListHTML(list, me = '') {
 }
 function cupBar(d) {
   const bar = $('cupbar'); if (!bar) return;
-  const w = d?.week; if (!w) { bar.hidden = true; potwCard(null); return; }
+  const w = d?.week; if (!w || !Array.isArray(w.list)) { bar.hidden = true; potwCard(null); return; }   // v109.4 · risposta incompleta del server: niente errore
   bar.hidden = false;
   const lead = w.list[0], me = cupMine(w), left = cupDaysLeft();
   $('cuplead').textContent = lead ? `1° ${lead.n} · ${lead.p} pt` : 'nessuno ancora: prendila tu!';
@@ -3257,7 +3257,7 @@ function groupResult(runInfo) {
   const nick = C.getNick();
   if (!nick) {
     box.innerHTML = `<div class="ghead">🏆 ${grpLabel()}</div>
-      <p>Metti il tuo nome: il punteggio va nella classifica di tutto l'EDT.</p>
+      <p>Metti il tuo nome: il punteggio va nella ${C.isEdt() ? 'classifica dell’EDT' : 'classifica di tutti'}.</p>
       <form class="nickrow" id="nickform"><input id="nickin" maxlength="16" autocomplete="nickname" placeholder="Il tuo nome" value="${C.cleanNick(profile.rider)}"><button class="primary" type="submit"><span>INVIA</span></button></form>`;
     $('nickform').onsubmit = e => { e.preventDefault(); const n = C.cleanNick($('nickin').value); if (!n) return; C.setNick(n); groupResult(runInfo); };
     return;
@@ -3282,7 +3282,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
   C.submit({ ...payload, name: nick, v: String(GAME_VERSION), b: P.UPGRADES.reduce((a, u) => a + P.upgradeLevel(u.id), 0) }).then(d => {
     if (d.taken) {   // v89 · nome già prenotato da un altro telefono
       if (!$('groupres')) return;
-      $('groupres').innerHTML = `<div class="ghead">🔒 NOME GIÀ USATO</div><p><b>${nick}</b> è già il nome di un altro pilota del gruppo. Se sei tu, scrivi il tuo <b>codice pilota</b> (lo trovi in classifica sul telefono dove giochi di solito); altrimenti cambia nome.</p><p class="note">Il giro non è perso: resta da parte${C.heldCount() > 1 ? ' insieme ad altri ' + (C.heldCount() - 1) : ''} e parte da solo appena metti il codice giusto (o un nome tuo).</p>
+      $('groupres').innerHTML = `<div class="ghead">🔒 NOME GIÀ USATO</div><p><b>${nick}</b> è già il nome di un altro giocatore. Se sei tu, scrivi il tuo <b>codice pilota</b> (lo trovi in classifica sul telefono dove giochi di solito); altrimenti cambia nome.</p><p class="note">Il giro non è perso: resta da parte${C.heldCount() > 1 ? ' insieme ad altri ' + (C.heldCount() - 1) : ''} e parte da solo appena metti il codice giusto (o un nome tuo).</p>
         <form class="nickrow" id="codeform"><input id="codein" maxlength="12" autocomplete="off" placeholder="codice pilota"><button class="primary" type="submit"><span>ENTRA</span></button></form>
         <div class="grow"><button class="linkbtn" type="button" id="gnick2">cambia nome</button></div>`;
       $('codeform').onsubmit = async e => {   // v108 · col codice partono anche i giri messi da parte
@@ -3455,7 +3455,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 109.3;
+const GAME_VERSION = 109.4;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3566,11 +3566,11 @@ function renderSide() {
   const group = boardSrc === 'group' && C.enabled();
   document.querySelectorAll('[data-src]').forEach(b => { b.classList.toggle('active', b.dataset.src === (group ? 'group' : 'local')); b.onclick = () => { boardSrc = b.dataset.src; renderSide(); }; });
   $('boardsrc').hidden = !C.enabled();
-  $('boardtitle').textContent = group ? 'Chi comanda nel gruppo' : 'Chi comanda su questo telefono';
-  $('boardnote').textContent = group ? `Classifica di tutto l’EDT · stagione ${C.SEASON.n} (giri dalla versione ${C.SEASON.from}): un record a testa, migliori 10 per percorso.` : 'Classifica salvata solo su questo dispositivo: passate il telefono al prossimo.';
+  $('boardtitle').textContent = group ? (C.isEdt() ? 'Chi comanda nel gruppo' : 'Chi comanda tra tutti') : 'Chi comanda su questo telefono';   // v109.4 · niente "gruppo" per chi non è EDT
+  $('boardnote').textContent = group ? `${C.isEdt() ? 'Classifica di tutto l’EDT' : 'Classifica di tutti i giocatori'} · stagione ${C.SEASON.n} (giri dalla versione ${C.SEASON.from}): un record a testa, migliori 10 per percorso.` : 'Classifica salvata solo su questo dispositivo: passate il telefono al prossimo.';
   if (group) {
     const d = C.cached();
-    $('board').innerHTML = d ? groupListHTML(d.boards?.[bm], C.getNick(), bm) : '<li class="empty">Carico la classifica del gruppo…</li>';
+    $('board').innerHTML = d ? groupListHTML(d.boards?.[bm], C.getNick(), bm) : '<li class="empty">Carico la classifica…</li>';
     if (!d || sideLoadedAt < Date.now() - 60000) { sideLoadedAt = Date.now(); C.load().then(() => renderSide()).catch(() => { if (!C.cached()) $('board').innerHTML = '<li class="empty">Classifica del gruppo non raggiungibile.</li>'; }); }
   } else {
     const list = P.boardFor(bm);
@@ -3732,10 +3732,10 @@ async function shareText(text, url = publicGameURL) {
     catch (e) { if (e.name === 'AbortError') return; }
   }
   try {
-    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text + ' ' + url); status('Link e messaggio copiati: incollali nel gruppo.'); return; }
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text + ' ' + url); status(C.isEdt() ? 'Link e messaggio copiati: incollali nel gruppo.' : 'Link e messaggio copiati: incollali su WhatsApp o dove vuoi.'); return; }
   } catch {}
   const out = $('sharefallback'); out.hidden = false; out.value = text + ' ' + url; out.focus(); out.select();
-  status('Copia questo messaggio e incollalo nel gruppo.');
+  status(C.isEdt() ? 'Copia questo messaggio e incollalo nel gruppo.' : 'Copia questo messaggio e mandalo a chi vuoi.');
 }
 $('sharelink').onclick = $('sharelink2').onclick = () => shareText(C.isEdt() ? 'Tranquilli, è un giro easy! Scegli il tuo pilota EDT e prova ad arrivare al rifugio. Vai Ciccio!' : 'Tranquilli, è un Giro Easy! Il gioco di enduro gratis dal telefono: crea il tuo pilota, salta i tronchi e arriva al rifugio prima del tempo. Vediamo se mi batti!');
 // v108.6 · per chi non è dell'EDT il tasto dice solo CONDIVIDI (non c'è un "gruppo")
@@ -3755,7 +3755,7 @@ function cardFacts(win, res) {
   if (run.position && !leap) f.push([`${run.position}°`, ice ? `SU ${rivals.length + 1} NELLE DERAPATE` : `SU ${rivals.length + 1} IN GARA`]);
   const d = lastGroupRun?.sent, nick = C.getNick();
   if (d && nick) {
-    const gp = C.positionOf(d, md.id, nick); if (gp) f.push([`${gp}°`, 'NEL GRUPPO']);
+    const gp = C.positionOf(d, md.id, nick); if (gp) f.push([`${gp}°`, C.isEdt() ? 'NEL GRUPPO' : 'IN CLASSIFICA']);
     const me = cupMine(d.week, nick); if (me) f.push([`${me.pos}°`, 'COPPA SETTIMANA']);
   }
   if (res.isRecord) f.push(['★', 'NUOVO RECORD']);
@@ -3858,7 +3858,7 @@ async function shareScore(win, res, fmt = 'post') {
     }
   } catch (e) { if (e.name === 'AbortError') return; }
   await shareText(text, challengeURL());
-  status(fmt === 'story' ? 'Storia salvata: pubblicala su Instagram, TikTok o nello stato di WhatsApp.' : 'Immagine del punteggio salvata: allegala nel gruppo insieme al messaggio.');
+  status(fmt === 'story' ? 'Storia salvata: pubblicala su Instagram, TikTok o nello stato di WhatsApp.' : (C.isEdt() ? 'Immagine del punteggio salvata: allegala nel gruppo insieme al messaggio.' : 'Immagine del punteggio salvata: mandala su WhatsApp insieme al messaggio.'));
 }
 
 // ---------- Avvio ----------
