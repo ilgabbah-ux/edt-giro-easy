@@ -3079,7 +3079,7 @@ function ghostChallengeHTML(sc) {
 const dotsHTML = (n, now = 0) => `<span class="chdots">${P.CHEST.map((b, i) => `<i class="${i < n ? 'on' : ''} ${i === now - 1 ? 'now' : ''}" title="giorno ${i + 1}: +${b}"><u>${i + 1}</u></i>`).join('')}</span>`;
 // v109.3 · OBIETTIVO DI OGGI: un percorso e un tempo da battere, uguali per tutti nello stesso giorno (+30 birre)
 function dailyGoal() {
-  const lvl = P.levelInfo().level, list = P.SHOWN().filter(m => P.isUnlocked(m, lvl) && !m.leap && !m.ice && !m.random && !m.desert && m.id !== 3);
+  const lvl = P.levelInfo().level, list = P.SHOWN().filter(m => P.isUnlocked(m, lvl) && !m.leap && !m.ice && !m.random && !m.desert && !m.ranch && m.id !== 3);
   if (!list.length) return null;
   const k = P.todayKey(), md = list[(k * 7 + 3) % list.length];
   const t = Math.round(md.limit * (.8 + ((k % 5) * .02)));
