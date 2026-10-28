@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.7';
-import { createWorld } from './scene3d.js?v=108.7';
-import * as A from './audio.js?v=108.7';
-import * as P from './progress.js?v=108.7';
-import { createMud } from './mudfx.js?v=108.7';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.7';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=108.7';
-import * as C from './classifica.js?v=108.7';
-import * as D from './duel.js?v=108.7';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.8';
+import { createWorld } from './scene3d.js?v=108.8';
+import * as A from './audio.js?v=108.8';
+import * as P from './progress.js?v=108.8';
+import { createMud } from './mudfx.js?v=108.8';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=108.8';
+import * as C from './classifica.js?v=108.8';
+import * as D from './duel.js?v=108.8';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=108.7').then(m => {
+import('./piloti.js?v=108.8').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -524,6 +524,8 @@ function start() {
   A.preloadRivals(Object.values(RIDER_VOICE)); A.preloadSong(mode);
   resetRun();
   state = 'countdown'; countdown = 3.2; countStep = 4; holePre = holeDone = false;
+  { const tc = $('tipcard'), nb = (P.profile.totals?.runs || 0) < 3 && !C.isEdt();   // v108.8 · nei primi giri di chi arriva da fuori: i comandi a colpo d'occhio mentre parte il via
+    if (tc) { tc.innerHTML = nb ? `<small>COME SI GUIDA</small>${touchDevice ? 'Dito a <b>sinistra/destra</b> per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare' : '<b>← →</b> per sterzare · <b>SPAZIO</b> per saltare i tronchi · <b>↓</b> impenna · <b>B</b> turbo'}<br>Prendi le birre e arriva al rifugio prima del tempo!` : ''; tc.classList.toggle('show', nb); } }
   setTimeout(() => { if (state === 'countdown') toast('🚀 TOCCA SALTA AL VIA = PARTENZA A RAZZO', 'gold'); }, 600);
   // v89 · primo giro su un percorso: il consiglio della sua meccanica sta nella cartolina del via (sparisce al VIA, non copre la gara)
   let firstTip = '';
@@ -547,6 +549,7 @@ function startMusic() {
   A.musicStart(duel?.racing ? A.DUEL_STYLE : mode, { transpose });   // v105.4 · nel duello suona "Angelo vs Gabbah"
 }
 function go() {
+  $('tipcard')?.classList.remove('show');
   state = 'playing'; tiltZero = null;   // v62 · lo zero del giroscopio è la posizione al VIA
   if (tiltOn) { let seen = '1'; try { seen = localStorage.getItem('edt-tilt-hint'); localStorage.setItem('edt-tilt-hint', '1'); } catch {} if (!seen) setTimeout(() => toast('📱 INCLINA IL TELEFONO PER STERZARE · SI SPEGNE DAL MENU', 'green'), 900); }
   if (holePre) setTimeout(() => { if (state === 'playing' && !holeDone) holeshot(); }, 0);
@@ -558,7 +561,7 @@ function go() {
   toast('VAI CICCIO!'); if (!riderLine('start')) voice('Vai Ciccio!', true);
   if (touchDevice && !tiltOn) { let seen = '1'; try { seen = localStorage.getItem('edt-tilt-tip'); localStorage.setItem('edt-tilt-tip', '1'); } catch {} if (!seen) setTimeout(() => toast('📱 PUOI STERZARE INCLINANDO: ATTIVALO DALLA PAUSA', 'gold'), 3500); }   // v107.6
   if (startBoosts.length) setTimeout(() => toast('🎁 ' + startBoosts.join(' · '), 'green'), 1500);
-  if (gev) { setTimeout(() => { if (state === 'playing') { bigCall('ARRIVANO LE GEV!'); A.sfx.whistle(); } }, 900); setTimeout(() => { if (state === 'playing') toast(`HAI ${lives} TENTATIVI: FINITI QUELLI ARRIVA LA MULTA`, 'red'); }, 2600); }
+  if (gev) { setTimeout(() => { if (state === 'playing') { bigCall('ARRIVANO LE GEV!'); A.sfx.whistle(); explainOnce('gev'); } }, 900); setTimeout(() => { if (state === 'playing') toast(`HAI ${lives} TENTATIVI: FINITI QUELLI ARRIVA LA MULTA`, 'red'); }, 2600); }
 }
 
 // v98 · finestre in primo piano (video, podio, sorpasso): dentro il gioco, che sul telefono e a schermo intero copre il resto della pagina
@@ -1814,8 +1817,16 @@ function takeShortcut() {
 }
 let angeloTimer = 0, suukaAt = -99;
 // v53 · quando un compagno ti passa compare il bollino "Angelo Suuuka"
+// v108.8 · chi non è dell'EDT: la prima volta che sente una vostra battuta, mezza riga di spiegazione
+const EXPLAIN = { gev: 'LE GEV SONO LE GUARDIE ECOLOGICHE: SE TI PRENDONO, GIRO FINITO. SEMINALE!', suka: '«SUUUKA!» È L’URLO DI ANGELO QUANDO C’È UN SORPASSO', migliora: '«DOPO MIGLIORA» È QUELLO CHE SI DICE IN OGNI SALITA… E NON MIGLIORA MAI', campa: '«CAMPA GIÙ» = BUTTATI GIÙ A TUTTO GAS: IL MOTTO DI MIRCO IN DISCESA' };
+function explainOnce(k) {
+  if (C.isEdt() || !EXPLAIN[k]) return;
+  try { const s = JSON.parse(localStorage.getItem('edt-explained') || '{}'); if (s[k]) return; s[k] = 1; localStorage.setItem('edt-explained', JSON.stringify(s)); } catch { return; }
+  setTimeout(() => { if (state === 'playing') toast(EXPLAIN[k], 'blue'); }, 1400);
+}
 function suuka() {
   const el = $('suuka'); if (!el || elapsed - suukaAt < 8) return; suukaAt = elapsed;
+  explainOnce('suka');
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
 }
 function angelo() {
@@ -2000,11 +2011,11 @@ function update(dt) {
   tractOn = feat('traction') && (route.climb > .3 || route.grade > .04) && !leap;
   if (tractOn && !wasTract) objects = objects.filter(o => o.z > .75 || o.type === 'coin' || o.type === 'farm' || o.type === 'goldMug');   // v85 · inizio salita: pista sgombra
   wasTract = tractOn;
-  if (tractOn && !run.tractHint) { run.tractHint = 1; bigCall('SALITA: DOSA IL GAS!'); toast('⛽ APRI E CHIUDI IL GAS: TIENI LA LANCETTA NEL VERDE', 'gold'); }
+  if (tractOn && !run.tractHint) { run.tractHint = 1; bigCall('SALITA: DOSA IL GAS!'); toast('⛽ APRI E CHIUDI IL GAS: TIENI LA LANCETTA NEL VERDE', 'gold'); explainOnce('migliora'); }
   if (tractOn && !stalled) {
     grip = Math.max(0, Math.min(1, grip + (gas ? .36 : -.6) * dt));
     if (grip > .94) { tractMul = .72; if (elapsed - spinMsgAt > 2.5) { spinMsgAt = elapsed; toast('🔥 PATTINA! MOLLA UN FILO IL GAS', 'red'); } }
-    else if (grip < .12 - up.ecu * .015) { tractMul = .45; stallT += dt; if (stallT > 2.2 + up.ecu * .15) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); toast('👆 PIANTATO! TOCCA PIÙ VOLTE GAS O SALTA PER SPINGERE', 'gold'); } }
+    else if (grip < .12 - up.ecu * .015) { tractMul = .45; stallT += dt; if (stallT > 2.2 + up.ecu * .15) { stalled = true; pushP = 0; breakCombo(); bigCall('SPINGI! DOPO MIGLIORA!'); explainOnce('migliora'); toast('👆 PIANTATO! TOCCA PIÙ VOLTE GAS O SALTA PER SPINGERE', 'gold'); } }
     else { stallT = 0; if (grip >= .28 - up.ecu * .03 && grip <= .84 + up.ecu * .03) { tractMul = 1.08; score += dt * 40; } }
   } else if (!tractOn) { grip += (.5 - grip) * Math.min(1, dt * 2); stallT = 0; stalled = false; }
   if (stalled) tractMul = .04;
@@ -2031,7 +2042,7 @@ function update(dt) {
     catchT = far ? Math.min(1, catchT + dt * .5) : Math.max(0, catchT - dt); }
   const speedT = (draftT > .5 ? (has('slip') ? 1.1 : 1.07) : 1) * (1 + catchT * .05) * tractMul * paceFor(route, gas || has('climb'), ice ? 0 : turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (cornerLine > 0 ? 1.07 : cornerLine < 0 ? .93 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
   // Discesa: "Campa giù!"
-  if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); }
+  if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); explainOnce('campa'); }
   if (route.down < .15) downAnnounced = false;
   // v105.4 · la moto ha massa: col gas prende velocità in un attimo ma non di colpo, mollando rallenta gradualmente; i colpi frenano subito
   if (leap || stun > 0 || waterT > 0 || snowT > 0) speedSm = Math.min(speedSm, speedT);
@@ -2718,6 +2729,7 @@ function renderShop(back, tab = shopTab) {
 }
 function renderReady() {
   state = 'ready';
+  $('tipcard')?.classList.remove('show');
   applyLayout(false);
   setMenu(true);
   turbo = 0; elapsed = 0; course = 0;
@@ -2842,6 +2854,14 @@ function iceTable(win) {
 // v107.6 · risultati: MENU e UN ALTRO GIRO sempre in alto (su tablet i bottoni in fondo restavano fuori schermo)
 document.addEventListener('click', e => {
   if (state !== 'ended') return;
+  if (e.target.closest('#sfidaamico')) {   // v108.8 · il gioco gira da solo: ogni giro diventa una sfida da mandare
+    A.sfx.click();
+    const nick = C.getNick() || profile.rider, md = P.MODES[mode], pts = Math.floor(score).toLocaleString('it-IT');
+    const what = ice ? Math.round(driftM) + ' m di traverso' : leap ? C.fmtJump(leapBest || 0) + ' di salto' : pts + ' punti';
+    const url = publicGameURL + (ghostable(mode) ? '?fantasma=' + encodeURIComponent(nick) + '&p=' + mode : '');
+    shareText(`Ho fatto ${what} a «Tranquilli, è un Giro Easy!» (${md.id === 3 ? 'Sfida del giorno' : md.name}). Riesci a battermi? Gioca gratis dal telefono:`, url);
+    return;
+  }
   if (e.target.closest('#resmenu')) { A.sfx.click(); renderReady(); }
   else if (e.target.closest('#resagain')) $('again')?.click();
 });
@@ -2852,7 +2872,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   $('overlay').classList.remove('hidden');
   setMenu(true);
   $('card').innerHTML = `
-    <div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button><button class="resagain" id="resagain" type="button">UN ALTRO GIRO ›</button></div>
+    <div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button><button class="resagain" id="resagain" type="button">UN ALTRO GIRO ›</button></div>${C.isEdt() ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
     <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
     <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${leap ? (win ? `${leapBest.toFixed(1).replace('.', ',')} METRI<br><em>IN PIEDI!</em>` : 'SALTO<br><em>NULLO.</em>') : gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
@@ -3366,7 +3386,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 108.7;
+const GAME_VERSION = 108.8;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3625,16 +3645,16 @@ function renderDuel() {
 // Su un hosting proprio è l'indirizzo della pagina; nella versione link Claude lo imposta index.html.
 const publicGameURL = window.EDT_PUBLIC_URL || new URL('./', window.location.href).href;
 function status(t) { $('sharestatus').textContent = t; }
-async function shareText(text) {
+async function shareText(text, url = publicGameURL) {
   $('sharefallback').hidden = true;
   if (navigator.share && !window.EDT_TEXT_SHARE) {
-    try { await navigator.share({ title: 'Giro Easy · Enduro Drinking Team', text, url: publicGameURL }); return; }
+    try { await navigator.share({ title: 'Tranquilli, è un Giro Easy!', text, url }); return; }
     catch (e) { if (e.name === 'AbortError') return; }
   }
   try {
-    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text + ' ' + publicGameURL); status('Link e messaggio copiati: incollali nel gruppo.'); return; }
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text + ' ' + url); status('Link e messaggio copiati: incollali nel gruppo.'); return; }
   } catch {}
-  const out = $('sharefallback'); out.hidden = false; out.value = text + ' ' + publicGameURL; out.focus(); out.select();
+  const out = $('sharefallback'); out.hidden = false; out.value = text + ' ' + url; out.focus(); out.select();
   status('Copia questo messaggio e incollalo nel gruppo.');
 }
 $('sharelink').onclick = $('sharelink2').onclick = () => shareText(C.isEdt() ? 'Tranquilli, è un giro easy! Scegli il tuo pilota EDT e prova ad arrivare al rifugio. Vai Ciccio!' : 'Tranquilli, è un Giro Easy! Il gioco di enduro gratis dal telefono: crea il tuo pilota, salta i tronchi e arriva al rifugio prima del tempo. Vediamo se mi batti!');
