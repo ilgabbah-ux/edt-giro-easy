@@ -280,7 +280,12 @@ export function createWorld(canvas) {
     };
     fill(forkRoads[0], -1); fill(forkRoads[1], 1); fill(forkIsland, 0);
   }
+  // v109.8 · terreno: con la grafica alleggerita normali e colori si ricalcolano ogni pochi fotogrammi (sull'iPad era il lavoro più pesante)
+  let terrainLite = false, terrainN = 0;
+  const DBG = { noTerrain: false, noScenery: false };   // v109.9 · test di fluidità: si può fermare il terreno o lo scenario per capire cosa pesa
   function terrain(t) {
+    terrainN++;
+    const doNorm = !terrainLite || terrainN % 3 === 0, doCol = !terrainLite || terrainN % 4 === 0;
     for (const [o, from, to] of [[road, -4.65, 4.65], [left, -70, -5.15], [right, 5.15, 70], [edges[0], -5.15, -4.65], [edges[1], 4.65, 5.15]]) {
       const a = o.geometry.attributes.position, col = o.geometry.attributes.color;
       for (let i = 0; i <= segments; i++) {
@@ -291,12 +296,14 @@ export function createWorld(canvas) {
           const hill = bank(w, z);
           const rut = o === road ? trail.rough * (Math.cos(w * 5.8) * .025 + Math.sin((t - z) * 1.2 + w) * .022) : 0;
           a.setXYZ(k, c + w, h + hill + rut, z);
-          const noise = Math.sin((t - z) * .21 + w * .84) * Math.cos((t - z) * .083 - w * 1.7);
-          const tint = o === road ? .93 + noise * .07 : .86 + noise * .14;
-          col.setXYZ(k, tint, tint, o === road ? tint : tint * .94);
+          if (doCol) {
+            const noise = Math.sin((t - z) * .21 + w * .84) * Math.cos((t - z) * .083 - w * 1.7);
+            const tint = o === road ? .93 + noise * .07 : .86 + noise * .14;
+            col.setXYZ(k, tint, tint, o === road ? tint : tint * .94);
+          }
         }
       }
-      a.needsUpdate = true; col.needsUpdate = true; o.geometry.computeVertexNormals();
+      a.needsUpdate = true; if (doCol) col.needsUpdate = true; if (doNorm) o.geometry.computeVertexNormals();
     }
     forkStrips(t);
     for (const m of roadMaps) m.offset.y = (t * m.repeat.y / 200) % 1;
@@ -2831,6 +2838,7 @@ export function createWorld(canvas) {
   const QKEY = 'edt-quality2', saveQ = q => { try { localStorage.setItem(QKEY, String(q)); } catch {} };
   function stepQuality(q) {
     if (q === 1) { pixelRatio = Math.min(pixelRatio, 1.35); renderer.setPixelRatio(pixelRatio); resize(); sun.shadow.mapSize.set(768, 768); sun.shadow.map?.dispose(); sun.shadow.map = null; tufts.visible = false; }
+    if (q >= 3) terrainLite = true;
     if (q === 2) { sun.castShadow = false; renderer.shadowMap.enabled = false; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); }
     if (q === 3) { pixelRatio = Math.min(pixelRatio, 1.15); renderer.setPixelRatio(pixelRatio); resize(); }
     if (q === 4) { pixelRatio = Math.min(pixelRatio, 1); renderer.setPixelRatio(pixelRatio); resize(); }
@@ -2866,7 +2874,7 @@ export function createWorld(canvas) {
     if (lite) { while (quality < liteQ()) stepQuality(++quality); }
     else {
       for (const m of [...FOLIAGE, flowers]) if (m.userData.n0 != null) m.count = m.userData.n0;   // v109.7 · torna tutta la vegetazione
-      quality = 0; frames = 0; goodFrames = 0; frameAvg = 16; pixelRatio = PR0; renderer.setPixelRatio(pixelRatio); resize();
+      terrainLite = false; quality = 0; frames = 0; goodFrames = 0; frameAvg = 16; pixelRatio = PR0; renderer.setPixelRatio(pixelRatio); resize();
       sun.shadow.mapSize.set(1536, 1536); sun.shadow.map?.dispose(); sun.shadow.map = null; sun.castShadow = true; renderer.shadowMap.enabled = true;
       scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); saveQ(0);
     }
@@ -2972,7 +2980,7 @@ export function createWorld(canvas) {
     const live = s.state === 'playing' || s.state === 'paused' || s.state === 'countdown';
     const boostAmount = live ? (s.turbo || 0) : 0;
     trail = routeAt(s.elapsed || 0, t);
-    ranchLook = !!s.ranch; curShape = ranchLook ? RANCH_SHAPE : s.ice ? null : trackShape(s.mode, s.variant || 0, GAME_LENGTH / (s.courseScale || .04)); forkF = s.fork || null; terrain(t); instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook);
+    ranchLook = !!s.ranch; curShape = ranchLook ? RANCH_SHAPE : s.ice ? null : trackShape(s.mode, s.variant || 0, GAME_LENGTH / (s.courseScale || .04)); forkF = s.fork || null; if (!DBG.noTerrain) terrain(t); if (!DBG.noScenery) { instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook); }
     weatherNow = s.weather || weatherNow;
     applyWeather(s.weather, s.sight || 0);
     ambient(fdt, t, trail.w, live);
@@ -3297,5 +3305,5 @@ export function createWorld(canvas) {
   }
 
   resize();
-  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, perfInfo, resetPerf, set onAutoLite(f) { onAutoLite = f; } };
+  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, perfInfo, resetPerf, dbg: DBG, set onAutoLite(f) { onAutoLite = f; } };
 }

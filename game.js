@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
-import { createWorld } from './scene3d.js?v=b2e746c9';
+import { createWorld } from './scene3d.js?v=d5a31fd7';
 import * as A from './audio.js?v=22e3dd3c';
 import * as P from './progress.js?v=63266490';
 import { createMud } from './mudfx.js?v=ae45cf9e';
@@ -271,6 +271,21 @@ for (const ev of ['touchend', 'click']) document.addEventListener(ev, askTilt, {
 // v109 · musica del menu: parte al primo tocco (prima il browser non lascia suonare) e resta in sottofondo finché non si parte
 let quietMenu = false;   // v109.7 · dopo "ESCI DAL GIOCO" la musica del menu non riparte da sola
 document.addEventListener('click', () => { if ((state === 'ready' || state === 'ended') && !howPlaying() && !quietMenu) { A.unlock(); A.menuMusic(); } }, { passive: true });
+// v109.9 · TEST FLUIDITÀ: 5 prove da 4 secondi (normale, senza audio, terreno fermo, scenario fermo, niente 3D) e una tabella da fotografare
+async function runDiag() {
+  if (!world?.dbg) return;
+  const D = world.dbg, ov = $('overlay'), wasSound = A.isEnabled();
+  const box = document.createElement('div'); box.className = 'diagbox'; box.innerHTML = '<b>TEST FLUIDITÀ</b><span id="diagstep">preparo…</span>'; $('game').appendChild(box);
+  ov.classList.add('hidden');
+  const measure = ms => new Promise(res => { const ts = []; const t0 = performance.now(); const tick = t => { ts.push(t); if (t - t0 < ms) requestAnimationFrame(tick); else { const d = []; for (let i = 1; i < ts.length; i++) d.push(ts[i] - ts[i - 1]); d.sort((a, b) => a - b); res({ fps: Math.round((ts.length - 1) * 1000 / (ts[ts.length - 1] - ts[0])), worst: Math.round(d[d.length - 1] || 0), med: Math.round(d[Math.floor(d.length / 2)] || 0) }); } }; requestAnimationFrame(tick); });
+  const steps = [['normale', () => {}], ['senza audio', () => A.setEnabled(false)], ['terreno fermo', () => { D.noTerrain = true; }], ['terreno + scenario fermi', () => { D.noScenery = true; }], ['niente 3D', () => { diagNoDraw = true; }]];
+  const out = [];
+  for (const [name, set] of steps) { set(); $('diagstep').textContent = name + '…'; await measure(600); const r = await measure(4000); out.push([name, r]); }
+  D.noTerrain = D.noScenery = false; diagNoDraw = false; A.setEnabled(wasSound); ov.classList.remove('hidden');
+  const q = world.perfInfo ? world.perfInfo() : {};
+  box.innerHTML = `<b>TEST FLUIDITÀ · v${GAME_VERSION}</b><table>${out.map(([n, r]) => `<tr><td>${n}</td><td>${r.fps} FPS</td><td>mediana ${r.med} ms</td><td>peggiore ${r.worst} ms</td></tr>`).join('')}</table><small>Q${q.q ?? '?'}${q.lite ? ' leggera' : ''} · ×${q.pr ?? '?'} · ${innerWidth}×${innerHeight}@${devicePixelRatio} · inclina ${tiltOn ? 'sì' : 'no'}</small><button type="button" class="secondary" id="diagok">CHIUDI</button>`;
+  $('diagok').onclick = () => box.remove();
+}
 // v109.7 · ESCI DAL GIOCO: chiude il giro, spegne tutti i suoni, esce dallo schermo intero e torna in cima alla pagina
 function exitGame() {
   quietMenu = true; A.engineStop(); A.stopVoice(); A.musicStop(true);
@@ -665,7 +680,7 @@ function finish(win, reason = '') {
 // v108 · pausa: grafica leggera a mano e contatore di fluidità (fotogrammi al secondo, scatti) da mandare a Claude con una foto
 const liteLabel = () => '⚙ GRAFICA LEGGERA: ' + (world?.isLite?.() ? 'SÌ' : 'NO');
 const perfLabel = () => '⏱ CONTATORE FLUIDITÀ: ' + (perfOn ? 'SÌ' : 'NO');
-let perfOn = false, perfAt = 0, pausedDrawn = false;
+let perfOn = false, perfAt = 0, pausedDrawn = false, diagNoDraw = false;
 const perfT = { js: 0, gl: 0, n: 0 };
 // v109.6 · riepilogo di fluidità del giro (col contatore acceso): si mostra nella schermata dei risultati
 let perfRun = null;
@@ -692,12 +707,14 @@ function pause() {
       ${touchDevice ? `<button class="secondary" id="tiltpause" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}
       <button class="secondary" id="litepause" type="button">${liteLabel()}</button>
       <button class="secondary" id="perfpause" type="button">${perfLabel()}</button>
+      <button class="secondary" id="diagpause" type="button">TEST FLUIDITÀ (25 s)</button>
       <button class="secondary" id="quit">ABBANDONA IL GIRO</button><button class="secondary" id="exitgame" type="button">ESCI DAL GIOCO</button></div>`;
     $('resume').onclick = pause;
     $('musictoggle').onclick = () => { A.setMusic(!A.isMusicOn()); $('musictoggle').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'); };
     if ($('tiltpause')) $('tiltpause').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltpause').innerHTML = iconize('📱 STERZO INCLINANDO: ' + (on ? 'SÌ' : 'NO')); if (on) toast('📱 INCLINA IL DISPOSITIVO A DESTRA E SINISTRA PER STERZARE', 'green'); };   // v107.6 · il giroscopio si accende anche dalla pausa
     $('quit').onclick = () => { state = 'ready'; setDisabled(false); renderReady(); };
     $('exitgame').onclick = exitGame;
+    $('diagpause').onclick = () => { state = 'ready'; setDisabled(false); renderReady(); setTimeout(runDiag, 300); };   // v109.9 · il test gira con la pista che scorre dietro al menu
     $('litepause').onclick = () => { world?.setLite?.(!world.isLite()); $('litepause').innerHTML = iconize(liteLabel()); toast(world?.isLite?.() ? '⚙ GRAFICA LEGGERA: MENO OMBRE E DETTAGLI, PIÙ FLUIDO' : '✨ GRAFICA PIENA', 'green'); };   // v108
     $('perfpause').onclick = () => { perfOn = !perfOn; try { localStorage.setItem('edt-perf', perfOn ? '1' : '0'); } catch {} $('perfpause').innerHTML = iconize(perfLabel()); perfHud(true); };
     $('pause').innerHTML = icon('play'); $('pause').setAttribute('aria-label', 'Riprendi');
@@ -2705,7 +2722,7 @@ function frame(t) {
   mudFx.update(dt);
   if (state === 'ready' || state === 'ended') roadTime += dt * .25; // il sentiero scorre piano dietro ai menu
   const pb = performance.now();
-  if (state !== 'paused' || !pausedDrawn) draw();   // v109.6 · in pausa la scena è ferma: basta disegnarla una volta
+  if ((state !== 'paused' || !pausedDrawn) && !diagNoDraw) draw();   // v109.6 · in pausa la scena è ferma: basta disegnarla una volta
   pausedDrawn = state === 'paused';
   if (perfOn) { const pc = performance.now(); perfT.js += pb - pa; perfT.gl += pc - pb; perfT.n++; perfHud();
     if (state === 'playing') { if (!perfRun) perfRunReset(); const R = perfRun; if (R.lastT) { const fd = pa - R.lastT; if (fd < 1000) { R.n++; R.ms += fd; R.js += pb - pa; R.gl += pc - pb; if (fd > 50) R.hitch++; if (fd > R.worst) R.worst = fd; R.secN++; R.secMs += fd; if (R.secMs >= 1000) { R.minFps = Math.min(R.minFps, R.secN * 1000 / R.secMs); R.secN = 0; R.secMs = 0; } } } R.lastT = pa; }
@@ -3501,7 +3518,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 109.8;
+const GAME_VERSION = 109.9;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3982,7 +3999,7 @@ if (/debug/.test(location.hash)) {
 }
 
 // Aggancio per i test automatici (non usato dal gioco).
-window.__edt = { get state() { return state; }, get perfRun() { return perfRun; }, puncture() { puncture(); hud(); }, card(fmt) { return scoreCard(true, { isRecord: true }, fmt); }, get cornerLine() { return cornerLine; }, get rb() { return curBend(); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
+window.__edt = { get state() { return state; }, snap() { return drawState(); }, get perfRun() { return perfRun; }, puncture() { puncture(); hud(); }, card(fmt) { return scoreCard(true, { isRecord: true }, fmt); }, get cornerLine() { return cornerLine; }, get rb() { return curBend(); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get flat() { return flat; }, get sandStuck() { return sandStuck; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, get runPlan() { return runPlan; }, get forkPath() { return forkPath; }, replay: startReplay, recFake() { pushSnap(drawState(), 1 / 30); }, get highlights() { return highlights.map(h => ({ label: h.label, w: Math.round(h.w), n: h.frames.length })); }, startClip, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
 
