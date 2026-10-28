@@ -1781,31 +1781,51 @@ aside#hub { gap: 10px; }
 /* v114 · tasti per i pollici. Con l'inclinazione accesa (telefono e iPad) niente frecce:
    pollice destro = SALTA (angolo) + IMPENNA sopra; pollice sinistro = TURBO + GAS sopra. "Mancino" li scambia. */
 .game.tiltmode { --tp: max(14px, env(safe-area-inset-bottom, 0px)); --tl: max(14px, env(safe-area-inset-left, 0px)); --tr: max(14px, env(safe-area-inset-right, 0px));
-  --bw: 132px; --bh: 86px; --sh: 58px; --gap: 10px; --lift: 0px; }
+  --bw: 132px; --bh: 86px; --sh: 58px; --gap: 10px; --lift: 0px; --k: 1; }
+.game.tiltmode, .game.tiltmode * { --BW: calc(var(--bw) * var(--k)); --BH: calc(var(--bh) * var(--k)); --SH: calc(var(--sh) * var(--k)); }
+.game.tiltmode.bs-s { --k: .84; } .game.tiltmode.bs-l { --k: 1.16; }
 .game.tiltmode .controls { position: absolute !important; inset: 0 !important; display: block !important; pointer-events: none; }
 .game.tiltmode .steer { display: none !important; }
 .game.tiltmode .rightctrl { display: contents !important; }
 .game.tiltmode .controls .ctrl, .game.tiltmode #gas { position: absolute !important; margin: 0 !important; transform: none !important; min-width: 0 !important; max-width: none !important; flex: none !important; box-sizing: border-box; }
-.game.tiltmode #jump { right: var(--tr); left: auto; bottom: calc(var(--tp) + var(--lift)); width: var(--bw); height: var(--bh); font-size: 25px; padding: 0 8px; }
-.game.tiltmode #wheelie { right: var(--tr); left: auto; bottom: calc(var(--tp) + var(--lift) + var(--bh) + var(--gap)); width: var(--bw); height: var(--sh); font-size: 16px; padding: 0 8px; }
-.game.tiltmode .controls #boost { left: var(--tl); right: auto; bottom: calc(var(--tp) + var(--lift)); width: calc(var(--bw) + 18px); height: var(--bh); font-size: 16px; padding: 0 12px; }
-.game.tiltmode #gas { left: var(--tl); right: auto; bottom: calc(var(--tp) + var(--lift) + var(--bh) + var(--gap)) !important; width: calc(var(--bw) + 18px); min-height: 0 !important; height: var(--sh); padding: 4px 8px !important; font-size: 17px !important; text-align: center; display: flex; align-items: center; justify-content: center; line-height: 1.05; }
+.game.tiltmode #jump { right: var(--tr); left: auto; bottom: calc(var(--tp) + var(--lift)); width: var(--BW); height: var(--BH); font-size: 25px; padding: 0 8px; }
+.game.tiltmode #wheelie { right: var(--tr); left: auto; bottom: calc(var(--tp) + var(--lift) + var(--BH) + var(--gap)); width: var(--BW); height: var(--SH); font-size: 16px; padding: 0 8px; }
+.game.tiltmode .controls #boost { left: var(--tl); right: auto; bottom: calc(var(--tp) + var(--lift)); width: calc(var(--BW) + 18px); height: var(--BH); font-size: 16px; padding: 0 12px; }
+.game.tiltmode #gas { left: var(--tl); right: auto; bottom: calc(var(--tp) + var(--lift) + var(--BH) + var(--gap)) !important; width: calc(var(--BW) + 18px); min-height: 0 !important; height: var(--SH); padding: 4px 8px !important; font-size: 17px !important; text-align: center; display: flex; align-items: center; justify-content: center; line-height: 1.05; }
 .game.tiltmode #gas[hidden] { display: none !important; }
 .game.tiltmode.lefty #jump, .game.tiltmode.lefty #wheelie { left: var(--tl); right: auto; }
 .game.tiltmode.lefty .controls #boost, .game.tiltmode.lefty #gas { right: var(--tr); left: auto; }
 /* verticale: cruscotto e missione sopra le due isole di tasti */
-.game.tiltmode .dash { left: 14px !important; right: 14px !important; bottom: calc(var(--tp) + var(--bh) + var(--sh) + 2 * var(--gap) + 6px) !important; }
-.game.tiltmode .flashchip { bottom: calc(var(--tp) + var(--bh) + var(--sh) + 2 * var(--gap) + 58px); }
+.game.tiltmode .dash { left: 14px !important; right: 14px !important; bottom: calc(var(--tp) + var(--BH) + var(--SH) + 2 * var(--gap) + 6px) !important; }
+.game.tiltmode .flashchip { bottom: calc(var(--tp) + var(--BH) + var(--SH) + 2 * var(--gap) + 58px); }
 /* orizzontale sul telefono: isole sui lati, pista libera al centro, cruscotto in mezzo in basso */
 @media (orientation: landscape) and (max-height: 520px) {
   .game.tiltmode { --bw: 136px; --bh: 78px; --sh: 50px; --gap: 8px; --tp: 14px; --tl: max(16px, env(safe-area-inset-left, 0px)); --tr: max(16px, env(safe-area-inset-right, 0px)); }
-  .game.tiltmode .dash { left: calc(var(--tl) + var(--bw) + 34px) !important; right: calc(var(--tr) + var(--bw) + 16px) !important; bottom: 10px !important; height: auto; }
-  .game.tiltmode .flashchip { bottom: calc(var(--tp) + var(--bh) + var(--sh) + 2 * var(--gap) + 8px); left: var(--tl); }
+  .game.tiltmode .dash { left: calc(var(--tl) + var(--BW) + 34px) !important; right: calc(var(--tr) + var(--BW) + 16px) !important; bottom: 10px !important; height: auto; }
+  .game.tiltmode .flashchip { bottom: calc(var(--tp) + var(--BH) + var(--SH) + 2 * var(--gap) + 8px); left: var(--tl); }
 }
 /* iPad e tablet: le mani tengono i lati, i tasti salgono a metà-bassa altezza sui bordi */
 @media (min-width: 700px) and (min-height: 600px) {
   .game.tiltmode { --bw: 176px; --bh: 104px; --sh: 70px; --gap: 12px; --tl: max(22px, env(safe-area-inset-left, 0px)); --tr: max(22px, env(safe-area-inset-right, 0px)); --lift: 14vh; }
   .game.tiltmode #jump { font-size: 30px; } .game.tiltmode #wheelie { font-size: 19px; } .game.tiltmode .controls #boost { font-size: 19px; } .game.tiltmode #gas { font-size: 20px !important; }
   .game.tiltmode .dash { left: 22px !important; right: 22px !important; bottom: 14px !important; }
-  .game.tiltmode .flashchip { bottom: calc(var(--lift) + var(--tp) + var(--bh) + var(--sh) + 2 * var(--gap) + 12px); left: var(--tl); }
+  .game.tiltmode .flashchip { bottom: calc(var(--lift) + var(--tp) + var(--BH) + var(--SH) + 2 * var(--gap) + 12px); left: var(--tl); }
 }
+
+/* v115 · tasti più chiari: icona, turbo che si riempie, un filo trasparenti finché non li tocchi, turbo scarico più piccolo */
+.game.tiltmode .controls .ctrl, .game.tiltmode #gas { opacity: .82; transition: opacity .15s, transform .2s; }
+.game.tiltmode .controls .ctrl:active, .game.tiltmode #gas.held, .game.tiltmode .controls #boost.ready, .game.tiltmode #wheelie.active { opacity: 1; }
+.game.tiltmode #jump, .game.tiltmode #wheelie, .game.tiltmode .controls #boost { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1; }
+.game.tiltmode #jump::before, .game.tiltmode #wheelie::before, .game.tiltmode .controls #boost::before { content: ''; flex: none; width: calc(30px * var(--k)); height: calc(30px * var(--k)); background: currentColor;
+  -webkit-mask: var(--ico) center / contain no-repeat; mask: var(--ico) center / contain no-repeat; }
+.game.tiltmode #wheelie::before { width: calc(24px * var(--k)); height: calc(24px * var(--k)); }
+.game.tiltmode #jump { --ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20V5M5 11.5 12 4.5l7 7'/%3E%3C/svg%3E"); }
+.game.tiltmode #wheelie { --ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='17.5' r='3.5'/%3E%3Ccircle cx='17.6' cy='9.4' r='3.5'/%3E%3Cpath d='M6 17.5l4.6-3.4h3.6l3.4-4.7M13 10.3l2.6-2.4h1.8M9.6 14.1 8.6 10.6l3.6-1.8'/%3E%3Ccircle cx='11.4' cy='5.4' r='1.6' fill='black' stroke='none'/%3E%3C/svg%3E"); }
+.game.tiltmode .controls #boost { --ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21c-4 0-6.5-2.7-6.5-6.2 0-3.4 2.4-5.2 3.4-8.3 1.6 1.2 2.4 2.7 2.6 4.2 1.2-.9 2-2.6 2.1-4.9 2.6 2 4.9 5.2 4.9 9 0 3.5-2.5 6.2-6.5 6.2z'/%3E%3C/svg%3E");
+  background: linear-gradient(to top, #ffb12bcc 0, #ff6a2acc var(--chg, 0%), #0b0c09c8 var(--chg, 0%)) !important; }
+.game.tiltmode .controls #boost .chargetrack { display: none; }
+.game.tiltmode .controls #boost.ready { background: var(--y) !important; color: #291c0e; }
+.game.tiltmode.boosting .controls #boost { background: var(--r) !important; color: #fff; }
+.game.tiltmode .controls #boost:not(.ready) { transform: scale(.8) !important; transform-origin: 0 100%; }
+.game.tiltmode.lefty .controls #boost:not(.ready) { transform-origin: 100% 100%; }
+.game.tiltmode.boosting .controls #boost { transform: none !important; }

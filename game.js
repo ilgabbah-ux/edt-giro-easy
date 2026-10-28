@@ -213,7 +213,8 @@ function buzz(p) {
   lastBuzz = now; try { return navigator.vibrate(pat); } catch { return false; }
 }
 let tiltOn = false, tiltSteer = 0, tiltZero = null, tiltRaw = 0;
-let lefty = false; try { lefty = localStorage.getItem('edt-lefty') === '1'; } catch {}   // v114 · tasti invertiti per i mancini
+let lefty = false; try { lefty = localStorage.getItem('edt-lefty') === '1'; } catch {}
+let btnSize = 'm'; try { btnSize = localStorage.getItem('edt-btnsize') || 'm'; } catch {}   // v115 · tasti piccoli / medi / grandi   // v114 · tasti invertiti per i mancini
 try { const st = localStorage.getItem('edt-tilt'); tiltOn = st === '1' || (st === null && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)); } catch {}
 // v108.9 · sterzo inclinando = modo principale su telefono e tablet: si riaccende una volta per tutti (si spegne sempre dalla pausa)
 try { if (!localStorage.getItem('edt-tilt-v2') && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)) { localStorage.setItem('edt-tilt-v2', '1'); localStorage.setItem('edt-tilt', '1'); tiltOn = true; } } catch {}   // v101.1 · sul telefono si sterza inclinando di serie (chi l'ha spento resta senza)
@@ -425,7 +426,7 @@ function fixPanel() {
 }
 function hud() {
   fixPanel();
-  { const g = $('game'), tm = touchDevice && tiltOn; if (g.classList.contains('tiltmode') !== tm) g.classList.toggle('tiltmode', tm); if (g.classList.contains('lefty') !== lefty) g.classList.toggle('lefty', lefty); }   // v114 · tasti per i pollici
+  { const g = $('game'), tm = touchDevice && tiltOn; if (g.classList.contains('tiltmode') !== tm) g.classList.toggle('tiltmode', tm); if (g.classList.contains('lefty') !== lefty) g.classList.toggle('lefty', lefty); if (!g.classList.contains('bs-' + btnSize)) { g.classList.remove('bs-s', 'bs-m', 'bs-l'); g.classList.add('bs-' + btnSize); } }   // v114 · tasti per i pollici
   const s = Math.floor(score);
   if (s !== shownScore) {
     $('score').textContent = String(s).padStart(5, '0');
@@ -446,7 +447,7 @@ function hud() {
   $('combobox').className = 'combobox m' + m + (comboTime > 0 && combo ? '' : ' idle');
   $('combotimer').style.transform = `scaleX(${combo ? comboTime / comboMax() : 0})`;
   const fill = turbo > 0 ? turbo / turboMax() * 100 : charge;
-  $('chargefill').style.width = fill + '%';
+  $('chargefill').style.width = fill + '%'; $('boost').style.setProperty('--chg', Math.round(fill) + '%');
   $('boost').disabled = state !== 'playing' || charge < 100 || turbo > 0;
   $('boost').classList.toggle('ready', charge >= 100 && turbo <= 0 && state === 'playing');
   $('boostlabel').textContent = turbo > 0 ? (ice ? 'TRAVERSO ×2' : 'GAAAS! ×2') : ice && charge >= 100 ? 'TURBO TRAVERSO' : charge >= 100 ? 'TURBO PRONTO' : 'TURBO ' + Math.floor(charge) + '%';
@@ -703,6 +704,7 @@ function perfHud(force) {
   const n = perfT.n || 1, js = perfT.js / n, gl = perfT.gl / n, frameMs = r.fps ? 1000 / r.fps : 0; perfT.js = perfT.gl = perfT.n = 0;
   el.textContent = `${r.fps} FPS · picco ${r.worst} ms · scatti ${r.hitches} · Q${r.q}${r.lite ? ' leggera' : ''} · ×${r.pr} · ${r.calls} oggetti · JS ${js.toFixed(1)} · 3D ${gl.toFixed(1)} · resto ${Math.max(0, frameMs - js - gl).toFixed(0)} ms · ${innerWidth}×${innerHeight}@${devicePixelRatio}`;
 }
+const sizeLabel = () => '🎮 TASTI: ' + ({ s: 'PICCOLI', m: 'MEDI', l: 'GRANDI' }[btnSize] || 'MEDI');
 const leftyLabel = () => '👆 SALTA A ' + (lefty ? 'SINISTRA' : 'DESTRA');
 function pause() {
   if (state === 'playing' || state === 'countdown') {
@@ -715,11 +717,12 @@ function pause() {
       <div class="pausegrid"><button class="secondary" id="musictoggle" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
       ${touchDevice ? `<button class="secondary" id="tiltpause" type="button">📱 INCLINA: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}
       <button class="secondary" id="litepause" type="button">${liteLabel()}</button>
-      ${touchDevice ? `<button class="secondary" id="leftypause" type="button">${leftyLabel()}</button>` : ''}
+      ${touchDevice ? `<button class="secondary" id="leftypause" type="button">${leftyLabel()}</button><button class="secondary" id="sizepause" type="button">${sizeLabel()}</button>` : ''}
       <button class="secondary" id="advpause" type="button">AVANZATE ›</button>
       <div class="pauseadv" id="pauseadv" hidden><button class="secondary" id="perfpause" type="button">${perfLabel()}</button>
       <button class="secondary" id="diagpause" type="button">TEST FLUIDITÀ (25 s)</button></div>
       <button class="secondary" id="quit">ABBANDONA IL GIRO</button><button class="secondary" id="exitgame" type="button">ESCI DAL GIOCO</button></div>`;
+    if ($('sizepause')) $('sizepause').onclick = () => { btnSize = { s: 'm', m: 'l', l: 's' }[btnSize] || 'm'; try { localStorage.setItem('edt-btnsize', btnSize); } catch {} $('sizepause').innerHTML = iconize(sizeLabel()); hud(); };
     if ($('leftypause')) $('leftypause').onclick = () => { lefty = !lefty; try { localStorage.setItem('edt-lefty', lefty ? '1' : '0'); } catch {} $('leftypause').innerHTML = iconize(leftyLabel()); hud(); };
     $('advpause').onclick = () => { const a = $('pauseadv'); a.hidden = !a.hidden; $('advpause').textContent = a.hidden ? 'AVANZATE ›' : 'AVANZATE ‹'; };   // v112 · strumenti tecnici nascosti
     $('resume').onclick = pause;
@@ -903,6 +906,7 @@ for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) {
   $('right').addEventListener(ev, () => { if (btnR && performance.now() - btnAt.r < TAP_MS) move(1); btnR = false; });
 }
 $('jump').onpointerdown = e => { e.preventDefault(); hop(); };
+['.controls', '#gas'].forEach(q => document.querySelector(q)?.addEventListener('pointerdown', e => { if (touchDevice && tiltOn && e.target.closest('button') && !e.target.closest('button').disabled) buzz(12); }, true));   // v115 · vibrazione leggera a ogni tasto
 $('boost').onpointerdown = e => { e.preventDefault(); boost(); };
 $('wheelie').onpointerdown = e => { e.preventDefault(); $('wheelie').setPointerCapture(e.pointerId); startWheelie(); };
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) $('wheelie').addEventListener(ev, stopWheelieInput);
@@ -1063,7 +1067,17 @@ canvas.addEventListener('pointerdown', e => {
     let best = null, bd = 30;
     for (const id of ['jump', 'wheelie', 'boost', 'gas']) { const b = $(id); if (!b || b.hidden || !b.offsetParent) continue; const q = b.getBoundingClientRect();
       const d = Math.hypot(Math.max(q.left - e.clientX, 0, e.clientX - q.right), Math.max(q.top - e.clientY, 0, e.clientY - q.bottom)); if (d < bd) { bd = d; best = b; } }
-    if (best) { e.preventDefault(); if (best.id === 'boost' && best.disabled) return; best.onpointerdown?.(e); return; }
+    if (best) { e.preventDefault(); if (best.id === 'boost' && best.disabled) return; buzz(12); best.onpointerdown?.(e); return; }
+    // v115 · mezzo schermo è un tasto: lato SALTA = salto, altro lato = turbo (se carico) o gas
+    const rr = canvas.getBoundingClientRect();
+    if (e.clientY > rr.top + rr.height * .25) {
+      e.preventDefault();
+      const right = (e.clientX - rr.left) / rr.width > .5;
+      if (right !== lefty) { buzz(12); hop(); return; }
+      if (charge >= 100 && turbo <= 0) { buzz(18); boost(); return; }
+      if (!$('gas').hidden) { buzz(12); $('gas').onpointerdown(e); return; }
+      return;
+    }
   }
   if (flat || sandStuck || stalled) { hop(); return; }   // v109 · forato o insabbiato: ogni tocco sullo schermo è una spinta / un pezzo del lavoro
   const r = canvas.getBoundingClientRect(), u = (e.clientX - r.left) / r.width;
@@ -3545,7 +3559,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 113;
+const GAME_VERSION = 114;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
