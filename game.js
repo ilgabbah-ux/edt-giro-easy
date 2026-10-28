@@ -4,7 +4,7 @@ import { createWorld } from './scene3d.js?v=35a8ead8';
 import * as A from './audio.js?v=3501fd57';
 import * as P from './progress.js?v=63266490';
 import { createMud } from './mudfx.js?v=ae45cf9e';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=1bfbf87a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl } from './icons.js?v=e39ba266';
 import * as C from './classifica.js?v=204cc127';
 import * as D from './duel.js?v=db2f059d';
@@ -169,7 +169,8 @@ let bs = {}; // v44 · caratteristiche della moto scelta in officina
 let slalomN = 0, lastFord = -9, lastAnimal = -9, turboReadyT = 0;
 // v84 · Dopo migliora: la salita si fa dosando il gas (trazione); se ti pianti si spinge la moto
 let grip = .5, stallT = 0, stalled = false, pushP = 0, spinMsgAt = -9, tractOn = false;
-let desert = false, sandT = 0, sandStuck = false, flat = false, fixP = 0;   // v106.7 · Desertone: sabbia sulle dune e gomma bucata
+let desert = false, sandT = 0, sandStuck = false, flat = false, fixP = 0;
+let tutDoneAt = -99, easyRun = false;   // easyRun · v109.4 primo giro di chi arriva da fuori: ostacoli più radi nella prima parte   // v109.4 · quando è finito il giro guidato (per non coprirne l'ultimo messaggio)   // v106.7 · Desertone: sabbia sulle dune e gomma bucata
 let wasTract = false, lastWaveFlash = -9, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
 // v84 · Sfida del giorno: una regola diversa ogni giorno, uguale per tutti
 const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RULES.length];
@@ -441,7 +442,7 @@ function hud() {
   document.querySelectorAll('#trackbar .seg').forEach((el, i) => el.classList.toggle('active', i === route.seg && state !== 'ready'));
   $('tracklabel').textContent = route.name + (wet > 0 ? ' · IMPANTANATO' : route.grade > .05 ? ' · SALITA ' + Math.round(route.grade * 100) + '%' : route.grade < -.05 ? ' · DISCESA ' + Math.round(-route.grade * 100) + '%' : '');
   const needGas = state === 'playing' && (ice || route.climb > .05 || route.rough > .05);
-  if (needGas && !ice && !P.profile.gasHint && (P.profile.totals?.runs || 0) < 4 && !tut) {   // v109.2 · prima salita: cosa fare, col pulsante GAS che lampeggia
+  if (needGas && !ice && !P.profile.gasHint && (P.profile.totals?.runs || 0) < 4 && !tut && !coachOn && elapsed - tutDoneAt > 3.5) {   // v109.4 · aspetta che il giro guidato abbia finito di parlare   // v109.2 · prima salita: cosa fare, col pulsante GAS che lampeggia
     P.profile.gasHint = true; P.save(); tutSay(`${icon('mountain')} SALITA! IL <b>GAS</b> VA DA SOLO: TU STERZA E SALTA · TOCCALO PER MOLLARE`, false);   // v109.4 · in salita il gas si blocca da solo
     $('gas').classList.add('tutpulse'); setTimeout(() => $('gas').classList.remove('tutpulse'), 4000);
   }
@@ -547,19 +548,22 @@ function start() {
   world?.resetPerf?.();   // v108 · shader e texture pronti prima del via: niente scatti alla prima apparizione
   if (!world) return;
   if (touchDevice) goFull();
-  if (!fsOK && isIOS && !standalone && !iosHinted) { iosHinted = true; setTimeout(() => toast('SCHERMO INTERO: CONDIVIDI → AGGIUNGI A HOME'), 4200); }
+  const inApp = /Instagram|FBAN|FBAV|FB_IAB|TikTok|musical_ly|Bytedance|Line\//i.test(navigator.userAgent);   // v109.4 · nel browser di Instagram/TikTok "Aggiungi a Home" non esiste
+  if (!fsOK && isIOS && !standalone && !iosHinted && !inApp && P.profile.tutorialDone) { iosHinted = true; setTimeout(() => toast('SCHERMO INTERO: CONDIVIDI → AGGIUNGI A HOME'), 4200); }
   A.unlock(); A.stopVoice(); A.preloadExtras(); if (riderVoice()) A.preloadRider(riderVoice());
   A.preloadRivals(Object.values(RIDER_VOICE)); A.preloadSong(mode);
   resetRun();
   state = 'countdown'; countdown = 3.2; countStep = 4; holePre = holeDone = false;
   { const tc = $('tipcard'), nb = (P.profile.totals?.runs || 0) < 3 && !C.isEdt();   // v108.8 · nei primi giri di chi arriva da fuori: i comandi a colpo d'occhio mentre parte il via
     if (tc) { tc.innerHTML = nb ? `<small>COME SI GUIDA</small>${touchDevice ? (tiltOn ? '<b>Inclina il telefono</b> a sinistra/destra per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare' : 'Dito a <b>sinistra/destra</b> per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare') : '<b>← →</b> per sterzare · <b>SPAZIO</b> per saltare i tronchi · <b>↓</b> impenna · <b>B</b> turbo'}<br>Prendi le birre e arriva al rifugio prima del tempo!` : ''; tc.classList.toggle('show', nb); } }
-  setTimeout(() => { if (state === 'countdown') toast('🚀 TOCCA SALTA AL VIA = PARTENZA A RAZZO', 'gold'); }, 600);
+  easyRun = !C.isEdt() && (P.profile.totals?.runs || 0) === 0;
+  const plainStart = !P.profile.tutorialDone && !P.MODES[mode].ice;   // v109.4 · primo giro guidato: al via solo "come si guida", niente varianti, sfide lampo e consigli
+  if (!plainStart) setTimeout(() => { if (state === 'countdown') toast('🚀 TOCCA SALTA AL VIA = PARTENZA A RAZZO', 'gold'); }, 600);
   // v89 · primo giro su un percorso: il consiglio della sua meccanica sta nella cartolina del via (sparisce al VIA, non copre la gara)
   let firstTip = '';
-  { const seen = P.profile.seenTracks || (P.profile.seenTracks = {}); if (!seen[mode] && TRACK_INFO[mode]?.consiglio) { seen[mode] = 1; P.save(); firstTip = TRACK_INFO[mode].consiglio; countdown += 2.5; } }   // 2,5 s in più prima del 3-2-1 per leggerlo
+  { const seen = P.profile.seenTracks || (P.profile.seenTracks = {}); if (!plainStart && !seen[mode] && TRACK_INFO[mode]?.consiglio) { seen[mode] = 1; P.save(); firstTip = TRACK_INFO[mode].consiglio; countdown += 2.5; } }   // 2,5 s in più prima del 3-2-1 per leggerlo
   { const md = P.MODES[mode], ti = $('trackintro');   // v58 · cartolina del percorso durante il via
-    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b>${variantOf(md.id) ? `<em class="tivar">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</em>` : ''}${timeOfDay ? `<em class="tivar">${timeOfDay}</em>` : ''}${md.id === P.weeklyTrack() ? '<em class="tivar">🔥 PERCORSO DELLA SETTIMANA: BIRRE ×2</em>' : ''}${runPlan?.flash ? `<em class="tiflash">🎯 SFIDA LAMPO: ${runPlan.flash.text} (+${FLASH_BEERS} 🍺)</em>` : ''}<small>${md.id === 3 ? dailyRule().icon + ' REGOLA DI OGGI: ' + dailyRule().name + ' — ' + dailyRule().desc : md.desc}</small>${gGhost ? `<em class="tighost">👻 CORRI CONTRO IL FANTASMA DI ${gGhost.name.toUpperCase()} (${gGhost.challenge ? 'TI HA SFIDATO' : '1° NEL GRUPPO'}${gGhost.time ? ' · ' + C.fmtTime(gGhost.time) : ''})</em>` : ''}${firstTip ? `<em class="titip">💡 PRIMO GIRO QUI: ${firstTip}</em>` : ''}</div>`;
+    ti.innerHTML = `<img src="${trackArtOf(md)}" alt=""><div><span>PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b>${plainStart ? '' : `${variantOf(md.id) ? `<em class="tivar">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</em>` : ''}${timeOfDay ? `<em class="tivar">${timeOfDay}</em>` : ''}${md.id === P.weeklyTrack() ? '<em class="tivar">🔥 PERCORSO DELLA SETTIMANA: BIRRE ×2</em>' : ''}${runPlan?.flash ? `<em class="tiflash">🎯 SFIDA LAMPO: ${runPlan.flash.text} (+${FLASH_BEERS} 🍺)</em>` : ''}`}<small>${md.id === 3 ? dailyRule().icon + ' REGOLA DI OGGI: ' + dailyRule().name + ' — ' + dailyRule().desc : md.desc}</small>${gGhost ? `<em class="tighost">👻 CORRI CONTRO IL FANTASMA DI ${gGhost.name.toUpperCase()} (${gGhost.challenge ? 'TI HA SFIDATO' : C.isEdt() ? '1° NEL GRUPPO' : '1° IN CLASSIFICA'}${gGhost.time ? ' · ' + C.fmtTime(gGhost.time) : ''})</em>` : ''}${firstTip ? `<em class="titip">💡 PRIMO GIRO QUI: ${firstTip}</em>` : ''}</div>`;
     ti.className = 'trackintro'; void ti.offsetWidth; ti.className = 'trackintro show'; }
   $('overlay').classList.add('hidden');
   setMenu(false);
@@ -1631,7 +1635,7 @@ function setupRace() {
   for (const r of rivals) if (dz.includes(r.name)) r.derby = true;
   for (const r of rivals) if (r.name === 'Maggie') r.livery = { plastic: '#f3a6c6', accent: '#5a3426', jersey: '#f4f1ec', pants: '#6b4030', helmet: '#f3a6c6' };   // v107.5 · Maggie con la sua tuta bianca, marrone e rosa
   { const ch = champRival(); for (const r of rivals) if (r.name === ch) { r.champ = true; r.livery = { ...r.livery, helmet: '#e3b021' }; } }   // v107.3 · il pilota del campione della settimana corre col casco d'oro
-  coachStep = 0; tut = null; tutPulse(null); coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
+  coachStep = 0; tutDoneAt = -99; tut = null; tutPulse(null); coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
   lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
   // Meteo: un cambio a metà giro (pioggia, nebbia o tramonto), diverso a ogni gara; la Sfida del giorno è uguale per tutti.
   const kinds = ['rain', 'fog', 'dusk'], k = kinds[Math.floor(rng() * 3)];
@@ -1930,7 +1934,7 @@ const COACH = () => touchDevice ? [
   [4.8, '🍺 SEGUI LE BIRRE:<br>indicano la linea libera'],
   [9.2, '🪵 OSTACOLO? SCORRI IN SU<br>o tocca al centro per saltare'],
   [14, '⚡ TURBO PIENO? premi TURBO<br>e spacca tutto'],
-  [19, '⛰ SALITA? UN TOCCO SU GAS<br>e resta bloccato fino in cima'],
+  [19, '⛰ IN SALITA IL GAS VA DA SOLO<br>tu sterza e salta · tocca GAS per mollare'],
 ] : [
   [0.6, '⬅ ➡ TIENI LE FRECCE o muovi il MOUSE<br>per sterzare'],
   [4.8, '🍺 SEGUI LE BIRRE:<br>indicano la linea libera'],
@@ -1957,7 +1961,7 @@ function tutStart() {
   tutSay(`<b class="tstep">1/5</b> ${icon('chevrons')} ${touchDevice ? (tiltOn ? '<span class="tiltdemo">' + icon('phone') + '</span> STERZA: INCLINA IL TELEFONO A SINISTRA O A DESTRA' : 'STERZA: TIENI IL DITO A SINISTRA O A DESTRA') : 'STERZA CON LE FRECCE ← →'}`); tutPulse('steer');
 }
 function tutEnd() {
-  tut = null; tutPulse(null); coachOn = false; P.profile.tutorialDone = true; P.save();
+  tutDoneAt = elapsed; tut = null; tutPulse(null); coachOn = false; P.profile.tutorialDone = true; P.save();
   tutSay(`${icon('flag')} SEI PRONTO! ADESSO È GARA VERA`, false); A.sfx.mission?.();
 }
 function tutUpdate(dt) {
@@ -1970,7 +1974,7 @@ function tutUpdate(dt) {
     else if (T.log.z > 1 || T.log.collected || T.log.hit && T.log.z > .95) {
       if (run.jumps > T.jumps0) { T.step = 2; T.t = 0; reward(100, 'BRAVO!', 'trick', false); tutPulse(null);
         const r = [...rivals].filter(r => !r.duel).sort((a, b) => Math.abs(a.gap) - Math.abs(b.gap))[0];
-        if (r) { r.gap = 11; r.lane = Math.round(px); r.lx = r.lane; r.laneT = 9; T.r = r; tutSay(`<b class="tstep">3/5</b> ${icon('bolt')} METTITI DIETRO ${/^[AEIOU]/i.test(r.name) ? 'AD' : 'A'} ${r.name.toUpperCase()}, NELLA SUA CORSIA: PRENDI LA SCIA`); }
+        if (r) { r.gap = 11; r.lane = Math.round(px); r.lx = r.lane; r.laneT = 9; T.r = r; tutSay(`<b class="tstep">3/5</b> ${icon('bolt')} ${!C.isEdt() ? 'METTITI DIETRO AL PILOTA DAVANTI A TE' : `METTITI DIETRO ${/^[AEIOU]/i.test(r.name) ? 'AD' : 'A'} ${r.name.toUpperCase()}`}, NELLA SUA CORSIA: PRENDI LA SCIA`); }
         else { T.step = 3; }
       } else { T.log = null; T.miss = false; T.tries++; tutSay(`<b class="tstep">2/5</b> ${icon('log')} RIPROVA: ${touchDevice ? 'TOCCA SALTA' : 'PREMI SPAZIO'} UN ATTIMO PRIMA DEL TRONCO`); if (T.tries > 2) { T.step = 2; T.t = 9; } }
     }
@@ -2164,6 +2168,7 @@ function update(dt) {
   spawn -= dt * speed;
   if (spawn <= 0) {
     spawn = ice ? 2.2 - Math.min(.5, course * .006) : P.MODES[mode].slalom ? Math.max(.72, 1.0 - course * .004) : Math.max(.95, (1.8 - diff * .16 - course * .002) * (route.id === 3 ? .8 : 1));
+    if (easyRun && course < GAME_LENGTH * .6) spawn *= 1.35;
     spawnWave();
   }
 
@@ -2809,12 +2814,12 @@ function renderReady() {
       <div class="thtext"><span class="ps">PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.id === 3 ? `<span class="dayrule">${dailyRule().icon} REGOLA DI OGGI: ${dailyRule().name}</span> ${dailyRule().desc}` : md.desc}</small>
       <span class="thchips"><span title="Difficoltà">🔥 ${'★'.repeat((md.difficulty || 0) + 1) + '☆'.repeat(2 - (md.difficulty || 0))}</span>${md.id === P.weeklyTrack() ? '<span class="wkchip">🔥 PERCORSO DELLA SETTIMANA · BIRRE ×2</span>' : ''}${variantOf(md.id) ? `<span class="var">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</span>` : ''}${!md.leap ? `<span class="gold" title="Boccali d’oro nascosti questa settimana">🏆 ${P.goldFound(md.id).filter(Boolean).length}/3 BOCCALI D’ORO</span>` : ''}${TRACK_INFO[md.id]?.tipo ? `<span class="tipo">${TRACK_INFO[md.id].tipo.split(' (')[0]}</span>` : ''}</span>
       ${md.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(layoutFor(md.id))}
-      <span class="record">${icon('trophy')} ${best ? `RECORD ${md.id === 3 ? 'DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span>
+      <span class="record">${icon('trophy')} ${best ? `RECORD${md.id === 3 ? ' DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span>
       ${C.enabled() ? `<span class="thlead" id="thlead">${heroLead(C.cached())}</span>` : ''}</div>
       ${heroList.length > 1 ? `<button class="thnav prev" id="thprev" type="button" aria-label="Percorso precedente">‹</button><button class="thnav next" id="thnext" type="button" aria-label="Percorso successivo">›</button>
       <div class="thdots" aria-hidden="true">${heroList.map(m => `<i class="${m.id === mode ? 'on' : ''}"></i>`).join('')}</div>` : ''}
     </div>
-    <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : (A.STYLES[mode] || A.STYLES[0]).name}</small></span>${icon('chevrons')}</button>
+    <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + (A.STYLES[mode] || A.STYLES[0]).name}</small></span>${icon('chevrons')}</button>
     <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
     ${dailyChipHTML()}
     ${goalChipHTML()}
@@ -2922,7 +2927,10 @@ document.addEventListener('click', e => {
   if (e.target.closest('#resmenu')) { A.sfx.click(); renderReady(); }
   else if (e.target.closest('#resagain')) $('again')?.click();
 });
+// v109.4 · chi arriva da fuori, nei primi giri: niente battute EDT che non può capire
+const freshPlayer = () => !C.isEdt() && (P.profile.totals?.runs || 0) <= 3;
 function renderResult(win, res, reason = '', timeBonus = 0) {
+  const fresh = freshPlayer();
   const rank = win ? (score >= 30000 ? 'LEGGENDA EDT' : score >= 15000 ? 'MANICO DEL GIORNO' : 'MISSIONE COMPIUTA') : 'GIRO DIVERSAMENTE EASY';
   const md = P.MODES[mode];
   const xpTotal = res.scoreXp + res.missionsXp;
@@ -2931,10 +2939,10 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   $('card').innerHTML = `
     <div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button><button class="resagain" id="resagain" type="button">UN ALTRO GIRO ›</button></div>${C.isEdt() ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
     <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
-    <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${leap ? (win ? `${leapBest.toFixed(1).replace('.', ',')} METRI<br><em>IN PIEDI!</em>` : 'SALTO<br><em>NULLO.</em>') : gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
+    <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${leap ? (win ? `${leapBest.toFixed(1).replace('.', ',')} METRI<br><em>IN PIEDI!</em>` : 'SALTO<br><em>NULLO.</em>') : gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : fresh ? 'PER UN<br><em>PELO!</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
-    ${gev && !win ? gevVerbale() : ''}<p class="resulttext">${gev && win ? '<b>Niente verbali, più boccali!</b> ' : ''}${profile.rider} ${gev && !win ? `è stato fermato dalle GEV al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso.` : win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
-      ${ice ? iceTable(win) : ''}${run.position && !ice ? `<br>🏁 <b>${run.position}° su ${rivals.length + 1}</b> nel gruppo${run.position === 1 && win ? ' · primo al rifugio +500' : ''}${run.shortcuts ? ' · ' + run.shortcuts + (run.shortcuts > 1 ? ' tagli' : ' taglio') + ' di Angelo' : ''}` : ''}      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1).replace('.', ',') + ' s — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
+    ${gev && !win ? gevVerbale() : ''}<p class="resulttext">${gev && win ? '<b>Niente verbali, più boccali!</b> ' : ''}${profile.rider} ${gev && !win ? `è stato fermato dalle GEV al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso.` : win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : fresh ? 'ci ha provato fino all’ultimo: al prossimo giro va meglio, gli ostacoli ormai li conosci.' : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
+      ${ice ? iceTable(win) : ''}${run.position && !ice ? `<br>🏁 <b>${run.position}° su ${rivals.length + 1}</b> nel gruppo${run.position === 1 && win ? ' · primo al rifugio +500' : ''}${run.shortcuts ? ' · ' + run.shortcuts + (fresh ? (run.shortcuts > 1 ? ' scorciatoie' : ' scorciatoia') : (run.shortcuts > 1 ? ' tagli' : ' taglio') + ' di Angelo') : ''}` : ''}      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1).replace('.', ',') + ' s — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
       ${ice ? `<div><b>${driftCount}</b><small>DERAPATE</small></div><div><b>${driftBest.toLocaleString('it-IT')}</b><small>LA PIÙ BELLA</small></div><div><b>${Math.round(driftM)} m</b><small>DI TRAVERSO</small></div>` : `<div><b>${run.jumps}</b><small>SALTI</small></div>`}
@@ -3095,7 +3103,7 @@ function dailyGoal() {
 }
 function goalChipHTML() {
   const g = dailyGoal(); if (!g) return '';
-  return `<button class="goalchip ${g.done ? 'done' : ''}" id="goalchip" type="button" data-goal="${g.m}"><span class="chi">🎯</span><span class="cht"><small>OBIETTIVO DI OGGI</small><b>${g.done ? 'Fatto! Domani ce n’è un altro' : `Arriva al rifugio su ${g.name} in meno di ${g.t} s`}</b><em>${g.done ? `+${g.beers} 🍺 presi` : `+${g.beers} 🍺 · tocca per andarci`}</em></span></button>`;
+  return `<button class="goalchip ${g.done ? 'done' : ''}" id="goalchip" type="button" data-goal="${g.m}"><span class="chi">🎯</span><span class="cht"><small>OBIETTIVO DI OGGI</small><b>${g.done ? 'Fatto! Domani ce n’è un altro' : `Arriva al rifugio sul percorso «${g.name.replace(/[!.]+$/, '')}» in meno di ${g.t} s`}</b><em>${g.done ? `+${g.beers} 🍺 presi` : `+${g.beers} 🍺 · tocca per andarci`}</em></span></button>`;
 }
 function checkDailyGoal(win) {
   const g = dailyGoal(); if (!g || g.done || !win || mode !== g.m || leap || elapsed > g.t) return;
@@ -3266,8 +3274,11 @@ function groupResult(runInfo) {
   if (!nick) {
     box.innerHTML = `<div class="ghead">🏆 ${grpLabel()}</div>
       <p>Metti il tuo nome: il punteggio va nella ${C.isEdt() ? 'classifica dell’EDT' : 'classifica di tutti'}.</p>
-      <form class="nickrow" id="nickform"><input id="nickin" maxlength="16" autocomplete="nickname" placeholder="Il tuo nome" value="${C.cleanNick(profile.rider)}"><button class="primary" type="submit"><span>INVIA</span></button></form>`;
-    $('nickform').onsubmit = e => { e.preventDefault(); const n = C.cleanNick($('nickin').value); if (!n) return; C.setNick(n); groupResult(runInfo); };
+      <form class="nickrow" id="nickform"><input id="nickin" maxlength="16" autocomplete="nickname" placeholder="Il tuo nome" value="${C.isEdt() || isCustom() ? C.cleanNick(profile.rider) : ''}"><button class="primary" type="submit"><span>INVIA</span></button></form><p class="nickerr" id="nickerr" hidden></p>`;
+    // v109.4 · chi non è EDT non può firmarsi col nome di un pilota EDT (la casella parte vuota se corre con un pilota EDT)
+    $('nickform').onsubmit = e => { e.preventDefault(); const n = C.cleanNick($('nickin').value); if (!n) return;
+      if (!C.isEdt() && RIDERS.some(r => r.toLowerCase() === n.toLowerCase() || r.replace('Il ', '').toLowerCase() === n.toLowerCase())) { const er = $('nickerr'); er.hidden = false; er.textContent = 'Questo è il nome di un pilota EDT: scrivi il tuo.'; $('nickin').focus(); return; }
+      C.setNick(n); groupResult(runInfo); };
     return;
   }
   const show = d => {
@@ -3463,7 +3474,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 109.4;
+const GAME_VERSION = 109.5;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

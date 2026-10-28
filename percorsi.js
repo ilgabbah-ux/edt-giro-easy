@@ -13,7 +13,7 @@ export const DAILY_RULES = [
 ];
 
 export const TRACK_INFO = {
-  0: { tipo: 'Il classico tra le vigne', ostacoli: 'Tronchi, radici, ceppi, pozzanghere, gradoni, sassi e capre', speciale: 'Filari di viti, sosta al bar (+500 e 5 birre, ma la moto balla), il taglio delle 16.00', consiglio: 'Al bar passa sotto il tendone, poi correggi lo sbandamento col manubrio.' },
+  0: { tipo: 'Il classico tra le vigne', ostacoli: 'Tronchi, radici, ceppi, pozzanghere, gradoni, sassi e capre', speciale: 'Filari di viti, sosta al bar (+500 e 5 birre, ma la moto balla), il taglio delle 16.00', consiglio: 'Al bar passa sotto il tendone, poi tieni dritta la moto: dopo la birra sbanda un po’.' },
   1: { tipo: 'Salitoni col gas dosato', ostacoli: 'Più fango, pozze, gradoni, sassi e frane', speciale: 'In salita conta la trazione: tieni la lancetta nel verde. Gas sempre aperto = la ruota pattina; poco gas = ti pianti e devi spingere la moto', consiglio: 'In salita apri e chiudi il gas a ritmo, non tenerlo sempre premuto.' },
   2: { tipo: 'Gara di salto nel burrone', ostacoli: 'Nessuno in discesa; pietroni nella zona di atterraggio', speciale: 'Scope volanti che danno velocità: più veloce arrivi al bordo, più lontano voli. Classifica anche del salto più lungo', consiglio: 'Prendi tutte le scope tenendo il GAS, poi in volo lancetta nel verde e corsia del bersaglio verde.' },
   3: { tipo: 'Tracciato del giorno', ostacoli: 'Cambiano ogni giorno', speciale: 'Uguale per tutti, con una regola diversa ogni giorno (niente turbo, salti doppi, diluvio, notturna…): classifica che si azzera a mezzanotte', consiglio: 'Primo giro per imparare il tracciato, secondo per fare il tempo.' },
