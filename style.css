@@ -1653,3 +1653,5 @@ aside#hub { gap: 10px; }
 .welcome .secondary { width: 100%; }
 .aboutedt { margin-top: 14px; padding: 12px 14px; background: #ffffff0a; border-left: 4px solid var(--y); display: grid; gap: 6px; font: 500 14px/1.45 var(--ui); color: #cfc5ae; }
 .aboutedt b { font: italic 800 15px var(--ui); color: var(--y); letter-spacing: .5px; }
+.edtsocial { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.edtsocial a { padding: 6px 12px; background: var(--y); color: #241c11; text-decoration: none; font: italic 800 13px var(--ui); letter-spacing: 1px; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
