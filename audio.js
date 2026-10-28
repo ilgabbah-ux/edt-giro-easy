@@ -5,7 +5,7 @@
 // v89 · voci caricate dopo il menu (il gioco si apre prima); chi le usa aspetta vociReady
 let VOCI = {};
 let vociP = null;   // v107.2 · le voci arrivano al primo tocco (o dopo 12 s), non durante il caricamento del menu
-const vociReady = () => vociP || (vociP = import('./voci.js?v=109.1').then(m => { VOCI = m.VOCI; }).catch(() => { vociP = null; }));
+const vociReady = () => vociP || (vociP = import('./voci.js?v=109.2').then(m => { VOCI = m.VOCI; }).catch(() => { vociP = null; }));
 
 const VOICE_FILES = {
   vai: 'audio/vai-ciccio.mp3',
@@ -216,7 +216,7 @@ export async function testVoices(onStep) {
 // Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
 // v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio
 let VOCI_PILOTI = {}, vpLoad = null;
-export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=109.1').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
+export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=109.2').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
 setTimeout(() => { vociReady(); loadRiderVoices(); }, 12000);
 const riderBuf = new Map();
 export const hasRiderVoice = key => !!VOCI_PILOTI[key];
@@ -267,7 +267,7 @@ export const sfx = {
   cap(mult = 1) { const b = 880 * Math.pow(1.06, mult * 2); tone(b, .07, 'square', .07); tone(b * 1.5, .12, 'triangle', .12, .05); },
   air() { tone(1320, .08, 'square', .07); tone(1760, .16, 'triangle', .12, .06); },
   jump() { noise(.28, 600, .7, .14, 'bandpass', 0, 2200); },
-  land() { noise(.16, 220, .8, .35, 'lowpass'); tone(70, .14, 'sine', .3); },
+  land(k = 1) { k = Math.max(.6, Math.min(1.8, k)); noise(.16 + k * .06, 220, .8, .3 * k, 'lowpass'); tone(70, .14 + k * .05, 'sine', .26 * k); if (k > 1.1) noise(.22, 900, .9, .1 * k, 'bandpass', .03, 300); },   // v109.2 · più alto il salto, più botta (sospensioni a pacco)
   perfect() { [0, 4, 7, 12].forEach((s, i) => tone(660 * Math.pow(2, s / 12), .12, 'square', .08, i * .055)); },
   scrub() { noise(.22, 3000, 1.5, .12, 'bandpass', 0, 900); tone(990, .1, 'triangle', .1, .04); },
   near() { noise(.18, 2500, 2, .1, 'highpass'); },
@@ -373,11 +373,19 @@ export function engineStart() {
   const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1400; nf.Q.value = .9;
   const ng = ctx.createGain(); ng.gain.value = .0;
   nz.connect(nf); nf.connect(ng); ng.connect(g);
-  src.start(); nz.start();
-  engine = { src, drive, shaper, body, bark, g, nf, ng, nz, real, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
+  // v109.2 · motore più pieno: un basso sotto lo scarico che segue i giri
+  const sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = 45;
+  const sg = ctx.createGain(); sg.gain.value = 0; sub.connect(sg); sg.connect(g);
+  // v109.2 · rumore delle gomme sul fondo: fango, sassi, sabbia, ghiaccio, terra (sale con la velocità, sparisce in aria)
+  const tz = ctx.createBufferSource(); tz.buffer = noiseBuffer; tz.loop = true; tz.playbackRate.value = .9;
+  const tf = ctx.createBiquadFilter(); tf.type = 'bandpass'; tf.frequency.value = 500; tf.Q.value = .8;
+  const tg = ctx.createGain(); tg.gain.value = 0; tz.connect(tf); tf.connect(tg); tg.connect(duckBus);
+  src.start(); nz.start(); sub.start(); tz.start();
+  engine = { src, drive, shaper, body, bark, g, nf, ng, nz, sub, sg, tz, tf, tg, real, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
   engineUpdate(.2, false, false, false);
 }
-export function engineUpdate(speed, gas, turbo, airborne) {
+const SURF = { dirt: [520, .7, .05], mud: [260, 1.1, .085], rock: [1500, .9, .06], sand: [2400, .5, .07], ice: [5200, 1.6, .045], snow: [3400, .7, .05] };   // frequenza, Q, volume
+export function engineUpdate(speed, gas, turbo, airborne, surface = 'dirt') {
   if (!engine || !ctx) return;
   const e = engine, t = ctx.currentTime;
   // marcia in base alla velocità; cambiata = breve taglio e giri che scendono
@@ -402,6 +410,10 @@ export function engineUpdate(speed, gas, turbo, airborne) {
   e.g.gain.setTargetAtTime((.11 + load * .1) * (e.shiftT > 0 ? .55 : 1) * (e.real ? 1.25 : 1), t, .04);
   e.nf.frequency.setTargetAtTime(900 + e.rpm * 1300, t, .1);
   e.ng.gain.setTargetAtTime((.012 + e.rpm * .018) * EP.nz + (turbo ? .03 : 0), t, .1);
+  e.sub.frequency.setTargetAtTime(32 + e.rpm * 26, t, .06); e.sg.gain.setTargetAtTime((.05 + load * .06) * (e.shiftT > 0 ? .5 : 1), t, .06);
+  const sf = SURF[surface] || SURF.dirt, sp = Math.max(0, Math.min(1.4, speed));
+  e.tf.frequency.setTargetAtTime(sf[0] * (.8 + sp * .25), t, .15); e.tf.Q.setTargetAtTime(sf[1], t, .15);
+  e.tg.gain.setTargetAtTime(airborne || speed < .05 ? 0 : sf[2] * sp, t, airborne ? .03 : .12);
   // rilascio del gas a giri alti: scoppiettii allo scarico
   e.popT -= 1 / 60;
   if (e.lastGas && !gas && e.rpm > 1.4 && e.popT <= 0) { e.popT = .8; for (let i = 0; i < 3; i++) noise(.035, 400 + Math.random() * 300, 2, .16, 'bandpass', .05 + i * (.06 + Math.random() * .05)); }
@@ -414,7 +426,8 @@ export function engineStop() {
   e.src.playbackRate.setTargetAtTime(.35, t, .25);
   e.g.gain.cancelScheduledValues(t);
   e.g.gain.setTargetAtTime(0.0001, t + .1, .18);
-  setTimeout(() => { try { e.src.stop(); e.nz.stop(); } catch {} }, 1200);
+  e.tg.gain.setTargetAtTime(0, t, .1); e.sg.gain.setTargetAtTime(0, t, .1);
+  setTimeout(() => { try { e.src.stop(); e.nz.stop(); e.sub.stop(); e.tz.stop(); } catch {} }, 1200);
 }
 
 // ---------- Musica (v38) ----------

@@ -1682,3 +1682,9 @@ aside#hub { gap: 10px; }
 @keyframes fixpulse { to { box-shadow: 0 12px 40px #000c, 0 0 0 6px #ffcf1633; } }
 /* v109 · iPad: il menu scorre col dito anche dopo aver fatto scorrere la pagina */
 .card { -webkit-overflow-scrolling: touch; overscroll-behavior-y: auto; }
+/* v109.2 · giro guidato: telefono che si inclina, GAS che lampeggia alla prima salita */
+.tiltdemo { display: inline-flex; vertical-align: middle; animation: tiltdemo 1.1s ease-in-out infinite alternate; transform-origin: 50% 80%; }
+.tiltdemo .ic { width: 1.6em; height: 1.6em; }
+@keyframes tiltdemo { from { transform: rotate(-24deg); } to { transform: rotate(24deg); } }
+.gas.tutpulse { box-shadow: 0 0 0 4px #fff, 0 0 26px var(--y) !important; }
+.storybtn { width: 100%; margin: 2px 0 8px; font-size: 14px; }

@@ -2,9 +2,9 @@
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { GLTFLoader } from './GLTFLoader.js';
 import { DRACOLoader } from './DRACOLoader.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=109.1';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=109.2';
 import * as T from './three.module.min.js';
-import { RIDER_PARTS } from './pilota3d.js?v=109.1';
+import { RIDER_PARTS } from './pilota3d.js?v=109.2';
 
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
@@ -2837,23 +2837,27 @@ export function createWorld(canvas) {
     // v107.6 · schermi grandi (tablet): due gradini in più sotto 1, dove la grana non si nota e l'iPad respira
     if (q === 5) { pixelRatio = Math.min(pixelRatio, .85); renderer.setPixelRatio(pixelRatio); resize(); }
     if (q === 6) { pixelRatio = Math.min(pixelRatio, .72); renderer.setPixelRatio(pixelRatio); resize(); }
+    if (q === 7) { pixelRatio = Math.min(pixelRatio, .62); renderer.setPixelRatio(pixelRatio); resize(); }   // v109.2 · ultimo gradino, solo se scatta ancora con la grafica leggera
   }
   const bigScreen = () => Math.min(innerWidth, innerHeight) >= 600 && (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
-  const maxQ = () => bigScreen() ? 6 : 4;
+  const maxQ = () => (bigScreen() ? 6 : 4) + (lite ? 1 : 0);
   function adaptQuality() {
     const now = performance.now(), dt = now - lastNow; lastNow = now;
     if (dt < 1000) { perf.n++; perf.acc += dt; if (dt > perf.worst) perf.worst = dt; if (dt > 50) perf.hitches++; }   // v108 · contatore di fluidità
     if (dt > 200) return;
     frameAvg += (dt - frameAvg) * .05; frames++;
     if (frames > 90 && frameAvg > (bigScreen() ? 21 : 27) && quality < maxQ()) { frames = 0; goodFrames = 0; quality++; stepQuality(quality); saveQ(quality); }
+    // v109.2 · fluidità automatica: al massimo dei gradini e ancora lento per 3 secondi → grafica leggera da sola (una volta, e lo dico)
+    else if (frames > 180 && !lite && !liteManual && frameAvg > (bigScreen() ? 22 : 28) && quality >= maxQ()) { frames = 0; setLite(true, true); onAutoLite?.(); }
     if (quality > 0 && frameAvg < (bigScreen() ? 18 : 21)) { if (++goodFrames === 600) saveQ(quality - 1); } else goodFrames = 0;   // va liscio da un pezzo: la prossima volta si riparte un gradino più su
   }
   // v108 · "grafica leggera" scelta a mano dalla pausa, e numeri per il contatore di fluidità
   const LITE_KEY = 'edt-lite', PR0 = pixelRatio, perf = { n: 0, acc: 0, worst: 0, hitches: 0 };
   let lite = false; try { const v = localStorage.getItem(LITE_KEY); lite = v === null ? bigScreen() : v === '1'; } catch {}   // v108.2 · su tablet (iPad) si parte già con la grafica leggera: si può togliere dalla pausa
   const liteQ = () => bigScreen() ? 5 : 4;
-  function setLite(on) {
-    lite = !!on; try { localStorage.setItem(LITE_KEY, lite ? '1' : '0'); } catch {}
+  let liteManual = false, onAutoLite = null; try { liteManual = localStorage.getItem('edt-lite-manual') === '1'; } catch {}
+  function setLite(on, auto = false) {
+    lite = !!on; try { localStorage.setItem(LITE_KEY, lite ? '1' : '0'); if (!auto && !lite) { liteManual = true; localStorage.setItem('edt-lite-manual', '1'); } } catch {}
     if (lite) { while (quality < liteQ()) stepQuality(++quality); }
     else {
       quality = 0; frames = 0; goodFrames = 0; frameAvg = 16; pixelRatio = PR0; renderer.setPixelRatio(pixelRatio); resize();
@@ -3287,5 +3291,5 @@ export function createWorld(canvas) {
   }
 
   resize();
-  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, perfInfo, resetPerf };
+  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, perfInfo, resetPerf, set onAutoLite(f) { onAutoLite = f; } };
 }

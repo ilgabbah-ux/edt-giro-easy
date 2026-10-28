@@ -1,24 +1,26 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=109.1';
-import { createWorld } from './scene3d.js?v=109.1';
-import * as A from './audio.js?v=109.1';
-import * as P from './progress.js?v=109.1';
-import { createMud } from './mudfx.js?v=109.1';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=109.1';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=109.1';
-import * as C from './classifica.js?v=109.1';
-import * as D from './duel.js?v=109.1';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=109.2';
+import { createWorld } from './scene3d.js?v=109.2';
+import * as A from './audio.js?v=109.2';
+import * as P from './progress.js?v=109.2';
+import { createMud } from './mudfx.js?v=109.2';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=109.2';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=109.2';
+import * as C from './classifica.js?v=109.2';
+import * as D from './duel.js?v=109.2';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=109.1').then(m => {
+import('./piloti.js?v=109.2').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
 try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); }
+// v109.2 · se scatta, la grafica leggera si accende da sola: lo dico una volta, si toglie dalla pausa
+if (world) world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLA PAUSA', 'green'), 0);
 // v52 · moto in anteprima nel garage (gira da sola, si può trascinare per girarla)
 let preview = null;
 try { preview = world?.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
@@ -439,6 +441,10 @@ function hud() {
   document.querySelectorAll('#trackbar .seg').forEach((el, i) => el.classList.toggle('active', i === route.seg && state !== 'ready'));
   $('tracklabel').textContent = route.name + (wet > 0 ? ' · IMPANTANATO' : route.grade > .05 ? ' · SALITA ' + Math.round(route.grade * 100) + '%' : route.grade < -.05 ? ' · DISCESA ' + Math.round(-route.grade * 100) + '%' : '');
   const needGas = state === 'playing' && (ice || route.climb > .05 || route.rough > .05);
+  if (needGas && !ice && !P.profile.gasHint && (P.profile.totals?.runs || 0) < 4 && !tut) {   // v109.2 · prima salita: cosa fare, col pulsante GAS che lampeggia
+    P.profile.gasHint = true; P.save(); tutSay(`${icon('mountain')} SALITA! TIENI PREMUTO <b>GAS</b> FINCHÉ NON SEI IN CIMA`, false);
+    $('gas').classList.add('tutpulse'); setTimeout(() => $('gas').classList.remove('tutpulse'), 4000);
+  }
   $('gas').hidden = !needGas;
   $('gas').classList.toggle('held', gas);
   $('gas').setAttribute('aria-pressed', String(gas));
@@ -1943,11 +1949,11 @@ let tut = null;
 function tutSay(html, hold = true) {
   const el = $('coach'); el.innerHTML = html; el.classList.remove('show', 'hold'); void el.offsetWidth; el.classList.add(hold ? 'hold' : 'show');
 }
-function tutPulse(id) { for (const b of ['jump', 'boost', 'left', 'right']) $(b)?.classList.toggle('tutpulse', b === id || (id === 'steer' && (b === 'left' || b === 'right'))); }
+function tutPulse(id) { for (const b of ['jump', 'boost', 'left', 'right', 'wheelie']) $(b)?.classList.toggle('tutpulse', b === id || (id === 'steer' && (b === 'left' || b === 'right'))); }
 function tutStart() {
   tut = { step: 0, t: 0, px0: px, tries: 0, log: null, jumps0: run.jumps };
   objects = objects.filter(o => OBSTACLE_HEIGHT[o.type] === undefined && o.type !== 'tree');   // pista pulita per le prove
-  tutSay(`<b class="tstep">1/4</b> ${icon('chevrons')} ${touchDevice ? (tiltOn ? 'STERZA: INCLINA IL TELEFONO A SINISTRA O A DESTRA' : 'STERZA: TIENI IL DITO A SINISTRA O A DESTRA') : 'STERZA CON LE FRECCE ← →'}`); tutPulse('steer');
+  tutSay(`<b class="tstep">1/5</b> ${icon('chevrons')} ${touchDevice ? (tiltOn ? '<span class="tiltdemo">' + icon('phone') + '</span> STERZA: INCLINA IL TELEFONO A SINISTRA O A DESTRA' : 'STERZA: TIENI IL DITO A SINISTRA O A DESTRA') : 'STERZA CON LE FRECCE ← →'}`); tutPulse('steer');
 }
 function tutEnd() {
   tut = null; tutPulse(null); coachOn = false; P.profile.tutorialDone = true; P.save();
@@ -1956,24 +1962,26 @@ function tutEnd() {
 function tutUpdate(dt) {
   const T = tut; T.t += dt; timeLimit += dt;   // il giro guidato non consuma il tempo
   if (T.step === 0) {
-    if ((Math.abs(px - T.px0) > .8 && T.t > 2) || T.t > 8) { T.step = 1; T.t = 0; tutSay(`<b class="tstep">2/4</b> ${icon('log')} TRONCO IN ARRIVO: ${touchDevice ? 'TOCCA SALTA' : 'PREMI SPAZIO'} QUANDO TI ARRIVA SOTTO`); tutPulse('jump'); }
+    if ((Math.abs(px - T.px0) > .8 && T.t > 2) || T.t > 8) { T.step = 1; T.t = 0; tutSay(`<b class="tstep">2/5</b> ${icon('log')} TRONCO IN ARRIVO: ${touchDevice ? 'TOCCA SALTA' : 'PREMI SPAZIO'} QUANDO TI ARRIVA SOTTO`); tutPulse('jump'); }
   } else if (T.step === 1) {
     if (!T.log) { T.log = { l: Math.round(px), z: -.05, type: 'log', hit: false }; objects.push(T.log); T.jumps0 = run.jumps; }
     else if (T.log.z > .86 && run.jumps === T.jumps0 && jump <= 0 && !T.miss) { invincible = Math.max(invincible, .5); T.miss = true; }   // mancato: niente botta, si riprova
     else if (T.log.z > 1 || T.log.collected || T.log.hit && T.log.z > .95) {
       if (run.jumps > T.jumps0) { T.step = 2; T.t = 0; reward(100, 'BRAVO!', 'trick', false); tutPulse(null);
         const r = [...rivals].filter(r => !r.duel).sort((a, b) => Math.abs(a.gap) - Math.abs(b.gap))[0];
-        if (r) { r.gap = 11; r.lane = Math.round(px); r.lx = r.lane; r.laneT = 9; T.r = r; tutSay(`<b class="tstep">3/4</b> ${icon('bolt')} METTITI DIETRO ${/^[AEIOU]/i.test(r.name) ? 'AD' : 'A'} ${r.name.toUpperCase()}, NELLA SUA CORSIA: PRENDI LA SCIA`); }
+        if (r) { r.gap = 11; r.lane = Math.round(px); r.lx = r.lane; r.laneT = 9; T.r = r; tutSay(`<b class="tstep">3/5</b> ${icon('bolt')} METTITI DIETRO ${/^[AEIOU]/i.test(r.name) ? 'AD' : 'A'} ${r.name.toUpperCase()}, NELLA SUA CORSIA: PRENDI LA SCIA`); }
         else { T.step = 3; }
-      } else { T.log = null; T.miss = false; T.tries++; tutSay(`<b class="tstep">2/4</b> ${icon('log')} RIPROVA: ${touchDevice ? 'TOCCA SALTA' : 'PREMI SPAZIO'} UN ATTIMO PRIMA DEL TRONCO`); if (T.tries > 2) { T.step = 2; T.t = 9; } }
+      } else { T.log = null; T.miss = false; T.tries++; tutSay(`<b class="tstep">2/5</b> ${icon('log')} RIPROVA: ${touchDevice ? 'TOCCA SALTA' : 'PREMI SPAZIO'} UN ATTIMO PRIMA DEL TRONCO`); if (T.tries > 2) { T.step = 2; T.t = 9; } }
     }
   } else if (T.step === 2) {
     if (T.r) { T.r.laneT = Math.max(T.r.laneT, 2); if (T.r.gap < 6) T.r.gap += dt * 6; }   // il compagno ti aspetta finché non sei in scia
-    if (draftT > .6 && !T.inDraft) { T.inDraft = true; T.t = 0; tutSay(`<b class="tstep">3/4</b> ${icon('bolt')} SEI IN SCIA: VAI PIÙ FORTE!`); }
+    if (draftT > .6 && !T.inDraft) { T.inDraft = true; T.t = 0; tutSay(`<b class="tstep">3/5</b> ${icon('bolt')} SEI IN SCIA: VAI PIÙ FORTE!`); }
     if ((T.inDraft && T.t > 2.4) || T.t > 12) { T.step = 3; T.t = 0; }
   } else if (T.step === 3) {
-    if (T.t < .1) { charge = 100; tutSay(`<b class="tstep">4/4</b> ${icon('rocket')} TURBO PIENO: ${touchDevice ? 'TOCCA TURBO' : 'PREMI B'}`); tutPulse('boost'); }
-    if ((turbo > 0 && T.t > 1.2) || T.t > 10) tutEnd();
+    if (T.t < .1) { charge = 100; tutSay(`<b class="tstep">4/5</b> ${icon('rocket')} TURBO PIENO: ${touchDevice ? 'TOCCA TURBO' : 'PREMI B'}`); tutPulse('boost'); }
+    if ((turbo > 0 && T.t > 1.2) || T.t > 10) { T.step = 4; T.t = 0; T.w0 = run.wheelies; tutSay(`<b class="tstep">5/5</b> ${icon('wheelie')} IMPENNA: ${touchDevice ? 'SCORRI IL DITO IN GIÙ (o tieni IMPENNA)' : 'TIENI PREMUTO S o ↓'} · PASSI SOPRA RADICI E POZZE`); tutPulse('wheelie'); }
+  } else if (T.step === 4) {   // v109.2 · quinto passo: l'impennata
+    if ((run.wheelies > T.w0 && T.t > 1) || T.t > 10) tutEnd();
   }
 }
 function coachUpdate() {
@@ -2134,7 +2142,8 @@ function update(dt) {
   const wasAirborne = jump > 0;
   jump = Math.max(0, jump - dt);
   if (wasAirborne && jump === 0) {
-    springVelocity = 95; A.sfx.land(); shake = Math.max(shake, .25); if (touchDevice && navigator.vibrate) try { buzz(12); } catch {}
+    const hk = Math.min(1.8, .7 + jumpDur * .6);   // v109.2 · atterraggio: suono e vibrazione in base a quanto eri in aria
+    springVelocity = 95; A.sfx.land(hk); shake = Math.max(shake, .25); if (touchDevice && navigator.vibrate) try { buzz(Math.round(10 + hk * 22)); } catch {}
     if (jumpBuffer > 0) { jumpBuffer = 0; takeoff(); }
   }
   const bump = jump > 0 ? 0 : Math.sin(roadTime * 27) * (18 + route.rough * 40);
@@ -2147,7 +2156,8 @@ function update(dt) {
   invincible = Math.max(0, invincible - dt);
   toastTime -= dt;
   if (toastTime < 0) $('banner').classList.remove('show');
-  A.engineUpdate(speed * (1 + elapsed / 200) * (ice ? 1 + throttleSlip * .55 : 1), gas, turbo > 0, jump > 0 || (ice && throttleSlip > .5));   // v49 · sul ghiaccio la ruota pattina: giri alti
+  { const rt = routeAt(course, roadTime * 19.5), surf = ice ? 'ice' : desert ? 'sand' : wet > 0 ? 'mud' : rt.rough > .05 ? 'rock' : weather.rain > .3 ? 'mud' : 'dirt';   // v109.2 · il rumore delle gomme cambia col fondo
+    A.engineUpdate(speed * (1 + elapsed / 200) * (ice ? 1 + throttleSlip * .55 : 1), gas, turbo > 0, jump > 0 || (ice && throttleSlip > .5), surf); }   // v49 · sul ghiaccio la ruota pattina: giri alti
   A.musicIntensity(turbo > 0 ? 1 : .35 + (multiplier() - 1) * .15);
 
   spawn -= dt * speed;
@@ -2888,7 +2898,7 @@ document.addEventListener('click', e => {
     A.sfx.click();
     const nick = C.getNick() || profile.rider, md = P.MODES[mode], pts = Math.floor(score).toLocaleString('it-IT');
     const what = ice ? Math.round(driftM) + ' m di traverso' : leap ? C.fmtJump(leapBest || 0) + ' di salto' : pts + ' punti';
-    const url = publicGameURL + (ghostable(mode) ? '?fantasma=' + encodeURIComponent(nick) + '&p=' + mode : '');
+    const url = challengeURL();
     shareText(`Ho fatto ${what} a «Tranquilli, è un Giro Easy!» (${md.id === 3 ? 'Sfida del giorno' : md.name}). Riesci a battermi? Gioca gratis dal telefono:`, url);
     return;
   }
@@ -2929,7 +2939,8 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${res.unlocked.map(l => `<div class="unlock"><i style="--a:${l.plastic};--b:${l.accent}"></i><span>NUOVA LIVREA SBLOCCATA: <b>${l.name}</b> · sceglila nel garage</span></div>`).join('')}
     ${duel?.racing ? '<div class="duelres" id="duelres"></div>' : ''}
     ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}
-    <button class="cardprev" id="cardprev" type="button"><img alt="Cartolina del risultato" src="${cardURL || 'data:,'}"><span><b>📸 LA TUA CARTOLINA</b><small>Toccala e mandala nel gruppo WhatsApp: risultato, posizione e link per giocare.</small></span></button>
+    <button class="cardprev" id="cardprev" type="button"><img alt="Cartolina del risultato" src="${cardURL || 'data:,'}"><span><b>📸 LA TUA CARTOLINA</b><small>${C.isEdt() ? 'Toccala e mandala nel gruppo WhatsApp: risultato, posizione e link per giocare.' : 'Toccala e mandala su WhatsApp: risultato e link per sfidarti.'}</small></span></button>
+    <button class="secondary storybtn" id="sharestory" type="button">📸 STORIA PER INSTAGRAM / TIKTOK / STATO</button>
     <div class="actions">
       <button class="primary big" id="again"><span>UN ALTRO GIRO</span>${icon('chevrons')}</button>
       <button class="secondary hot" id="shareScore">📸 MANDA LA CARTOLINA</button>
@@ -2944,8 +2955,9 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   $('menu').onclick = renderReady;
   $('shopres').onclick = () => renderShop(renderReady);
   $('shareScore').onclick = $('cardprev').onclick = () => shareScore(win, res);
+  if ($('sharestory')) $('sharestory').onclick = () => shareScore(win, res, 'story');
   cardCtx = { win, res }; refreshCardPreview();
-  const bindResult = () => { $('cardprev').onclick = () => shareScore(win, res); refreshCardPreview(); $('again').onclick = () => { if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); } }; drawDuelResult(); $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
+  const bindResult = () => { $('cardprev').onclick = () => shareScore(win, res); if ($('sharestory')) $('sharestory').onclick = () => shareScore(win, res, 'story'); refreshCardPreview(); $('again').onclick = () => { if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); } }; drawDuelResult(); $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
   resultSnapshot = { html: $('card').innerHTML, bind: bindResult };
   const gOK = win && !ice && P.MODES[mode].random !== 'run';
   if ($('groupres')) groupResult({ score, mode, rider: profile.rider, time: ice ? Math.round(driftM * 10) / 10 : win ? (leap ? leapBest : elapsed) : 0, win, g: gOK ? C.encodeGhost([...ghostSplits, GAME_LENGTH]) : '' });
@@ -3416,7 +3428,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 109.1;
+const GAME_VERSION = 109.2;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3724,7 +3736,7 @@ function cardFacts(win, res) {
   if (f.length < 3) f.push([String(run.jumps), 'SALTI']);
   return f.slice(0, 3);
 }
-async function scoreCard(win, res) {
+async function scoreCanvas(win, res) {
   const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d'), md = P.MODES[mode];
   try { await document.fonts?.load('80px Anton'); } catch {}
@@ -3762,6 +3774,28 @@ async function scoreCard(win, res) {
   facts.forEach(([v, l], i) => { const bx = x0 + i * (bw + gap); x.fillStyle = '#ffffff14'; roundRect(x, bx, 1160, bw, 96, 14); x.fill(); x.textAlign = 'center'; x.fillStyle = '#ffcf16'; x.font = F(50); x.fillText(v, bx + bw / 2, 1214); x.fillStyle = '#d9cdb8'; x.font = B(24); x.fillText(l, bx + bw / 2, 1244); });
   x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = F(46); x.fillText(win ? 'CHI MI BATTE?' : 'DOPO MIGLIORA…', W / 2, 1306);
   x.fillStyle = '#9f9686'; x.font = B(26); x.fillText(publicGameURL.replace(/^https?:\/\//, '').replace(/\/$/, ''), W / 2, 1338);
+  return c;
+}
+// v109.2 · cartolina in due formati: quadrata-alta per WhatsApp/post (1080×1350) e verticale per le storie (1080×1920)
+async function scoreCard(win, res, fmt = 'post') {
+  const card = await scoreCanvas(win, res);
+  if (fmt !== 'story') return new Promise(r => card.toBlob(r, 'image/png'));
+  const W = 1080, H = 1920, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'), md = P.MODES[mode];
+  const F = n => n + 'px Anton, Impact, sans-serif', B = n => `800 ${n}px "Barlow Condensed", Arial Narrow, Arial, sans-serif`;
+  x.fillStyle = '#12110f'; x.fillRect(0, 0, W, H);
+  const art = await loadImage(trackArtOf(md));   // sfondo: la locandina del percorso, scura e sfocata
+  if (art) { x.save(); x.filter = 'blur(18px) brightness(.45)'; const sc = Math.max(W / art.width, H / art.height) * 1.1, w = art.width * sc, h = art.height * sc; x.drawImage(art, (W - w) / 2, (H - h) / 2, w, h); x.restore(); }
+  x.textAlign = 'center';
+  x.save(); x.translate(W / 2, 175); x.rotate(-.035); x.fillStyle = '#ffcf16'; x.fillRect(-W, -86, W * 2, 172);
+  x.fillStyle = '#1b1712'; x.font = F(92); x.fillText('TRANQUILLI,', 0, -6); x.font = F(62); x.fillText('È UN GIRO EASY!', 0, 62); x.restore();
+  const cw = 900, ch = cw * 1350 / 1080, cx = (W - cw) / 2, cy = 330;
+  x.save(); x.shadowColor = '#000c'; x.shadowBlur = 40; x.shadowOffsetY = 16; roundRect(x, cx, cy, cw, ch, 26); x.fillStyle = '#12110f'; x.fill(); x.restore();
+  x.save(); roundRect(x, cx, cy, cw, ch, 26); x.clip(); x.drawImage(card, cx, cy, cw, ch); x.restore();
+  x.fillStyle = '#fff'; x.font = F(76); x.fillText('BATTIMI, SE CI RIESCI', W / 2, 1585);
+  x.fillStyle = '#ffcf16'; x.font = B(44); x.fillText('GIOCA GRATIS DAL TELEFONO', W / 2, 1650);
+  x.fillStyle = '#fff3de'; x.font = B(40); x.fillText(publicGameURL.replace(/^https?:\/\//, '').replace(/\/$/, ''), W / 2, 1712);
+  x.fillStyle = '#b9ad98'; x.font = B(30); x.fillText('il gioco di enduro dell’Enduro Drinking Team', W / 2, 1790);
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
 // anteprima della cartolina nella schermata del risultato
@@ -3777,16 +3811,18 @@ async function refreshCardPreview() {
 }
 function roundRect(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
 
-async function shareScore(win, res) {
+// v109.2 · il link condiviso col risultato è sempre la sfida al tuo fantasma, quando il percorso lo permette
+function challengeURL() { const nick = C.getNick() || profile.rider; return publicGameURL + (ghostable(mode) ? '?fantasma=' + encodeURIComponent(nick) + '&p=' + mode : ''); }
+async function shareScore(win, res, fmt = 'post') {
   const md = P.MODES[mode];
   const what = leap && win ? `ha saltato ${leapBest.toFixed(1).replace('.', ',')} metri` : win && !ice ? `è arrivato al rifugio in ${elapsed.toFixed(1).replace('.', ',')} s (${score.toLocaleString('it-IT')} punti)` : `ha fatto ${score.toLocaleString('it-IT')} punti`;
   const text = `${profile.rider} ${what} a Giro Easy EDT (${md.id === 3 ? 'Sfida del ' + P.todayLabel() : md.name})${res.isRecord ? ' — NUOVO RECORD' : ''}. Chi mi batte?`;
-  if (window.EDT_TEXT_SHARE) { await shareText(text); return; }
+  if (window.EDT_TEXT_SHARE) { await shareText(text, challengeURL()); return; }
   try {
-    const blob = await scoreCard(win, res);
-    const file = blob && new File([blob], 'giro-easy-edt.png', { type: 'image/png' });
+    const blob = await scoreCard(win, res, fmt);
+    const file = blob && new File([blob], fmt === 'story' ? 'giro-easy-storia.png' : 'giro-easy-edt.png', { type: 'image/png' });
     if (file && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: 'Giro Easy · EDT', text: text + ' ' + publicGameURL });
+      await navigator.share({ files: [file], title: 'Tranquilli, è un Giro Easy!', text: text + ' ' + challengeURL() });
       return;
     }
     if (blob) {
@@ -3794,8 +3830,8 @@ async function shareScore(win, res) {
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     }
   } catch (e) { if (e.name === 'AbortError') return; }
-  await shareText(text);
-  status('Immagine del punteggio salvata: allegala nel gruppo insieme al messaggio.');
+  await shareText(text, challengeURL());
+  status(fmt === 'story' ? 'Storia salvata: pubblicala su Instagram, TikTok o nello stato di WhatsApp.' : 'Immagine del punteggio salvata: allegala nel gruppo insieme al messaggio.');
 }
 
 // ---------- Avvio ----------
@@ -3873,7 +3909,7 @@ if (/debug/.test(location.hash)) {
 }
 
 // Aggancio per i test automatici (non usato dal gioco).
-window.__edt = { get state() { return state; }, puncture() { puncture(); hud(); }, get cornerLine() { return cornerLine; }, get rb() { return curBend(); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
+window.__edt = { get state() { return state; }, puncture() { puncture(); hud(); }, card(fmt) { return scoreCard(true, { isRecord: true }, fmt); }, get cornerLine() { return cornerLine; }, get rb() { return curBend(); }, get px() { return px; }, get duel() { return duel; }, get ice() { return ice; }, get drift() { return drift; }, get driftScore() { return driftScore; }, get driftPend() { return driftPend; }, get driftChain() { return driftChain; }, get bend() { return bendNow; }, get snowT() { return snowT; }, get throttleSlip() { return throttleSlip; }, setAim(v) { aimPx = v; }, get gasLock() { return gasLock; }, setMode(v) { mode = v; }, audio: A, get rivals() { return rivals; }, get weather() { return weather; }, spawnShortcut, takeShortcut, setWeather(k, v) { weatherPlan = [{ kind: k, from: 0, to: 999 }]; weather[k] = v; }, angelo, get elapsed() { return elapsed; }, get course() { return course; }, get vx() { return vx; }, setCourse(v) { roadTime = v / GAME_LENGTH * courseLength(P.MODES[mode].difficulty); course = v; }, get score() { return score; }, get lives() { return lives; },
   get objects() { return objects; }, get barT() { return barT; }, showPodium, showStats, get leapState() { return leapState; }, get leapBest() { return leapBest; }, get leapDist() { return leapDist; }, get leapPitch() { return leapPitch; }, get canyonLen() { return canyonLen; }, get turbo() { return turbo; }, get dailyRule() { return dailyRule(); }, spawnBar, get grip() { return grip; }, get stalled() { return stalled; }, get flat() { return flat; }, get sandStuck() { return sandStuck; }, get tractOn() { return tractOn; }, get jump() { return jump; }, get px() { return px; }, get run() { return run; }, get lane() { return lane; },
   get wave() { return wave; }, get combo() { return combo; }, get charge() { return charge; }, setElapsed(v) { elapsed = v; }, hop, move, start, pause, finish, boost, update, go, setGas(v) { gas = v; }, startWheelie, stopWheelieInput, get wheelieOn() { return wheelie; }, get ears() { return earsOn(); }, get errors() { return errors; }, setGrappa(v) { grappa = v; }, forceTurbo() { charge = 100; boost(); }, mud, mudClear() { mudFx.clear(); }, erika, get replayN() { return replayBuf.length; }, get runPlan() { return runPlan; }, get forkPath() { return forkPath; }, replay: startReplay, recFake() { pushSnap(drawState(), 1 / 30); }, get highlights() { return highlights.map(h => ({ label: h.label, w: Math.round(h.w), n: h.frames.length })); }, startClip, frames(n, fn, every = 1) { for (let i = 0; i < n; i++) { fn?.(i); update(1 / 60); mudFx.update(1 / 60); if (i % every === every - 1) world.render({ ...drawState(), dt: every / 60 }); } } };
 

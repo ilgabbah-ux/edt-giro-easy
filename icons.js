@@ -37,6 +37,8 @@ const P = {
   radar: '<path d="M12 21a1.4 1.4 0 1 0 0-.01z"/><path d="M8.6 16.6a4.8 4.8 0 0 1 6.8 0M5.6 13.6a9 9 0 0 1 12.8 0M2.6 10.6a13.2 13.2 0 0 1 18.8 0"/>',
   lock: '<rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
   check: '<path d="M4 12.5l5 5L20 6.5"/>',
+  phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M10.5 18.5h3"/><path class="f" d="M8.6 5h6.8v11.5H8.6z" opacity=".35"/>',
+  warn: '<path d="M12 3.5L2.8 19.5h18.4z"/><path d="M12 9.5v4.8"/><circle class="f" cx="12" cy="17" r="1.1"/>',
   play: '<path class="f" d="M7 4.5v15l12-7.5z"/>',
   flag: '<path d="M5 21.5V3"/><path d="M5 4h14v9H5"/><path class="f" d="M5 4h3.5v3H5zM12 4h3.5v3H12zM8.5 7H12v3H8.5zM15.5 7H19v3h-3.5zM5 10h3.5v3H5zM12 10h3.5v3H12z"/>',
   trophy: '<path d="M7 3.5h10v5.3a5 5 0 0 1-10 0z"/><path d="M7 5.5H4.2a3.3 3.3 0 0 0 3.3 4.4M17 5.5h2.8a3.3 3.3 0 0 1-3.3 4.4M12 13.8v3.7M8 21h8M9.2 17.5h5.6v3.5H9.2z"/>',
@@ -73,6 +75,7 @@ export function icon(name, cls = '') {
 
 // Emoji → icona del gioco.
 const MAP = {
+  '📸': 'share', '📱': 'phone', '📲': 'phone', '📳': 'phone', '❄': 'snow', '🎵': 'speaker', '🔇': 'mute', '💪': 'bolt', '✅': 'check', '⚠': 'warn', '👉': 'chevrons', '🏍': 'wheelie',   // v109.2
   '🍺': 'beer', '🍷': 'wine', '🔥': 'flame', '💧': 'water', '🐰': 'rabbit', '🔧': 'wrench', '🎁': 'gift', '⏱': 'stopwatch',
   '👻': 'ghost', '⚡': 'bolt', '🔊': 'speaker', '🤠': 'wheelie', '🪨': 'rock', '⛰': 'mountain', '🎯': 'target', '🦘': 'spring',
   '🐸': 'wave', '🌀': 'scrub', '🦁': 'helmetplus', '⬇': 'downhill', '🦊': 'eye', '🧓': 'stopwatch', '🚱': 'nowater', '🚀': 'rocket',
