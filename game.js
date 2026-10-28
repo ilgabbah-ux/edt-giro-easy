@@ -1,20 +1,20 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.5';
-import { createWorld } from './scene3d.js?v=108.5';
-import * as A from './audio.js?v=108.5';
-import * as P from './progress.js?v=108.5';
-import { createMud } from './mudfx.js?v=108.5';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.5';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl } from './icons.js?v=108.5';
-import * as C from './classifica.js?v=108.5';
-import * as D from './duel.js?v=108.5';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=108.6';
+import { createWorld } from './scene3d.js?v=108.6';
+import * as A from './audio.js?v=108.6';
+import * as P from './progress.js?v=108.6';
+import { createMud } from './mudfx.js?v=108.6';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=108.6';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl } from './icons.js?v=108.6';
+import * as C from './classifica.js?v=108.6';
+import * as D from './duel.js?v=108.6';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 let world = null, worldError = null;
 // v89 · foto dei piloti caricate dopo il menu: il gioco si apre prima, poi le iniziali diventano foto
 let FOTO = {};
-import('./piloti.js?v=108.5').then(m => {
+import('./piloti.js?v=108.6').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
@@ -2729,6 +2729,7 @@ function renderReady() {
   const trackArt = trackArtOf;
   const art = trackArt(md);
   const heroList = P.SHOWN().filter(m => P.isUnlocked(m, info.level));
+  $('card').classList.toggle('newbie', (P.profile.totals?.runs || 0) < 3 && !C.isEdt());   // v108.6 · ai primi giri di chi arriva da fuori: menu essenziale
   const heroLead = d => { const top = d?.boards?.[mode]?.[0]; return top ? `👑 1° NEL GRUPPO: <b>${top.n}</b> · ${top.s.toLocaleString('it-IT')}` : '👑 NESSUNO IN CLASSIFICA: IL PRIMO SEI TU'; };
   $('card').innerHTML = `
     <div class="menuhead">
@@ -3206,7 +3207,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
       return;
     }
     runInfo.sent = d; runInfo.sentAs = nick; lastGroupRun = runInfo;
-    if (d.joinedEdt) toast('🏁 SEI UN PILOTA EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green');   // v108.5
+    if (d.joinedEdt) syncShare(), toast('🏁 SEI UN PILOTA EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green');   // v108.5
     show(d); renderSide(); refreshCardPreview(); waBrag(d, runInfo, nick, beforeList);
   }).catch(() => {
     if (!$('groupres')) return;
@@ -3278,7 +3279,7 @@ function wirePilotBox(redraw) {
   $('edtform')?.addEventListener('submit', async e => {
     e.preventDefault(); const w = $('edtword').value;
     if (!(await C.checkSecret(w))) { toast('PAROLA SEGRETA SBAGLIATA', 'red'); A.sfx.click(); return; }
-    C.setEdt(true); C.rememberSecret(w); A.sfx.click(); toast('🏁 BENVENUTO NELL’EDT: DA ORA SEI NELLA CLASSIFICA DEGLI AMICI', 'green');
+    C.setEdt(true); C.rememberSecret(w); syncShare(); A.sfx.click(); toast('🏁 BENVENUTO NELL’EDT: DA ORA SEI NELLA CLASSIFICA DEGLI AMICI', 'green');
     groupView = 'edt'; redraw(); C.load(true).then(() => { redraw(); renderSide(); }).catch(() => {});
   });
   $('pform')?.addEventListener('submit', async e => {
@@ -3363,10 +3364,10 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 108.5;
+const GAME_VERSION = 108.6;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
-  if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
+  if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
 setTimeout(() => C.flushPending().then(n => { if (n) { toast(`🏆 INVIATI ${n} PUNTEGGI RIMASTI IN SOSPESO`, 'green'); renderSide(); } }).catch(() => {}), 4000);
 window.addEventListener('online', () => C.flushPending().catch(() => {}));
 setInterval(() => { if (state !== 'playing' && C.pendingCount()) C.flushPending().catch(() => {}); }, 120000);
@@ -3376,6 +3377,23 @@ function customCardHTML() {
   const c = profile.custom;
   if (!c) return `<button type="button" class="rideroption customnew" id="mycustom" aria-label="Crea il tuo pilota"><span class="rc-photo rc-initials">+</span><span class="rc-bar"><b class="rc-name">CREA IL TUO</b><span class="rc-skill"><span>pilota: nome e numero</span></span></span></button>`;
   return `<button type="button" class="rideroption custom" id="mycustom" aria-pressed="${isCustom()}" aria-label="Il tuo pilota ${c.name}">${riderCardHTML(c.name, c.num - 1)}<i class="rc-edit" title="Modifica">${icon('wrench')}</i></button>`;
+}
+// v108.6 · benvenuto per chi apre il gioco la prima volta senza conoscere l'EDT
+function renderWelcome() {
+  try { localStorage.setItem('edt-welcome', '1'); } catch {}
+  state = 'ready'; setMenu(true); $('overlay').classList.remove('hidden');
+  $('card').innerHTML = `<div class="welcome">
+    <img class="menushield" src="img/edt-shield.webp" alt="" width="453" height="520">
+    <div class="eyebrow">IL GIOCO DI ENDURO DELL'EDT</div>
+    <h1 class="title"><span class="t1">TRANQUILLI,</span><span class="t2">È UN GIRO <em>EASY!</em></span></h1>
+    <p class="wlead">Tronchi, pietraie, fango e salitoni: <b>arriva al rifugio prima del tempo</b>, prendi le birre al volo e scala la classifica.</p>
+    <ul class="wfacts"><li>${icon('pad')} Gratis, dal telefono o dal computer: niente da installare</li><li>${icon('helmet')} Corri coi piloti veri dell'Enduro Drinking Team… o crea il tuo</li><li>${icon('trophy')} Classifica online con chiunque giochi</li></ul>
+    <button class="primary big" id="wcustom" type="button"><span>CREA IL TUO PILOTA</span></button>
+    <button class="secondary" id="wplay" type="button">GIOCA SUBITO COI PILOTI EDT</button>
+  </div>`;
+  iconizeEl($('card'));
+  $('wcustom').onclick = () => { A.unlock(); A.sfx.click(); renderCustom(renderReady); };
+  $('wplay').onclick = () => { A.unlock(); A.sfx.click(); renderReady(); start(); };   // parte subito: il primo giro è quello guidato
 }
 function renderCustom(back) {
   if (state !== 'ended') state = 'ready';
@@ -3617,7 +3635,13 @@ async function shareText(text) {
   const out = $('sharefallback'); out.hidden = false; out.value = text + ' ' + publicGameURL; out.focus(); out.select();
   status('Copia questo messaggio e incollalo nel gruppo.');
 }
-$('sharelink').onclick = $('sharelink2').onclick = () => shareText('Tranquilli, è un giro easy! Scegli il tuo pilota EDT e prova ad arrivare al rifugio. Vai Ciccio!');
+$('sharelink').onclick = $('sharelink2').onclick = () => shareText(C.isEdt() ? 'Tranquilli, è un giro easy! Scegli il tuo pilota EDT e prova ad arrivare al rifugio. Vai Ciccio!' : 'Tranquilli, è un Giro Easy! Il gioco di enduro gratis dal telefono: crea il tuo pilota, salta i tronchi e arriva al rifugio prima del tempo. Vediamo se mi batti!');
+// v108.6 · per chi non è dell'EDT il tasto dice solo CONDIVIDI (non c'è un "gruppo")
+function syncShare() {
+  const edt = C.isEdt();
+  $('sharelink').innerHTML = icon('share') + `<span>${edt ? 'CONDIVIDI NEL GRUPPO' : 'CONDIVIDI'}</span>`;
+  const r = document.querySelector('.recruit'); if (r) { r.querySelector('b').textContent = edt ? 'Porta dentro il gruppo' : 'Sfida i tuoi amici'; r.querySelector('span').textContent = edt ? 'Più siete, più la classifica brucia.' : 'Mandagli il gioco e vediamo chi arriva prima al rifugio.'; $('sharelink2').textContent = edt ? 'CONDIVIDI NEL GRUPPO' : 'CONDIVIDI IL GIOCO'; }
+}
 
 function loadImage(src) {
   return new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
@@ -3760,9 +3784,10 @@ $('installapp').onclick = async () => {
   installHelp();
 };
 syncSound(); $('fullscreen').innerHTML = icon('expand'); $('ovfull').innerHTML = icon('expand'); $('pause').innerHTML = icon('pause');
-$('sharelink').innerHTML = icon('share') + '<span>CONDIVIDI NEL GRUPPO</span>';
+syncShare();
 renderSide();
-renderReady();
+let firstVisit = false; try { firstVisit = !C.isEdt() && !localStorage.getItem('edt-welcome') && !(P.profile.totals?.runs > 0); } catch {}
+if (firstVisit) renderWelcome(); else renderReady();
 if (worldError) {
   $('card').innerHTML = '<div class="eyebrow">GRAFICA 3D NON DISPONIBILE</div><h1>APRI NEL<br><em>BROWSER.</em></h1><p>Apri il gioco in Chrome o Safari con la grafica WebGL attiva, poi ricarica la pagina.</p>';
 } else {

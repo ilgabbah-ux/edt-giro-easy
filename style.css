@@ -1639,3 +1639,17 @@ aside#hub { gap: 10px; }
 .grptabs svg { width: 16px; height: 16px; }
 .pedt { color: #e8ded0; } .pedt svg { width: 14px; height: 14px; color: var(--y); vertical-align: -2px; }
 .seasontabs[hidden] { display: none; }
+/* v108.6 · primo impatto per chi non conosce l'EDT */
+.newbie .duelbtn, .newbie .derbychip, .newbie #potw, .newbie #rivalbar, .newbie #cupbar, .newbie .thchips .var, .newbie .thchips .gold, .newbie .thchips .wkchip { display: none !important; }
+.welcome { display: grid; gap: 12px; justify-items: start; }
+.welcome .menushield { width: 86px; height: auto; }
+.welcome .title { margin: 0; }
+.wlead { margin: 0; font: 600 17px/1.4 var(--ui); color: #e8ded0; }
+.wlead b { color: var(--y); }
+.wfacts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font: 600 15px/1.3 var(--ui); color: #cfc5ae; }
+.wfacts li { display: flex; gap: 10px; align-items: center; }
+.wfacts svg { width: 20px; height: 20px; flex: none; color: var(--y); }
+.welcome .primary.big { width: 100%; margin-top: 6px; }
+.welcome .secondary { width: 100%; }
+.aboutedt { margin-top: 14px; padding: 12px 14px; background: #ffffff0a; border-left: 4px solid var(--y); display: grid; gap: 6px; font: 500 14px/1.45 var(--ui); color: #cfc5ae; }
+.aboutedt b { font: italic 800 15px var(--ui); color: var(--y); letter-spacing: .5px; }
