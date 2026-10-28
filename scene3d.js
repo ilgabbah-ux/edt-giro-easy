@@ -286,6 +286,7 @@ export function createWorld(canvas) {
   // v109.10 · tablet lenti: materiali "lucidi" (PBR, clearcoat) sostituiti da materiali opachi semplici. Il test sull'iPad ha mostrato
   // che il collo di bottiglia è proprio il disegno: aggiornamenti e audio pesano poco
   let liteMats = false, liteMatsN = 0; const liteMatCache = new Map();
+  const baseMat = m => m?.userData?.from || m;   // v111.1 · il materiale originale anche quando al suo posto c'è quello semplice
   function toLambert(m) {
     let l = liteMatCache.get(m); if (l) return l;
     l = new T.MeshLambertMaterial({ color: m.color, map: m.map || null, emissive: m.emissive || 0x000000, emissiveMap: m.emissiveMap || null, emissiveIntensity: m.emissiveIntensity ?? 1, transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest, side: m.side, vertexColors: m.vertexColors, depthWrite: m.depthWrite, polygonOffset: m.polygonOffset, polygonOffsetFactor: m.polygonOffsetFactor, polygonOffsetUnits: m.polygonOffsetUnits, fog: m.fog, alphaMap: m.alphaMap || null });
@@ -1492,7 +1493,7 @@ export function createWorld(canvas) {
   if (envTex) for (const [m, k] of [[plastic, .9], [accent, .9], [helmetMat, .9], [sidePanel, .9], [alloy, 1.2], [rimMat, 1.2], [pipeMat, 1.3], [gold, 1.1], [frameMat, .8], [engMat, .7], [forkMat, .9], [chamberMat, 1.2], [vintageMat, 1.2], [hubMat, .8], [studMat, 1], [seatMat, .35], [black, .4], [spring, .7], [lensMat, 1.2], [guardMat, .5], [rallyMat, .9], [screenMat, 1.2]]) { m.envMap = envTex; m.envMapIntensity = k; m.needsUpdate = true; }
   for (const g of [...wheels, chassis, front, rider, upper, body, head]) mergeGroup(g);
   let electricNow = false;
-  const meshesWith = m => { const out = []; bike.traverse(o => { if (o.isMesh && o.material === m) out.push(o); }); return out; };
+  const meshesWith = m => { const out = []; bike.traverse(o => { if (o.isMesh && baseMat(o.material) === m) out.push(o); }); return out; };
   let customKey = '';
   function paintSideDecal(kind, a, b) {
     const x = decalCanvas.getContext('2d'); x.clearRect(0, 0, 256, 128);
@@ -1694,7 +1695,7 @@ export function createWorld(canvas) {
     function rebuild() {
       if (model) holder.remove(model);
       model = bike.clone(true); model.position.set(0, 0, 0); model.rotation.set(0, 0, 0); model.scale.copy(bike.scale); model.visible = true;
-      model.traverse(o => { if (o.name === 'fx' || (o.material && hideMats.has(o.material))) o.visible = false; });
+      model.traverse(o => { if (o.name === 'fx' || (o.material && hideMats.has(baseMat(o.material)))) o.visible = false; });
       // v106 · il pilota con le ossa non si può copiare così com'è: nel garage va in posa seduta ferma
       const sk = []; model.traverse(o => { if (o.isSkinnedMesh) sk.push(o); });
       for (const o of sk) { const m = new T.Mesh(o.geometry, o.material); m.position.copy(o.position); m.quaternion.copy(o.quaternion); m.scale.copy(o.scale); m.castShadow = o.castShadow; o.parent.add(m); o.removeFromParent(); }
@@ -1953,7 +1954,7 @@ export function createWorld(canvas) {
     const skip = o => { for (let p = o; p && p !== host; p = p.parent) if (p === g.userData.rotor || (type === 'trincia' && p === g.userData.roller)) return true; return false; };
     host.updateMatrixWorld(true); const inv = _bm.copy(host.matrixWorld).invert();
     const box = new T.Box3(); const hide = [];
-    host.traverse(o => { if (!o.isMesh || o.isSprite || o === g.userData.sign || keepMats.has(o.material) || o.material?.isMeshBasicMaterial && type !== 'heli' || skip(o)) return;
+    host.traverse(o => { if (!o.isMesh || o.isSprite || o === g.userData.sign || keepMats.has(baseMat(o.material)) || o.material?.isMeshBasicMaterial && type !== 'heli' || skip(o)) return;
       o.geometry.computeBoundingBox(); _bx.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld).applyMatrix4(inv); box.union(_bx); hide.push(o); });
     if (!hide.length) return;
     for (const o of hide) o.removeFromParent();
@@ -2673,7 +2674,7 @@ export function createWorld(canvas) {
     const tb = new T.Group(); tb.position.set(0, 1.42 + ry, .25); tb.rotation.x = -.14; body.add(tb);
     const h = head.clone(true); tb.add(h);
     const hT = { value: new T.Color(r.livery.helmet) };
-    h.traverse(o => { if (o.name === 'fx' || o.name === 'fxcam') o.visible = false; if (o.isMesh && o.userData.helmGlb) { o.material = o.material.clone(); tintable(o.material, hT); o.castShadow = false; return; } if (o.isMesh) { if (o.material === helmetMat) o.material = helm; else if (o.material === accent) o.material = acc; else if (o.material === plastic) o.material = bm(o.material); o.castShadow = false; } });
+    h.traverse(o => { if (o.name === 'fx' || o.name === 'fxcam') o.visible = false; if (o.isMesh && o.userData.helmGlb) { o.material = baseMat(o.material).clone(); tintable(o.material, hT); o.castShadow = false; return; } if (o.isMesh) { if (o.material === helmetMat) o.material = helm; else if (o.material === accent) o.material = acc; else if (o.material === plastic) o.material = bm(o.material); o.castShadow = false; } });
     body.updateMatrixWorld(true);
     const nk = NECK.sit.clone().add(HIP); nk.y += ry; body.localToWorld(nk); tb.worldToLocal(nk);
     h.position.set(nk.x, nk.y + .15, nk.z + .05); h.rotation.set(0, 0, 0); h.scale.setScalar(.9);
