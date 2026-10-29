@@ -2,7 +2,7 @@
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
 import { createWorld } from './scene3d.js?v=3f0279a6';
 import * as A from './audio.js?v=6058e7da';
-import * as P from './progress.js?v=6ebb2131';
+import * as P from './progress.js?v=4150e7d1';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=2bfbc3ea';
@@ -457,7 +457,9 @@ function hud() {
   $('game').classList.toggle('grappa', state === 'playing' && grappa > 0);
   $('game').classList.toggle('watery', state === 'playing' && waterT > 0);
   $('wheelie').classList.toggle('active', wheelie);
-  $('wheelie').textContent = wheelie ? 'YEE-HAW! ' + wheelieT.toFixed(1) + 's' : 'IMPENNA';
+  const leapAir = leap && leapState === 2 && jump > 0 && state === 'playing';   // v114.2 · Angelo Potter: in volo IMPENNA tiene su il muso
+  $('wheelie').textContent = leapAir ? (wheelieHeld ? 'MUSO SU…' : 'TIENI QUI') : wheelie ? 'YEE-HAW! ' + wheelieT.toFixed(1) + 's' : 'IMPENNA';
+  $('wheelie').classList.toggle('tutpulse', leapAir && !wheelieHeld && leapPitch < -.1);
   const left = Math.max(0, (state === 'ready' ? P.MODES[mode].limit : timeLimit) - elapsed);
   $('timer').textContent = left < 10 && state === 'playing' ? left.toFixed(1) : Math.ceil(left);
   $('timerbox').classList.toggle('final', state === 'playing' && left <= 10);
@@ -486,7 +488,7 @@ function hud() {
   { const tb = $('tractbox'); if (tb) { tb.hidden = !(tractOn && state === 'playing'); if (!tb.hidden) { tb.style.setProperty('--g', grip.toFixed(3)); tb.className = 'tractbox ' + (stalled ? 'stall' : grip > .94 ? 'spin' : grip < .12 ? 'low' : grip >= .28 && grip <= .84 ? 'ok' : ''); tb.querySelector('b').textContent = stalled ? 'SPINGI!' : grip > .94 ? 'PATTINA' : grip < .12 ? 'SI PIANTA' : grip >= .28 && grip <= .84 ? 'TRAZIONE' : 'GAS'; } } }
   if (leap && live) {   // v59 · riquadro del salto: assetto della moto e metri
     $('driftbox').hidden = false;
-    $('driftlabel').textContent = leapState === 2 ? 'IN VOLO · MUSO SU!' : leapState >= 3 ? 'SALTO' : 'VELOCITÀ DI RINCORSA';
+    $('driftlabel').textContent = leapState === 2 ? (leapPitch < -.25 ? 'TIENI IMPENNA: MUSO GIÙ!' : leapPitch > .25 ? 'MOLLA IMPENNA: MUSO SU!' : 'COSÌ! MOTO DRITTA') : leapState >= 3 ? 'SALTO' : 'VELOCITÀ DI RINCORSA';
     $('driftpts').textContent = leapState >= 2 ? (leapState === 2 ? leapDist : leapBest).toFixed(1).replace('.', ',') + ' m' : Math.round(kmh * 1.45) + ' km/h';
     $('driftneedle').style.transform = `rotate(${(leapState === 2 ? -leapPitch * 70 : 0).toFixed(1)}deg)`;
     $('driftbox').classList.toggle('on', leapState === 2);
@@ -1570,7 +1572,7 @@ function spawnLeapWave() {
     canyonX0 = roadTime * 19.5 + (.91 - .08) * 55;
     canyonLen = 400;   // finché non stacchi il burrone non finisce
     for (let k = 1; k <= 3; k++) add(1, .08 + k * .08, 'speedpad');
-    toast(charge >= 100 && turbo <= 0 ? '🏔 IL BURRONE! ACCENDI IL TURBO ADESSO E VOLA LONTANO!' : '🏔 ARRIVA IL BURRONE: PRENDI LE ULTIME SCOPE E VOLA!', 'gold'); if (charge >= 100 && turbo <= 0) bigCall('TURBO ADESSO!'); wave++; return;
+    toast(charge >= 100 && turbo <= 0 ? '🏔 IL BURRONE! TURBO ADESSO · IN VOLO TIENI IMPENNA PER LA MOTO DRITTA' : '🏔 ARRIVA IL BURRONE · IN VOLO TIENI IMPENNA PER TENERE DRITTA LA MOTO', 'gold'); if (charge >= 100 && turbo <= 0) bigCall('TURBO ADESSO!'); wave++; return;
   }
   if (leapState >= 1) return;
   const l = wave < 2 ? 1 : Math.max(0, Math.min(2, prevSafe + (rng() < .5 ? -1 : 1)));
@@ -1611,18 +1613,20 @@ function leapTakeoff() {
   if (rec > 0 && rec / mPerU > canyonLen) objects.push({ l: -1.6, z: .91 - rec / mPerU / 55, type: 'mboard', m: rec, rec: true, hit: false });
   A.sfx.jump(); A.sfx.turbo(); shake = .6; flash('gold');
   bigCall(leapTurbo ? 'STACCO COL TURBO!' : perfect ? 'STACCO PERFETTO!' : 'NEL VUOTO!');
-  setTimeout(() => { if (leapState === 2) toast('LANCETTA NEL VERDE: GAS = MUSO SU, MOLLA = MUSO GIÙ · VAI SUL BERSAGLIO VERDE', 'gold'); }, 400);
+  setTimeout(() => { if (leapState === 2) tutSay(`${icon('wheelie')} TIENI PREMUTO <b>IMPENNA</b> PER TENERE DRITTA LA MOTO`, true); }, 700);   // v114.2 · istruzione grande al centro per tutto il volo
+  setTimeout(() => { if (leapState === 2) toast('TIENI PREMUTO IMPENNA = MUSO SU · MOLLA = MUSO GIÙ · LANCETTA NEL VERDE E STERZA SUL BERSAGLIO', 'gold'); }, 400);
 }
 function leapStep(dt) {
   if (leapState < 2) leapMul = Math.max(1, Math.min(1.75, leapMul + dt * (turbo > 0 ? .08 : gas ? .04 : -.02)));   // v86 · col turbo la rincorsa sale di più   // la discesa spinge, col gas di più
   if (leapState === 2 && jump > 0) {
     // v64 · assetto semplice: col gas (o impenna) il muso sale, mollando scende piano. Verde = |muso| < 0,5
-    const up = gas || wheelieHeld;
-    leapPitch = Math.max(-1.2, Math.min(1.2, leapPitch + (up ? .5 : -.3) * dt));
+    const noseUp = gas || wheelieHeld;
+    leapPitch = Math.max(-1.2, Math.min(1.2, leapPitch + (noseUp ? .5 : -.3) * dt));
     if (up.wings) leapPitch -= leapPitch * Math.min(1, dt * up.wings * .12);   // v96 · ali: si raddrizza da sola
     leapDist = (elapsed - leapStartT) * leapStartKmh / 3.6;
   }
   if (leapState === 2 && jump <= 0) {   // atterraggio
+    $('coach').classList.remove('show', 'hold');
     leapState = 3; leapEndT = elapsed + 2.6;
     const m = Math.round(leapDist * 10) / 10, upright = Math.abs(leapPitch) < .5 + up.wings * .03, clear = Math.abs(px - leapFree) < .6 + up.wings * .06;
     if (upright && clear && crash <= 0) {
@@ -3558,7 +3562,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 114;
+const GAME_VERSION = 115;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
