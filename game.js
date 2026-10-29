@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
-import { createWorld } from './scene3d.js?v=b89ff719';
+import { createWorld } from './scene3d.js?v=798d6b8a';
 import * as A from './audio.js?v=55b7fbfc';
 import * as P from './progress.js?v=4150e7d1';
 import { createMud } from './mudfx.js?v=ae45cf9e';
@@ -163,7 +163,7 @@ function ghostCourse(t) {
   if (a >= g.splits.length - 1) return GAME_LENGTH;
   return g.splits[a] + (g.splits[a + 1] - g.splits[a]) * (i - a);
 }
-let course = 0, vx = 0, crash = 0, stun = 0, slowmo = 0, slowScale = 1, timeLimit = 70, kmh = 0, warned = false;
+let course = 0, vx = 0, crash = 0, fallT = 0, stun = 0, slowmo = 0, slowScale = 1, timeLimit = 70, kmh = 0, warned = false;
 const courseLength = diff => 60 * (1 + diff * .35) + 16; // distanza del percorso (unità di strada)
 // v17: birre, vino (calamita), grappa (super salto), acqua (malus), orecchie da coniglio, impennata, discese.
 let grappa = 0, waterT = 0, earsT = 0, earsPermanent = false, errors = 0;
@@ -386,6 +386,7 @@ function pumpToast() {
   const hold = toastQ.length ? 1500 : 2100;
   setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.remove(); toastBusy = false; pumpToast(); }, 300); }, hold);
 }
+const FALL_LINES = ['TRANQUILLI, È UN GIRO EASY!', 'ASSAGGIO DI STERRATO!', 'CHIAMATE MIRCO!', 'ATTERRAGGIO DI FACCIA!', 'TUTTO BENE? PIÙ O MENO.', 'BACIO ALLA TERRA!'];
 function bigCall(text) {
   const el = $('bigcall'); if (!el) return;
   el.textContent = text; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
@@ -546,7 +547,7 @@ function resetRun() {
   combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
   lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
   replayBuf = []; recClock = 0; recLast = 0; replay = null; highlights = []; hlPend = [];
-  ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
+  ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = fallT = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
   grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9; lastRiderHit = -99;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
   for (const k of Object.keys(up)) { const l = P.upgradeLevel(k); up[k] = l <= P.LEGEND_FROM ? l : P.LEGEND_FROM + (l - P.LEGEND_FROM) * .4; }   // v106.6 · livelli Leggenda: +0,4 l'uno
@@ -2097,6 +2098,8 @@ function update(dt) {
   if (state !== 'playing') return;
   if (runPlan?.gold?.length && course >= runPlan.gold[0].at && !duel) { const g = runPlan.gold.shift(); objects.push({ l: g.l, z: .02, type: 'goldMug', hit: false, gi: g.i, air: g.kind === 'air', lift: g.kind === 'air' ? 1.65 : .35 }); }
   // Rallentatore breve su salti perfetti e cadute.
+  // v119 · caduta: finché il pilota è a terra si ferma tutto (pista, cronometro, avversari, GEV): la botta costa come prima
+  if (fallT > 0) { fallT += dt; if (fallT < 1.5) { A.engineUpdate(.05, false, false, false); hud(); return; } fallT = 0; crash = Math.min(crash, .25); }
   if (slowmo > 0) { slowmo -= dt; dt *= slowScale; }
   const diff = P.MODES[mode].difficulty;
   elapsed = Math.min(timeLimit, elapsed + dt);
@@ -2413,6 +2416,7 @@ function update(dt) {
         // v58 · dopo una botta la fila subito dopo si apre: niente botte a catena mentre la moto riparte
         for (const q of objects) if (q !== o && !q.hit && q.z > .66 && q.z < .91 && OBSTACLE_HEIGHT[q.type] !== undefined && q.type !== 'water') q.collected = true;
         crash = 1; stun = .65 * (bs.protect ? .7 : 1) * (has('tank') ? .5 : 1); if (has('tank')) invincible += 1; slowmo = .35; slowScale = .4; jump = 0;
+        fallT = .001; slowmo = 0; if (lives > 0 && Math.random() < .5) setTimeout(() => { if (state === 'playing') bigCall(FALL_LINES[Math.floor(Math.random() * FALL_LINES.length)]); }, 380);   // v119 · caduta vera: il pilota vola giù dalla moto
         if (wheelie) endWheelie(false);
         if (o.type === 'dolmen') run.dolmenHit = 1;
         const lines = { trincia: 'TRINCIATO DAL GUSTA.', rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hen: 'COCCODÈ. PIUME OVUNQUE.', grapeCrate: 'MOSTO DAPPERTUTTO.', dolmen: 'IL DOLMEN DI COSTA NON SI SPOSTA.', cow: 'MUUU. LA MUCCA HA VINTO.', manhole: 'DENTRO IL TOMBINO.', boar: 'IL CINGHIALE NON PERDONA.', deer: 'CORNA DEL CERVO.', rollHay: 'ARROTOBALLATO DAL GUSTA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
@@ -2482,7 +2486,7 @@ function drawState() {
     mode, vigne: !!P.MODES[mode].vigne, ranch: !!P.MODES[mode].ranch, fork: forkInfo, state, lane, px, vx: vx + (barT > 0 ? Math.sin(elapsed * 4.2) * 2.2 * Math.min(1, barT) : 0), jump, lift: curLift(), jumpPhase: jump > 0 ? 1 - jump / jumpDur : 0, elapsed: course,
     wheelie: wheelie ? 1 : 0, ears: earsOn(), grappa, water: waterT,
     courseScale: GAME_LENGTH / (courseLength(P.MODES[mode].difficulty) * 19.5), objects, invincible, roadTime, wheelPhase, turbo, combo, fxKind, fxSerial,
-    gas, wet, magnet, whip, shake, crash, speed: speedNow,
+    gas, wet, magnet, whip, shake, crash, fall: fallT, speed: speedNow,
     riderName: profile.rider, riderNumber: riderNum(),
     livery: raceLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, bikeId: P.currentBike().id, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
     leapPitch: leap && leapState === 2 ? leapPitch : undefined, leapCam: leap && leapState === 2, canyon: leap && canyonX0 !== null ? { x0: canyonX0, len: canyonLen, land: canyonLand } : null,
@@ -3566,7 +3570,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 118;
+const GAME_VERSION = 119;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

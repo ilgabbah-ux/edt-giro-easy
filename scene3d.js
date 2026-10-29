@@ -3063,7 +3063,7 @@ export function createWorld(canvas) {
     const wheelieTarget = playing && s.jump <= 0 ? (s.wheelie ? .58 : boostAmount > 2.0 ? .42 : boostAmount > 0 ? .08 : s.gas && trail.climb > .3 ? .05 : 0) : 0;
     dyn.wheelie += (wheelieTarget - dyn.wheelie) * Math.min(1, fdt * (wheelieTarget > dyn.wheelie ? 12 : 4));
     const crashPitch = crash > 0 ? Math.sin(crash * 18) * crash * .25 : 0;
-    const pitchTarget = s.leapPitch !== undefined ? s.leapPitch : air + dyn.wheelie + crashPitch;   // v59 · in volo dal trampolino l'assetto lo decide il pilota
+    const pitchTarget = s.leapPitch !== undefined ? s.leapPitch : air + dyn.wheelie + crashPitch + ((s.fall || 0) > 0 && s.fall < .3 ? -.7 : 0);   // v59 · in volo dal trampolino l'assetto lo decide il pilota
     dyn.pitchV += ((pitchTarget - dyn.pitch) * 95 - dyn.pitchV * 13) * fdt;
     dyn.pitch += dyn.pitchV * fdt;
     pitch.rotation.x = grade + dyn.pitch;
@@ -3097,7 +3097,49 @@ export function createWorld(canvas) {
     bike.rotation.y = dyn.yaw + whip * .55;
     front.rotation.y = s.ice ? Math.max(-.55, Math.min(.55, (s.drift || 0) * .7)) : dyn.steer + (s.jump > 0 ? whip * -.3 : 0);
     const blink = Math.floor(s.invincible * 12) % 2 === 0;
-    bike.visible = s.invincible <= 0 || crash > 0 || blink;
+    bike.visible = s.invincible <= 0 || crash > 0 || blink || (s.fall || 0) > 0;   // v119 · durante la caduta la moto non lampeggia
+
+    // v119 · caduta vera (solo grafica: la botta costa come prima). Moto di muso, il pilota vola oltre il manubrio, rotola sullo sterrato,
+    // si rialza, torna di corsa alla moto (che intanto tira su) e salta in sella; la moto si sdraia su un fianco e striscia.
+    { const f = (s.fall || 0) * 1.4;   // la scena dura 1,5 s di gioco (ferma)
+      if (f > 0 && f < 2.1 && live) {
+        if (!dyn.fallOn) {
+          dyn.fallOn = 1; dyn.fallSide = (s.px ?? 1) > 1 ? 1 : -1;
+          dyn.fallLocal = [rider.position.clone(), rider.quaternion.clone(), rider.scale.clone()];
+          rider.updateMatrixWorld(true); dyn.fallH0 = rider.localToWorld(new T.Vector3(0, 1.15, .2)).sub(bike.position);
+          dyn.fallBody = body.rotation.clone(); dyn.fallHead = [head.position.clone(), head.rotation.clone()];
+          scene.attach(rider); dyn.fallSc = rider.scale.x; dyn.fallHip = new T.Vector3(0, 1.15, .2).multiplyScalar(rider.scale.x);
+          dyn.fallW = new T.Vector3(); dyn.fallQ = new T.Quaternion(); dyn.fallE = new T.Euler(0, 0, 0, 'YXZ'); dyn.fv = [new T.Vector3(), new T.Vector3(), new T.Vector3(), new T.Vector3()];
+        }
+        const sd = dyn.fallSide, H0 = dyn.fallH0, sm = k => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
+        const G = z => height(z, t) - bike.position.y, PI = Math.PI, zL = H0.z - 2.6, xL = H0.x - sd * .3, standY = .98 * dyn.fallSc;
+        const sideK = f < 1.55 ? sm((f - .15) / .3) : 1 - sm((f - 1.55) / .3);
+        bike.rotation.z += sd * 1.22 * sideK; bike.position.y += .1 * sideK;
+        let x = xL, y, z, rx, rz = 0, yaw = 0, legs = 0, stride = 0;
+        if (f < .55) { const u = f / .55, e = 1 - (1 - u) * (1 - u); z = H0.z + (zL - H0.z) * e; x = H0.x - sd * .3 * e; const gy = G(z) + .28; y = H0.y + (gy - H0.y) * u + 1.25 * Math.sin(PI * u); rx = -1.5 * PI * sm(u); rz = -sd * .2 * Math.sin(PI * u); }
+        else if (f < 1.2) { z = zL; y = G(z) + .28 - (f < .65 ? Math.sin((f - .55) / .1 * PI) * .05 : 0); rx = -1.5 * PI; }   // giù di peso: dove cade resta, niente scivolate
+        else if (f < 1.5) { const u = sm((f - 1.2) / .3); z = zL; y = G(z) + .28 + (standY - .28) * u; rx = -1.5 * PI - .5 * PI * u; yaw = PI * u; legs = u > .45 ? 1 : 0; }
+        else if (f < 1.85) { const u = (f - 1.5) / .35; z = zL + (H0.z - .9 - zL) * u; x = xL + (H0.x - xL) * u * .6; stride = u * PI * 3.2; y = G(z) + standY + Math.abs(Math.sin(stride)) * .1; rx = -2 * PI - .22; yaw = PI; rz = Math.sin(stride) * .08; legs = 1; }
+        else { const u = sm((f - 1.85) / .25), z0 = H0.z - .9, x0 = xL + (H0.x - xL) * .6; z = z0 + (H0.z - z0) * u; x = x0 + (H0.x - x0) * u; const y0 = G(z0) + standY; y = y0 + (H0.y - y0) * u + .75 * Math.sin(PI * u); rx = -2 * PI; yaw = PI + PI * u; legs = u < .5 ? 1 : 0; }
+        dyn.fallE.set(rx, dyn.yaw + yaw, rz); dyn.fallQ.setFromEuler(dyn.fallE); rider.quaternion.copy(dyn.fallQ);
+        dyn.fallW.set(x, y, z).add(bike.position); rider.position.copy(dyn.fallW).sub(dyn.fv[3].copy(dyn.fallHip).applyQuaternion(dyn.fallQ));
+        if (legs && rRig) {   // in piedi: gambe a terra che corrono, braccia lungo i fianchi
+          rider.updateMatrixWorld(true);
+          const th = dyn.yaw + yaw, fw = dyn.fv[2].set(-Math.sin(th), 0, -Math.cos(th)), B = rRig.bones, R = rRig.rest, [tg, pw] = dyn.fv;
+          for (const [n, si] of [['R', 1], ['L', -1]]) {
+            const ph = Math.sin(stride + (si > 0 ? 0 : PI));
+            rRig.mesh.localToWorld(tg.copy(RV('hip' + n))); tg.addScaledVector(fw, .3 * ph); tg.y = height(tg.z, t) + .1 + Math.max(0, Math.cos(stride + (si > 0 ? 0 : PI))) * .14 * (stride ? 1 : 0);
+            rRig.mesh.localToWorld(pw.copy(RV('knee' + n))); pw.addScaledVector(fw, .7);
+            ik2(B['thigh' + n], B['shin' + n], R['foot' + n], tg, pw);
+            rRig.mesh.localToWorld(tg.copy(RV('shoulder' + n))); tg.y -= .52; tg.x += Math.cos(th) * si * .14; tg.z -= Math.sin(th) * si * .14; tg.addScaledVector(fw, -.22 * ph);
+            rRig.mesh.localToWorld(pw.copy(RV('elbow' + n))); pw.addScaledVector(fw, -.5);
+            ik2(B['uarm' + n], B['farm' + n], R['hand' + n], tg, pw);
+          }
+        }
+      } else if (dyn.fallOn) {
+        dyn.fallOn = 0; chassis.add(rider); rider.position.copy(dyn.fallLocal[0]); rider.quaternion.copy(dyn.fallLocal[1]); rider.scale.copy(dyn.fallLocal[2]);
+      }
+    }
 
     // Postura: in piedi su salti, salitoni e mulattiera; ammortizza con le gambe all'atterraggio.
     // v113 · pilota vivo (non più un soldatino): posizione d'attacco in piedi col busto sopra il manubrio, gambe che ammortizzano le buche,
@@ -3119,7 +3161,7 @@ export function createWorld(canvas) {
       rRig ? dyn.stand * .09 + tuck * .03 - boostAmount * .02 + (s.wheelie ? .05 : 0) : -dyn.stand * .07 - boostAmount * .015);
     body.rotation.x = -.08 - .3 * dyn.stand - grade * .2 - boostAmount * .05 - (s.gas ? .06 : 0) - dyn.pitch * .45 + crash * .5 + (s.wheelie ? .32 : 0);
     const attackX = -(.3 + dyn.stand * .38) - climbK * .14 - Math.max(0, -grade) * -.25 - boostAmount * .07 + (s.wheelie ? .5 : 0) - dyn.pitch * .35 + tuck * .12 - landK * .14 + crash * .5 + bob * 1.5;
-    syncRiderModel(dyn.stand, Math.max(-.95, Math.min(.35, attackX)), Math.max(-.32, Math.min(.32, lean * .45 - dyn.iceLean * .4 + sway)), s.jump <= 0 && (s.ice ? s.driftOn : curShape) ? Math.max(-1, Math.min(1, dyn.iceLean * 2.2)) : 0);
+    if (!dyn.fallOn) syncRiderModel(dyn.stand, Math.max(-.95, Math.min(.35, attackX)), Math.max(-.32, Math.min(.32, lean * .45 - dyn.iceLean * .4 + sway)), s.jump <= 0 && (s.ice ? s.driftOn : curShape) ? Math.max(-1, Math.min(1, dyn.iceLean * 2.2)) : 0);
     body.rotation.z = lean * .35 - dyn.iceLean * .45 - whip * .3 + (crash > 0 ? Math.sin(crash * 20) * crash * .3 : 0);
     head.rotation.y = dyn.steer * .9 + dyn.iceLean * .9;   // lo sguardo va verso l'uscita della curva
     { const inner = dyn.iceLean > 0 ? -1 : 1, deep = Math.min(1, Math.max(0, (Math.abs(dyn.iceLean) - .12) / .3));
@@ -3130,6 +3172,7 @@ export function createWorld(canvas) {
         j.legPivot.rotation.set(1.45 * j.out, 0, j.side * .55 * j.out);   // stivale avanti, verso la ruota davanti, e in fuori
       } }
     head.rotation.x = rRig ? -(body.rotation.x + grade + dyn.pitch) + riderPivot.rotation.x * .35 + .1 : -(body.rotation.x + grade + dyn.pitch) * .55;   // v105.5 · lo sguardo resta sulla pista
+    if (dyn.fallOn) { body.rotation.copy(dyn.fallBody); head.position.copy(dyn.fallHead[0]); head.rotation.copy(dyn.fallHead[1]); }   // v119 · in caduta il casco resta attaccato al collo
     dyn.brake = Math.max(0, (dyn.brake || 0) - fdt * 2.5);
     brakeLightMat.emissiveIntensity = Math.max(.3 + dyn.brake * 2.2, (weatherNow.dusk || 0) * 1.6 + (weatherNow.fog || 0) * 1.2);
     fordTex.offset.x = (now / 1000 * .22) % 1;   // v97 · la corrente del guado scorre
