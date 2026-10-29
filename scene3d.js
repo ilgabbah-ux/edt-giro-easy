@@ -210,6 +210,17 @@ export function createWorld(canvas) {
   // v70 · materiali fotografati dal vero (Poly Haven, CC0): sentiero sassoso, prato con rocce. Se non arrivano resta la grafica disegnata.
   const roadMaps = [gravel], grassMaps = [grassTex];
   const texLoader = new T.TextureLoader();
+  // v118 · tablet (iPad): le immagini delle texture si rimpiccioliscono a 512 px appena arrivano: un quarto della memoria grafica.
+  // Con troppa memoria Safari butta via le texture e moto, pilota e sassi diventano neri. Sullo schermo dell'iPad la differenza non si vede.
+  const SHRINK = Math.min(innerWidth, innerHeight) >= 600 && (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+  function shrinkTex(t, max = 512) {
+    const im = t?.image; if (!SHRINK || !im || t.userData.shrunk) return; const w = im.width, h = im.height; if (!w || Math.max(w, h) <= max) return;
+    const k = max / Math.max(w, h), c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+    try { c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); } catch { return; }
+    try { im.close?.(); } catch {}
+    t.image = c; t.userData.shrunk = true; t.needsUpdate = true;
+  }
+  { const load0 = texLoader.load.bind(texLoader); texLoader.load = (u, onL, onP, onE) => load0(u, t => { shrinkTex(t); onL?.(t); }, onP, onE); }
   function photoTex(name, rx, ry, color, done) {
     let left = 2; const out = {};
     const fin = () => { if (--left === 0) done(out); };
@@ -522,6 +533,7 @@ export function createWorld(canvas) {
 
   // v105 · modelli veri (Poly Haven, CC0) alleggeriti in Blender: rocce col muschio e albero da foto
   const gltf = new GLTFLoader();
+  { const load0 = gltf.load.bind(gltf); gltf.load = (u, onL, onP, onE) => load0(u, g => { if (SHRINK) g.scene.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'specularColorMap', 'specularIntensityMap']) shrinkTex(m?.[k]); }); onL?.(g); }, onP, onE); }   // v118 · vedi shrinkTex
   { const dl = new DRACOLoader(); dl.setDecoderPath('draco/'); gltf.setDRACOLoader(dl); }   // v106.1 · modelli compressi (circa 4 volte più leggeri)
   let rockVar = null;
   gltf.load('img/models/rock_moss_set_01.glb', g => {
