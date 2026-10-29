@@ -213,9 +213,14 @@ export function createWorld(canvas) {
   // v118 · tablet (iPad): le immagini delle texture si rimpiccioliscono a 512 px appena arrivano: un quarto della memoria grafica.
   // Con troppa memoria Safari butta via le texture e moto, pilota e sassi diventano neri. Sullo schermo dell'iPad la differenza non si vede.
   const SHRINK = Math.min(innerWidth, innerHeight) >= 600 && (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
-  function shrinkTex(t, max = 512) {
-    const im = t?.image; if (!SHRINK || !im || t.userData.shrunk) return; const w = im.width, h = im.height; if (!w || Math.max(w, h) <= max) return;
-    const k = max / Math.max(w, h), c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+  // Su iPhone/iPad le immagini dei modelli arrivano come ImageBitmap: se Safari azzera la grafica non si possono ricaricare (restano nere).
+  // Copiate su una tela si ricaricano sempre.
+  const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function shrinkTex(t) {
+    const im = t?.image; if (!im || t.userData.shrunk) return; const bmp = typeof ImageBitmap !== 'undefined' && im instanceof ImageBitmap;
+    if (!SHRINK && !(IOS && bmp)) return; const max = SHRINK ? 512 : 4096;
+    const w = im.width, h = im.height; if (!w || (Math.max(w, h) <= max && !(IOS && bmp))) return;
+    const k = Math.min(1, max / Math.max(w, h)), c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
     try { c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); } catch { return; }
     try { im.close?.(); } catch {}
     t.image = c; t.userData.shrunk = true; t.needsUpdate = true;
@@ -533,7 +538,7 @@ export function createWorld(canvas) {
 
   // v105 · modelli veri (Poly Haven, CC0) alleggeriti in Blender: rocce col muschio e albero da foto
   const gltf = new GLTFLoader();
-  { const load0 = gltf.load.bind(gltf); gltf.load = (u, onL, onP, onE) => load0(u, g => { if (SHRINK) g.scene.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'specularColorMap', 'specularIntensityMap']) shrinkTex(m?.[k]); }); onL?.(g); }, onP, onE); }   // v118 · vedi shrinkTex
+  { const load0 = gltf.load.bind(gltf); gltf.load = (u, onL, onP, onE) => load0(u, g => { if (SHRINK || IOS) g.scene.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'specularColorMap', 'specularIntensityMap']) shrinkTex(m?.[k]); }); onL?.(g); }, onP, onE); }   // v118 · vedi shrinkTex
   { const dl = new DRACOLoader(); dl.setDecoderPath('draco/'); gltf.setDRACOLoader(dl); }   // v106.1 · modelli compressi (circa 4 volte più leggeri)
   let rockVar = null;
   gltf.load('img/models/rock_moss_set_01.glb', g => {
