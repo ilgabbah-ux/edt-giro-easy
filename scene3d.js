@@ -2878,7 +2878,7 @@ export function createWorld(canvas) {
     if (q === 9) { for (const m of [tufts, ferns, reeds, flowers, shrubs]) { m.userData.n0 ??= m.count; m.count = 0; } for (const m of [firA, firB, larchCards, leafCards, islandCards, vineLeaf]) m.count = Math.ceil(m.userData.n0 * .35); }
   }
   const bigScreen = () => Math.min(innerWidth, innerHeight) >= 600 && (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
-  const maxQ = () => (bigScreen() ? 6 : 4) + (lite ? (bigScreen() ? 3 : 1) : 0);
+  const maxQ = () => bigScreen() ? 6 : (lite ? 5 : 4);   // v117 · niente più gradini 7-9 (materiali semplici, metà vegetazione, risoluzione 0,5): la grafica resta piena, il ritmo lo tiene il blocco a 30 fotogrammi
   const FOLIAGE = [firA, firB, larchCards, leafCards, islandCards, vineLeaf, tufts, ferns, reeds, shrubs];
   function adaptQuality() {
     const now = performance.now(), dt = now - lastNow; lastNow = now;
@@ -3347,5 +3347,5 @@ export function createWorld(canvas) {
   }
 
   resize();
-  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, isUltra: () => liteMats, perfInfo, resetPerf, dbg: DBG, set onAutoLite(f) { onAutoLite = f; } };
+  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, isUltra: () => bigScreen() || quality >= 4, perfInfo, resetPerf, dbg: DBG, set onAutoLite(f) { onAutoLite = f; } };
 }
