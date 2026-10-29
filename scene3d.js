@@ -1945,7 +1945,7 @@ export function createWorld(canvas) {
     warmSoon(k);
   }, undefined, () => {}); }
   function preloadObstacles() { for (const k of new Set(Object.values(OBJ_GLB).map(v => v[0]))) loadObsGlb(k); }
-  setTimeout(preloadObstacles, 4000);   // v108 · prima: così i modelli arrivano (e si preparano) mentre sei ancora nel menu   // se non parti subito, si scaricano comunque con calma
+  setTimeout(preloadObstacles, 30000);   // v116 · nel menu non rubano rete a moto, pilota e pista: partono al via del primo giro (o dopo 30 s)   // v108 · prima: così i modelli arrivano (e si preparano) mentre sei ancora nel menu   // se non parti subito, si scaricano comunque con calma
   const _bx = new T.Box3(), _bm = new T.Matrix4();
   function glbSwap(g, type) {
     const spec = OBJ_GLB[type]; const G = spec && objGlb[spec[0]]; if (!G) return;

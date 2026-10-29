@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
-import { createWorld } from './scene3d.js?v=3f0279a6';
-import * as A from './audio.js?v=6058e7da';
+import { createWorld } from './scene3d.js?v=743afe9f';
+import * as A from './audio.js?v=55b7fbfc';
 import * as P from './progress.js?v=4150e7d1';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=2bfbc3ea';
-import * as C from './classifica.js?v=204cc127';
+import * as C from './classifica.js?v=d486ae5b';
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -189,6 +189,7 @@ const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.w
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400, canyonLand = 0, leapTurbo = false, leapV = 10;
 let leap = false, leapState = 0, leapPow = 0, leapPitch = 0, leapW = 0, leapStartT = 0, leapStartKmh = 0, leapDist = 0, leapBest = 0, lastHopAt = -9, leapEndT = 0, leapPerfect = false;
+let travelRate = 25;
 let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
 const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
 const GEV_SOFT = new Set(['pigpen', 'hayCart', 'forkShort', 'forkSafe', 'gevmark', 'bar', 'coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
@@ -576,6 +577,7 @@ function resetRun() {
 }
 function start() {
   quietMenu = false;
+  A.voicesSoon?.();
   world?.preloadObstacles?.();   // v107.2 · al primo giro arrivano i modelli degli ostacoli
   try { world?.warmUp?.(); } catch {}
   C.hit('play', String(GAME_VERSION));
@@ -1663,7 +1665,8 @@ function gevStep(dt, diff) {
   if (gevZ < -6 && elapsed - gevShout > 8 && rng() < dt * .5) { gevShout = elapsed; toast(pick(GEV_SHOUTS), 'gold'); A.sfx.whistle(); }
 }
 function gevThrowNow() {
-  const target = Math.max(0, Math.min(2, Math.round(px))), zT = .14, zJ = .91 + gevZ / 55;
+  // v116 · lanci più giusti: mentre l'oggetto vola la pista scorre, quindi lo faccio cadere più avanti; tocca terra a ≈ 1,2 s da te (prima a ≈ 0,5 s)
+  const target = Math.max(0, Math.min(2, Math.round(px))), zT = Math.max(-.45, .2 - travelRate * .9 / 55), zJ = .91 + gevZ / 55;
   // mai tutte e tre le corsie chiuse: se serve, la fila che c'era su un'altra corsia sparisce e restano le birre
   const hard = objects.filter(o => !GEV_SOFT.has(o.type) && Math.abs(o.z - zT) < .12);
   const blocked = new Set(hard.map(o => Math.round(o.lT ?? o.l))); blocked.add(target);
@@ -2181,6 +2184,7 @@ function update(dt) {
   score += dt * 12 * (turbo > 0 ? 2 : 1) * (has('downhill') && route.down > .4 ? 2 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 2 : 1);
   // In mulattiera non si va più veloci: è stretta, sassosa e con ondate più dure.
   const travelStep = leap && leapState === 2 ? dt * leapV : dt * (1.1 + diff * .35 + elapsed / 118) * speed * 19.5 * (1 - route.rough * .06) * (1 + up.engine * .025) * (1 + (bs.speed || 0)) * (1 + (bs.climb || 0) * Math.max(0, route.grade));
+  if (dt > 0) travelRate = travelRate * .9 + (travelStep / dt) * .1;   // v116 · velocità media di scorrimento (serve ai lanci delle GEV)
   roadTime += travelStep / 19.5;
   if (leap && leapState < 2 && dt > 0) leapZRate = travelStep / 55 / dt;
   course = Math.min(GAME_LENGTH, roadTime / courseLength(diff) * GAME_LENGTH);
@@ -3562,7 +3566,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 115;
+const GAME_VERSION = 116;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3952,7 +3956,7 @@ async function refreshCardPreview() {
 function roundRect(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
 
 // v109.2 · il link condiviso col risultato è sempre la sfida al tuo fantasma, quando il percorso lo permette
-function challengeURL() { const nick = C.getNick() || profile.rider; return publicGameURL + (ghostable(mode) ? '?fantasma=' + encodeURIComponent(nick) + '&p=' + mode : ''); }
+function challengeURL() { const nick = C.getNick() || profile.rider; return publicGameURL + (ghostable(mode) ? '?fantasma=' + encodeURIComponent(nick) + '&p=' + mode + '&da=amici' : '?da=amici'); }
 async function shareScore(win, res, fmt = 'post') {
   const md = P.MODES[mode];
   const what = leap && win ? `ha saltato ${leapBest.toFixed(1).replace('.', ',')} metri` : win && !ice ? `è arrivato al rifugio in ${elapsed.toFixed(1).replace('.', ',')} s (${score.toLocaleString('it-IT')} punti)` : `ha fatto ${score.toLocaleString('it-IT')} punti`;
@@ -3982,7 +3986,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.ED
   const hadSW = !!navigator.serviceWorker.controller;
   // v107.2 · alla prima visita il gioco offline si prepara dopo, così non ruba rete al caricamento della prima partita
   const reg = () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => {});
-  if (hadSW) reg(); else setTimeout(reg, 20000);
+  if (hadSW) reg(); else setTimeout(reg, 90000);   // v116 · prima visita: il gioco offline si prepara dopo il primo giro, non durante
   // v39 · quando arriva una versione nuova del gioco, la pagina si ricarica da sola (solo se non stai correndo).
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -3990,6 +3994,23 @@ if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.ED
     const go = () => { if (reloaded) return; if (state === 'ready' || state === 'ended') { reloaded = true; location.reload(); } else setTimeout(go, 2000); };
     go();
   });
+}
+// v116 · aggiornamenti sicuri: se il gioco resta aperto (scheda in sottofondo, app sulla home) controlla da solo se c'è una
+// versione nuova quando torni al gioco e ogni 10 minuti nel menu; se c'è e non stai correndo, si ricarica da solo.
+if (location.protocol === 'https:' && !window.EDT_PUBLIC_URL) {
+  const mine = (import.meta.url.match(/[?&]v=([0-9a-z]+)/) || [])[1] || '';
+  let lastCheck = Date.now(), updating = false;
+  const checkUpdate = () => {
+    if (!mine || updating || Date.now() - lastCheck < 60000) return; lastCheck = Date.now();
+    fetch('./index.html?u=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(html => {
+      const live = (html.match(/game\.js\?v=([0-9a-z]+)/) || [])[1];
+      if (!live || live === mine) return;
+      const go = () => { if (state === 'ready' || state === 'ended') { updating = true; toast('NUOVA VERSIONE DEL GIOCO: AGGIORNO…', 'gold'); setTimeout(() => location.reload(), 1200); } else setTimeout(go, 3000); };
+      go();
+    }).catch(() => {});
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
+  setInterval(() => { if (!document.hidden && (state === 'ready' || state === 'ended')) checkUpdate(); }, 600000);
 }
 let installEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });

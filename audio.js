@@ -221,7 +221,10 @@ export async function testVoices(onStep) {
 // v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio
 let VOCI_PILOTI = {}, vpLoad = null;
 export function loadRiderVoices() { return vpLoad || (vpLoad = import('./voci-piloti.js?v=58b11a40').then(m => { VOCI_PILOTI = m.VOCI_PILOTI; }).catch(() => { vpLoad = null; })); }
-setTimeout(() => { vociReady(); loadRiderVoices(); }, 12000);
+// v116 · prima apertura più leggera: le voci (≈1,3 MB) non si scaricano più nel menu ma dopo il via del primo giro
+let voicesAsked = false;
+export function voicesSoon() { if (voicesAsked) return; voicesAsked = true; setTimeout(vociReady, 2500); setTimeout(loadRiderVoices, 30000); }
+setTimeout(voicesSoon, 90000);   // se resti nel menu, arrivano comunque con calma
 const riderBuf = new Map();
 export const hasRiderVoice = key => !!VOCI_PILOTI[key];
 function decodeRider(key) {

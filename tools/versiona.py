@@ -40,6 +40,10 @@ def main():
             break
     else:
         sys.exit('versiona: i riferimenti non si stabilizzano (ciclo di import?)')
+    # v116 · il nome della cache offline cambia a ogni versione: il telefono installa il service worker nuovo e si aggiorna
+    if 'sw.js' in text:
+        tag = hashlib.sha256(text['index.html'].encode('utf-8')).hexdigest()[:8]
+        text['sw.js'] = re.sub(r"const CACHE = 'giro-easy-[^']*';", f"const CACHE = 'giro-easy-{tag}';", text['sw.js'])
     for n, t in text.items():
         if t != read(n):
             with open(os.path.join(ROOT, n), 'w', encoding='utf-8') as f:

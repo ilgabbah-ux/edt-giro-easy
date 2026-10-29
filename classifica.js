@@ -97,11 +97,18 @@ export function loadArchive() { return archive ? Promise.resolve(archive) : call
 // v108.6 · contatore giocatori: aperture e primi giri del giorno (una volta al giorno per telefono), telefoni nuovi, giri finiti.
 // Nessun dato personale: solo un codice a caso del telefono.
 function devId() { try { let d = localStorage.getItem('edt-dev'); if (!d) { d = Array.from({ length: 10 }, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join(''); localStorage.setItem('edt-dev', d); } return d; } catch { return ''; } }
+// v116 · provenienza: i link dei post hanno ?da=ig / tt / yt / fb / wa (gruppo WhatsApp) / amici (cartolina condivisa).
+// La prima provenienza resta salvata sul telefono; se riapri da un altro link conta quello di oggi. Nessun dato personale.
+const SRC_OK = /^[a-z]{2,6}$/;
+let srcNow = '';
+try { const q = (new URLSearchParams(location.search).get('da') || '').toLowerCase(); if (SRC_OK.test(q)) { srcNow = q; if (!localStorage.getItem('edt-src')) localStorage.setItem('edt-src', q); } } catch {}
+export function source() { if (srcNow) return srcNow; try { const s = localStorage.getItem('edt-src') || ''; return SRC_OK.test(s) ? s : ''; } catch { return ''; } }
 export function hit(kind, v = '') {
   if (!enabled()) return;
   try {
     if (kind !== 'run') { const k = 'edt-hit-' + kind, day = dayISO(); if (localStorage.getItem(k) === day) return; localStorage.setItem(k, day); }
     const id = devId(); if (!id) return;
+    const src = source(); if (src) v = String(v).slice(0, 4) + '-' + src;   // v116 · da quale canale arriva (nella colonna Versione, es. 115-ig)
     fetch(API + '?' + new URLSearchParams({ action: 'hit', kind, id, grp: myGrp(), v, day: dayISO() }).toString(), { mode: 'no-cors', keepalive: true }).catch(() => {});
   } catch {}
 }
