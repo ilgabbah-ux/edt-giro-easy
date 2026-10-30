@@ -241,7 +241,7 @@ canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 .stamp { position: absolute; right: -86px; top: -14px; transform: rotate(12deg); background: var(--r); color: #fff; font: 18px/1 var(--display); font-style: normal; letter-spacing: 1px; padding: 8px 10px; border: 3px solid #fff; border-radius: 6px; animation: stamp .5s .9s cubic-bezier(.3, 1.6, .5, 1) both; box-shadow: 0 6px 16px #0007; }
 @keyframes stamp { 0% { opacity: 0; transform: rotate(12deg) scale(3); } 100% { opacity: 1; transform: rotate(12deg) scale(1); } }
 .resulttext { font-size: 14px; }
-.resultstats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 10px 0; }
+.resultstats { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin: 10px 0; }
 .resultstats div { background: #121311d9; border-radius: 8px; padding: 6px 4px; text-align: center; }
 .resultstats b { display: block; font: 24px/1.1 var(--display); color: var(--y); }
 .resultstats small { font: 700 9px var(--ui); letter-spacing: 1px; color: var(--muted); }
@@ -363,7 +363,7 @@ footer { display: flex; justify-content: space-between; color: #8f8878; font-siz
   .missions li { font-size: 12.5px; padding: 5px 8px; }
   .primary.big { width: 100%; padding: 15px 20px; font-size: 24px; }
   .actions .secondary { flex: 1; }
-  .resultstats { grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .resultstats { gap: 4px; grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); }
   .resultstats b { font-size: 20px; }
   .resultstats small { font-size: 8px; letter-spacing: 0; }
   .scoreticket b { font-size: 46px; }
