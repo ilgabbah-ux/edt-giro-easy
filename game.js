@@ -1639,7 +1639,7 @@ function leapStep(dt) {
       bigCall(`${m.toFixed(1).replace('.', ',')} METRI!`); A.sfx.perfect(); flash('gold');
     } else {
       run.leap = 0;
-      if (crash <= 0) { lives--; run.hits++; crash = 1; stun = .9; shake = 1; A.sfx.hit(); flash('hit'); mistake(); }
+      if (crash <= 0) { lives--; run.hits++; crash = 1; stun = .9; shake = 1; A.sfx.hit(); flash('hit'); mistake(); fallT = .001; }   // v120 · anche nel salto sbagliato la caduta è vera
       bigCall(!clear ? 'SUI PIETRONI!' : leapPitch > 0 ? 'DI CODA!' : 'DI MUSO!');
       toast(!clear ? 'SALTO NULLO: ATTERRA SUL BERSAGLIO VERDE' : 'SALTO NULLO: LANCETTA NEL VERDE QUANDO TOCCHI', 'red');
       if (lives <= 0) { hud(); finish(false); return; }
@@ -3570,7 +3570,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 119;
+const GAME_VERSION = 120;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
