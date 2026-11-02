@@ -227,6 +227,7 @@ let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400,
 let leap = false, leapState = 0, leapPow = 0, leapPitch = 0, leapW = 0, leapStartT = 0, leapStartKmh = 0, leapDist = 0, leapBest = 0, lastHopAt = -9, leapEndT = 0, leapPerfect = false;
 let travelRate = 25;
 let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
+const GEV_OFF = 1.72;   // v125.2 · la jeep corre sul bordo della pista, non più sopra la staccionata (era 2,15)
 const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
 const GEV_SOFT = new Set(['pigpen', 'hayCart', 'forkShort', 'forkSafe', 'gevmark', 'bar', 'coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
 // v48 · fantasma del primo nella classifica del gruppo
@@ -1713,7 +1714,7 @@ function gevThrowNow() {
     objects.push({ l: free, z: zT, type: 'coin', hit: false });
   }
   const type = pick(['cone', 'cone', 'tyre', 'tyre', 'sign', 'barrier']);
-  const thrown = { l: 1 + gevSide * 2.15, z: zJ, type, hit: false, fly: .9, flyT: .9, l0: 1 + gevSide * 2.15, lT: target, z0: zJ, zT, lift: 1.5 };
+  const thrown = { l: 1 + gevSide * GEV_OFF, z: zJ, type, hit: false, fly: .9, flyT: .9, l0: 1 + gevSide * GEV_OFF, lT: target, z0: zJ, zT, lift: 1.5 };
   objects.push(thrown, { l: target, z: zT, type: 'gevmark', hit: false, of: thrown });   // v89 · cerchio rosso a terra dove cadrà l'oggetto
   gevArm = .6; run.gevThrows = (run.gevThrows || 0) + 1;
   toast({ cone: '⚠ BIRILLO IN ARRIVO!', tyre: '⚠ TI TIRANO UN COPERTONE!', sign: '⚠ CARTELLO DI DIVIETO IN PISTA!', barrier: '⚠ TRANSENNA IN ARRIVO!' }[type], 'red');
@@ -2526,7 +2527,7 @@ function drawState() {
     riderName: profile.rider, riderNumber: riderNum(),
     livery: raceLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, bikeId: P.currentBike().id, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
     leapPitch: leap && leapState === 2 ? leapPitch : undefined, leapCam: leap && leapState === 2, canyon: leap && canyonX0 !== null ? { x0: canyonX0, len: canyonLen, land: canyonLand } : null,
-    gev: gev ? { L: 1 + gevSide * 2.15, z: gevZ, arm: gevArm, t: elapsed } : null,
+    gev: gev ? { L: 1 + gevSide * GEV_OFF, z: gevZ, arm: gevArm, t: elapsed } : null,
     ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs, variant: variantOf(mode),
     rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended' || state === 'continue') ? (gGhost && state !== 'ended' ? [...rivals, gGhost.entry] : rivals) : [], weather,
   });
@@ -3625,7 +3626,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 125.1;
+const GAME_VERSION = 125.2;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
