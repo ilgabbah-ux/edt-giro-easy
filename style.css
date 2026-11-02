@@ -1860,3 +1860,9 @@ aside#hub { gap: 10px; }
 .avopt svg { width: 100%; height: 100%; display: block; }
 .avopt[aria-checked="true"] { border: 3px solid var(--y); transform: scale(1.08); box-shadow: 0 0 0 3px #f2c23040; }
 @media (max-width: 420px) { .avpick { gap: 6px; } }
+
+/* v125.3 · invito a creare il pilota nel risultato */
+.rescustom { width: 100%; margin: 0 0 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; }
+.rescustom svg { width: 20px; height: 20px; }
+.rescustom small { flex-basis: 100%; font: 600 13px var(--ui); letter-spacing: .3px; text-transform: none; opacity: .8; }
+.resulttext small { font-size: .85em; opacity: .75; }

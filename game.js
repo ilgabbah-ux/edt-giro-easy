@@ -123,6 +123,8 @@ const avSpan = (n, cls = '', label = '') => `<span class="avatar avsvg ${cls}"${
 // voce di classifica: pilota EDT → foto; pilota creato con casco scelto → casco; altrimenti cerchio vuoto
 const entryAv = (e, cls = '') => RIDERS.includes(e?.r) ? avatarHTML(e.r, cls) : e?.av > 0 ? avSpan(e.av, cls) : '<i class="noav"></i>';
 // nel campo "pilota" della classifica il casco viaggia in coda al nome (Nome~7): niente modifiche al foglio
+// v125.3 · chi ha corso: il nome in classifica, col pilota scelto se è diverso («Pizzi con Il Gabbah»)
+const whoRan = () => { const n = C.getNick(), r = profile.rider; return n && n.toLowerCase() !== r.toLowerCase() && !isCustom() ? `${n} <small>con ${r}</small>` : r; };
 const riderTag = () => isCustom() && myAv() ? profile.rider.slice(0, 16) + '~' + myAv() : profile.rider;
 function avatarHTML(name, cls = '') {
   if (name && profile.custom?.av && name === profile.custom.name && !RIDERS.includes(name)) return avSpan(profile.custom.av, cls, name);
@@ -2911,6 +2913,7 @@ function renderShop(back, tab = shopTab) {
   { const got = P.claimCollections(); if (got.length) { const c = got[0]; A.sfx.fanfare?.(); bigCall(c.icon + ' COLLEZIONE COMPLETA!'); toast(`🏅 ${c.name.toUpperCase()}: +${c.prize} 🍺 E IL TITOLO ACCANTO AL PILOTA`, 'gold'); renderShop(back); } }
 }
 function renderReady() {
+  try { window.__edtCheckUpdate?.(); } catch {}   // v125.3 · a ogni ritorno al menu controlla se c'è una versione nuova
   state = 'ready';
   $('tipcard')?.classList.remove('show');
   applyLayout(false);
@@ -3073,10 +3076,11 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   setMenu(true);
   $('card').innerHTML = `
     ${perfBox}<div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button></div>${C.isEdt() ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
+    ${!C.isEdt() && !isCustom() ? `<button class="secondary rescustom" id="rescustom" type="button">${icon('helmet')} CREA IL TUO PILOTA <small>casco, nome e numero: in classifica ci vai tu</small></button>` : ''}
     <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
     <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${leap ? (win ? `${leapBest.toFixed(1).replace('.', ',')} METRI<br><em>IN PIEDI!</em>` : 'SALTO<br><em>NULLO.</em>') : gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : fresh ? 'PER UN<br><em>PELO!</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
-    ${gev && !win ? gevVerbale() : ''}<p class="resulttext">${gev && win ? '<b>Niente verbali, più boccali!</b> ' : ''}${profile.rider} ${gev && !win ? `è stato fermato dalle GEV al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso.` : win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : fresh ? 'ci ha provato fino all’ultimo: al prossimo giro va meglio, gli ostacoli ormai li conosci.' : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
+    ${gev && !win ? gevVerbale() : ''}<p class="resulttext">${gev && win ? '<b>Niente verbali, più boccali!</b> ' : ''}${whoRan()} ${gev && !win ? `è stato fermato dalle GEV al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso.` : win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : fresh ? 'ci ha provato fino all’ultimo: al prossimo giro va meglio, gli ostacoli ormai li conosci.' : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
       ${ice ? iceTable(win) : ''}${run.position && !ice ? `<br>🏁 <b>${run.position}° su ${rivals.length + 1}</b> nel gruppo${run.position === 1 && win ? ' · primo al rifugio +500' : ''}${run.shortcuts ? ' · ' + run.shortcuts + (fresh ? (run.shortcuts > 1 ? ' scorciatoie' : ' scorciatoia') : (run.shortcuts > 1 ? ' tagli' : ' taglio') + ' di Angelo') : ''}` : ''}      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${!leap && !ice ? (run.hits ? `<br>💥 <b>${run.hits} ${run.hits > 1 ? 'cadute' : 'caduta'}</b>${run.fallLine ? ' · «' + run.fallLine + '»' : ''}` : win ? '<br>💥 <b>Zero cadute</b>: giro pulito, roba rara.' : '') : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1).replace('.', ',') + ' s — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
@@ -3109,6 +3113,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
       <button class="secondary shopsec" id="shopres">🔧 OFFICINA</button>
     </div>`;
   iconizeEl($('card'));
+  $('rescustom')?.addEventListener('click', () => { A.sfx.click(); renderCustom(renderReady); });
   $('again').onclick = () => { if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); } };
   drawDuelResult();
   if ($('menu')) $('menu').onclick = renderReady;
@@ -3626,7 +3631,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 125.2;
+const GAME_VERSION = 125.3;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3668,7 +3673,7 @@ function renderWelcome() {
   iconizeEl($('card'));
   $('wcustom').onclick = () => { A.unlock(); A.sfx.click(); renderCustom(renderReady); };
   $('wvideo').onclick = () => { A.sfx.click(); showHowVideo(); };
-  $('wplay').onclick = () => { A.unlock(); A.sfx.click(); renderReady(); start(); };   // parte subito: il primo giro è quello guidato
+  $('wplay').onclick = () => { A.unlock(); A.sfx.click(); if (profile.rider === RIDERS[0] && !(profile.xp > 0)) { profile.rider = RIDERS[1 + Math.floor(Math.random() * (RIDERS.length - 1))]; P.save(); renderSide(); } renderReady(); start(); };   // v125.3 · non tutti col Gabbah   // parte subito: il primo giro è quello guidato
 }
 function renderCustom(back) {
   if (state !== 'ended') state = 'ready';
@@ -4078,12 +4083,13 @@ if (location.protocol === 'https:' && !window.EDT_PUBLIC_URL) {
     fetch('./index.html?u=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(html => {
       const live = (html.match(/game\.js\?v=([0-9a-z]+)/) || [])[1];
       if (!live || live === mine) return;
-      const go = () => { if (state === 'ready' || state === 'ended') { updating = true; toast('NUOVA VERSIONE DEL GIOCO: AGGIORNO…', 'gold'); setTimeout(() => location.reload(), 1200); } else setTimeout(go, 3000); };
+      const go = () => { if (state === 'ready') { updating = true; toast('NUOVA VERSIONE DEL GIOCO: AGGIORNO…', 'gold'); setTimeout(() => location.reload(), 1200); } else setTimeout(go, 3000); };   // v125.3 · si aggiorna nel menu, non sulla scheda del risultato
       go();
     }).catch(() => {});
   };
+  window.__edtCheckUpdate = checkUpdate;
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
-  setInterval(() => { if (!document.hidden && (state === 'ready' || state === 'ended')) checkUpdate(); }, 600000);
+  setInterval(() => { if (!document.hidden && (state === 'ready' || state === 'ended')) checkUpdate(); }, 120000);   // v125.3 · ogni 2 minuti (prima 10)
 }
 let installEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
