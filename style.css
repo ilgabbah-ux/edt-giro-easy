@@ -1850,3 +1850,13 @@ aside#hub { gap: 10px; }
 /* v124 · tasti più bassi e un filo più trasparenti: si vede più strada (telefono in verticale) */
 @media (orientation: portrait) and (max-width: 699px) { .game.tiltmode { --bh: 74px; --sh: 50px; --gap: 8px; } }
 .game.tiltmode .controls .ctrl, .game.tiltmode #gas { opacity: .74; }
+
+/* v125 · caschi per i piloti creati */
+.avatar.avsvg { background: none; border-color: var(--y); padding: 0; }
+.avatar.avsvg svg, .rc-av svg { width: 100%; height: 100%; display: block; }
+.rideroption .rc-photo.rc-av { display: block; background: var(--carbon), #1d1e1a; padding: 8px 0 4px; box-sizing: border-box; }
+.avpick { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 4px 0 14px; }
+.avopt { aspect-ratio: 1; padding: 0; border: 2px solid #ffffff22; border-radius: 50%; background: none; overflow: hidden; cursor: pointer; transition: transform .12s, border-color .12s; }
+.avopt svg { width: 100%; height: 100%; display: block; }
+.avopt[aria-checked="true"] { border: 3px solid var(--y); transform: scale(1.08); box-shadow: 0 0 0 3px #f2c23040; }
+@media (max-width: 420px) { .avpick { gap: 6px; } }

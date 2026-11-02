@@ -66,6 +66,12 @@ function jsonp(url, ms = 20000) {
     document.head.appendChild(s);
   });
 }
+function splitAv(o, d = 0) {
+  if (!o || typeof o !== 'object' || d > 6) return;
+  if (Array.isArray(o)) { o.forEach(x => splitAv(x, d + 1)); return; }
+  if (typeof o.r === 'string') { const m = /^(.*)~(\d{1,2})$/.exec(o.r); if (m) { o.r = m[1]; o.av = +m[2]; } }
+  for (const k in o) if (o[k] && typeof o[k] === 'object') splitAv(o[k], d + 1);
+}
 async function call(params, keep = true) {
   if (!enabled()) throw new Error('off');
   const url = API + '?' + new URLSearchParams({ minv: SEASON.from, act: ACTIVE, grp: myGrp(), ...params }).toString();
@@ -76,6 +82,7 @@ async function call(params, keep = true) {
     data = await r.json();
   } catch { data = await jsonp(url); }
   if (!data?.ok) throw new Error('risposta');
+  splitAv(data);   // v125 · «Nome~7» nel campo pilota = pilota creato col casco n. 7
   if (data.edtName && !isEdt()) { try { localStorage.setItem(EDT_KEY, '1'); } catch {} data.joinedEdt = true; }   // v108.5 · pilota EDT riconosciuto dal nome: entra da solo nella classifica EDT
   if (!keep) return data;
   if (!('minv' in data)) delete data.week;   // script vecchio: niente stagioni, niente coppa (non sarebbe giusta)

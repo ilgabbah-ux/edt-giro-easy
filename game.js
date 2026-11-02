@@ -6,7 +6,7 @@ import * as P from './progress.js?v=91d6b436';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=2bfbc3ea';
-import * as C from './classifica.js?v=bcb3ddaa';
+import * as C from './classifica.js?v=33842059';
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -84,12 +84,48 @@ const photoURL = name => PHOTOS[name] ? (FOTO[PHOTOS[name]] || null) : null;
 const SKILL_IC = { steady: 'compass', stones: 'rock', drifter: 'snow', sommelier: 'wine', turbo: 'bolt', nose: 'magnet', climb: 'mountain', amphibious: 'wave', scrub: 'scrub', lion: 'helmetplus', downhill: 'downhill', veteran: 'stopwatch', spring: 'spring', precise: 'target', wheelie: 'wheelie', schettino: 'anchor', rocket: 'rocket', tank: 'shield', angel: 'heart', sprint: 'flag', blessed: 'chapel', mulcher: 'tractor', dry: 'nowater', slip: 'chevrons', nimble: 'tyre' };
 function riderCardHTML(name, i) {
   const k = PHOTOS[name], sk = SKILLS[name] || {}, nm = name.replace('Il ', '');
-  const pic = k ? `<img class="rc-photo" src="img/piloti/${k}.webp" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=window.__edtFoto('${k}')">` : `<span class="rc-photo rc-initials">${nm.slice(0, 2).toUpperCase()}</span>`;
+  const pic = k ? `<img class="rc-photo" src="img/piloti/${k}.webp" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=window.__edtFoto('${k}')">` : profile.custom?.av && name === profile.custom.name ? `<span class="rc-photo rc-av">${avSVG(profile.custom.av - 1)}</span>` : `<span class="rc-photo rc-initials">${nm.slice(0, 2).toUpperCase()}</span>`;
   return `${pic}<span class="rc-num">${String(i + 1).padStart(2, '0')}</span><span class="rc-tag">IN SELLA</span>
     <span class="rc-bar"><b class="rc-name">${name.startsWith('Il ') ? '<small>IL</small>' : ''}${nm}</b><span class="rc-skill" title="${sk.desc || ''}">${icon(SKILL_IC[sk.id] || 'star')}<span>${sk.name || ''}</span></span></span>`;
 }
 window.__edtFoto = k => FOTO[k] || '';
+// v125 · avatar per i piloti creati: caschi da enduro disegnati, 12 combinazioni colore/grafica
+const AV = [
+  ['#e3301c', '#f2efe6', 'stripe', '#ff9b3d'], ['#f2c230', '#1d1d1b', 'bolt', '#3aa0ff'], ['#2f6fe0', '#f2efe6', 'star', '#ff9b3d'],
+  ['#3ddc84', '#1d1d1b', 'twin', '#c46bff'], ['#ff7a1a', '#1d1d1b', 'check', '#3aa0ff'], ['#f2efe6', '#e3301c', 'chev', '#3a3a3a'],
+  ['#26262a', '#f2c230', 'bolt', '#ffcf3a'], ['#8a4fe0', '#f2efe6', 'dots', '#3ddcc4'], ['#ff4f9a', '#f2efe6', 'twin', '#3a3a3a'],
+  ['#1fb5b0', '#f2c230', 'stripe', '#ff9b3d'], ['#7c7f4a', '#f2c230', 'beer', '#3a3a3a'], ['#b8bcc4', '#e3301c', 'flame', '#3aa0ff'],
+];
+function avSVG(i) {
+  i = Math.max(0, i | 0);
+  const [c, a, p, l] = AV[i % AV.length], id = 'g' + i;
+  const pat = {
+    stripe: `<path d="M44 9h12v30H44z" fill="${a}"/>`,
+    twin: `<path d="M37 10h6v30h-6zM57 10h6v30h-6z" fill="${a}"/>`,
+    star: `<path d="M50 13l4.2 8.6 9.4 1.4-6.8 6.6 1.6 9.4L50 34.6l-8.4 4.4 1.6-9.4-6.8-6.6 9.4-1.4z" fill="${a}"/>`,
+    bolt: `<path d="M55 10L40 28h9l-5 13 16-19h-9z" fill="${a}"/>`,
+    chev: `<path d="M28 18l22 10 22-10v8l-22 10-22-10z" fill="${a}"/>`,
+    dots: `<g fill="${a}"><circle cx="38" cy="24" r="3.6"/><circle cx="50" cy="18" r="3.2"/><circle cx="62" cy="24" r="3.2"/><circle cx="44" cy="32" r="3"/><circle cx="56" cy="32" r="2.6"/></g>`,
+    check: `<g fill="${a}"><path d="M20 39h8v-5h-8zM36 34h8v-5h-8zM52 29h8v5h-8zM68 34h8v5h-8zM28 34h8v-5h-8z" opacity="0"/><path d="M44 9h6v6h-6zM50 15h6v6h-6zM44 21h6v6h-6zM50 27h6v6h-6zM44 33h6v6h-6z"/></g>`,
+    beer: `<g><path d="M42 14h13v20H42z" fill="${a}"/><path d="M42 14h13v5H42z" fill="#fff"/><path d="M55 19h4a4 4 0 0 1 0 11h-4v-3h4v-5h-4z" fill="${a}"/></g>`,
+    flame: `<path d="M20 42c4-11 10-8 11-17 4 6 3 9 8 5 1-7-2-11 3-18 3 8 9 8 6 20 5-2 7-7 9-12 6 8 7 13 9 22z" fill="${a}"/>`,
+  }[p] || '';
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".45" stop-color="${l}"/><stop offset="1" stop-color="#1a1a1a"/></linearGradient><clipPath id="${id}c"><path d="M17 64C14 27 31 9 50 9s36 18 33 55z"/></clipPath></defs>
+<circle cx="50" cy="50" r="50" fill="#2b2c28"/><circle cx="50" cy="50" r="50" fill="${c === '#26262a' ? a : c}" opacity=".22"/>
+<path d="M17 64C14 27 31 9 50 9s36 18 33 55z" fill="${c}"/><g clip-path="url(#${id}c)">${pat}<path d="M17 64C14 27 31 9 50 9s36 18 33 55z" fill="#000" opacity=".12" transform="translate(6 4)"/></g>
+<path d="M13 41Q50 23 87 41l-4 7Q50 32 17 48z" fill="${c}" stroke="#0006" stroke-width="1.5"/><path d="M13 41Q50 23 87 41l-1.3 2.4Q50 26 14.4 43.4z" fill="${a}"/>
+<path d="M18 52h64v6H18z" fill="#1d1d1b"/><rect x="27" y="45" width="46" height="20" rx="8" fill="#1d1d1b"/><rect x="30" y="48" width="40" height="14" rx="6" fill="url(#${id})"/><path d="M33 50h12l-6 10h-6z" fill="#fff" opacity=".35"/>
+<path d="M28 66h44l-7 21q-15 7-30 0z" fill="${c}" stroke="#0006" stroke-width="1.5"/><path d="M38 71h24l-3 10H41z" fill="#1d1d1b"/><g fill="${a}"><rect x="41" y="73" width="3" height="6" rx="1"/><rect x="48.5" y="73" width="3" height="6" rx="1"/><rect x="56" y="73" width="3" height="6" rx="1"/></g>
+</svg>`;
+}
+const myAv = () => (profile.custom?.av | 0);
+const avSpan = (n, cls = '', label = '') => `<span class="avatar avsvg ${cls}"${label ? ` aria-label="${label}"` : ''}>${avSVG(n - 1)}</span>`;
+// voce di classifica: pilota EDT → foto; pilota creato con casco scelto → casco; altrimenti cerchio vuoto
+const entryAv = (e, cls = '') => RIDERS.includes(e?.r) ? avatarHTML(e.r, cls) : e?.av > 0 ? avSpan(e.av, cls) : '<i class="noav"></i>';
+// nel campo "pilota" della classifica il casco viaggia in coda al nome (Nome~7): niente modifiche al foglio
+const riderTag = () => isCustom() && myAv() ? profile.rider.slice(0, 16) + '~' + myAv() : profile.rider;
 function avatarHTML(name, cls = '') {
+  if (name && profile.custom?.av && name === profile.custom.name && !RIDERS.includes(name)) return avSpan(profile.custom.av, cls, name);
   const url = photoURL(name);
   return url
     ? `<span class="avatar ${cls}"><img src="${url}" alt="Foto di ${name}"></span>`
@@ -3082,7 +3118,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   const bindResult = () => { $('cardprev').onclick = () => shareScore(win, res); if ($('sharestory')) $('sharestory').onclick = () => shareScore(win, res, 'story'); refreshCardPreview(); $('again').onclick = () => { if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); } }; drawDuelResult(); if ($('menu')) $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
   resultSnapshot = { html: $('card').innerHTML, bind: bindResult };
   const gOK = win && !ice && P.MODES[mode].random !== 'run';
-  if ($('groupres')) groupResult({ hits: run.hits || 0, score, mode, rider: profile.rider, time: ice ? Math.round(driftM * 10) / 10 : win ? (leap ? leapBest : elapsed) : 0, win, g: gOK ? C.encodeGhost([...ghostSplits, GAME_LENGTH]) : '' });
+  if ($('groupres')) groupResult({ hits: run.hits || 0, score, mode, rider: riderTag(), time: ice ? Math.round(driftM * 10) / 10 : win ? (leap ? leapBest : elapsed) : 0, win, g: gOK ? C.encodeGhost([...ghostSplits, GAME_LENGTH]) : '' });
   // Conteggio animato del punteggio
   const target = score, t0 = performance.now();
   const tick = now => {
@@ -3101,7 +3137,7 @@ function groupListHTML(list, me = '', m = -1) {
   if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
   const mine = C.cleanNick(me).toLowerCase();
   const gh = ghostable(m);
-  return list.map((e, i) => { const canG = gh && e.g && e.g.length > 8 && !(mine && e.n.toLowerCase() === mine); return `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}${canG ? ' ghostable' : ''}"${canG ? ` data-ghostn="${e.n}" data-ghostm="${m}" title="Corri contro il suo fantasma"` : ''}><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${crownOf(e.n)}${canG ? '<em class="gsfida">👻 SFIDA</em>' : ''}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto${e.b >= 75 ? ' · livelli Leggenda' : ''}">${e.b >= 120 ? '👑' : e.b >= 100 ? '💎' : e.b >= 76 ? '🏅' : '🔧'}${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`; }).join('');
+  return list.map((e, i) => { const canG = gh && e.g && e.g.length > 8 && !(mine && e.n.toLowerCase() === mine); return `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}${canG ? ' ghostable' : ''}"${canG ? ` data-ghostn="${e.n}" data-ghostm="${m}" title="Corri contro il suo fantasma"` : ''}><span class="pos">${i + 1}</span>${entryAv(e, 'tiny')}<span class="who">${e.n}${crownOf(e.n)}${canG ? '<em class="gsfida">👻 SFIDA</em>' : ''}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto${e.b >= 75 ? ' · livelli Leggenda' : ''}">${e.b >= 120 ? '👑' : e.b >= 100 ? '💎' : e.b >= 76 ? '🏅' : '🔧'}${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`; }).join('');
 }
 // v122 · classifica delle cadute
 // v123 · contatore pubblico in home: telefoni che hanno aperto il gioco (dallo script); se lo script è vecchio, i piloti in classifica
@@ -3115,14 +3151,14 @@ function fallsListHTML(list, me = '') {
   const wk = P.fallsWeek(); list = (list || []).filter(e => Math.floor(e.s / 1000) === wk).map(e => ({ ...e, s: e.s % 1000 }));   // v123 · solo la settimana in corso
   if (!list?.length) return '<li class="empty">Questa settimana non è ancora caduto nessuno. Per ora.</li>';
   const mine = C.cleanNick(me).toLowerCase();
-  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when"></span><b>💥 ${e.s.toLocaleString('it-IT')}</b></li>`).join('');
+  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${entryAv(e, 'tiny')}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when"></span><b>💥 ${e.s.toLocaleString('it-IT')}</b></li>`).join('');
 }
 // v48 · classifica dei tempi migliori al rifugio
 function timeListHTML(list, me = '', m = -1) {
   const jumpB = m === C.JUMP_MODE, iceB = m === C.ICE_MODE, fmt = jumpB ? C.fmtJump : iceB ? C.fmtMetres : C.fmtTime;
   if (!list?.length) return `<li class="empty">${jumpB ? 'Nessun salto atterrato in piedi qui.' : iceB ? 'Nessuna derapata in classifica qui.' : 'Nessuno è ancora arrivato al rifugio qui.'}</li>`;
   const mine = C.cleanNick(me).toLowerCase();
-  return list.slice(0, 10).map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.s ? e.s.toLocaleString('it-IT') + ' pt' : ''}</span><b>${jumpB ? '📏' : iceB ? '🌀' : '⏱'} ${fmt(e.t)}</b></li>`).join('');
+  return list.slice(0, 10).map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${entryAv(e, 'tiny')}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.s ? e.s.toLocaleString('it-IT') + ' pt' : ''}</span><b>${jumpB ? '📏' : iceB ? '🌀' : '⏱'} ${fmt(e.t)}</b></li>`).join('');
 }
 let groupKind = 'score';
 // v78 · Coppa della settimana: punti 10-8-6-5-4-3-2-1 ai primi 8 di ogni percorso (settimana da lunedì a domenica)
@@ -3132,7 +3168,7 @@ function cupMine(w, nick = C.getNick()) { if (!w || !nick) return null; const i 
 function cupListHTML(list, me = '') {
   if (!list?.length) return '<li class="empty">Questa settimana nessuno ha ancora corso: la coppa è libera.</li>';
   const mine = C.cleanNick(me).toLowerCase();
-  return list.slice(0, 15).map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.w ? '🥇×' + e.w + ' · ' : ''}${e.c} ${e.c === 1 ? 'percorso' : 'percorsi'}</span><b>${e.p} pt</b></li>`).join('');
+  return list.slice(0, 15).map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${entryAv(e, 'tiny')}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when">${e.w ? '🥇×' + e.w + ' · ' : ''}${e.c} ${e.c === 1 ? 'percorso' : 'percorsi'}</span><b>${e.p} pt</b></li>`).join('');
 }
 function cupBar(d) {
   const bar = $('cupbar'); if (!bar) return;
@@ -3173,7 +3209,7 @@ function showPodium(w) {
   const order = [1, 0, 2].filter(i => w.prev3[i]), me = C.getNick().toLowerCase();
   const el = document.createElement('div'); el.className = 'podium'; el.id = 'podium';
   el.innerHTML = `<div class="podbox"><small>COPPA DELLA SETTIMANA SCORSA</small><b class="podtitle">IL PODIO</b>
-    <div class="podsteps">${order.map(i => { const e = w.prev3[i]; return `<div class="pstep p${i + 1} ${e.n.toLowerCase() === me ? 'me' : ''}">${RIDERS.includes(e.r) ? avatarHTML(e.r) : '<i class="noav"></i>'}<b>${e.n}</b><em>${e.p} pt</em><span>${['🥇', '🥈', '🥉'][i]}</span></div>`; }).join('')}</div>
+    <div class="podsteps">${order.map(i => { const e = w.prev3[i]; return `<div class="pstep p${i + 1} ${e.n.toLowerCase() === me ? 'me' : ''}">${entryAv(e)}<b>${e.n}</b><em>${e.p} pt</em><span>${['🥇', '🥈', '🥉'][i]}</span></div>`; }).join('')}</div>
     <p>${w.prev3[0].n} porta la 👑 accanto al nome per tutta la settimana. Nuova coppa: si riparte da zero!</p>
     <a class="wabtn" target="_blank" rel="noopener" href="${waLink('🏆 Coppa della settimana di Giro Easy: ' + w.prev3.map((e, i) => ['🥇', '🥈', '🥉'][i] + ' ' + e.n + ' (' + e.p + ' pt)').join(' · ') + '. Da oggi si riparte da zero, chi la vince questa settimana? 👉 ' + publicGameURL)}">📲 MANDA IL PODIO AL GRUPPO</a>
     <button class="primary" type="button" id="podok"><span>VAI!</span></button></div>`;
@@ -3284,7 +3320,7 @@ function rivalBar(d) {
   else { r = bl[Math.min(bl.length, 10) - 1]; txt = `<small>NON SEI ANCORA IN CLASSIFICA SU ${md.short}</small><b>Batti ${r.n}</b><em>ultimo dei primi ${Math.min(bl.length, 10)} con ${pts(r.s)} ${what}</em>`; }
   const ghost = !!(r.g && r.g.length > 8 && !md.ice && md.random !== 'run');
   el.hidden = false;
-  el.innerHTML = `${RIDERS.includes(r.r) ? avatarHTML(r.r) : '<i class="noav"></i>'}<span class="rvt">${txt}</span><span class="rvgo">${ghost && i !== 0 ? '👻 SFIDA IL SUO FANTASMA' : 'VAI'}</span>`;
+  el.innerHTML = `${entryAv(r)}<span class="rvt">${txt}</span><span class="rvgo">${ghost && i !== 0 ? '👻 SFIDA IL SUO FANTASMA' : 'VAI'}</span>`;
   iconizeEl(el);
   el.onclick = () => { if (state !== 'ready' && state !== 'ended') return; A.sfx.click(); if (ghost && i !== 0) ghostWant = { n: r.n, m: mode }; if (duel) duel.racing = false; start(); };
 }
@@ -3316,7 +3352,7 @@ function potwCard(w) {
   const wa = me ? `👑 Questa settimana il pilota della settimana di Giro Easy sono io (${c.p} punti coppa). Casco d’oro in testa: chi mi batte? 👉 ${publicGameURL}`
     : `👑 ${c.n}, goditi il casco d’oro finché dura: questa settimana la coppa di Giro Easy te la porto via io. 👉 ${publicGameURL}`;
   el.hidden = false; el.classList.toggle('mine', me);
-  el.innerHTML = `<span class="potwav">${RIDERS.includes(c.r) ? avatarHTML(c.r) : '<i class="noav"></i>'}<i class="potwcrown">👑</i></span>
+  el.innerHTML = `<span class="potwav">${entryAv(c)}<i class="potwcrown">👑</i></span>
     <span class="potwt"><small>PILOTA DELLA SETTIMANA${me ? ' · SEI TU' : ''}</small><b>${c.n}</b><em>${c.p} pt coppa${c.w ? ' · ' + c.w + ' ' + (c.w === 1 ? 'percorso vinto' : 'percorsi vinti') : ''} · casco d’oro fino a domenica</em><q>${line}</q></span>
     <a class="potwwa" target="_blank" rel="noopener" href="${waLink(wa)}">${me ? 'VANTATI NEL GRUPPO' : 'SFOTTILO NEL GRUPPO'}</a>`;
   iconizeEl(el);
@@ -3429,7 +3465,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
       return;
     }
     runInfo.sent = d; runInfo.sentAs = nick; lastGroupRun = runInfo;
-    if (payload.hits > 0 && !runInfo.fallsSent) { runInfo.fallsSent = 1; const n = Math.min(999, P.weekFalls()), wk = P.fallsWeek(); if (n > 0 && wk > 0) C.submit({ name: nick, score: wk * 1000 + n, mode: C.FALLS_MODE, rider: profile.rider, time: 0, win: 0, v: String(GAME_VERSION), b: '' }).catch(() => {}); }   // v123 · classifica delle cadute della settimana: nel punteggio settimana×1000 + cadute (il foglio tiene il massimo, che è sempre la settimana più recente)
+    if (payload.hits > 0 && !runInfo.fallsSent) { runInfo.fallsSent = 1; const n = Math.min(999, P.weekFalls()), wk = P.fallsWeek(); if (n > 0 && wk > 0) C.submit({ name: nick, score: wk * 1000 + n, mode: C.FALLS_MODE, rider: riderTag(), time: 0, win: 0, v: String(GAME_VERSION), b: '' }).catch(() => {}); }   // v123 · classifica delle cadute della settimana: nel punteggio settimana×1000 + cadute (il foglio tiene il massimo, che è sempre la settimana più recente)
     if (d.joinedEdt) syncShare(), toast('🏁 SEI UN PILOTA EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green');   // v108.5
     show(d); renderSide(); refreshCardPreview(); waBrag(d, runInfo, nick, beforeList);
   }).catch(() => {
@@ -3589,7 +3625,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 124;
+const GAME_VERSION = 125;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3602,7 +3638,7 @@ $('edition').title = 'Versione ' + GAME_VERSION;
 let boardMode = null, boardSrc = 'group', sideLoadedAt = 0;
 function customCardHTML() {
   const c = profile.custom;
-  if (!c) return `<button type="button" class="rideroption customnew" id="mycustom" aria-label="Crea il tuo pilota"><span class="rc-photo rc-initials">+</span><span class="rc-bar"><b class="rc-name">CREA IL TUO</b><span class="rc-skill"><span>pilota: nome e numero</span></span></span></button>`;
+  if (!c) return `<button type="button" class="rideroption customnew" id="mycustom" aria-label="Crea il tuo pilota"><span class="rc-photo rc-initials">+</span><span class="rc-bar"><b class="rc-name">CREA IL TUO</b><span class="rc-skill"><span>casco, nome e numero</span></span></span></button>`;
   return `<button type="button" class="rideroption custom" id="mycustom" aria-pressed="${isCustom()}" aria-label="Il tuo pilota ${c.name}">${riderCardHTML(c.name, c.num - 1)}<i class="rc-edit" title="Modifica">${icon('wrench')}</i></button>`;
 }
 // v108.9 · video "come si gioca" (voce del Gabbah): a schermo sopra il gioco, si chiude toccando fuori o a fine video
@@ -3637,10 +3673,12 @@ function renderCustom(back) {
   if (state !== 'ended') state = 'ready';
   setMenu(true); $('overlay').classList.remove('hidden');
   const c = profile.custom || { name: '', num: 1 + Math.floor(Math.random() * 98) };
+  let av = c.av || 1 + Math.floor(Math.random() * AV.length);
   $('card').innerHTML = `<div class="eyebrow">NON SEI DELL'EDT? NESSUN PROBLEMA</div>
     <h1 class="shoptitle">IL TUO<br><em>PILOTA.</em></h1>
-    <p>Scegli il nome che vedi in gara e in classifica e il numero sulla tabella. Puoi sempre correre anche coi piloti dell'EDT.</p>
+    <p>Scegli il casco, il nome che vedi in gara e in classifica e il numero sulla tabella. Puoi sempre correre anche coi piloti dell'EDT.</p>
     <form class="customform" id="customform">
+      <div class="avpick" role="radiogroup" aria-label="Il tuo casco">${AV.map((_, i) => `<button type="button" role="radio" class="avopt" data-av="${i + 1}" aria-checked="${i + 1 === av}" aria-label="Casco ${i + 1}">${avSVG(i)}</button>`).join('')}</div>
       <label>NOME<input id="cname" maxlength="16" autocomplete="nickname" placeholder="Es. Il Fulmine" value="${c.name}"></label>
       <label>NUMERO<input id="cnum" type="number" inputmode="numeric" min="1" max="99" value="${c.num}"></label>
       <p class="cerr" id="cerr"></p>
@@ -3648,6 +3686,7 @@ function renderCustom(back) {
     </form>`;
   iconizeEl($('card'));
   $('cback').onclick = back;
+  document.querySelectorAll('.avopt').forEach(b => b.onclick = () => { av = +b.dataset.av; document.querySelectorAll('.avopt').forEach(x => x.setAttribute('aria-checked', x === b)); A.sfx.click(); });
   $('customform').onsubmit = e => {
     e.preventDefault();
     const name = C.cleanNick($('cname').value), num = Math.round(+$('cnum').value);
@@ -3660,7 +3699,7 @@ function renderCustom(back) {
   };
   function finishCustom(name, num) {
     const old = profile.custom?.name;
-    profile.custom = { name, num }; profile.rider = name; P.save();
+    profile.custom = { name, num, av }; profile.rider = name; P.save();
     if (!C.getNick() || C.getNick() === old) C.setNick(name);   // il nome in classifica segue il pilota (se non ne hai già scelto un altro)
     A.unlock(); A.sfx.click(); toast('🏁 ' + name.toUpperCase() + ' #' + num + ' È IN SELLA', 'green');
     renderSide(); renderReady();
@@ -3821,7 +3860,7 @@ function renderDuel() {
   const modes = P.SHOWN().filter(m => P.isUnlocked(m));
   $('card').innerHTML = `<div id="duelcard" class="duelcard"><div class="eyebrow">ENDURO DRINKING TEAM · DAL VIVO</div>
     <h1>SFIDA<br><em>1 CONTRO 1.</em></h1>
-    ${on ? `<div class="duelvs"><span>${avatarHTML(profile.rider)}<b>TU</b></span><i>VS</i><span>${RIDERS.includes(duel.opp.r) ? avatarHTML(duel.opp.r) : '<i class="noav"></i>'}<b>${n}</b></span></div>
+    ${on ? `<div class="duelvs"><span>${avatarHTML(profile.rider)}<b>TU</b></span><i>VS</i><span>${entryAv(duel.opp)}<b>${n}</b></span></div>
       ${host ? `<label class="duelpick">PERCORSO <select id="duelmode">${modes.map(m => `<option value="${m.id}" ${m.id === mode ? 'selected' : ''}>PS${psOf(m)} · ${m.name}</option>`).join('')}</select></label>
         <button class="primary big" id="duelgo" type="button"><span>PARTIAMO!</span>${icon('chevrons')}</button>
         <p class="tip">Partite insieme dopo il 3-2-1. Vince chi arriva prima al rifugio (al ghiaccio chi fa più punti derapata, ad Angelo Potter il salto più lungo).</p>`
