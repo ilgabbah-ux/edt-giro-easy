@@ -1837,3 +1837,16 @@ aside#hub { gap: 10px; }
 .playercount:empty { display: none; }
 .playercount svg { width: 17px; height: 17px; vertical-align: -3px; margin-right: 4px; color: #ffcf16; }
 .playercount b { color: #ffcf16; font-size: 18px; }
+
+/* v124 · grafica: bordi dello schermo appena scuri (look da action cam) */
+.game .vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 85% 75% at 50% 55%, #0000 55%, #0000002e 80%, #0000005c 100%); }
+/* v124 · obiettivo del giro nello stile del gioco (giallo e nero, non più riquadro azzurro arrotondato) */
+.flashchip { border-radius: 0; border: 0; border-left: 4px solid var(--y); background: #0b0c09c4; font: italic 800 12.5px/1.2 var(--ui); letter-spacing: .3px; text-transform: uppercase; clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); padding: 6px 16px 6px 10px; }
+.flashchip b { color: var(--y); }
+.flashchip.done { border-left-color: #3ddc84; } .flashchip.done b { color: #3ddc84; }
+/* v124 · messaggi del primo giro più leggeri e più in alto: non coprono la pista davanti alla moto */
+.coach { background: #0b0c0985; text-shadow: 0 1px 3px #000c; }
+@media (max-width: 900px) and (orientation: portrait) { .coach { top: 236px; } }
+/* v124 · tasti più bassi e un filo più trasparenti: si vede più strada (telefono in verticale) */
+@media (orientation: portrait) and (max-width: 699px) { .game.tiltmode { --bh: 74px; --sh: 50px; --gap: 8px; } }
+.game.tiltmode .controls .ctrl, .game.tiltmode #gas { opacity: .74; }

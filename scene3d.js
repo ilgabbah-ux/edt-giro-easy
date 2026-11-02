@@ -9,7 +9,7 @@ import { RIDER_PARTS } from './pilota3d.js?v=842708b6';
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
   { name: 'Mattina limpida', top: '#2b78bd', horizon: '#cfe4e6', sunDir: [-.55, .5, -.67], sunColor: '#fff3d2', clouds: .42, cloud: '#ffffff',
-    light: '#fff1d6', lightI: 3.4, hemiSky: '#cfe8ff', hemiGround: '#5d4a30', hemiI: 1.75, fog: '#c9dcd9', fogNear: 75, fogFar: 205, exposure: 1.05, ridge: '#7d9798' },
+    light: '#ffe9c8', lightI: 3.55, hemiSky: '#cfe8ff', hemiGround: '#5d4a30', hemiI: 1.75, fog: '#c9dcd9', fogNear: 75, fogFar: 205, exposure: 1.05, ridge: '#7d9798' },
   { name: 'Pomeriggio dorato', top: '#3b6fab', horizon: '#f6d7a5', sunDir: [-.72, .26, -.64], sunColor: '#ffd08a', clouds: .55, cloud: '#ffeacc',
     light: '#ffcc8a', lightI: 3.6, hemiSky: '#ffe3ba', hemiGround: '#5b4128', hemiI: 1.55, fog: '#e9d1a8', fogNear: 70, fogFar: 200, exposure: 1.06, ridge: '#9b8f84' },
   { name: 'Tramonto di Angelo', top: '#272c63', horizon: '#ff8b4f', sunDir: [-.32, .09, -.94], sunColor: '#ff7436', clouds: .62, cloud: '#ff9d7c',
@@ -247,10 +247,18 @@ export function createWorld(canvas) {
         float m = smoothstep( .3, .7, macro );
         vec4 sampledDiffuseColor = mix( tA, tB, m );
         float a = clamp( uvA.x / 4.0, 0.0, 1.0 );
-        float rut = exp( -pow( ( a - .36 ) / .045, 2.0 ) ) + exp( -pow( ( a - .64 ) / .045, 2.0 ) );
-        float edge = smoothstep( .0, .1, a ) * smoothstep( 1.0, .9, a );
-        sampledDiffuseColor.rgb *= ( 1.0 - rut * .3 ) * ( .72 + macro * .56 );
-        sampledDiffuseColor.rgb = mix( sampledDiffuseColor.rgb * vec3( .78, .8, .62 ), sampledDiffuseColor.rgb, edge );
+        // v124 · fondo più vivo: solchi che serpeggiano, riga battuta in mezzo, chiazze umide scure e polvere chiara, bordo d'erba irregolare
+        float macro2 = texture2D( map, uvA * vec2( .071, .043 ) + vec2( .53, .29 ) ).r;
+        float wob = sin( uvA.y * .33 ) * .014 + ( macro2 - .5 ) * .02;
+        float rut = exp( -pow( ( a - .36 - wob ) / .05, 2.0 ) ) + exp( -pow( ( a - .64 - wob ) / .05, 2.0 ) );
+        float mid = exp( -pow( ( a - .5 - wob * 1.4 ) / .022, 2.0 ) );
+        float wet = smoothstep( .56, .78, macro2 ), dry = smoothstep( .42, .2, macro2 );
+        float e0 = .1 + ( macro2 - .5 ) * .09;
+        float edge = smoothstep( .0, e0, a ) * smoothstep( 1.0, 1.0 - e0, a );
+        sampledDiffuseColor.rgb *= ( 1.0 - rut * .26 - mid * .07 ) * ( .7 + macro * .6 );
+        sampledDiffuseColor.rgb = mix( sampledDiffuseColor.rgb, sampledDiffuseColor.rgb * vec3( .7, .66, .6 ), wet * .55 );
+        sampledDiffuseColor.rgb = mix( sampledDiffuseColor.rgb, sampledDiffuseColor.rgb * vec3( 1.13, 1.09, 1.0 ), dry * .5 );
+        sampledDiffuseColor.rgb = mix( sampledDiffuseColor.rgb * vec3( .74, .82, .56 ), sampledDiffuseColor.rgb, edge );
         diffuseColor *= sampledDiffuseColor;
       `);
     };
@@ -2567,7 +2575,7 @@ export function createWorld(canvas) {
   const tracks = new T.InstancedMesh(trackGeo, trackMat, TRACKS); tracks.renderOrder = 1; scene.add(tracks);
   const trackHist = [];
   // v72 · polvere morbida (nuvolette sfumate rivolte alla camera) al posto delle palle grigie trasparenti
-  const dustMaterial = new T.MeshBasicMaterial({ color: '#ceba8c', alphaMap: glowTex, transparent: true, opacity: .13, depthWrite: false, fog: true });
+  const dustMaterial = new T.MeshBasicMaterial({ color: '#ceba8c', alphaMap: glowTex, transparent: true, opacity: .16, depthWrite: false, fog: true });
   // v80 · ombra morbida sotto la moto: la tiene "appoggiata" sul sentiero (si allarga e sbiadisce in salto)
   const blobTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); const g = x.createRadialGradient(64, 64, 4, 64, 64, 62); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(.55, 'rgba(0,0,0,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new T.CanvasTexture(c); })();
   const blobMat = new T.MeshBasicMaterial({ map: blobTex, transparent: true, opacity: .5, depthWrite: false, fog: false, toneMapped: false });
@@ -2898,6 +2906,7 @@ export function createWorld(canvas) {
   const maxQ = () => bigScreen() ? 6 : (lite ? 5 : 4);   // v117 · niente più gradini 7-9 (materiali semplici, metà vegetazione, risoluzione 0,5): la grafica resta piena, il ritmo lo tiene il blocco a 30 fotogrammi
   const FOLIAGE = [firA, firB, larchCards, leafCards, islandCards, vineLeaf, tufts, ferns, reeds, shrubs];
   function adaptQuality() {
+    if (window.__edtHQ) return;   // solo per le prove: grafica piena fissa
     const now = performance.now(), dt = now - lastNow; lastNow = now;
     if (dt < 1000) { perf.n++; perf.acc += dt; if (dt > perf.worst) perf.worst = dt; if (dt > 50) perf.hitches++; }   // v108 · contatore di fluidità
     if (dt > 200) return;
@@ -3296,7 +3305,7 @@ export function createWorld(canvas) {
     }
     tracks.instanceMatrix.needsUpdate = true;
     trackMat.color.set(iceMode ? '#5f86a0' : '#3b2a1a');   // v89 · sul ghiaccio i segni dei chiodi sono grigio-azzurri e si vedono
-    trackMat.opacity = iceMode ? .62 : trail.rough > .5 ? .14 : trail.wet > .3 ? .42 : .3;
+    trackMat.opacity = iceMode ? .62 : trail.rough > .5 ? .18 : trail.wet > .3 ? .5 : .38;   // v124 · segno della gomma più visibile
 
     dustMaterial.color.set(iceMode ? '#f4fbff' : muddy ? '#9a8a74' : '#ceba8c');
     dust.visible = onGround;
