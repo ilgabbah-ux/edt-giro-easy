@@ -3625,7 +3625,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 125;
+const GAME_VERSION = 125.1;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3711,7 +3711,12 @@ function renderSide() {
     ${riderCardHTML(name, i)}${RIDER_VOICE[name] ? '<i class="voiced" title="Parla con la sua voce">' + icon('speaker') + '</i>' : ''}</button>`).join('');
   $('mycustom')?.addEventListener('click', e => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;
-    if (!profile.custom || e.target.closest('.rc-edit') || isCustom()) { renderCustom(() => { renderSide(); renderReady(); }); return; }
+    if (!profile.custom || e.target.closest('.rc-edit') || isCustom()) {   // v125.1 · dal pannello a schermo intero: chiudi il pannello e apri la scheda del pilota sopra il gioco
+      const was = !!maxPanel; if (was) closePanel(false);
+      renderCustom(() => { renderSide(); renderReady(); });
+      setTimeout(() => $('game').scrollIntoView({ behavior: 'auto', block: 'start' }), was ? 300 : 0);
+      return;
+    }
     profile.rider = profile.custom.name; P.save(); A.unlock(); A.sfx.click(); renderSide(); if (state === 'ready') renderReady();
   });
   document.querySelectorAll('[data-rider]').forEach(b => b.onclick = () => {
