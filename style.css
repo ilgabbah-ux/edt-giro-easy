@@ -1831,3 +1831,9 @@ aside#hub { gap: 10px; }
 .game.tiltmode.boosting .controls #boost { transform: none !important; }
 
 /* v114.1 · GAS sopra SALTA (pollice destro), IMPENNA sopra TURBO (pollice sinistro) */
+
+/* v123 · contatore piloti in home */
+.playercount { margin: 6px 0 2px; text-align: center; font: 700 15px/1.3 'Barlow Condensed', Arial Narrow, sans-serif; letter-spacing: .03em; color: #d9cdb8; }
+.playercount:empty { display: none; }
+.playercount svg { width: 17px; height: 17px; vertical-align: -3px; margin-right: 4px; color: #ffcf16; }
+.playercount b { color: #ffcf16; font-size: 18px; }

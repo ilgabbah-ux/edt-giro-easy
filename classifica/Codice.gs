@@ -13,6 +13,7 @@
 //       del codice, non il codice). Chi usa lo stesso nome con un codice diverso non entra in classifica (taken: true).
 //       b = livello della moto (somma dei potenziamenti dell'officina), mostrato accanto al nome.
 // v108.5 · edtName: i nomi dei piloti EDT e quelli prenotati prima del 28/10/2026 vanno sempre nella classifica EDT (il gioco si sposta da solo).
+// v123 · players = telefoni diversi che hanno aperto il gioco (per il contatore in home). Classifica cadute (percorso 19): punteggio = settimana×1000 + cadute della settimana.
 // v108.3 · DUE CLASSIFICHE: grp = 'edt' (amici dell'Enduro Drinking Team) o 'pub' (tutti gli altri). Colonna L del foglio:
 //       'pub' per i giri pubblici, vuota per l'EDT (così tutte le righe vecchie restano dell'EDT). Classifiche, tempi e coppa
 //       si fanno separati per gruppo; i nomi protetti restano unici per tutti.
@@ -174,6 +175,13 @@ function boardsCached_(day, minv, act, grp) {
   try { const txt = JSON.stringify(b); if (txt.length < 95000) c.put(key, txt, 20); } catch (e) {}
   return b;
 }
+// v123 · CONTATORE PUBBLICO: quanti telefoni diversi hanno aperto il gioco (foglio "Visite"), rifatto al massimo ogni 10 minuti
+function players_() {
+  const c = CacheService.getScriptCache(); const hit = c.get('players'); if (hit) return Number(hit);
+  let n = 0;
+  try { const s = visits_(), last = s.getLastRow(); if (last > 1) { const seen = {}; s.getRange(2, 4, last - 1, 1).getValues().forEach(r => { const id = String(r[0]); if (id && !seen[id]) { seen[id] = 1; n++; } }); } } catch (e) {}
+  c.put('players', String(n), 600); return n;
+}
 function bump_(grp) { try { const c = CacheService.getScriptCache(); c.put('ver|' + grp, String(Date.now()), 21600); } catch (e) {} }
 
 function doGet(e) {
@@ -210,5 +218,6 @@ function doGet(e) {
   const act = String(p.act || '').split(',').map(Number).filter(m => m >= 0 && m < MODES && String(p.act).length);
   const grp = p.grp === 'pub' && !edtName ? 'pub' : 'edt';
   const b = boardsCached_(day, minv, act.length ? act : ACTIVE, grp);
-  return reply_({ ok: true, iceDesc: true, grp: grp, edtName: edtName, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
+  let players = 0; try { players = players_(); } catch (err) {}
+  return reply_({ ok: true, iceDesc: true, players: players, grp: grp, edtName: edtName, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
 }

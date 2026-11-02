@@ -2,7 +2,7 @@
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
 import { createWorld } from './scene3d.js?v=798d6b8a';
 import * as A from './audio.js?v=55b7fbfc';
-import * as P from './progress.js?v=4150e7d1';
+import * as P from './progress.js?v=91d6b436';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=2bfbc3ea';
@@ -2912,6 +2912,7 @@ function renderReady() {
       <div class="thdots" aria-hidden="true">${heroList.map(m => `<i class="${m.id === mode ? 'on' : ''}"></i>`).join('')}</div>` : ''}
     </div>
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + (A.STYLES[mode] || A.STYLES[0]).name}</small></span>${icon('chevrons')}</button>
+    ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
     <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
     ${dailyChipHTML()}
     ${goalChipHTML()}
@@ -2952,7 +2953,7 @@ function renderReady() {
   };
   if ($('opengroup')) {
     $('opengroup').onclick = () => { showHub('classifica'); renderGroup(renderReady, mode); };
-    C.load().then(d => { const top = d.boards?.[mode]?.[0]; if ($('thlead')) $('thlead').innerHTML = heroLead(d); if ($('grouplead')) $('grouplead').textContent = top ? `1° ${top.n} · ${top.s.toLocaleString('it-IT')}` : 'nessuno ancora: vai!'; cupBar(d); rivalBar(d); setTimeout(() => checkOvertakes(d), 400); }).catch(() => {});
+    C.load().then(d => { const top = d.boards?.[mode]?.[0]; if ($('thlead')) $('thlead').innerHTML = heroLead(d); if ($('grouplead')) $('grouplead').textContent = top ? `1° ${top.n} · ${top.s.toLocaleString('it-IT')}` : 'nessuno ancora: vai!'; if ($('playercount')) $('playercount').innerHTML = playerCountHTML(d); cupBar(d); rivalBar(d); setTimeout(() => checkOvertakes(d), 400); }).catch(() => {});
     rivalBar(C.cached());
     if ($('cupbar')) { cupBar(C.cached()); $('cupbar').onclick = () => { A.sfx.click(); showHub('classifica'); renderGroup(renderReady, 'cup'); }; }
   }
@@ -3103,8 +3104,16 @@ function groupListHTML(list, me = '', m = -1) {
   return list.map((e, i) => { const canG = gh && e.g && e.g.length > 8 && !(mine && e.n.toLowerCase() === mine); return `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}${canG ? ' ghostable' : ''}"${canG ? ` data-ghostn="${e.n}" data-ghostm="${m}" title="Corri contro il suo fantasma"` : ''}><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${crownOf(e.n)}${canG ? '<em class="gsfida">👻 SFIDA</em>' : ''}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto${e.b >= 75 ? ' · livelli Leggenda' : ''}">${e.b >= 120 ? '👑' : e.b >= 100 ? '💎' : e.b >= 76 ? '🏅' : '🔧'}${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`; }).join('');
 }
 // v122 · classifica delle cadute
+// v123 · contatore pubblico in home: telefoni che hanno aperto il gioco (dallo script); se lo script è vecchio, i piloti in classifica
+function playerCountHTML(d) {
+  if (!d) return '';
+  if (d.players >= 20) return `${icon('helmet')} <b>${d.players.toLocaleString('it-IT')}</b> piloti hanno già provato Giro Easy`;
+  const names = new Set(); Object.values(d.boards || {}).forEach(l => (l || []).forEach(e => names.add(String(e.n).toLowerCase())));
+  return names.size >= 5 ? `${icon('helmet')} <b>${names.size}</b> piloti in classifica: manchi tu?` : '';
+}
 function fallsListHTML(list, me = '') {
-  if (!list?.length) return '<li class="empty">Ancora nessuno è caduto. Per ora.</li>';
+  const wk = P.fallsWeek(); list = (list || []).filter(e => Math.floor(e.s / 1000) === wk).map(e => ({ ...e, s: e.s % 1000 }));   // v123 · solo la settimana in corso
+  if (!list?.length) return '<li class="empty">Questa settimana non è ancora caduto nessuno. Per ora.</li>';
   const mine = C.cleanNick(me).toLowerCase();
   return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${RIDERS.includes(e.r) ? avatarHTML(e.r, 'tiny') : '<i class="noav"></i>'}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when"></span><b>💥 ${e.s.toLocaleString('it-IT')}</b></li>`).join('');
 }
@@ -3420,7 +3429,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
       return;
     }
     runInfo.sent = d; runInfo.sentAs = nick; lastGroupRun = runInfo;
-    if (payload.hits > 0 && !runInfo.fallsSent) { runInfo.fallsSent = 1; const tot = P.stats().hits || 0; if (tot > 0) C.submit({ name: nick, score: tot, mode: C.FALLS_MODE, rider: profile.rider, time: 0, win: 0, v: String(GAME_VERSION), b: '' }).catch(() => {}); }   // v122 · classifica delle cadute: il totale di sempre del pilota
+    if (payload.hits > 0 && !runInfo.fallsSent) { runInfo.fallsSent = 1; const n = Math.min(999, P.weekFalls()), wk = P.fallsWeek(); if (n > 0 && wk > 0) C.submit({ name: nick, score: wk * 1000 + n, mode: C.FALLS_MODE, rider: profile.rider, time: 0, win: 0, v: String(GAME_VERSION), b: '' }).catch(() => {}); }   // v123 · classifica delle cadute della settimana: nel punteggio settimana×1000 + cadute (il foglio tiene il massimo, che è sempre la settimana più recente)
     if (d.joinedEdt) syncShare(), toast('🏁 SEI UN PILOTA EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green');   // v108.5
     show(d); renderSide(); refreshCardPreview(); waBrag(d, runInfo, nick, beforeList);
   }).catch(() => {
@@ -3533,8 +3542,8 @@ function renderGroup(back, m = mode) {
       <div class="seasontabs" ${mine ? '' : 'hidden'}><button type="button" class="${groupArch ? '' : 'active'}" data-season="now">CLASSIFICA ATTUALE</button><button type="button" class="${groupArch ? 'active' : ''}" data-season="arch">📜 ARCHIVIO</button></div>
       <p class="note seasonnote">${groupArch ? 'Archivio: giri di tutte le versioni, anche con regole diverse (velocità, punti e tempi massimi cambiati). Solo per ricordo: <b>non si confrontano</b>.' : 'Contano solo i giri fatti con le regole di adesso, così tempi e punti si confrontano con lo stesso metro.'}</p>
       <div class="boardtabs gtabs">${groupArch ? '' : `<button type="button" class="cuptab ${m === 'cup' ? 'active' : ''}" data-gmode="cup">🏆 COPPA</button>`}${groupArch ? '' : `<button type="button" class="cuptab ${m === 'falls' ? 'active' : ''}" data-gmode="falls">💥 CADUTE</button>`}${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
-      ${m === 'falls' ? `<p class="gsub">RE DELLE CADUTE · tutte le cadute di sempre, un record a testa</p>
-      <p class="note cupnote">Ogni volta che cadi e mandi un giro in classifica, qui sale il tuo totale di cadute. Non c'è premio: c'è solo la gloria (e lo sfottò).</p>
+      ${m === 'falls' ? `<p class="gsub">RE DELLE CADUTE DELLA SETTIMANA · si azzera ogni lunedì</p>
+      <p class="note cupnote">Ogni volta che cadi e mandi un giro in classifica, qui sale il tuo totale di cadute della settimana. Non c'è premio: c'è solo la gloria (e lo sfottò).</p>
       ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard">${fallsListHTML(d.boards?.[C.FALLS_MODE], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}` : m === 'cup' ? (() => { const w = d?.week, me = cupMine(w, nick); return `<p class="gsub">COPPA DELLA SETTIMANA${w ? ` · dal ${w.from.slice(8)}/${w.from.slice(5, 7)} al ${w.to.slice(8)}/${w.to.slice(5, 7)}` : ''} · si azzera ogni lunedì</p>
       <p class="note cupnote">In ogni percorso i primi 8 della settimana prendono <b>10-8-6-5-4-3-2-1</b> punti coppa: vince chi ne somma di più. Più percorsi fai, più punti puoi prendere.${w?.prev ? `<br>👑 Vincitore della settimana scorsa: <b>${w.prev.n}</b> (${w.prev.p} pt)` : ''}${me ? `<br>Tu sei <b>${me.pos}°</b> con <b>${me.p} pt</b>.` : ''}</p>
       ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : !d ? '<p class="gwait">Carico la coppa…</p>' : w ? `<ol class="board gboard">${cupListHTML(w.list, nick)}</ol>` : '<p class="gwait">La coppa si accende appena è aggiornato lo script della classifica.</p>'}${d && w ? `<a class="secondary wasum" id="wasum" href="${waLink(weekSummaryText(d))}" target="_blank" rel="noopener">🏁 MANDA IL RIASSUNTO NEL GRUPPO</a>` : ''}`; })() : `<div class="kindtabs"><button type="button" class="${groupKind === 'score' ? 'active' : ''}" data-gkind="score">🏆 PUNTI</button><button type="button" class="${groupKind === 'time' ? 'active' : ''}" data-gkind="time">${m === C.JUMP_MODE ? '📏 SALTO PIÙ LUNGO' : m === C.ICE_MODE ? '🌀 METRI DI DERAPATA' : '⏱ TEMPI MIGLIORI'}</button></div>
@@ -3580,7 +3589,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 122;
+const GAME_VERSION = 123;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

@@ -450,6 +450,9 @@ export function checkTrophies() {
   if (fresh.length) save();
   return fresh;
 }
+// v123 · numero della settimana per la classifica cadute: 1 = settimana di lunedì 2/11/2026, poi +1 ogni lunedì
+export function fallsWeek(d = new Date()) { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return Math.round((x - new Date(2026, 10, 2, 12)) / 6048e5) + 1; }
+export function weekFalls() { const st = stats(), w = st.wkHits; return w && w.w === fallsWeek() ? w.n : 0; }
 // v96 · statistiche di sempre del pilota
 export function stats() { return data.stats || (data.stats = {}); }
 export function recordRun(run) {
@@ -457,6 +460,7 @@ export function recordRun(run) {
     st.runs = (st.runs || 0) + 1; st.wins = (st.wins || 0) + (run.position === 1 ? 1 : 0); st.podi = (st.podi || 0) + (run.position && run.position <= 3 ? 1 : 0);
     st.finished = (st.finished || 0) + (run.finishTime > 0 ? 1 : 0); st.caps = (st.caps || 0) + (run.caps || 0); st.jumps = (st.jumps || 0) + (run.jumps || 0);
     st.km = (st.km || 0) + (run.km || 0); st.driftM = (st.driftM || 0) + (run.driftM || 0); st.hits = (st.hits || 0) + (run.hits || 0);
+    { const wk = fallsWeek(); if (!st.wkHits || st.wkHits.w !== wk) st.wkHits = { w: wk, n: 0 }; st.wkHits.n += run.hits || 0; }   // v123 · cadute della settimana (classifica cadute che riparte ogni lunedì)
     st.holeshots = (st.holeshots || 0) + (run.holeshot ? 1 : 0); st.bars = (st.bars || 0) + (run.bars || 0); st.turbos = (st.turbos || 0) + (run.turbos || 0);
     st.bestLeap = Math.max(st.bestLeap || 0, run.leap || 0); st.bestDrift = Math.max(st.bestDrift || 0, run.driftM || 0); st.bestSlalom = Math.max(st.bestSlalom || 0, run.slaloms || 0);
     st.winsBy = st.winsBy || {}; if (run.position === 1 && run.finishTime > 0) st.winsBy[run.mode] = (st.winsBy[run.mode] || 0) + 1;
