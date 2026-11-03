@@ -1910,3 +1910,81 @@ aside#hub { gap: 10px; }
 .shopnudge em { font: 600 13px var(--ui); font-style: normal; opacity: .85; }
 .upg.nudged { outline: 3px solid var(--y); outline-offset: 2px; animation: nudgepulse 1s ease-in-out 3; }
 @keyframes nudgepulse { 50% { outline-color: transparent; } }
+
+/* v130 · stelle, volata, campionato EDT, riprova */
+.stars { display: inline-flex; gap: 2px; vertical-align: middle; }
+.stars i { display: inline-flex; color: #ffffff30; }
+.stars i svg { width: 18px; height: 18px; fill: currentColor; stroke: none; }
+.stars i.on { color: var(--y); filter: drop-shadow(0 0 4px #ffcf1666); }
+.stars.mini i svg { width: 12px; height: 12px; }
+.mode .stars.mini { margin-top: 3px; }
+.thstars { display: block; margin: 2px 0 1px; }
+.thstars .stars i svg { width: 22px; height: 22px; }
+.homeduo { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 10px 0 4px; }
+.homeduo button { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border: 0; cursor: pointer; text-align: left; color: #fff; background: linear-gradient(180deg, #23241df2, #16170fe8); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+.homeduo .champchip { border-left: 4px solid var(--y); }
+.homeduo .champchip.on { background: linear-gradient(90deg, #3a2f08, #1a1a12); }
+.homeduo button > svg { width: 26px; height: 26px; flex: none; color: var(--y); }
+.homeduo span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.homeduo small { font: 800 10px var(--ui); letter-spacing: 2px; color: var(--muted, #b9b2a2); }
+.homeduo b { font: italic 400 19px/1.05 var(--display); letter-spacing: .4px; }
+.homeduo b i { font-style: normal; font-size: 13px; opacity: .6; }
+.newbie .homeduo { display: none; }
+.volata { position: absolute; top: 150px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 10px; padding: 6px 18px 6px 12px; background: #0b0c09d8; border-left: 5px solid var(--y); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); color: #fff; font: italic 800 15px/1 var(--ui); text-transform: uppercase; pointer-events: none; white-space: nowrap; animation: volIn .35s ease-out; }
+.volata[hidden] { display: none; }
+.volata small { font: 800 10px var(--ui); letter-spacing: 2.5px; color: var(--y); font-style: normal; }
+.volata b { color: var(--y); }
+.volata em { font: italic 400 24px/1 var(--display); font-style: normal; }
+.volata.chase { border-color: var(--r); } .volata.chase em { color: #ff8a6b; }
+.volata.lead { border-color: #3ddc84; } .volata.lead em { color: #7ff0ae; }
+@keyframes volIn { from { opacity: 0; transform: translate(-50%, -10px); } }
+@media (orientation: landscape) and (max-height: 620px) { .volata { top: 58px; } }
+.retrybig { width: 100%; margin: 4px 0 10px; }
+.starres { display: flex; align-items: center; gap: 12px; margin: 10px 0; padding: 10px 14px; background: #ffffff0c; border-left: 4px solid #ffffff30; }
+.starres.new { border-color: var(--y); background: linear-gradient(90deg, #ffcf1622, #ffffff08); }
+.starres .stars i svg { width: 26px; height: 26px; }
+.starres > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.starres b { font: italic 400 19px/1 var(--display); }
+.starres small { font: 600 13px/1.2 var(--ui); color: var(--muted, #b9b2a2); }
+.starlegend { font: 600 14px/1.6 var(--ui); color: var(--muted, #b9b2a2); }
+.starprizes { display: grid; gap: 6px; margin: 8px 0; }
+.starprizes div { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #ffffff0a; font: 700 15px var(--ui); }
+.starprizes div > b { font: 400 22px/1 var(--display); min-width: 28px; }
+.starprizes div > svg { width: 16px; height: 16px; color: var(--y); fill: currentColor; }
+.starprizes div span { flex: 1; }
+.starprizes div.got { background: #ffcf1620; }
+.starprizes div.got > svg:last-child { color: #3ddc84; fill: none; }
+.starnext { font: 600 14px var(--ui); margin: 4px 0 10px; }
+.starlist { display: grid; gap: 6px; margin-bottom: 12px; }
+.starrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border: 0; background: #1d1e19; color: #fff; text-align: left; cursor: pointer; }
+.starrow span { display: flex; flex-direction: column; } .starrow b { font: 700 16px var(--ui); } .starrow small { font: 600 12.5px var(--ui); color: var(--muted, #b9b2a2); }
+.starrow.locked { opacity: .45; }
+.champprize { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0 12px; font: 700 15px var(--ui); }
+.champprize svg { width: 18px; height: 18px; vertical-align: -3px; color: var(--y); }
+.champwins, .champlast, .champlock { font: 600 15px var(--ui); }
+.champtracks { display: flex; gap: 4px; padding: 0; margin: 8px 0 10px; list-style: none; }
+.champtracks li { flex: 1; padding: 6px 4px; text-align: center; font: 800 11px var(--ui); letter-spacing: .5px; background: #ffffff0d; color: #cfc8b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.champtracks li i { display: block; font: 400 18px/1 var(--display); font-style: normal; }
+.champtracks li.done { background: #3ddc8422; color: #9ff0c0; }
+.champtracks li.now { background: var(--y); color: #1d1a10; }
+.champtable { list-style: none; padding: 0; margin: 6px 0 12px; display: grid; gap: 4px; }
+.champtable li { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: #ffffff0a; font: 700 16px var(--ui); }
+.champtable li.me { background: #ffcf1626; border-left: 4px solid var(--y); }
+.champtable li > i { font: 400 18px/1 var(--display); font-style: normal; width: 26px; }
+.champtable li .avatar { width: 30px !important; height: 30px !important; min-width: 0; flex: none; margin: 0 !important; }
+.champtable li .avatar img { width: 100%; height: 100%; }
+.champtable li span { flex: 1; min-width: 0; } .champtable li span small { font-size: 10px; letter-spacing: 1.5px; color: var(--y); }
+.champtable li em { font-style: normal; color: #3ddc84; font-size: 14px; }
+.champtable li b { font: 400 22px/1 var(--display); min-width: 30px; text-align: right; }
+.champres { margin: 10px 0; padding: 10px 12px 2px; background: #15160f; border-top: 3px solid var(--y); }
+.champhead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; align-items: center; font: 800 12px var(--ui); letter-spacing: 1.5px; color: var(--y); }
+.champhead svg { width: 16px; height: 16px; vertical-align: -3px; }
+.champhead b { font: italic 400 18px/1 var(--display); color: #fff; letter-spacing: .4px; }
+.champfinal { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; padding: 12px; background: linear-gradient(90deg, #ffcf1640, #ffcf1610); }
+.champfinal > svg { width: 40px; height: 40px; color: var(--y); flex: none; }
+.champfinal span { display: flex; flex-direction: column; } .champfinal b { font: italic 400 26px/1 var(--display); } .champfinal small { font: 600 14px var(--ui); }
+.champquit { display: block; margin: 8px auto 0; opacity: .7; }
+.wgo { width: 100%; min-width: 0; }
+.wgo .st, #champgo .st { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.wgo .st small, #champgo .st small { font-size: 12px; letter-spacing: 1px; opacity: .8; }
+.welcome #wcustom { width: 100%; white-space: normal; }

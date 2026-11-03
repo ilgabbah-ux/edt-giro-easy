@@ -92,6 +92,7 @@ export const LIVERIES = [
   // v107.3 · la maglia vera del club: si sblocca tornando 3 giorni di fila (forziere del giorno)
   { id: 'semplice', name: 'Endurista Semplice', icon: '👕', level: 1, streak: 3, shirt: 'semplice', plastic: '#e93825', accent: '#141414', jersey: '#f4f3ee', pants: '#1c1e20', helmet: '#1b1b1b' },
   { id: 'oro', name: 'Oro Leggenda', icon: '🏆', level: 9, plastic: '#d9a826', accent: '#111111', jersey: '#141414', pants: '#141414', helmet: '#e7b934', pattern: 'righe', ink: '#f6d46a' },
+  { id: 'stelle', name: 'Stellare', icon: '⭐', level: 1, stars: 18, plastic: '#1b1f3a', accent: '#f2c230', jersey: '#1b1f3a', pants: '#f2c230', helmet: '#f2c230', pattern: 'bolle', ink: '#f2c230' },   // v130 · 18 stelle
   { id: 'rookie', name: 'Debuttante EDT', icon: '🎓', level: 1, starter: true, plastic: '#1f8fd8', accent: '#fcd326', jersey: '#ffffff', pants: '#1f8fd8', helmet: '#fcd326' },   // v129 · si vince finendo le missioni del pilota nuovo
   { id: 'babbo', name: 'Babbo Natale', icon: '🎅', level: 1, xmas: true, plastic: '#d8262f', accent: '#ffffff', jersey: '#d8262f', pants: '#1d1d1b', helmet: '#ffffff' },   // v127 · si vince finendo la Christmas Madness
 ];
@@ -327,6 +328,45 @@ export const PRIZES = [
 export function takeBoosts() { const b = data.boosts; data.boosts = {}; save(); return b; }
 export function pendingBoosts() { return Object.keys(data.boosts).filter(k => data.boosts[k]); }
 
+// v130 · TRE STELLE PER PERCORSO: ★ arrivi al rifugio · ★★ tempo d'argento (6 s sotto il massimo) · ★★★ tempo d'oro (12 s sotto) senza cadute.
+// Premi a 9, 18 e 27 stelle. Valgono i percorsi "a tempo" fissi (niente Potter, Ice, Sfida del giorno ed eventi).
+export const STAR_MODES = [0, 1, 10, 11, 12, 13, 14, 15, 16];
+export const starTimes = m => { const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };
+export const starsFor = m => (data.stars || {})[m] || 0;
+export const totalStars = () => STAR_MODES.reduce((a, m) => a + starsFor(m), 0);
+export const maxStars = () => STAR_MODES.length * 3;
+export const STAR_PRIZES = [{ at: 9, beers: 150, text: '+150 birre' }, { at: 18, livery: 'stelle', text: 'la maglia «Stellare»' }, { at: 27, beers: 1000, text: '+1000 birre e il titolo «Re delle stelle»' }];
+export function recordStars(m, win, time, hits) {
+  if (!STAR_MODES.includes(m) || !win) return null;
+  const t = starTimes(m), got = 1 + (time <= t.silver ? 1 : 0) + (time <= t.gold && !hits ? 1 : 0);
+  data.stars = data.stars || {}; const before = starsFor(m), totBefore = totalStars();
+  if (got > before) data.stars[m] = got;
+  const totAfter = totalStars(), prizes = STAR_PRIZES.filter(pz => totBefore < pz.at && totAfter >= pz.at);
+  for (const pz of prizes) if (pz.beers) data.beers += pz.beers;
+  save(); return { got, before, best: Math.max(got, before), total: totAfter, prizes };
+}
+// v130 · CAMPIONATO EDT: 5 gare di fila contro gli stessi 3 piloti, punti 10-6-4-2, coppa e birre alla fine
+export const CHAMP_POINTS = [10, 6, 4, 2];
+export const champ = () => data.champ && !data.champ.over ? data.champ : null;
+export const champOpen = () => STAR_MODES.filter(m => isUnlocked(MODES[m])).length >= 3;
+export const champLevel = () => STAR_MODES.map(m => MODES[m].unlock || 1).sort((a, b) => a - b)[2] || 1;
+export function champStart(riders, me, rng = Math.random) {
+  const open = STAR_MODES.filter(m => isUnlocked(MODES[m])).sort(() => rng() - .5);
+  const tracks = [0, ...open.filter(m => m !== 0)].slice(0, 5); while (tracks.length < 5) tracks.push(open[tracks.length % open.length]);
+  const rivals = riders.filter(r => r !== me).sort(() => rng() - .5).slice(0, 3);
+  data.champ = { tracks, rivals, i: 0, pts: Object.fromEntries([...rivals, '__me'].map(n => [n, 0])), last: null, over: false }; save(); return data.champ;
+}
+// order = nomi dall'arrivo (primo → ultimo, '__me' = io)
+export function champRecord(order, dnf = false) {
+  const c = champ(); if (!c) return null;
+  order.forEach((n, k) => { if (!(dnf && n === '__me')) c.pts[n] = (c.pts[n] || 0) + (CHAMP_POINTS[k] || 0); });
+  c.last = order; c.i++;
+  if (c.i >= c.tracks.length) { c.over = true; const rank = Object.entries(c.pts).sort((a, b) => b[1] - a[1]).map(x => x[0]); c.final = rank; const pos = rank.indexOf('__me') + 1; c.prize = [0, 400, 200, 100, 0][pos] || 0; data.beers += c.prize; if (pos === 1) data.champWins = (data.champWins || 0) + 1; }
+  save(); return c;
+}
+export function champQuit() { if (data.champ) { data.champ.over = true; data.champ.quit = true; save(); } }
+export const lastChamp = () => data.champ || null;
+
 // v129 · MISSIONI DEL PILOTA NUOVO: 5 cose da fare nei primi giorni, in premio la maglia "Debuttante EDT".
 // Partono solo per chi ha fatto meno di 12 giri quando le vede la prima volta (i veterani non le hanno).
 export const STARTER = [
@@ -365,7 +405,7 @@ export function levelInfo(xp = data.xp) {
   return { level, grade, into: xp - floor, need, pct: (xp - floor) / need };
 }
 
-export const liveryOpen = (l, level = levelInfo().level) => l.starter ? !!data.starter?.claimed : l.xmas ? !!data.xmasWin : l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
+export const liveryOpen = (l, level = levelInfo().level) => l.stars ? totalStars() >= l.stars : l.starter ? !!data.starter?.claimed : l.xmas ? !!data.xmasWin : l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
 export function unlockedLiveries(level = levelInfo().level) {
   return LIVERIES.filter(l => liveryOpen(l, level));
 }

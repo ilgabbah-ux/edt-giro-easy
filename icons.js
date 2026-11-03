@@ -126,7 +126,7 @@ const MAP = {
   '🍺': 'beer', '🍷': 'wine', '🔥': 'flame', '💧': 'water', '🐰': 'rabbit', '🔧': 'wrench', '🎁': 'gift', '⏱': 'stopwatch',
   '👻': 'ghost', '⚡': 'bolt', '🔊': 'speaker', '🤠': 'wheelie', '🪨': 'rock', '⛰': 'mountain', '🎯': 'target', '🦘': 'spring',
   '🐸': 'wave', '🌀': 'scrub', '🦁': 'helmetplus', '⬇': 'downhill', '🦊': 'eye', '🧓': 'stopwatch', '🚱': 'nowater', '🚀': 'rocket',
-  '✴': 'star', '⚙': 'gear', '🪝': 'shock', '⛽': 'fuel', '🛞': 'tyre', '⛑': 'helmet', '👃': 'nose', '🔒': 'lock', '✔': 'check', '▶': 'play', '🏁': 'flag', '🏆': 'trophy', '🪵': 'log', '🎮': 'pad', '🖱': 'mouse', '🧠': 'chip', '🛡': 'shield', '🪽': 'wing', '🎒': 'pack', '🦉': 'owl', '👑': 'crown', '💎': 'gem', '✨': 'sparkle',
+  '✴': 'star', '⭐': 'star', '⚙': 'gear', '🪝': 'shock', '⛽': 'fuel', '🛞': 'tyre', '⛑': 'helmet', '👃': 'nose', '🔒': 'lock', '✔': 'check', '▶': 'play', '🏁': 'flag', '🏆': 'trophy', '🪵': 'log', '🎮': 'pad', '🖱': 'mouse', '🧠': 'chip', '🛡': 'shield', '🪽': 'wing', '🎒': 'pack', '🦉': 'owl', '👑': 'crown', '💎': 'gem', '✨': 'sparkle',
 };
 const RE = new RegExp('(' + Object.keys(MAP).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\uFE0F?', 'gu');
 export const hasEmoji = t => { RE.lastIndex = 0; return RE.test(t); };   // v112

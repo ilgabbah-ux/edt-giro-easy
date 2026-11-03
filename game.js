@@ -1,11 +1,11 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=55332041';
 import { createWorld } from './scene3d.js?v=b0be6657';
-import * as A from './audio.js?v=bc8ece9d';
-import * as P from './progress.js?v=66dd496c';
+import * as A from './audio.js?v=267a7d1b';
+import * as P from './progress.js?v=ff32256f';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=2bfbc3ea';
+import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=9bb92cbe';
 import * as C from './classifica.js?v=67f4a9be';
 import * as D from './duel.js?v=db2f059d';
 
@@ -375,6 +375,7 @@ let wasClimb = false, throttleSlip = 0, overT = 0, wasSweet = false, gasLock = f
 let ice = false, drift = 0, driftT = 0, driftSum = 0, driftPend = 0, driftChain = 0, driftGap = 9, driftScore = 0, driftBest = 0, driftCount = 0, snowT = 0, bendNow = 0, lastWall = -9, driftM = 0, driftMP = 0;   // v92 · metri percorsi di traverso
 // v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
 let draftT = 0, draftR = null, draftSaid = -9, lastDraftAt = -9, catchT = 0;   // v107 · scia dietro ai compagni e rimonta
+let peloAt = -99, volata = 0, champRun = false;   // v130
 let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos = '';
 let weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0 }, nextFlash = 5, weatherPlan = [], weatherSaid = '', lastRainMud = 0;
 const curLift = () => jumpHeight(jump, jumpDur, jumpH);
@@ -597,7 +598,7 @@ function resetRun() {
   combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
   lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
   replayBuf = []; recClock = 0; recLast = 0; replay = null; highlights = []; hlPend = [];
-  ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = fallT = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
+  volata = 0; peloAt = -99; volataShow(null); ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = fallT = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
   grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9; lastRiderHit = -99;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
   for (const k of Object.keys(up)) { const l = P.upgradeLevel(k); up[k] = l <= P.LEGEND_FROM ? l : P.LEGEND_FROM + (l - P.LEGEND_FROM) * .4; }   // v106.6 · livelli Leggenda: +0,4 l'uno
@@ -730,6 +731,9 @@ function finish(win, reason = '') {
   });
   run.km = Math.round(roadTime * 19.5) / 1000;   // v96 · per le statistiche
   const res = P.recordRun(run);
+  A.musicRush(false); volata = 0; volataShow(null);
+  if (!tut && !duel?.racing && !champRun) { res.stars = P.recordStars(mode, win, elapsed, run.hits); if (res.stars?.prizes?.length) res.wallet = P.profile.beers; }   // v130 · tre stelle
+  if (champRun) { res.champ = champFinish(win); res.wallet = P.profile.beers; }   // v130 · campionato EDT
   { const dw = derbyCheck(win); if (dw) { P.profile.beers += dw.beers; P.profile.derbyDay = P.todayKey(); P.save(); res.wallet = P.profile.beers; res.derby = dw; if (dw.jab) setTimeout(() => toast('⚔ ' + dw.jab.toUpperCase(), 'gold'), 1800); } }
   if (gev && !win) {   // v57 · fermato dalle GEV: multa in birre
     gevFine = Math.min(20, P.profile.beers); P.profile.beers -= gevFine; P.save(); res.wallet = P.profile.beers;
@@ -1759,8 +1763,10 @@ const RIVAL_LIVERIES = [
 function setupRace() {
   // Tre compagni di giro: uno parte dietro (e ti passerà con un bel "Suuuka!"), due davanti.
   const others = RIDERS.filter(r => r !== profile.rider).sort(() => rng() - .5).slice(0, 3);
+  const chC = champRun && P.champ();   // v130 · al campionato sempre gli stessi tre
+  if (chC) { const fx = chC.rivals.filter(n => n !== profile.rider); others.splice(0, 3, ...fx, ...others.filter(n => !fx.includes(n))); others.length = 3; }
   // v107.4 · derby del giorno: i due piloti del derby sono sempre tra i compagni (senza toccare il caso, così la sfida del giorno resta uguale per tutti)
-  const dz = P.MODES[mode].leap || duel?.racing ? [] : derbyPair().filter(n => n !== profile.rider);
+  const dz = P.MODES[mode].leap || duel?.racing || chC ? [] : derbyPair().filter(n => n !== profile.rider);
   dz.forEach((n, k) => { const j = others.indexOf(n); if (j >= 0) others.splice(j, 1); others.splice(1 + k, 0, n); });
   others.length = 3;
   const starts = [-7, 26, 58], lvSoft = P.levelInfo().level <= 2 ? .955 : P.levelInfo().level <= 4 ? .98 : 1, skills = [1.09, 1.04, .99].map(k => k * lvSoft);   // v81 · ai primi livelli i compagni vanno un filo più piano   // v48 · un filo più forti (salite più dure anche per loro)
@@ -1844,6 +1850,7 @@ function updateRivals(dt, travelStep, route, diff) {
       if (r.champ && !r.champSaid1) { r.champSaid1 = 1; setTimeout(() => toast('👑 ' + rpick(CHAMP_PASS_ME).replace('{n}', r.name.toUpperCase()), 'gold'), 900); }
     } else if (prev > 0 && r.gap <= 0) { // lo passi tu
       if (r.champ && !r.champSaid2) { r.champSaid2 = 1; run.champPass = 1; setTimeout(() => toast('👑 ' + rpick(CHAMP_PASSED).replace('{n}', r.name.toUpperCase()), 'green'), 700); }
+      if (volata && state === 'playing') { score += 300; run.volataPass = (run.volataPass || 0) + 1; setTimeout(() => { if (state === 'playing') bigCall('SORPASSO IN VOLATA!'); }, 250); }   // v130
       const sc = elapsed - lastDraftAt < 1.2, scv = has('slip') ? 600 : 400; score += sc ? scv : 250; run.passes = (run.passes || 0) + 1; if (sc) run.draftPasses = (run.draftPasses || 0) + 1; pop(sc ? '⚡ SORPASSO IN SCIA SU ' + r.name.toUpperCase() + ' +' + scv : 'SORPASSO SU ' + r.name.toUpperCase() + ' +250', 'gold'); markHighlight(sc ? 'SORPASSO IN SCIA SU ' + r.name.toUpperCase() : 'SORPASSO SU ' + r.name.toUpperCase(), sc ? 1300 : 800); A.sfx.near(); if (sc) buzz([10, 30, 10]);
     }
   }
@@ -2304,6 +2311,7 @@ function update(dt) {
   { const rt = routeAt(course, roadTime * 19.5), surf = ice ? 'ice' : desert ? 'sand' : wet > 0 ? 'mud' : rt.rough > .05 ? 'rock' : weather.rain > .3 ? 'mud' : 'dirt';   // v109.2 · il rumore delle gomme cambia col fondo
     A.engineUpdate(speed * (1 + elapsed / 200) * (ice ? 1 + throttleSlip * .55 : 1), gas, turbo > 0, jump > 0 || (ice && throttleSlip > .5), surf); }   // v49 · sul ghiaccio la ruota pattina: giri alti
   A.musicIntensity(turbo > 0 ? 1 : .35 + (multiplier() - 1) * .15);
+  volataTick();
 
   spawn -= dt * speed;
   if (spawn <= 0) {
@@ -2500,7 +2508,9 @@ function update(dt) {
         if (lives <= 0) { hud(); if (!run.continued && P.profile.beers >= CONTINUE_COST) offerContinue(); else finish(false); return; }
       }
     } else if (o.type !== 'puddle' && gap < (has('fox') ? .9 : .68) && invincible <= 0 && o.type !== 'bigLog') {
-      run.near++; A.sfx.near(); reward(has('fox') ? 105 : 35, 'PER UN PELO!', 'near', false);
+      run.near++; A.sfx.near();
+      if (gap < .5 && crash <= 0 && elapsed - peloAt > 2) { peloAt = elapsed; run.pelo = (run.pelo || 0) + 1; reward(has('fox') ? 300 : 150, 'PELO!', 'near', false); slowmo = .32; slowScale = .38; flash('gold'); buzz([8, 30, 8]); shake = Math.max(shake, .18); markHighlight('PELO!', 500); }   // v130 · «PELO!»: lo sfiori davvero = rallentatore e +150
+      else reward(has('fox') ? 105 : 35, 'PER UN PELO!', 'near', false);
     }
   }
   objects = objects.filter(o => o.z < 1.13 && !o.collected);
@@ -2971,6 +2981,109 @@ function starterTick(id) {
   else toast('✅ MISSIONE FATTA: ' + m.name.toUpperCase(), 'green');
 }
 // v127 · Christmas Madness: banner in home durante l'evento (tocca e vai sul percorso)
+// v130 · STELLE, VOLATA e CAMPIONATO EDT
+const starsHTML = (n, cls = '') => `<span class="stars ${cls}" aria-label="${n} stelle su 3">${[0, 1, 2].map(i => `<i class="${i < n ? 'on' : ''}">${icon('star')}</i>`).join('')}</span>`;
+const fmtS = s => s.toFixed(1).replace('.', ',');
+function starGoal(m) {
+  const n = P.starsFor(m), t = P.starTimes(m);
+  return n >= 3 ? 'TUTTE E TRE: SEI UN MANICO' : n === 2 ? `3ª STELLA: SOTTO I ${t.gold} s SENZA CADUTE` : n === 1 ? `2ª STELLA: SOTTO I ${t.silver} s` : '1ª STELLA: ARRIVA AL RIFUGIO';
+}
+function volataShow(t, cls = '') {
+  let el = $('volata');
+  if (!t) { if (el) el.hidden = true; return; }
+  if (!el) { el = document.createElement('div'); el.id = 'volata'; $('game').appendChild(el); }
+  el.hidden = false; el.className = 'volata ' + cls; if (el.dataset.t !== t) { el.dataset.t = t; el.innerHTML = t; }
+}
+function volataTick() {
+  if (state !== 'playing' || ice || leap || tut || !rivals.length || course < GAME_LENGTH - 10 || course >= GAME_LENGTH) { if (volata) { volata = 0; A.musicRush(false); } volataShow(null); return; }
+  let r = null; for (const x of rivals) if (!r || Math.abs(x.gap) < Math.abs(r.gap)) r = x;
+  const sec = Math.abs(r.gap) / Math.max(5, kmh * 19.5 / 31), close = sec < (volata ? 5 : 3.5);
+  if (!close) { if (volata) { volata = 0; A.musicRush(false); } volataShow(null); return; }
+  if (!volata) { volata = 1; A.musicRush(true); if (!run.volataCall) { run.volataCall = 1; bigCall('VOLATA FINALE!'); voice('Dai gas, volata!', true); buzz([20, 40, 20]); } }
+  const nm = r.name.toUpperCase(), ahead = r.gap > 0;
+  volataShow(`<small>VOLATA</small><span>${ahead ? 'DAVANTI' : 'DIETRO'} <b>${nm}</b></span><em>${ahead ? '+' : '−'}${fmtS(sec)} s</em>`, ahead ? 'chase' : 'lead');
+}
+const champName = n => n === '__me' ? profile.rider : n;
+const champRank = c => Object.entries(c.pts).sort((a, b) => b[1] - a[1] || (a[0] === '__me' ? -1 : b[0] === '__me' ? 1 : 0));
+const champPos = c => champRank(c).findIndex(e => e[0] === '__me') + 1;
+function champTable(c, before) {
+  return `<ol class="champtable">${champRank(c).map(([n, pt], k) => { const d = before ? pt - (before[n] || 0) : 0; return `<li class="${n === '__me' ? 'me' : ''}"><i>${k + 1}°</i>${avatarHTML(champName(n))}<span>${champName(n)}${n === '__me' ? ' <small>TU</small>' : ''}</span>${d ? `<em>+${d}</em>` : ''}<b>${pt}</b></li>`; }).join('')}</ol>`;
+}
+function champFinish(win) {
+  const c0 = P.champ(); if (!c0) return null;
+  const before = { ...c0.pts }, ent = rivals.map(r => ({ n: r.name, g: r.gap })).concat({ n: '__me', g: 0 }).sort((a, b) => b.g - a.g);
+  let order = ent.map(e => e.n); if (!win) order = order.filter(n => n !== '__me').concat('__me');
+  const c = P.champRecord(order, !win);
+  return { c, before, race: c.i, pos: order.indexOf('__me') + 1, dnf: !win };
+}
+function champChipHTML() {
+  const c = P.champ(), tot = P.totalStars();
+  return `<div class="homeduo"><button class="champchip ${c ? 'on' : ''}" id="champchip" type="button">${icon('trophy')}<span><small>CAMPIONATO EDT</small><b>${c ? `GARA ${c.i + 1} DI ${c.tracks.length} · SEI ${champPos(c)}°` : '5 GARE · 3 RIVALI · 1 COPPA'}</b></span></button>
+    <button class="starchip" id="starchip" type="button">${icon('star')}<span><small>STELLE</small><b>${tot}<i>/${P.maxStars()}</i></b></span></button></div>`;
+}
+function renderStars() {
+  state = 'ready'; setMenu(true); $('overlay').classList.remove('hidden');
+  const tot = P.totalStars(), nx = P.STAR_PRIZES.find(z => tot < z.at), lv = P.levelInfo().level;
+  $('card').innerHTML = `<div class="eyebrow">TRE STELLE PER PERCORSO</div><h1 class="shoptitle">${tot} STELLE<br><em>SU ${P.maxStars()}.</em></h1>
+    <p class="starlegend">${starsHTML(1, 'mini')} arrivi al rifugio · ${starsHTML(2, 'mini')} tempo d'argento · ${starsHTML(3, 'mini')} tempo d'oro senza cadute</p>
+    <div class="starprizes">${P.STAR_PRIZES.map(z => `<div class="${tot >= z.at ? 'got' : ''}"><b>${z.at}</b>${icon('star')}<span>${z.text}</span>${tot >= z.at ? icon('check') : ''}</div>`).join('')}</div>
+    ${nx ? `<p class="starnext">Prossimo premio tra <b>${nx.at - tot} stelle</b>.</p>` : ''}
+    <div class="starlist">${P.STAR_MODES.map(m => { const md = P.MODES[m], open = P.isUnlocked(md, lv), t = P.starTimes(m); return `<button type="button" class="starrow ${open ? '' : 'locked'}" data-star="${m}"><span><b>${md.name}</b><small>${open ? `argento ${t.silver} s · oro ${t.gold} s` : P.lockText(md)}</small></span>${starsHTML(P.starsFor(m))}</button>`; }).join('')}</div>
+    <button class="secondary" id="starback" type="button">⬅ MENU</button>`;
+  iconizeEl($('card'));
+  $('starback').onclick = () => { A.sfx.click(); renderReady(); };
+  document.querySelectorAll('[data-star]').forEach(b => b.onclick = () => { const md = P.MODES[+b.dataset.star]; if (!P.isUnlocked(md)) { toast('🔒 ' + P.lockText(md).toUpperCase(), 'red'); return; } A.sfx.click(); mode = md.id; profile.mode = mode; P.save(); renderReady(); renderSide(); });
+}
+function renderChamp() {
+  champRun = false; state = 'ready'; setMenu(true); $('overlay').classList.remove('hidden');
+  const c = P.champ(), last = P.lastChamp();
+  if (!c) {
+    const open = P.champOpen();
+    $('card').innerHTML = `<div class="eyebrow">CAMPIONATO EDT</div><h1 class="shoptitle">5 GARE.<br><em>UNA COPPA.</em></h1>
+      <p>Cinque percorsi di fila contro gli stessi tre piloti dell'EDT. A ogni arrivo <b>10 punti</b> al primo, 6 al secondo, 4 al terzo, 2 al quarto. Chi non arriva al rifugio fa zero.</p>
+      <div class="champprize"><span>${icon('trophy')} CAMPIONE <b>+400 🍺</b></span><span>2° <b>+200</b></span><span>3° <b>+100</b></span></div>
+      ${P.profile.champWins ? `<p class="champwins">${icon('crown')} Campionati vinti: <b>${P.profile.champWins}</b></p>` : ''}
+      ${last?.over && !last.quit ? `<p class="champlast">Ultimo campionato: <b>${champPos(last)}°</b> con ${last.pts.__me} punti.</p>` : ''}
+      ${open ? `<button class="primary big" id="champgo" type="button"><span>INIZIA IL CAMPIONATO</span>${icon('chevrons')}</button>` : `<p class="champlock">${icon('lock')} Si apre al livello ${P.champLevel()}: servono almeno 3 percorsi aperti.</p>`}
+      <button class="secondary" id="champback" type="button">⬅ MENU</button>`;
+  } else {
+    const md = P.MODES[c.tracks[c.i]];
+    $('card').innerHTML = `<div class="eyebrow">CAMPIONATO EDT · GARA ${c.i + 1} DI ${c.tracks.length}</div><h1 class="shoptitle">${c.i ? 'PROSSIMA:' : 'SI PARTE:'}<br><em>${md.name.toUpperCase()}.</em></h1>
+      <ol class="champtracks">${c.tracks.map((m, k) => `<li class="${k < c.i ? 'done' : k === c.i ? 'now' : ''}"><i>${k + 1}</i>${P.MODES[m].short}</li>`).join('')}</ol>
+      ${champTable(c)}
+      <button class="primary big" id="champgo" type="button"><span class="st"><span>VIA ALLA GARA ${c.i + 1}</span><small>${md.name} · ${md.limit} s</small></span>${icon('chevrons')}</button>
+      <button class="secondary" id="champback" type="button">⬅ MENU</button>
+      <button class="linkbtn champquit" id="champquit" type="button">ABBANDONA IL CAMPIONATO</button>`;
+  }
+  iconizeEl($('card'));
+  $('champback').onclick = () => { A.sfx.click(); renderReady(); };
+  if ($('champquit')) $('champquit').onclick = e => { const b = e.currentTarget; if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'SICURO? TOCCA ANCORA E PERDI I PUNTI'; return; } P.champQuit(); renderChamp(); };
+  if ($('champgo')) $('champgo').onclick = () => {
+    A.unlock(); A.sfx.click();
+    let cc = P.champ(); if (!cc) { cc = P.champStart(RIDERS, profile.rider); renderChamp(); return; }
+    mode = cc.tracks[cc.i]; profile.mode = mode; P.save();
+    if (duel) duel.racing = false;
+    renderReady(); champRun = true; start();
+  };
+}
+function againGo() {
+  if (champRun && P.champ()) { renderChamp(); return; }
+  champRun = false;
+  if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); }
+}
+function champResHTML(ch) {
+  if (!ch) return '';
+  const c = ch.c, my = (c.pts.__me || 0) - (ch.before.__me || 0);
+  let fin = '';
+  if (c.over) { const pos = c.final.indexOf('__me') + 1; fin = `<div class="champfinal p${pos}">${icon(pos === 1 ? 'trophy' : 'flag')}<span><b>${pos === 1 ? 'CAMPIONE EDT!' : pos + '° NEL CAMPIONATO'}</b><small>${pos === 1 ? 'La coppa è tua. ' : ''}${c.prize ? '+' + c.prize + ' 🍺 in cassa' : 'Niente premio: la prossima volta.'}</small></span></div>`; }
+  return `<div class="champres"><div class="champhead">${icon('trophy')} CAMPIONATO EDT · GARA ${ch.race} DI ${c.tracks.length}<b>${ch.dnf ? 'NON ARRIVATO · 0 PUNTI' : ch.pos + '° · +' + my + ' PUNTI'}</b></div>${champTable(c, ch.before)}${fin}</div>`;
+}
+function starResHTML(res) {
+  if (!P.STAR_MODES.includes(mode) || champRun || duel?.racing) return '';
+  const st = res.stars, n = P.starsFor(mode), nw = st && st.got > st.before;
+  return `<div class="starres ${nw ? 'new' : ''}">${starsHTML(n)}<span><b>${nw ? (st.got - st.before > 1 ? 'NUOVE STELLE!' : 'NUOVA STELLA!') : n ? 'LE TUE STELLE QUI' : 'NESSUNA STELLA ANCORA'}</b><small>${starGoal(mode)} · totale ${P.totalStars()}/${P.maxStars()}</small></span></div>${(st?.prizes || []).map(z => `<div class="unlock trophy"><i class="ic-holder">${icon('star')}</i><span>PREMIO DELLE ${z.at} STELLE: <b>${z.text}</b>${z.livery ? ' · la trovi nel garage' : ''}</span></div>`).join('')}`;
+}
+
 function xmasChipHTML() {
   if (P.xmasTeaser()) { const dd = Math.ceil((new Date(new Date().getFullYear(), 11, 1) - new Date()) / 864e5); return `<div class="xmaschip soon">${icon('gift')}<span><small>IN ARRIVO</small><b>CHRISTMAS MADNESS</b><em>il percorso di Natale si apre tra <b>${dd} ${dd === 1 ? 'giorno' : 'giorni'}</b>: 1° dicembre</em></span></div>`; }
   if (!P.xmasOn()) return '';
@@ -2979,6 +3092,7 @@ function xmasChipHTML() {
   return `<button type="button" class="xmaschip" id="xmaschip">${icon('gift')}<span><small>EVENTO DI NATALE</small><b>CHRISTMAS MADNESS</b><em>${sub}</em></span>${icon('chevrons')}</button>`;
 }
 function renderReady() {
+  champRun = false;   // v130
   try { P.starterAuto().forEach(starterTick); } catch {}   // v129
   try { window.__edtCheckUpdate?.(); } catch {}   // v125.3 · a ogni ritorno al menu controlla se c'è una versione nuova
   state = 'ready';
@@ -3011,7 +3125,7 @@ function renderReady() {
     <div class="trackhero sky${md.sky ?? 0} ${md.ice ? 'icy' : ''} ${art ? 'hasart' : ''} ${heroDir ? 'in' + heroDir : ''}" id="trackhero">
       ${art ? `<img class="trackart" src="${art}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}
       <div class="thtext"><span class="ps">PS${psOf(md)} · ${md.limit} s</span><b>${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name}</b><small>${md.id === 3 ? `<span class="dayrule">${dailyRule().icon} REGOLA DI OGGI: ${dailyRule().name}</span> ${dailyRule().desc}` : md.desc}</small>
-      <span class="thchips"><span title="Difficoltà">🔥 ${'★'.repeat((md.difficulty || 0) + 1)}<i class="stoff">${'★'.repeat(2 - (md.difficulty || 0))}</i></span>${md.id === P.weeklyTrack() ? '<span class="wkchip">🔥 PERCORSO DELLA SETTIMANA · BIRRE ×2</span>' : ''}${variantOf(md.id) ? `<span class="var">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</span>` : ''}${!md.leap ? `<span class="gold" title="Boccali d’oro nascosti questa settimana">🏆 ${P.goldFound(md.id).filter(Boolean).length}/3 BOCCALI D’ORO</span>` : ''}${TRACK_INFO[md.id]?.tipo ? `<span class="tipo">${TRACK_INFO[md.id].tipo.split(' (')[0]}</span>` : ''}</span>
+      ${P.STAR_MODES.includes(md.id) ? `<span class="thstars" title="${starGoal(md.id)}">${starsHTML(P.starsFor(md.id))}</span>` : ''}<span class="thchips"><span title="Difficoltà">🔥 ${'★'.repeat((md.difficulty || 0) + 1)}<i class="stoff">${'★'.repeat(2 - (md.difficulty || 0))}</i></span>${md.id === P.weeklyTrack() ? '<span class="wkchip">🔥 PERCORSO DELLA SETTIMANA · BIRRE ×2</span>' : ''}${variantOf(md.id) ? `<span class="var">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</span>` : ''}${!md.leap ? `<span class="gold" title="Boccali d’oro nascosti questa settimana">🏆 ${P.goldFound(md.id).filter(Boolean).length}/3 BOCCALI D’ORO</span>` : ''}${TRACK_INFO[md.id]?.tipo ? `<span class="tipo">${TRACK_INFO[md.id].tipo.split(' (')[0]}</span>` : ''}</span>
       ${md.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(layoutFor(md.id))}
       <span class="record">${icon('trophy')} ${best ? `RECORD${md.id === 3 ? ' DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span>
       ${C.enabled() ? `<span class="thlead" id="thlead">${heroLead(C.cached())}</span>` : ''}</div>
@@ -3021,6 +3135,7 @@ function renderReady() {
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + (A.STYLES[mode] || A.STYLES[0]).name}</small></span>${icon('chevrons')}</button>
     ${xmasChipHTML()}
     ${starterHTML()}
+    ${champChipHTML()}
     ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
     <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
     ${dailyChipHTML()}
@@ -3038,7 +3153,7 @@ function renderReady() {
     <div class="mhead tracks">${icon('flag')} CAMBIA PERCORSO <button class="linkbtn alltracks" id="alltracks" type="button">📋 TUTTI I TRACCIATI ›</button></div>
     <div class="modes" role="radiogroup" aria-label="Percorso">
       ${P.SHOWN().map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
-        ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 ' + P.lockText(m)}</small>${m.id === P.weeklyTrack() ? '<i class="wktrack">🔥 BIRRE ×2</i>' : ''}</button>`; }).join('')}
+        ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 ' + P.lockText(m)}</small>${open && P.STAR_MODES.includes(m.id) ? starsHTML(P.starsFor(m.id), 'mini') : ''}${m.id === P.weeklyTrack() ? '<i class="wktrack">🔥 BIRRE ×2</i>' : ''}</button>`; }).join('')}
     </div>
     <div class="menufoot">
       <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
@@ -3051,6 +3166,8 @@ function renderReady() {
   iconizeEl($('card'));
   $('start').onclick = () => { if (duel) duel.racing = false; start(); };
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
+  $('champchip').onclick = () => { A.sfx.click(); renderChamp(); };   // v130
+  $('starchip').onclick = () => { A.sfx.click(); renderStars(); };
   $('xmaschip')?.addEventListener('click', () => { A.sfx.click(); mode = 17; profile.mode = mode; P.save(); renderReady(); });   // v127
   $('openshop').onclick = () => renderShop(renderReady);
   $('opengarage').onclick = () => { A.sfx.click(); showHub('garage'); const sec = document.querySelector('[data-hub="garage"]'); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
@@ -3146,7 +3263,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   $('overlay').classList.remove('hidden');
   setMenu(true);
   $('card').innerHTML = `
-    ${perfBox}<div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button></div>${C.isEdt() ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
+    ${perfBox}<div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button>${win && !champRun ? '<button class="resagain" id="resagain" type="button">RIFALLO</button>' : ''}</div>${!win && !champRun ? `<button class="primary big retrybig" id="resagain" type="button"><span>RIPROVA SUBITO</span>${icon('chevrons')}</button>` : ''}${C.isEdt() || !win || champRun ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
     ${!C.isEdt() && !isCustom() ? `<button class="secondary rescustom" id="rescustom" type="button">${icon('helmet')} CREA IL TUO PILOTA <small>casco, nome e numero: in classifica ci vai tu</small></button>` : ''}
     <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
     <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${leap ? (win ? `${leapBest.toFixed(1).replace('.', ',')} METRI<br><em>IN PIEDI!</em>` : 'SALTO<br><em>NULLO.</em>') : gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : fresh ? 'PER UN<br><em>PELO!</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
@@ -3161,6 +3278,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
       ${leap || ice ? '' : `<div><b>${run.hits}</b><small>CADUTE</small></div>`}
       <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
     </div>
+    ${champResHTML(res.champ)}${starResHTML(res)}
     ${shopNudgeHTML()}
     ${res.weeklyDone?.length ? `<div class="donelist weeklydone">${res.weeklyDone.map(c => `<div><span>🗓 MISSIONE DELLA SETTIMANA: ${c.text}</span><b>+${c.beers} 🍺</b></div>`).join('')}</div>` : ''}
     ${res.completed.length ? `<div class="donelist">${res.completed.map(c => `<div><span>✔ ${c.text}</span><b>+${c.xp} XP</b></div>`).join('')}</div>` : ''}
@@ -3179,14 +3297,14 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     <button class="cardprev" id="cardprev" type="button"><img alt="Cartolina del risultato" src="${cardURL || 'data:,'}"><span><b>📸 LA TUA CARTOLINA</b><small>${C.isEdt() ? 'Toccala e mandala nel gruppo WhatsApp: risultato, posizione e link per giocare.' : 'Toccala e mandala su WhatsApp: risultato e link per sfidarti.'}</small></span></button>
     <div class="sharerow"><button class="secondary" id="shareScore" type="button">📲 CARTOLINA</button><button class="secondary" id="sharestory" type="button">📸 STORIA</button></div>
     <div class="actions">
-      <button class="primary big" id="again"><span>UN ALTRO GIRO</span>${icon('chevrons')}</button>
+      <button class="primary big" id="again"><span>${champRun && P.champ() ? 'AVANTI: GARA ' + (P.champ().i + 1) + ' DI 5' : champRun ? 'UN ALTRO GIRO' : 'UN ALTRO GIRO'}</span>${icon('chevrons')}</button>
       ${ghostChallengeHTML(score)}
       ${replayReady() ? '<button class="secondary replaybtn" id="replaybtn" type="button">🎬 RIVEDI GLI ULTIMI 10 s</button><button class="secondary replaybtn hot" id="replayvid" type="button">🎥 CLIP DEL GIRO (VIDEO PER LE STORIE)</button>' : ''}
       <button class="secondary shopsec" id="shopres">🔧 OFFICINA</button>
     </div>`;
   iconizeEl($('card'));
   $('rescustom')?.addEventListener('click', () => { A.sfx.click(); renderCustom(renderReady); });
-  $('again').onclick = () => { if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); } };
+  $('again').onclick = againGo;
   drawDuelResult();
   if ($('menu')) $('menu').onclick = renderReady;
   $('shopres').onclick = () => renderShop(renderReady);
@@ -3194,7 +3312,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   $('shareScore').onclick = $('cardprev').onclick = () => shareScore(win, res);
   if ($('sharestory')) $('sharestory').onclick = () => shareScore(win, res, 'story');
   cardCtx = { win, res }; refreshCardPreview();
-  const bindResult = () => { $('cardprev').onclick = () => shareScore(win, res); if ($('sharestory')) $('sharestory').onclick = () => shareScore(win, res, 'story'); refreshCardPreview(); $('again').onclick = () => { if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); } }; drawDuelResult(); if ($('menu')) $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
+  const bindResult = () => { $('cardprev').onclick = () => shareScore(win, res); if ($('sharestory')) $('sharestory').onclick = () => shareScore(win, res, 'story'); refreshCardPreview(); $('again').onclick = againGo; drawDuelResult(); if ($('menu')) $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
   resultSnapshot = { html: $('card').innerHTML, bind: bindResult };
   const gOK = win && !ice && P.MODES[mode].random !== 'run';
   if ($('groupres')) groupResult({ hits: run.hits || 0, score, mode, rider: riderTag(), time: ice ? Math.round(driftM * 10) / 10 : win ? (leap ? leapBest : elapsed) : 0, win, g: gOK ? C.encodeGhost([...ghostSplits, GAME_LENGTH]) : '' });
@@ -3707,7 +3825,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 129;
+const GAME_VERSION = 130;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3741,9 +3859,10 @@ function renderWelcome() {
     <div class="eyebrow">IL GIOCO DI ENDURO DELL'EDT</div>
     <h1 class="title"><span class="t1">TRANQUILLI,</span><span class="t2">È UN GIRO <em>EASY!</em></span></h1>
     <p class="wlead">Tronchi, pietraie, fango e salitoni: <b>arriva al rifugio prima del tempo</b>, prendi le birre al volo e scala la classifica.</p>
+
+    <button class="primary big wgo" id="wplay" type="button"><span class="st"><span>TOCCA E PARTI</span><small>un giro da 1 minuto, gratis</small></span>${icon('chevrons')}</button>
+    <button class="secondary" id="wcustom" type="button">${icon('helmet')} PRIMA CREA IL TUO PILOTA</button>
     <ul class="wfacts"><li>${icon('pad')} Gratis, dal telefono o dal computer: niente da installare</li><li>${icon('helmet')} Corri coi piloti veri dell'Enduro Drinking Team… o crea il tuo</li><li>${icon('trophy')} Classifica online con chiunque giochi</li></ul>
-    <button class="primary big" id="wcustom" type="button"><span>CREA IL TUO PILOTA</span></button>
-    <button class="secondary" id="wplay" type="button">GIOCA SUBITO COI PILOTI EDT</button>
     <button class="linkbtn wvideo" id="wvideo" type="button">▶ GUARDA COME SI GIOCA · 30 s</button>
   </div>`;
   iconizeEl($('card'));

@@ -649,6 +649,7 @@ export function musicStart(styleId = 0, opts = {}) {
   musicBus.gain.cancelScheduledValues(ctx.currentTime);
   musicBus.gain.setTargetAtTime(musicOn ? MUSIC_VOL : 0, ctx.currentTime, .2);
 }
+export function musicRush(on) { try { if (music?.src) music.src.playbackRate.setTargetAtTime(on ? 1.06 : 1, ctx.currentTime, .4); } catch {} }   // v130 · volata finale: la canzone accelera un filo
 export function musicIntensity(x) { if (music) music.intensity = Math.max(0, Math.min(1, x)); }
 export function musicStop(now = false) {
   if (!music) return;
