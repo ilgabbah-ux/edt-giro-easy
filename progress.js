@@ -53,9 +53,21 @@ export const MODES = [
   { id: 16, short: 'DESERTO', name: 'Il Desertone', desc: 'Dune, sassi e cammelli. Sulle dune tieni il gas o ti insabbi; occhio alle spine: se buchi ti fermi a cambiare la camera d’aria e perdi tempo.', desert: true, difficulty: 1, sky: 6, limit: 61, unlock: 3,
     obs: { 0: ['rock', 'thorns', 'rock', 'thorns'], 1: ['thorns', 'rock', 'puddle', 'thorns'], 2: ['rock', 'thorns', 'rock'], 3: ['rock', 'rock', 'thorns'] },
     layout: [{ t: 0, len: 6, name: 'LA PISTA DEL SERIR' }, { t: 2, len: 9, climb: 1, name: 'LE PRIME DUNE' }, { t: 0, len: 6, down: 1, name: 'GIÙ DAL CORDONE' }, { t: 3, len: 8, name: 'LA HAMMADA' }, { t: 2, len: 10, climb: 1, name: 'IL MARE DI SABBIA' }, { t: 1, len: 6, name: 'L’OASI' }, { t: 2, len: 9, climb: 1, name: 'LA GRANDE DUNA' }, { t: 0, len: 6, down: 1, name: 'VERSO IL BIVACCO' }] },
+  // v127 · CHRISTMAS MADNESS (evento di Natale, dal 1° dicembre all'Epifania): la gara nel fango dell'EDT, di sera con la neve,
+  // lucine sulle fettucce, pacchi regalo e pupazzi di neve in pista. Il 21 dicembre (la gara vera) punti doppi.
+  { id: 17, short: 'XMAS', name: 'Christmas Madness', desc: 'La gara nel fango dell’EDT sotto la neve: lucine sulle fettucce, pacchi regalo e pupazzi di neve in mezzo alla pista, birra e fuochi d’artificio all’arrivo. Il 21 dicembre punti doppi.', event: 'xmas', difficulty: 1, sky: 7, limit: 58, unlock: 1, dense: 0,
+    obs: { 0: ['gift', 'snowman', 'log', 'gift'], 1: ['puddle', 'gift', 'puddle', 'snowman'], 2: ['gift', 'step', 'snowman', 'rock'], 3: ['rock', 'gift', 'step', 'snowman'] },
+    layout: [{ t: 0, len: 6, name: 'PARTENZA DAL BAR' }, { t: 1, len: 8, wet: 1, name: 'IL FANGO DELLA MADNESS' }, { t: 0, len: 7, name: 'IL BOSCO DEI REGALI' }, { t: 1, len: 6, down: 1, wet: 1, name: 'GIÙ NEL FANGO CHE SAPONE' }, { t: 2, len: 9, climb: .7, name: 'LA SALITA DI BABBO NATALE' }, { t: 1, len: 7, wet: 1, name: 'L’IGNORANZA È QUI' }, { t: 0, len: 6, down: 1, name: 'VERSO I FUOCHI' }] },
 ];
 // v59 · percorsi tolti dal menu (restano nell'elenco per non mescolare record e classifiche già salvati)
-export const SHOWN = () => MODES.filter(m => !m.hidden);
+// v127 · eventi a tempo: Christmas Madness dal 1° dicembre al 6 gennaio (con ?xmas=1 si vede prima, per le prove)
+export function xmasOn(d = new Date()) {
+  try { if (/[?&]xmas=1/.test(location.search) || localStorage.getItem('edt-xmas') === '1') return true; } catch {}
+  const m = d.getMonth(), g = d.getDate(); return m === 11 || (m === 0 && g <= 6);
+}
+export const xmasDouble = (d = new Date()) => d.getMonth() === 11 && d.getDate() === 21;   // la notte della Christmas Madness vera
+export const eventOn = ev => ev === 'xmas' ? xmasOn() : true;
+export const SHOWN = () => MODES.filter(m => !m.hidden && (!m.event || eventOn(m.event)));
 export const isUnlocked = (m, level = levelInfo().level) => level >= (m.unlock || 1);
 // v106.5 · percorso della settimana: cambia ogni lunedì e porta il doppio delle birre al rifugio
 export function weeklyTrack(d = new Date()) {
@@ -78,6 +90,7 @@ export const LIVERIES = [
   // v107.3 · la maglia vera del club: si sblocca tornando 3 giorni di fila (forziere del giorno)
   { id: 'semplice', name: 'Endurista Semplice', icon: '👕', level: 1, streak: 3, shirt: 'semplice', plastic: '#e93825', accent: '#141414', jersey: '#f4f3ee', pants: '#1c1e20', helmet: '#1b1b1b' },
   { id: 'oro', name: 'Oro Leggenda', icon: '🏆', level: 9, plastic: '#d9a826', accent: '#111111', jersey: '#141414', pants: '#141414', helmet: '#e7b934', pattern: 'righe', ink: '#f6d46a' },
+  { id: 'babbo', name: 'Babbo Natale', icon: '🎅', level: 1, xmas: true, plastic: '#d8262f', accent: '#ffffff', jersey: '#d8262f', pants: '#1d1d1b', helmet: '#ffffff' },   // v127 · si vince finendo la Christmas Madness
 ];
 
 export const GRADES = ['Ruote pulite', 'Turista del sentiero', 'Sterratore', 'Fangoso', 'Manico', 'Capo-gita', 'Re della mulattiera', 'Domatore di salitoni', 'Leggenda EDT'];
@@ -303,6 +316,7 @@ export const PRIZES = [
 export function takeBoosts() { const b = data.boosts; data.boosts = {}; save(); return b; }
 export function pendingBoosts() { return Object.keys(data.boosts).filter(k => data.boosts[k]); }
 
+export function markXmasWin() { if (!data.xmasWin) { data.xmasWin = 1; save(); return true; } return false; }   // v127
 export function save() {
   try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
 }
@@ -317,7 +331,7 @@ export function levelInfo(xp = data.xp) {
   return { level, grade, into: xp - floor, need, pct: (xp - floor) / need };
 }
 
-export const liveryOpen = (l, level = levelInfo().level) => l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
+export const liveryOpen = (l, level = levelInfo().level) => l.xmas ? !!data.xmasWin : l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
 export function unlockedLiveries(level = levelInfo().level) {
   return LIVERIES.filter(l => liveryOpen(l, level));
 }

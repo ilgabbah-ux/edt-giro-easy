@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=adbab097';
-import { createWorld } from './scene3d.js?v=33a0ce53';
-import * as A from './audio.js?v=55b7fbfc';
-import * as P from './progress.js?v=91d6b436';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=55332041';
+import { createWorld } from './scene3d.js?v=1488cc83';
+import * as A from './audio.js?v=bc8ece9d';
+import * as P from './progress.js?v=c208a044';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=2bfbc3ea';
-import * as C from './classifica.js?v=ffc9096f';
+import * as C from './classifica.js?v=67f4a9be';
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -154,6 +154,7 @@ if (!RIDERS.includes(profile.rider) && !isCustom()) profile.rider = RIDERS[0];
 if (!C.edtDecided()) C.setEdt((profile.xp || 0) > 0 && !profile.custom);
 const grpLabel = () => C.isEdt() ? 'CLASSIFICA EDT' : 'CLASSIFICA DI TUTTI';
 let mode = Math.min(P.MODES.length - 1, Math.max(0, profile.mode | 0));
+if (P.MODES[mode]?.event && !P.eventOn(P.MODES[mode].event)) mode = 0;   // v127 · evento finito: si torna all'Easy
 if (P.MODES[mode]?.hidden) mode = 0;   // v59 · percorso tolto: si torna al Giro easy
 if (!P.isUnlocked(P.MODES[mode])) mode = 0;
 // v106.5 · link "batti il mio fantasma": ?fantasma=Nome&p=percorso
@@ -230,7 +231,7 @@ const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RU
 const rule = id => mode === 3 && dailyRule().id === id;
 const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
-const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch' };
+const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
 const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
@@ -714,6 +715,7 @@ function finish(win, reason = '') {
   }
   run.position = rivals.length ? racePos() : 0;
   if (win && run.position === 1 && !leap) score += 500;
+  if (mode === 17 && P.xmasDouble() && !leap) { score *= 2; run.xmasDouble = 1; }   // v127 · 21 dicembre: la notte della Christmas Madness vale doppio
   score = Math.floor(score);
   run.score = score;
   const finished = win ? 1 : 0;
@@ -737,7 +739,8 @@ function finish(win, reason = '') {
   if (!tut) { const chest = P.claimDaily() || pendingChest; pendingChest = null; if (chest) setTimeout(() => { if (state === 'ended' && !$('chestpop')) showChest(chest); else pendingChest = chest; }, win ? 2200 : 1100); }
   if (gev) A.sfx.whistle();
   if (win) buzz([60, 70, 60, 70, 160]);
-  if (win) celebrate(P.currentParts().festa?.id);
+  if (win) celebrate(mode === 17 ? 'fuochi' : P.currentParts().festa?.id);
+  if (win && mode === 17 && P.markXmasWin()) setTimeout(() => toast('🎅 MAGLIA «BABBO NATALE» SBLOCCATA: LA TROVI NEL GARAGE', 'gold'), 2500);   // v127 · Christmas Madness: fuochi d'artificio all'arrivo
   if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => { if (!riderLine('win')) voice('Sììì, così si fa!', true); }, 900); }
   else A.sfx.lose();
   renderSide();
@@ -1774,7 +1777,8 @@ function setupRace() {
   if (P.MODES[mode].rainy) weatherPlan = [{ kind: 'rain', from: 0, to: 999 }, { kind: 'fog', from: 20 + rng() * 15, to: 45 + rng() * 10 }];
   if (rule('rain')) weatherPlan = [{ kind: 'rain', from: 0, to: 999 }];
   if (rule('fog')) weatherPlan = [{ kind: 'fog', from: 0, to: 999 }];
-  if (feat('night')) weatherPlan.push({ kind: 'night', from: 0, to: 999 });   // v84 · MotoFogna (e la notturna del giorno)
+  if (feat('night')) weatherPlan.push({ kind: 'night', from: 0, to: 999 });
+  if (mode === 17) weatherPlan = [{ kind: 'dusk', from: 24 + rng() * 10, to: 999 }];   // v127 · Christmas Madness: niente pioggia, scende la sera   // v84 · MotoFogna (e la notturna del giorno)
   // v97 · ora e meteo diversi a ogni giro: tramonto o nebbia del mattino a caso, così lo stesso percorso cambia faccia
   timeOfDay = '';
   if (!P.MODES[mode].ice && !P.MODES[mode].leap && !feat('night') && !P.MODES[mode].rainy && mode !== 3 && !weatherPlan.length) {
@@ -2428,7 +2432,7 @@ function update(dt) {
         run.jumps++;
         const perfect = has('precise') ? phase > .2 && phase < .8 : isPerfectJump(phase);
         const base = o.type === 'rock' || o.type === 'rollRock' || o.type === 'rollHay' || o.type === 'ibex' ? 200 : o.type === 'bigLog' ? 250 : o.type === 'goat' ? 220 : 150;
-        const names = { rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hen: 'GALLINA SALTATA!', grapeCrate: 'CASSETTA SALTATA!', dolmen: 'DOLMEN VOLATO!', manhole: 'TOMBINO SALTATO!', boar: 'CINGHIALE SALTATO!', barrier: 'BLOCCO SALTATO!', rollHay: 'ROTOBALLA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!', cone: 'BIRILLO SALTATO!', tyre: 'COPERTONE SALTATO!', sign: 'DIVIETO IGNORATO!', barrier: 'TRANSENNA VOLATA!' };
+        const names = { gift: 'PACCO SALTATO!', rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hen: 'GALLINA SALTATA!', grapeCrate: 'CASSETTA SALTATA!', dolmen: 'DOLMEN VOLATO!', manhole: 'TOMBINO SALTATO!', boar: 'CINGHIALE SALTATO!', barrier: 'BLOCCO SALTATO!', rollHay: 'ROTOBALLA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!', cone: 'BIRILLO SALTATO!', tyre: 'COPERTONE SALTATO!', sign: 'DIVIETO IGNORATO!', barrier: 'TRANSENNA VOLATA!' };
         if (perfect) { run.perfect++; A.sfx.perfect(); if (touchDevice && navigator.vibrate) try { buzz([10, 40, 10]); } catch {} reward(Math.round(base * (has('precise') ? 2 : 1.5)), 'SALTO PERFETTO!', 'perfect'); flash('gold'); slowmo = .3; slowScale = .45; }
         else { reward(base, names[o.type] || 'BEL SALTO!', 'jump'); if (touchDevice && navigator.vibrate) try { buzz(8); } catch {} }
       } else if (wheelie && (o.type === 'root' || o.type === 'puddle')) {
@@ -2471,7 +2475,7 @@ function update(dt) {
         fallT = .001; slowmo = 0; { const fl = FALL_LINES[Math.floor(Math.random() * FALL_LINES.length)]; run.fallLine = fl; if (lives > 0 && Math.random() < .5) setTimeout(() => { if (state === 'playing') bigCall(fl); }, 380); }   // v122 · la frase resta per la schermata finale   // v119 · caduta vera: il pilota vola giù dalla moto
         if (wheelie) endWheelie(false);
         if (o.type === 'dolmen') run.dolmenHit = 1;
-        const lines = { trincia: 'TRINCIATO DAL GUSTA.', rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hen: 'COCCODÈ. PIUME OVUNQUE.', grapeCrate: 'MOSTO DAPPERTUTTO.', dolmen: 'IL DOLMEN DI COSTA NON SI SPOSTA.', cow: 'MUUU. LA MUCCA HA VINTO.', manhole: 'DENTRO IL TOMBINO.', boar: 'IL CINGHIALE NON PERDONA.', deer: 'CORNA DEL CERVO.', rollHay: 'ARROTOBALLATO DAL GUSTA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
+        const lines = { gift: 'REGALO APERTO IN ANTICIPO.', snowman: 'PUPAZZO ABBATTUTO. NATALE ROVINATO.', trincia: 'TRINCIATO DAL GUSTA.', rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hen: 'COCCODÈ. PIUME OVUNQUE.', grapeCrate: 'MOSTO DAPPERTUTTO.', dolmen: 'IL DOLMEN DI COSTA NON SI SPOSTA.', cow: 'MUUU. LA MUCCA HA VINTO.', manhole: 'DENTRO IL TOMBINO.', boar: 'IL CINGHIALE NON PERDONA.', deer: 'CORNA DEL CERVO.', rollHay: 'ARROTOBALLATO DAL GUSTA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
         if (o.type === 'tree') slalomN = 0;
         // v49 · Erika anche su ogni albero di MontaFiga
         if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
@@ -2925,6 +2929,13 @@ function renderShop(back, tab = shopTab) {
   $('shopback').onclick = back;
   { const got = P.claimCollections(); if (got.length) { const c = got[0]; A.sfx.fanfare?.(); bigCall(c.icon + ' COLLEZIONE COMPLETA!'); toast(`🏅 ${c.name.toUpperCase()}: +${c.prize} 🍺 E IL TITOLO ACCANTO AL PILOTA`, 'gold'); renderShop(back); } }
 }
+// v127 · Christmas Madness: banner in home durante l'evento (tocca e vai sul percorso)
+function xmasChipHTML() {
+  if (!P.xmasOn()) return '';
+  const d = new Date(), y = d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear(), night = new Date(y, 11, 21), days = Math.ceil((night - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+  const sub = P.xmasDouble() ? '<b>STASERA PUNTI DOPPI</b> · è la notte della Madness' : days > 0 ? `mancano <b>${days} ${days === 1 ? 'giorno' : 'giorni'}</b> alla notte del 21: punti doppi` : 'fino all’Epifania · Re del Natale in classifica';
+  return `<button type="button" class="xmaschip" id="xmaschip">${icon('gift')}<span><small>EVENTO DI NATALE</small><b>CHRISTMAS MADNESS</b><em>${sub}</em></span>${icon('chevrons')}</button>`;
+}
 function renderReady() {
   try { window.__edtCheckUpdate?.(); } catch {}   // v125.3 · a ogni ritorno al menu controlla se c'è una versione nuova
   state = 'ready';
@@ -2965,6 +2976,7 @@ function renderReady() {
       <div class="thdots" aria-hidden="true">${heroList.map(m => `<i class="${m.id === mode ? 'on' : ''}"></i>`).join('')}</div>` : ''}
     </div>
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + (A.STYLES[mode] || A.STYLES[0]).name}</small></span>${icon('chevrons')}</button>
+    ${xmasChipHTML()}
     ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
     <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
     ${dailyChipHTML()}
@@ -2995,6 +3007,7 @@ function renderReady() {
   iconizeEl($('card'));
   $('start').onclick = () => { if (duel) duel.racing = false; start(); };
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
+  $('xmaschip')?.addEventListener('click', () => { A.sfx.click(); mode = 17; profile.mode = mode; P.save(); renderReady(); });   // v127
   $('openshop').onclick = () => renderShop(renderReady);
   $('opengarage').onclick = () => { A.sfx.click(); showHub('garage'); const sec = document.querySelector('[data-hub="garage"]'); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   $('alltracks').onclick = () => { A.sfx.click(); renderTracks(renderReady); };
@@ -3645,7 +3658,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 126;
+const GAME_VERSION = 127;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3777,15 +3790,15 @@ function renderSide() {
   const fromPanel = fn => { const was = !!maxPanel; if (was) closePanel(false); fn(); setTimeout(() => { $('game').scrollIntoView({ behavior: 'auto', block: 'start' }); if (was && touchDevice) goFull(); }, was ? 300 : 0); };
   $('shopside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady)); };
   $('bikeside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes')); };
-  $('liveries').innerHTML = P.LIVERIES.map(l => {
-    const locked = !P.liveryOpen(l, info.level), why = l.streak ? `Si sblocca tornando ${l.streak} giorni di fila (forziere del giorno)` : 'Si sblocca al livello ' + l.level;
+  $('liveries').innerHTML = P.LIVERIES.filter(l => !l.xmas || P.liveryOpen(l) || P.xmasOn()).map(l => {
+    const locked = !P.liveryOpen(l, info.level), why = l.xmas ? 'Si vince finendo la Christmas Madness' : l.streak ? `Si sblocca tornando ${l.streak} giorni di fila (forziere del giorno)` : 'Si sblocca al livello ' + l.level;
     return `<button type="button" class="livery ${l.id === current.id ? 'active' : ''} ${l.shirt ? 'shirt' : ''}" data-livery="${l.id}" ${locked ? 'aria-disabled="true"' : ''} title="${locked ? why : l.name}">
-      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}">${l.shirt ? `<img class="lvshirt" src="img/maglia-${l.shirt}.webp" alt="" loading="lazy">` : `<b class="lvicon">${l.icon || ''}</b>`}</i><span>${locked ? (l.streak ? '🔒 ' + l.streak + ' GIORNI DI FILA' : '🔒 LIV ' + l.level) : l.name}</span></button>`;
+      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}">${l.shirt ? `<img class="lvshirt" src="img/maglia-${l.shirt}.webp" alt="" loading="lazy">` : `<b class="lvicon">${l.icon || ''}</b>`}</i><span>${locked ? (l.xmas ? '🔒 CHRISTMAS MADNESS' : l.streak ? '🔒 ' + l.streak + ' GIORNI DI FILA' : '🔒 LIV ' + l.level) : l.name}</span></button>`;
   }).join('');
   document.querySelectorAll('[data-livery]').forEach(b => b.onclick = () => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;
     const l = P.LIVERIES.find(x => x.id === b.dataset.livery);
-    if (!P.liveryOpen(l)) { if (l.streak) toast('TORNA ' + l.streak + ' GIORNI DI FILA E LA MAGLIA È TUA (OGGI: ' + P.dailyInfo().streak + ')'); b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); return; }
+    if (!P.liveryOpen(l)) { if (l.xmas) toast('FINISCI LA CHRISTMAS MADNESS E LA MAGLIA DI BABBO NATALE È TUA'); else if (l.streak) toast('TORNA ' + l.streak + ' GIORNI DI FILA E LA MAGLIA È TUA (OGGI: ' + P.dailyInfo().streak + ')'); b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); return; }
     profile.livery = l.id; P.save(); A.sfx.click(); renderSide();
   });
 

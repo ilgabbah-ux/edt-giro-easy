@@ -1876,3 +1876,14 @@ aside#hub { gap: 10px; }
 .phpick b { font: italic 800 15px var(--display, inherit); letter-spacing: 1px; color: var(--y); }
 .phpick small { font: 600 13px var(--ui); opacity: .8; }
 .rideroption .rc-photo.rc-me { object-fit: cover; object-position: 50% 40%; }
+
+/* v127 · Christmas Madness */
+.xmaschip { width: 100%; display: flex; align-items: center; gap: 12px; margin: 10px 0 4px; padding: 10px 14px; border: 0; border-left: 4px solid #e3301c; cursor: pointer; text-align: left; color: #fff;
+  background: linear-gradient(100deg, #7d1218f0, #b81e25e6 55%, #1f6a3ae0); box-shadow: 0 6px 18px #0006; clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
+.xmaschip > svg { width: 30px; height: 30px; flex: none; color: #ffd23a; }
+.xmaschip > svg:last-child { width: 20px; height: 20px; margin-left: auto; color: #fff; }
+.xmaschip span { display: flex; flex-direction: column; gap: 1px; }
+.xmaschip small { font: 800 10px var(--ui); letter-spacing: 2px; color: #ffd9a0; }
+.xmaschip b { font: italic 400 22px/1 var(--display); letter-spacing: .5px; }
+.xmaschip em { font: 600 13px var(--ui); font-style: normal; opacity: .92; }
+.xmaschip em b { font: inherit; color: #ffd23a; }

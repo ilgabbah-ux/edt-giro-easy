@@ -39,7 +39,7 @@ export const cachedGroup = g => g === myGrp() ? cache : other[g]?.d || null;
 // Quando cambia qualcosa che sposta tempi o punti si alza "from" (e il numero della stagione): i giri vecchi
 // restano nel foglio e si vedono nell'archivio. ACTIVE = percorsi nel menu (solo questi danno punti coppa).
 export const SEASON = { n: 10, from: 107 };   // v107 · lunedì 19/10: scia, salto tollerante, botte meno punitive, gas in salita: stagione 10   // v97 · moto e accessori nuovi più forti: stagione nuova   // v96 · lunedì 12/10: potenziamenti speciali dell'officina, stagione nuova
-export const ACTIVE = '0,1,2,3,9,10,11,12,13,14,15,16';
+export const ACTIVE = '0,1,2,3,9,10,11,12,13,14,15,16,17';   // v127 · 17 = Christmas Madness (solo a Natale)
 export const FALLS_MODE = 19;   // v122 · classifica delle cadute: riga col totale di cadute del pilota nel campo punti (lo script la tratta come un percorso in più, fuori dalla coppa)
 
 export function dayISO(d = new Date()) {
