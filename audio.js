@@ -506,6 +506,14 @@ STYLES[16] = { ...STYLES[0], file: 'musica/ethereal-hammer.mp3', name: 'Ethereal
 STYLES[17] = { ...STYLES[0], file: 'musica/christmas-madness.mp3', name: 'Christmas Madness · Il GaBbAH' };   // v127 · evento di Natale
 STYLES[18] = { ...STYLES[0], file: 'musica/angelo-vs-gabbah.mp3', name: 'Angelo vs Gabbah · Il GaBbAH' };   // v105.4 · sfide a due (duello) · v127 spostata da 17 a 18
 export const DUEL_STYLE = 18;
+// v131 · RADIO EDT: altre canzoni del GaBbAH, da sbloccare giocando (19 = inno del Campionato EDT)
+STYLES[19] = { ...STYLES[0], file: 'musica/re-dell-ignoranza.mp3', name: 'Il Re dell’Ignoranza · Il GaBbAH' };
+STYLES[20] = { ...STYLES[0], file: 'musica/bosco-dell-ignoranza.mp3', name: 'Il Bosco dell’Ignoranza · Il GaBbAH' };
+STYLES[21] = { ...STYLES[0], file: 'musica/mirco-e-gabbah-fest.mp3', name: 'Mirco e Gabbah Fest Edition · Il GaBbAH' };
+STYLES[22] = { ...STYLES[0], file: 'musica/leventino-2026.mp3', name: 'Leventino 2026 · Il GaBbAH' };
+STYLES[23] = { ...STYLES[0], file: 'musica/orto-bio.mp3', name: 'Orto Bio · Il GaBbAH' };
+STYLES[24] = { ...STYLES[0], file: 'musica/gas-a-martello.mp3', name: 'Gas a martello (Gusta Ranch Reloaded) · Il GaBbAH' };
+export const CHAMP_STYLE = 19;
 for (let i = 0; i < STYLES.length; i++) if (!STYLES[i].file) STYLES[i] = { ...STYLES[i], file: 'musica/giro-easy.mp3', name: 'Giro Easy · Il GaBbAH' };
 // v57 · brani registrati (MP3): caricati una volta sola; la canzone riparte da dove si era fermata al giro prima.
 const songBuf = {}, songPos = {}, songLoad = {};

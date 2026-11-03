@@ -335,7 +335,7 @@ export const starTimes = m => { const L = MODES[m]?.limit || 58; return { silver
 export const starsFor = m => (data.stars || {})[m] || 0;
 export const totalStars = () => STAR_MODES.reduce((a, m) => a + starsFor(m), 0);
 export const maxStars = () => STAR_MODES.length * 3;
-export const STAR_PRIZES = [{ at: 9, beers: 150, text: '+150 birre' }, { at: 18, livery: 'stelle', text: 'la maglia «Stellare»' }, { at: 27, beers: 1000, text: '+1000 birre e il titolo «Re delle stelle»' }];
+export const STAR_PRIZES = [{ at: 9, beers: 150, text: '+150 birre e «Il Bosco dell’Ignoranza» in radio' }, { at: 18, livery: 'stelle', text: 'la maglia «Stellare» e «Gas a martello» in radio' }, { at: 27, beers: 1000, text: '+1000 birre e il titolo «Re delle stelle»' }];
 export function recordStars(m, win, time, hits) {
   if (!STAR_MODES.includes(m) || !win) return null;
   const t = starTimes(m), got = 1 + (time <= t.silver ? 1 : 0) + (time <= t.gold && !hits ? 1 : 0);
@@ -361,11 +361,28 @@ export function champRecord(order, dnf = false) {
   const c = champ(); if (!c) return null;
   order.forEach((n, k) => { if (!(dnf && n === '__me')) c.pts[n] = (c.pts[n] || 0) + (CHAMP_POINTS[k] || 0); });
   c.last = order; c.i++;
-  if (c.i >= c.tracks.length) { c.over = true; const rank = Object.entries(c.pts).sort((a, b) => b[1] - a[1]).map(x => x[0]); c.final = rank; const pos = rank.indexOf('__me') + 1; c.prize = [0, 400, 200, 100, 0][pos] || 0; data.beers += c.prize; if (pos === 1) data.champWins = (data.champWins || 0) + 1; }
+  if (c.i >= c.tracks.length) { c.over = true; const rank = Object.entries(c.pts).sort((a, b) => b[1] - a[1]).map(x => x[0]); c.final = rank; const pos = rank.indexOf('__me') + 1; c.prize = [0, 400, 200, 100, 0][pos] || 0; data.beers += c.prize; if (pos === 1) data.champWins = (data.champWins || 0) + 1; data.champDone = (data.champDone || 0) + 1; }
   save(); return c;
 }
 export function champQuit() { if (data.champ) { data.champ.over = true; data.champ.quit = true; save(); } }
 export const lastChamp = () => data.champ || null;
+
+// v131 · RADIO EDT: le canzoni dei percorsi sono sempre in radio; queste si sbloccano (id = indice della canzone in audio.js)
+export const RADIO_EXTRA = [
+  { id: 19, how: 'Finisci un Campionato EDT', ok: () => !!(data.champDone || data.champWins) },
+  { id: 20, how: '9 stelle', ok: () => totalStars() >= 9 },
+  { id: 24, how: '18 stelle', ok: () => totalStars() >= 18 },
+  { id: 21, how: 'Livello 5', ok: () => levelInfo().level >= 5 },
+  { id: 23, how: 'Livello 7', ok: () => levelInfo().level >= 7 },
+  { id: 22, how: 'Vinci un Campionato EDT', ok: () => (data.champWins || 0) > 0 },
+];
+export const radioOpen = id => { const x = RADIO_EXTRA.find(r => r.id === id); return !x || x.ok(); };
+export function radioNew() {   // canzoni appena sbloccate (una volta sola)
+  data.radioSeen = data.radioSeen || [];
+  const nw = RADIO_EXTRA.filter(r => r.ok() && !data.radioSeen.includes(r.id)).map(r => r.id);
+  if (nw.length) { data.radioSeen.push(...nw); save(); }
+  return nw;
+}
 
 // v129 · MISSIONI DEL PILOTA NUOVO: 5 cose da fare nei primi giorni, in premio la maglia "Debuttante EDT".
 // Partono solo per chi ha fatto meno di 12 giri quando le vede la prima volta (i veterani non le hanno).

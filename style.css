@@ -1920,7 +1920,7 @@ aside#hub { gap: 10px; }
 .mode .stars.mini { margin-top: 3px; }
 .thstars { display: block; margin: 2px 0 1px; }
 .thstars .stars i svg { width: 22px; height: 22px; }
-.homeduo { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 10px 0 4px; }
+.homeduo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0 4px; }
 .homeduo button { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border: 0; cursor: pointer; text-align: left; color: #fff; background: linear-gradient(180deg, #23241df2, #16170fe8); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
 .homeduo .champchip { border-left: 4px solid var(--y); }
 .homeduo .champchip.on { background: linear-gradient(90deg, #3a2f08, #1a1a12); }
@@ -1988,3 +1988,17 @@ aside#hub { gap: 10px; }
 .wgo .st, #champgo .st { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .wgo .st small, #champgo .st small { font-size: 12px; letter-spacing: 1px; opacity: .8; }
 .welcome #wcustom { width: 100%; white-space: normal; }
+
+/* v131 · radio EDT */
+.homeduo .radiochip { padding-right: 16px; }
+.radiolist { display: grid; gap: 5px; margin: 10px 0 14px; }
+.radiorow { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border: 0; background: #1d1e19; color: #fff; text-align: left; cursor: pointer; border-left: 4px solid transparent; }
+.radiorow > svg { width: 20px; height: 20px; flex: none; color: var(--y); }
+.radiorow span { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.radiorow b { font: 700 16px/1.15 var(--ui); } .radiorow small { font: 600 12.5px var(--ui); color: var(--muted, #b9b2a2); }
+.radiorow.on { border-left-color: var(--y); background: #2c2a17; }
+.radiorow.locked { opacity: .5; } .radiorow.locked > svg { color: #aaa; }
+.radiorow .rnew { font: 800 10px var(--ui); font-style: normal; letter-spacing: 1.5px; background: var(--y); color: #1d1a10; padding: 3px 6px; }
+.radiorow.nope { animation: shake .3s; }
+@media (max-width: 380px) { .homeduo b { font-size: 16px; } .homeduo button { padding: 8px 10px; gap: 7px; } }
+.homeduo .champchip { grid-column: 1 / -1; }

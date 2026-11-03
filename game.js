@@ -1,11 +1,11 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=55332041';
 import { createWorld } from './scene3d.js?v=b0be6657';
-import * as A from './audio.js?v=267a7d1b';
-import * as P from './progress.js?v=ff32256f';
+import * as A from './audio.js?v=c71ef50f';
+import * as P from './progress.js?v=6f713d1d';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=9bb92cbe';
+import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=f992d114';
 import * as C from './classifica.js?v=67f4a9be';
 import * as D from './duel.js?v=db2f059d';
 
@@ -670,7 +670,8 @@ function start() {
 function startMusic() {
   const md = P.MODES[mode];
   const transpose = md.random === 'daily' ? (P.todayKey() % 5) - 2 : md.random === 'run' ? Math.floor(Math.random() * 5) - 2 : 0;
-  A.musicStart(duel?.racing ? A.DUEL_STYLE : mode, { transpose });   // v105.4 · nel duello suona "Angelo vs Gabbah"
+  const rs = radioPick();
+  A.musicStart(duel?.racing ? A.DUEL_STYLE : champRun ? A.CHAMP_STYLE : rs ?? mode, { transpose: rs == null ? transpose : 0 });   // v131 · campionato: «Il Re dell'Ignoranza» · radio EDT   // v105.4 · nel duello suona "Angelo vs Gabbah"
 }
 function go() {
   $('tipcard')?.classList.remove('show');
@@ -746,6 +747,7 @@ function finish(win, reason = '') {
   if (win) buzz([60, 70, 60, 70, 160]);
   if (win) celebrate(mode === 17 ? 'fuochi' : P.currentParts().festa?.id);
   setTimeout(() => { if (win && mode === 0) starterTick('easy'); if (run.perfect >= 3) starterTick('perfect'); P.starterAuto().forEach(starterTick); }, 1800);   // v129
+  setTimeout(() => P.radioNew().forEach((id, k) => setTimeout(() => toast('📻 NUOVA CANZONE IN RADIO EDT: ' + songName(id).split(' · ')[0].toUpperCase(), 'gold'), k * 2600)), 3400);   // v131
   if (win && mode === 17 && P.markXmasWin()) setTimeout(() => toast('🎅 MAGLIA «BABBO NATALE» SBLOCCATA: LA TROVI NEL GARAGE', 'gold'), 2500);   // v127 · Christmas Madness: fuochi d'artificio all'arrivo
   if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => { if (!riderLine('win')) voice('Sììì, così si fa!', true); }, 900); }
   else A.sfx.lose();
@@ -3019,7 +3021,8 @@ function champFinish(win) {
 function champChipHTML() {
   const c = P.champ(), tot = P.totalStars();
   return `<div class="homeduo"><button class="champchip ${c ? 'on' : ''}" id="champchip" type="button">${icon('trophy')}<span><small>CAMPIONATO EDT</small><b>${c ? `GARA ${c.i + 1} DI ${c.tracks.length} · SEI ${champPos(c)}°` : '5 GARE · 3 RIVALI · 1 COPPA'}</b></span></button>
-    <button class="starchip" id="starchip" type="button">${icon('star')}<span><small>STELLE</small><b>${tot}<i>/${P.maxStars()}</i></b></span></button></div>`;
+    <button class="starchip" id="starchip" type="button">${icon('star')}<span><small>STELLE</small><b>${tot}<i>/${P.maxStars()}</i></b></span></button>
+    <button class="radiochip" id="radiochip" type="button">${icon('speaker')}<span><small>RADIO</small><b>EDT</b></span></button></div>`;
 }
 function renderStars() {
   state = 'ready'; setMenu(true); $('overlay').classList.remove('hidden');
@@ -3084,6 +3087,37 @@ function starResHTML(res) {
   return `<div class="starres ${nw ? 'new' : ''}">${starsHTML(n)}<span><b>${nw ? (st.got - st.before > 1 ? 'NUOVE STELLE!' : 'NUOVA STELLA!') : n ? 'LE TUE STELLE QUI' : 'NESSUNA STELLA ANCORA'}</b><small>${starGoal(mode)} · totale ${P.totalStars()}/${P.maxStars()}</small></span></div>${(st?.prizes || []).map(z => `<div class="unlock trophy"><i class="ic-holder">${icon('star')}</i><span>PREMIO DELLE ${z.at} STELLE: <b>${z.text}</b>${z.livery ? ' · la trovi nel garage' : ''}</span></div>`).join('')}`;
 }
 
+// v131 · RADIO EDT: scegli la canzone del giro (quella del percorso o una sbloccata)
+const songName = i => (A.STYLES[i] || A.STYLES[0]).name;
+const radioPick = () => { const r = profile.radio; return r != null && A.STYLES[r]?.file && P.radioOpen(r) ? r : null; };
+function radioList() {
+  const seen = new Set(), out = [];
+  for (const x of P.RADIO_EXTRA) out.push({ id: x.id, open: x.ok(), how: x.how, extra: true });   // prima le canzoni nuove da sbloccare
+  for (let i = 0; i <= 18; i++) { const f = A.STYLES[i]?.file; if (!f || seen.has(f)) continue; seen.add(f); out.push({ id: i, open: true }); }
+  return out;
+}
+function renderRadio() {
+  state = 'ready'; setMenu(true); $('overlay').classList.remove('hidden');
+  const cur = radioPick(), L = radioList(), nOpen = L.filter(s => s.open).length;
+  $('card').innerHTML = `<div class="eyebrow">RADIO EDT · ${nOpen} CANZONI SU ${L.length}</div><h1 class="shoptitle">COSA SI<br><em>ASCOLTA?</em></h1>
+    <p>Scegli la canzone dei tuoi giri: tocca per sentirla. Le canzoni nuove del GaBbAH si sbloccano giocando.</p>
+    <div class="radiolist">
+      <button type="button" class="radiorow auto ${cur == null ? 'on' : ''}" data-radio="auto">${icon('shuffle')}<span><b>LA CANZONE DEL PERCORSO</b><small>ogni tracciato la sua (consigliato)</small></span></button>
+      ${L.map(s => { const [t, a] = songName(s.id).split(' · '); return `<button type="button" class="radiorow ${s.open ? '' : 'locked'} ${cur === s.id ? 'on' : ''} ${s.extra ? 'extra' : ''}" data-radio="${s.id}">${icon(s.open ? (cur === s.id ? 'check' : 'play') : 'lock')}<span><b>${t}</b><small>${s.open ? (s.extra ? 'sbloccata · ' : '') + (a || '') : s.how}</small></span>${s.extra && s.open ? '<i class="rnew">NUOVA</i>' : ''}</button>`; }).join('')}
+    </div>
+    <button class="primary" id="radiook" type="button"><span>FATTO</span></button>`;
+  iconizeEl($('card'));
+  $('radiook').onclick = () => { A.sfx.click(); renderReady(); };
+  document.querySelectorAll('[data-radio]').forEach(b => b.onclick = () => {
+    const v = b.dataset.radio;
+    if (v === 'auto') { profile.radio = null; P.save(); A.unlock(); A.musicStart(0, { menu: true }); renderRadio(); return; }
+    const id = +v, s = L.find(x => x.id === id);
+    if (!s.open) { b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); toast('🔒 PER SBLOCCARLA: ' + s.how.toUpperCase(), 'red'); return; }
+    profile.radio = id; P.save(); A.unlock(); if (A.isMusicOn()) A.musicStart(id, { menu: true }); else toast('🔇 LA MUSICA È SPENTA: ACCENDILA DAL MENU', 'red');
+    renderRadio();
+  });
+}
+
 function xmasChipHTML() {
   if (P.xmasTeaser()) { const dd = Math.ceil((new Date(new Date().getFullYear(), 11, 1) - new Date()) / 864e5); return `<div class="xmaschip soon">${icon('gift')}<span><small>IN ARRIVO</small><b>CHRISTMAS MADNESS</b><em>il percorso di Natale si apre tra <b>${dd} ${dd === 1 ? 'giorno' : 'giorni'}</b>: 1° dicembre</em></span></div>`; }
   if (!P.xmasOn()) return '';
@@ -3132,7 +3166,7 @@ function renderReady() {
       ${heroList.length > 1 ? `<button class="thnav prev" id="thprev" type="button" aria-label="Percorso precedente">‹</button><button class="thnav next" id="thnext" type="button" aria-label="Percorso successivo">›</button>
       <div class="thdots" aria-hidden="true">${heroList.map(m => `<i class="${m.id === mode ? 'on' : ''}"></i>`).join('')}</div>` : ''}
     </div>
-    <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + (A.STYLES[mode] || A.STYLES[0]).name}</small></span>${icon('chevrons')}</button>
+    <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + songName(radioPick() ?? mode)}</small></span>${icon('chevrons')}</button>
     ${xmasChipHTML()}
     ${starterHTML()}
     ${champChipHTML()}
@@ -3168,6 +3202,7 @@ function renderReady() {
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
   $('champchip').onclick = () => { A.sfx.click(); renderChamp(); };   // v130
   $('starchip').onclick = () => { A.sfx.click(); renderStars(); };
+  $('radiochip').onclick = () => { A.sfx.click(); renderRadio(); };
   $('xmaschip')?.addEventListener('click', () => { A.sfx.click(); mode = 17; profile.mode = mode; P.save(); renderReady(); });   // v127
   $('openshop').onclick = () => renderShop(renderReady);
   $('opengarage').onclick = () => { A.sfx.click(); showHub('garage'); const sec = document.querySelector('[data-hub="garage"]'); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
@@ -3825,7 +3860,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 130;
+const GAME_VERSION = 131;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
