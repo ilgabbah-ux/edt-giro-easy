@@ -13,6 +13,7 @@
 //       del codice, non il codice). Chi usa lo stesso nome con un codice diverso non entra in classifica (taken: true).
 //       b = livello della moto (somma dei potenziamenti dell'officina), mostrato accanto al nome.
 // v108.5 · edtName: i nomi dei piloti EDT e quelli prenotati prima del 28/10/2026 vanno sempre nella classifica EDT (il gioco si sposta da solo).
+// v129 · ?action=stats → numeri del gioco per la pagina numeri.html (conteggi aggregati). Nuovo evento hit 'win' (arrivo al rifugio).
 // v126 · FOTO PROFILO: POST {name,k,img} (img = JPEG 96×96 in base64, '' = togli). Foglio "Foto" (una riga per nome);
 //       solo chi ha il codice del nome può cambiarla. Le classifiche mandano fv = {nome: versione}; le foto si scaricano
 //       a parte con ?action=foto&n=nome1,nome2 (max 40). Per togliere una foto sconcia: cancella la riga nel foglio "Foto".
@@ -188,7 +189,7 @@ function reply_(obj, cb) {
 // v108.6 · CONTATORE GIOCATORI: il gioco manda action=hit con kind = open (prima apertura del giorno), play (primo giro
 //       del giorno), new (primissima apertura su quel telefono), run (ogni giro finito). Una riga per evento nel foglio "Visite";
 //       il foglio "Riepilogo" fa i conti per giorno (dispositivi unici che aprono / giocano, nuovi, giri).
-const HIT_KINDS = ['open', 'play', 'new', 'run'];
+const HIT_KINDS = ['open', 'play', 'new', 'run', 'win'];   // v129 · win = giro arrivato al rifugio
 function visits_() {
   const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
   let s = ss.getSheetByName('Visite');
@@ -203,8 +204,9 @@ function hit_(p, day) {
   const kind = String(p.kind || ''); if (HIT_KINDS.indexOf(kind) < 0) return;
   const id = /^[a-z0-9]{6,16}$/.test(p.id || '') ? p.id : ''; if (!id) return;
   const c = CacheService.getScriptCache(), k = 'h|' + kind + '|' + id + '|' + day;
-  if (kind !== 'run' && c.get(k)) return;   // un evento a testa al giorno (tranne i giri)
-  if (kind !== 'run') c.put(k, '1', 21600);
+  const each = kind === 'run' || kind === 'win';
+  if (!each && c.get(k)) return;   // un evento a testa al giorno (tranne i giri)
+  if (!each) c.put(k, '1', 21600);
   visits_().appendRow([new Date(), day, kind, id, p.grp === 'pub' ? 'pub' : 'edt', clean_(p.v, 8)]);
 }
 // v108.6 · SOTTO CARICO: le classifiche si rifanno al massimo ogni 20 s per gruppo (cache), e si ricalcolano subito dopo un giro salvato.
@@ -224,10 +226,37 @@ function players_() {
 }
 function bump_(grp) { try { const c = CacheService.getScriptCache(); c.put('ver|' + grp, String(Date.now()), 21600); } catch (e) {} }
 
+// v129 · NUMERI DEL GIOCO (pagina numeri.html): telefoni al giorno, provenienza, ritorni, primo giro finito, percorsi. Solo conteggi, niente dati personali. In cache 5 minuti.
+const TRACK_NAMES = { 0: 'Giro easy', 1: 'Dopo migliora', 2: 'Angelo Potter', 3: 'Sfida del giorno', 9: 'Ice Scrofy', 10: 'MotoFogna', 11: 'Valle Argentera', 12: 'MontaFiga', 13: 'Anti-GEV', 14: 'Gusta Ranch', 15: 'Frontali', 16: 'Desertone', 17: 'Christmas Madness' };
+function stats_() {
+  const c = CacheService.getScriptCache(); const hit = c.get('stats'); if (hit) return JSON.parse(hit);
+  const s = visits_(), last = s.getLastRow(), rows = last > 1 ? s.getRange(2, 2, last - 1, 5).getValues() : [];
+  const today = Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd'), days = {}, dev = {}, src = {};
+  for (const r of rows) {
+    const d = ymd_(r[0]), k = String(r[1]), id = String(r[2]), v = String(r[4] || '');
+    const D = days[d] || (days[d] = { open: {}, play: {}, nw: 0, run: 0, win: 0 });
+    const P = dev[id] || (dev[id] = { first: d, days: {}, play: 0, win: 0 });
+    if (d < P.first) P.first = d;
+    if (k === 'open') { D.open[id] = 1; P.days[d] = 1; } else if (k === 'play') { D.play[id] = 1; P.days[d] = 1; P.play++; }
+    else if (k === 'new') { D.nw++; const m = /-([a-z]{2,6})$/.exec(v); const so = m ? m[1] : 'diretto'; src[so] = (src[so] || 0) + 1; }
+    else if (k === 'run') D.run++; else if (k === 'win') { D.win++; P.win++; }
+  }
+  const list = Object.keys(days).sort().slice(-30).map(d => ({ d: d, open: Object.keys(days[d].open).length, play: Object.keys(days[d].play).length, nw: days[d].nw, run: days[d].run, win: days[d].win }));
+  const ids = Object.keys(dev); let ret = 0, d1n = 0, d1r = 0, played = 0, won = 0;
+  for (const id of ids) { const P = dev[id], n = Object.keys(P.days).length; if (n >= 2) ret++; if (P.play) { played++; if (P.win) won++; }
+    if (P.first < today) { d1n++; const nx = new Date(P.first + 'T12:00:00Z'); nx.setUTCDate(nx.getUTCDate() + 1); if (P.days[Utilities.formatDate(nx, 'UTC', 'yyyy-MM-dd')]) d1r++; } }
+  // percorsi più giocati negli ultimi 7 giorni (giri salvati in classifica)
+  const sh = sheet_(), sl = sh.getLastRow(), from = new Date(Date.now() - 7 * 864e5), tr = {};
+  if (sl > 1) { const n = Math.min(sl - 1, 6000); sh.getRange(sl - n + 1, 1, n, 4).getValues().forEach(r => { if (r[0] instanceof Date && r[0] >= from) { const m = Number(r[3]); if (TRACK_NAMES[m]) tr[TRACK_NAMES[m]] = (tr[TRACK_NAMES[m]] || 0) + 1; } }); }
+  const out = { at: new Date().toISOString(), devices: ids.length, returning: ret, d1: d1n ? Math.round(d1r / d1n * 100) : 0, d1n: d1n, played: played, firstWin: played ? Math.round(won / played * 100) : 0, days: list, sources: src, tracks: tr };
+  try { c.put('stats', JSON.stringify(out), 300); } catch (e) {}
+  return out;
+}
 function doGet(e) {
   const p = (e && e.parameter) || {};
   const day = /^\d{4}-\d{2}-\d{2}$/.test(p.day || '') ? p.day : Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd');
   if (p.action === 'hit') { try { hit_(p, day); } catch (err) {} return reply_({ ok: true }, p.callback); }
+  if (p.action === 'stats') { let st = {}; try { st = stats_(); } catch (err) { st = { err: String(err) }; } return reply_({ ok: true, stats: st }, p.callback); }
   if (p.action === 'foto') { const n = String(p.n || '').toLowerCase().split(',').map(x => clean_(x, 16)).filter(Boolean).slice(0, 40); let f = {}; try { f = photoGet_(n); } catch (err) {} return reply_({ ok: true, f: f }, p.callback); }
   let saved = false, taken = false, edtName = false;
   if (p.action === 'add') {

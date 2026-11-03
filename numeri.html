@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Giro Easy · I numeri</title>
+<style>
+  @font-face { font-family: Anton; src: url(anton.woff2) format('woff2'); font-display: swap; }
+  @font-face { font-family: Barlow; src: url(barlow-condensed-latin-600-normal.woff2) format('woff2'); font-weight: 600; font-display: swap; }
+  @font-face { font-family: Barlow; src: url(barlow-condensed-latin-700-normal.woff2) format('woff2'); font-weight: 700; font-display: swap; }
+  :root { --bg: #0f100d; --card: #191a15; --line: #ffffff1a; --text: #f1eee4; --muted: #a8a496; --y: #f2c230; --g: #3ddc84; --r: #e3301c; --b: #4aa3ff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 600 16px/1.35 Barlow, system-ui, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 22px 16px 40px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 3px dashed var(--y); padding-bottom: 14px; margin-bottom: 18px; }
+  h1 { margin: 0; font: 400 clamp(34px, 7vw, 52px)/.95 Anton, Impact, sans-serif; letter-spacing: .5px; text-transform: uppercase; }
+  h1 em { color: var(--y); font-style: italic; }
+  .meta { color: var(--muted); font-size: 14px; text-align: right; }
+  .meta button { margin-top: 6px; background: var(--y); color: #1d1a10; border: 0; padding: 8px 14px; font: 700 14px Barlow, sans-serif; letter-spacing: 1px; cursor: pointer; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+  .kpi { background: var(--card); border-top: 4px solid var(--y); padding: 12px 14px; }
+  .kpi b { display: block; font: 400 38px/1 Anton, Impact, sans-serif; }
+  .kpi small { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; letter-spacing: .5px; text-transform: uppercase; }
+  .kpi em { display: block; font-style: normal; color: var(--text); font-size: 13px; margin-top: 2px; opacity: .8; }
+  section { background: var(--card); padding: 16px; margin-bottom: 14px; }
+  h2 { margin: 0 0 4px; font: 400 22px/1 Anton, Impact, sans-serif; text-transform: uppercase; letter-spacing: .5px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+  .legend { display: flex; gap: 16px; font-size: 13px; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
+  .chart { width: 100%; overflow-x: auto; }
+  .chart svg { display: block; width: 100%; height: auto; }
+  .hbar { display: grid; grid-template-columns: 140px 1fr 48px; align-items: center; gap: 10px; margin: 7px 0; font-size: 15px; }
+  .hbar .bar { height: 16px; background: #ffffff10; }
+  .hbar .bar span { display: block; height: 100%; background: var(--y); }
+  .hbar b { text-align: right; font-variant-numeric: tabular-nums; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .two section { margin: 0; }
+  .note { color: var(--muted); font-size: 13px; margin-top: 18px; }
+  .err { background: #3a1512; border-left: 4px solid var(--r); padding: 12px 14px; }
+  @media (max-width: 720px) { .kpis { grid-template-columns: 1fr 1fr; } .two { grid-template-columns: 1fr; } .hbar { grid-template-columns: 110px 1fr 40px; } .meta { text-align: left; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Giro Easy · <em>i numeri</em></h1>
+    <div class="meta"><span id="when">Carico…</span><br><button type="button" id="reload">AGGIORNA</button></div>
+  </header>
+  <div id="app"><p class="sub">Carico i numeri dal foglio della classifica…</p></div>
+  <p class="note">Solo conteggi: ogni telefono è un codice a caso, nessun dato personale. Si aggiorna al massimo ogni 5 minuti. «Da dove arrivano» conta i link con ?da= (ig, tt, yt, fb, wa…); chi apre il link senza codice è «diretto».</p>
+</main>
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbxb8Ky6HSkHLF01ZT-ku_oGIVbS9Fl2pFT427gk38hx_mCL_DQn81IqEl3OtTKykeY/exec';
+const SRC = { ig: 'Instagram', tt: 'TikTok', yt: 'YouTube', fb: 'Facebook', wa: 'WhatsApp', amici: 'Cartolina condivisa', diretto: 'Diretto (senza codice)' };
+const $ = id => document.getElementById(id);
+const fmt = n => Number(n || 0).toLocaleString('it-IT');
+function jsonp(url) { return new Promise((ok, ko) => { const cb = '__n' + Math.random().toString(36).slice(2), s = document.createElement('script'); window[cb] = d => { delete window[cb]; s.remove(); ok(d); }; s.onerror = () => ko(new Error('rete')); s.src = url + '&callback=' + cb; document.head.appendChild(s); }); }
+async function load() {
+  $('when').textContent = 'Carico…';
+  const url = API + '?action=stats&t=' + Date.now();
+  let d; try { d = await fetch(url, { redirect: 'follow' }).then(r => r.json()); } catch { d = await jsonp(url).catch(() => null); }
+  if (!d?.ok || !d.stats || d.stats.err || !d.stats.days) { $('app').innerHTML = `<div class="err">I numeri non sono ancora disponibili. ${d?.ok && !d?.stats ? 'Lo script della classifica va aggiornato (Esegui il deployment → Nuova versione).' : 'Controlla la connessione e premi AGGIORNA.'}</div>`; $('when').textContent = ''; return; }
+  render(d.stats);
+}
+function hbars(obj, names = {}) {
+  const e = Object.entries(obj || {}).sort((a, b) => b[1] - a[1]); if (!e.length) return '<p class="sub">Ancora niente.</p>';
+  const max = e[0][1]; return e.map(([k, v]) => `<div class="hbar"><span>${names[k] || k}</span><span class="bar"><span style="width:${Math.max(2, v / max * 100)}%"></span></span><b>${fmt(v)}</b></div>`).join('');
+}
+function dayChart(days) {
+  const W = 900, H = 300, P = { l: 44, r: 8, t: 12, b: 40 }, n = days.length, bw = (W - P.l - P.r) / n;
+  const max = Math.max(1, ...days.map(d => d.open)), y = v => H - P.b - v / max * (H - P.t - P.b), ticks = [0, Math.round(max / 2), max];
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Telefoni al giorno">`;
+  for (const t of ticks) s += `<line x1="${P.l}" x2="${W - P.r}" y1="${y(t)}" y2="${y(t)}" stroke="#ffffff18"/><text x="${P.l - 6}" y="${y(t) + 4}" fill="#a8a496" font-size="18" text-anchor="end">${t}</text>`;
+  days.forEach((d, i) => { const x = P.l + i * bw + bw * .15, w = bw * .7;
+    s += `<rect x="${x}" y="${y(d.open)}" width="${w}" height="${H - P.b - y(d.open)}" fill="#f2c230"><title>${d.d}: ${d.open} telefoni, ${d.nw} nuovi, ${d.run} giri, ${d.win} arrivi</title></rect>`;
+    s += `<rect x="${x + w * .2}" y="${y(d.nw)}" width="${w * .6}" height="${H - P.b - y(d.nw)}" fill="#4aa3ff"/>`;
+    if (i % Math.ceil(n / 7) === 0 || i === n - 1) s += `<text x="${x + w / 2}" y="${H - 10}" fill="#a8a496" font-size="18" text-anchor="middle">${d.d.slice(8)}/${d.d.slice(5, 7)}</text>`; });
+  return s + '</svg>';
+}
+function render(st) {
+  const t = st.days[st.days.length - 1] || {}, runs = st.days.reduce((a, d) => a + d.run, 0), wins = st.days.reduce((a, d) => a + d.win, 0);
+  $('app').innerHTML = `
+  <div class="kpis">
+    <div class="kpi"><b>${fmt(st.devices)}</b><small>Telefoni in totale</small><em>oggi ${fmt(t.open)} · nuovi ${fmt(t.nw)}</em></div>
+    <div class="kpi"><b>${fmt(st.returning)}</b><small>Tornati un altro giorno</small><em>${st.devices ? Math.round(st.returning / st.devices * 100) : 0}% di tutti</em></div>
+    <div class="kpi"><b>${st.d1}%</b><small>Tornati il giorno dopo</small><em>su ${fmt(st.d1n)} arrivati prima di oggi</em></div>
+    <div class="kpi"><b>${st.firstWin}%</b><small>Arrivati al rifugio</small><em>almeno una volta, su ${fmt(st.played)} che hanno giocato</em></div>
+  </div>
+  <section><h2>Telefoni al giorno</h2><p class="sub">Ultimi ${st.days.length} giorni · ${fmt(runs)} giri giocati${wins ? ', ' + fmt(wins) + ' arrivati al rifugio' : ''}</p>
+    <div class="legend"><span><i style="background:#f2c230"></i>telefoni che aprono il gioco</span><span><i style="background:#4aa3ff"></i>telefoni nuovi</span></div>
+    <div class="chart">${dayChart(st.days)}</div></section>
+  <div class="two">
+    <section><h2>Da dove arrivano</h2><p class="sub">Telefoni nuovi per provenienza</p>${hbars(st.sources, SRC)}</section>
+    <section><h2>Percorsi più giocati</h2><p class="sub">Giri in classifica negli ultimi 7 giorni</p>${hbars(st.tracks)}</section>
+  </div>`;
+  $('when').textContent = 'Aggiornato alle ' + new Date(st.at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
+$('reload').onclick = load; load();
+</script>
+</body>
+</html>

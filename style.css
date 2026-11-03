@@ -1888,3 +1888,25 @@ aside#hub { gap: 10px; }
 .xmaschip em { font: 600 13px var(--ui); font-style: normal; opacity: .92; }
 .xmaschip em b { font: inherit; color: #ffd23a; }
 .xmaschip.soon { cursor: default; background: linear-gradient(100deg, #3a1a1ce8, #5a1d22e0 55%, #1d3f2be0); }
+
+/* v129 · missioni del pilota nuovo e invito all'officina */
+.starter { margin: 10px 0 4px; padding: 12px 14px; background: linear-gradient(180deg, #16170fe8, #0b0c09e0), var(--carbon); border-left: 4px solid var(--y); box-shadow: 0 6px 18px #0006; }
+.starter .sthead { display: flex; justify-content: space-between; align-items: baseline; }
+.starter .sthead small { font: 800 11px var(--ui); letter-spacing: 2px; color: var(--y); }
+.starter .sthead b { font: italic 400 22px/1 var(--display); color: #fff; }
+.starter ul { list-style: none; margin: 8px 0 6px; padding: 0; display: grid; gap: 6px; }
+.starter li { display: flex; align-items: center; gap: 10px; font: 600 14px var(--ui); color: #e9e6dc; }
+.starter li svg { width: 18px; height: 18px; flex: none; color: #9a9688; }
+.starter li.ok { color: #8fdca9; text-decoration: line-through; text-decoration-color: #8fdca988; }
+.starter li.ok svg { color: #3ddc84; }
+.starter .stprize { margin: 4px 0 0; font: 600 13px var(--ui); color: #cfcabb; display: flex; align-items: center; gap: 8px; }
+.starter .stprize svg { width: 18px; height: 18px; color: var(--y); }
+.shopnudge { width: 100%; display: flex; align-items: center; gap: 12px; margin: 10px 0; padding: 12px 14px; border: 2px solid var(--y); background: #f2c2301f; color: #fff; text-align: left; cursor: pointer; }
+.shopnudge > svg { width: 28px; height: 28px; flex: none; color: var(--y); }
+.shopnudge > svg:last-child { width: 20px; height: 20px; margin-left: auto; }
+.shopnudge span { display: flex; flex-direction: column; gap: 2px; }
+.shopnudge small { font: 800 11px var(--ui); letter-spacing: 1.5px; color: var(--y); }
+.shopnudge b { font: italic 400 20px/1.05 var(--display); }
+.shopnudge em { font: 600 13px var(--ui); font-style: normal; opacity: .85; }
+.upg.nudged { outline: 3px solid var(--y); outline-offset: 2px; animation: nudgepulse 1s ease-in-out 3; }
+@keyframes nudgepulse { 50% { outline-color: transparent; } }

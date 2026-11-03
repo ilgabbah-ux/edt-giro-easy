@@ -2,7 +2,7 @@
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=55332041';
 import { createWorld } from './scene3d.js?v=b0be6657';
 import * as A from './audio.js?v=bc8ece9d';
-import * as P from './progress.js?v=e500ae31';
+import * as P from './progress.js?v=66dd496c';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=2bfbc3ea';
@@ -691,6 +691,7 @@ function go() {
 function topLayer() { return document.fullscreenElement || document.webkitFullscreenElement || $('game') || document.body; }
 function finish(win, reason = '') {
   if (state === 'playing') C.hit('run', String(GAME_VERSION));   // v108.6 · contatore: giro finito
+  if (state === 'playing' && win) C.hit('win', String(GAME_VERSION));   // v129 · contatore: arrivato al rifugio (per la pagina dei numeri)
   if (win && state === 'playing') { course = GAME_LENGTH; checkFlash(); }   // v97 · la sfida lampo 'seconda metà pulita' si chiude all'arrivo
   if ($('flashchip')) $('flashchip').hidden = true;
   forkHud(0); $('speedfx')?.classList.remove('on');
@@ -740,6 +741,7 @@ function finish(win, reason = '') {
   if (gev) A.sfx.whistle();
   if (win) buzz([60, 70, 60, 70, 160]);
   if (win) celebrate(mode === 17 ? 'fuochi' : P.currentParts().festa?.id);
+  setTimeout(() => { if (win && mode === 0) starterTick('easy'); if (run.perfect >= 3) starterTick('perfect'); P.starterAuto().forEach(starterTick); }, 1800);   // v129
   if (win && mode === 17 && P.markXmasWin()) setTimeout(() => toast('🎅 MAGLIA «BABBO NATALE» SBLOCCATA: LA TROVI NEL GARAGE', 'gold'), 2500);   // v127 · Christmas Madness: fuochi d'artificio all'arrivo
   if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => { if (!riderLine('win')) voice('Sììì, così si fa!', true); }, 900); }
   else A.sfx.lose();
@@ -2922,7 +2924,7 @@ function renderShop(back, tab = shopTab) {
   iconizeEl($('card'));
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { A.sfx.click(); renderShop(back, b.dataset.tab); });
   document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
-    if (P.buyUpgrade(b.dataset.buy)) { A.unlock(); A.sfx.power(); renderShop(back); renderSide(); }
+    if (P.buyUpgrade(b.dataset.buy)) { A.unlock(); A.sfx.power(); renderShop(back); renderSide(); starterTick('upgrade'); }
   });
   // v109.4 · togli un livello (80% delle birre indietro) o ricomincia da capo con due tocchi (il primo chiede conferma)
   document.querySelectorAll('[data-sell]').forEach(b => b.onclick = () => { const r = P.sellUpgrade(b.dataset.sell); if (r) { A.unlock(); A.sfx.click(); toast(`+${r} 🍺 TORNATE IN CASSA`, 'gold'); renderShop(back); renderSide(); } });
@@ -2948,6 +2950,26 @@ function renderShop(back, tab = shopTab) {
   $('shopback').onclick = back;
   { const got = P.claimCollections(); if (got.length) { const c = got[0]; A.sfx.fanfare?.(); bigCall(c.icon + ' COLLEZIONE COMPLETA!'); toast(`🏅 ${c.name.toUpperCase()}: +${c.prize} 🍺 E IL TITOLO ACCANTO AL PILOTA`, 'gold'); renderShop(back); } }
 }
+// v129 · chi non ha mai potenziato e ha già le birre: invito chiaro a passare in Officina
+function shopNudgeHTML() {
+  if (P.totalUpgrades() > 0 || (P.profile.totals?.runs || 0) < 2 || P.profile.beers < P.cheapestUpgrade()) return '';
+  return `<button type="button" class="shopnudge" id="shopnudge">${icon('wrench')}<span><small>HAI ${P.profile.beers} BIRRE DA SPENDERE</small><b>Potenzia la moto in Officina</b><em>con ${P.cheapestUpgrade()} birre il motore va più forte: arrivi prima al rifugio</em></span>${icon('chevrons')}</button>`;
+}
+// v129 · missioni del pilota nuovo in home (spariscono quando sono finite)
+function starterHTML() {
+  const s = P.starter(); if (!s || s.seen) return '';
+  const done = P.STARTER.filter(m => s.d[m.id]).length;
+  if (s.claimed) return '';
+  return `<div class="starter"><div class="sthead"><small>MISSIONI DEL PILOTA NUOVO</small><b>${done}/${P.STARTER.length}</b></div>
+    <ul>${P.STARTER.map(m => `<li class="${s.d[m.id] ? 'ok' : ''}">${icon(s.d[m.id] ? 'check' : m.icon)}<span>${m.name}</span></li>`).join('')}</ul>
+    <p class="stprize">${icon('shirt')} In premio: la maglia <b>Debuttante EDT</b></p></div>`;
+}
+function starterTick(id) {
+  const r = P.markStarter(id); if (!r) return;
+  const m = P.STARTER.find(x => x.id === id);
+  if (r === 'all') setTimeout(() => toast('🎓 MISSIONI FINITE! MAGLIA «DEBUTTANTE EDT» SBLOCCATA NEL GARAGE', 'gold'), 1200);
+  else toast('✅ MISSIONE FATTA: ' + m.name.toUpperCase(), 'green');
+}
 // v127 · Christmas Madness: banner in home durante l'evento (tocca e vai sul percorso)
 function xmasChipHTML() {
   if (P.xmasTeaser()) { const dd = Math.ceil((new Date(new Date().getFullYear(), 11, 1) - new Date()) / 864e5); return `<div class="xmaschip soon">${icon('gift')}<span><small>IN ARRIVO</small><b>CHRISTMAS MADNESS</b><em>il percorso di Natale si apre tra <b>${dd} ${dd === 1 ? 'giorno' : 'giorni'}</b>: 1° dicembre</em></span></div>`; }
@@ -2957,6 +2979,7 @@ function xmasChipHTML() {
   return `<button type="button" class="xmaschip" id="xmaschip">${icon('gift')}<span><small>EVENTO DI NATALE</small><b>CHRISTMAS MADNESS</b><em>${sub}</em></span>${icon('chevrons')}</button>`;
 }
 function renderReady() {
+  try { P.starterAuto().forEach(starterTick); } catch {}   // v129
   try { window.__edtCheckUpdate?.(); } catch {}   // v125.3 · a ogni ritorno al menu controlla se c'è una versione nuova
   state = 'ready';
   $('tipcard')?.classList.remove('show');
@@ -2997,6 +3020,7 @@ function renderReady() {
     </div>
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + (A.STYLES[mode] || A.STYLES[0]).name}</small></span>${icon('chevrons')}</button>
     ${xmasChipHTML()}
+    ${starterHTML()}
     ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
     <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
     ${dailyChipHTML()}
@@ -3095,6 +3119,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('click', e => {
   if (state !== 'ended') return;
+  if (e.target.closest('#sfidaamico') || e.target.closest('#shareScore') || e.target.closest('#sharestory')) starterTick('share');   // v129
   if (e.target.closest('#sfidaamico')) {   // v108.8 · il gioco gira da solo: ogni giro diventa una sfida da mandare
     A.sfx.click();
     const nick = C.getNick() || profile.rider, md = P.MODES[mode], pts = Math.floor(score).toLocaleString('it-IT');
@@ -3136,6 +3161,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
       ${leap || ice ? '' : `<div><b>${run.hits}</b><small>CADUTE</small></div>`}
       <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
     </div>
+    ${shopNudgeHTML()}
     ${res.weeklyDone?.length ? `<div class="donelist weeklydone">${res.weeklyDone.map(c => `<div><span>🗓 MISSIONE DELLA SETTIMANA: ${c.text}</span><b>+${c.beers} 🍺</b></div>`).join('')}</div>` : ''}
     ${res.completed.length ? `<div class="donelist">${res.completed.map(c => `<div><span>✔ ${c.text}</span><b>+${c.xp} XP</b></div>`).join('')}</div>` : ''}
     <div class="loot">
@@ -3164,6 +3190,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   drawDuelResult();
   if ($('menu')) $('menu').onclick = renderReady;
   $('shopres').onclick = () => renderShop(renderReady);
+  $('shopnudge')?.addEventListener('click', () => { A.sfx.click(); renderShop(renderReady, 'upg'); setTimeout(() => { const b = document.querySelector('[data-buy="engine"]'); if (b) { b.closest('.upg')?.classList.add('nudged'); b.scrollIntoView({ block: 'center', behavior: 'smooth' }); } }, 250); });
   $('shareScore').onclick = $('cardprev').onclick = () => shareScore(win, res);
   if ($('sharestory')) $('sharestory').onclick = () => shareScore(win, res, 'story');
   cardCtx = { win, res }; refreshCardPreview();
@@ -3680,7 +3707,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 128;
+const GAME_VERSION = 129;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3812,15 +3839,15 @@ function renderSide() {
   const fromPanel = fn => { const was = !!maxPanel; if (was) closePanel(false); fn(); setTimeout(() => { $('game').scrollIntoView({ behavior: 'auto', block: 'start' }); if (was && touchDevice) goFull(); }, was ? 300 : 0); };
   $('shopside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady)); };
   $('bikeside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes')); };
-  $('liveries').innerHTML = P.LIVERIES.filter(l => !l.xmas || P.liveryOpen(l) || P.xmasOn()).map(l => {
-    const locked = !P.liveryOpen(l, info.level), why = l.xmas ? 'Si vince finendo la Christmas Madness' : l.streak ? `Si sblocca tornando ${l.streak} giorni di fila (forziere del giorno)` : 'Si sblocca al livello ' + l.level;
+  $('liveries').innerHTML = P.LIVERIES.filter(l => (!l.xmas || P.liveryOpen(l) || P.xmasOn()) && (!l.starter || P.liveryOpen(l) || P.profile.starter)).map(l => {
+    const locked = !P.liveryOpen(l, info.level), why = l.starter ? 'Si vince finendo le missioni del pilota nuovo' : l.xmas ? 'Si vince finendo la Christmas Madness' : l.streak ? `Si sblocca tornando ${l.streak} giorni di fila (forziere del giorno)` : 'Si sblocca al livello ' + l.level;
     return `<button type="button" class="livery ${l.id === current.id ? 'active' : ''} ${l.shirt ? 'shirt' : ''}" data-livery="${l.id}" ${locked ? 'aria-disabled="true"' : ''} title="${locked ? why : l.name}">
-      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}">${l.shirt ? `<img class="lvshirt" src="img/maglia-${l.shirt}.webp" alt="" loading="lazy">` : `<b class="lvicon">${l.icon || ''}</b>`}</i><span>${locked ? (l.xmas ? '🔒 CHRISTMAS MADNESS' : l.streak ? '🔒 ' + l.streak + ' GIORNI DI FILA' : '🔒 LIV ' + l.level) : l.name}</span></button>`;
+      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}">${l.shirt ? `<img class="lvshirt" src="img/maglia-${l.shirt}.webp" alt="" loading="lazy">` : `<b class="lvicon">${l.icon || ''}</b>`}</i><span>${locked ? (l.starter ? '🔒 MISSIONI' : l.xmas ? '🔒 CHRISTMAS MADNESS' : l.streak ? '🔒 ' + l.streak + ' GIORNI DI FILA' : '🔒 LIV ' + l.level) : l.name}</span></button>`;
   }).join('');
   document.querySelectorAll('[data-livery]').forEach(b => b.onclick = () => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;
     const l = P.LIVERIES.find(x => x.id === b.dataset.livery);
-    if (!P.liveryOpen(l)) { if (l.xmas) toast('FINISCI LA CHRISTMAS MADNESS E LA MAGLIA DI BABBO NATALE È TUA'); else if (l.streak) toast('TORNA ' + l.streak + ' GIORNI DI FILA E LA MAGLIA È TUA (OGGI: ' + P.dailyInfo().streak + ')'); b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); return; }
+    if (!P.liveryOpen(l)) { if (l.starter) toast('FINISCI LE MISSIONI DEL PILOTA NUOVO E LA MAGLIA È TUA'); else if (l.xmas) toast('FINISCI LA CHRISTMAS MADNESS E LA MAGLIA DI BABBO NATALE È TUA'); else if (l.streak) toast('TORNA ' + l.streak + ' GIORNI DI FILA E LA MAGLIA È TUA (OGGI: ' + P.dailyInfo().streak + ')'); b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); return; }
     profile.livery = l.id; P.save(); A.sfx.click(); renderSide();
   });
 

@@ -92,6 +92,7 @@ export const LIVERIES = [
   // v107.3 · la maglia vera del club: si sblocca tornando 3 giorni di fila (forziere del giorno)
   { id: 'semplice', name: 'Endurista Semplice', icon: '👕', level: 1, streak: 3, shirt: 'semplice', plastic: '#e93825', accent: '#141414', jersey: '#f4f3ee', pants: '#1c1e20', helmet: '#1b1b1b' },
   { id: 'oro', name: 'Oro Leggenda', icon: '🏆', level: 9, plastic: '#d9a826', accent: '#111111', jersey: '#141414', pants: '#141414', helmet: '#e7b934', pattern: 'righe', ink: '#f6d46a' },
+  { id: 'rookie', name: 'Debuttante EDT', icon: '🎓', level: 1, starter: true, plastic: '#1f8fd8', accent: '#fcd326', jersey: '#ffffff', pants: '#1f8fd8', helmet: '#fcd326' },   // v129 · si vince finendo le missioni del pilota nuovo
   { id: 'babbo', name: 'Babbo Natale', icon: '🎅', level: 1, xmas: true, plastic: '#d8262f', accent: '#ffffff', jersey: '#d8262f', pants: '#1d1d1b', helmet: '#ffffff' },   // v127 · si vince finendo la Christmas Madness
 ];
 
@@ -326,6 +327,29 @@ export const PRIZES = [
 export function takeBoosts() { const b = data.boosts; data.boosts = {}; save(); return b; }
 export function pendingBoosts() { return Object.keys(data.boosts).filter(k => data.boosts[k]); }
 
+// v129 · MISSIONI DEL PILOTA NUOVO: 5 cose da fare nei primi giorni, in premio la maglia "Debuttante EDT".
+// Partono solo per chi ha fatto meno di 12 giri quando le vede la prima volta (i veterani non le hanno).
+export const STARTER = [
+  { id: 'easy', name: 'Arriva al rifugio sul Giro Easy', icon: 'flag' },
+  { id: 'perfect', name: 'Fai 3 salti perfetti in un giro', icon: 'star' },
+  { id: 'upgrade', name: 'Compra il primo potenziamento in Officina', icon: 'wrench' },
+  { id: 'share', name: 'Sfida un amico: mandagli il tuo punteggio', icon: 'share' },
+  { id: 'back', name: 'Torna a giocare un altro giorno', icon: 'calendar' },
+];
+export function starter() {
+  if (!data.starter) { if ((data.totals?.runs || 0) >= 12) return null; data.starter = { d: {}, day0: dayIndex() }; save(); }
+  return data.starter;
+}
+// missioni che si fanno da sole (tornare un altro giorno, avere già un potenziamento)
+export function starterAuto() { const s = starter(); if (!s) return []; const out = []; if (!s.d.back && dayIndex() > s.day0) out.push('back'); if (!s.d.upgrade && UPGRADES.some(u => upgradeLevel(u.id) > 0)) out.push('upgrade'); return out; }
+export const totalUpgrades = () => UPGRADES.reduce((a, u) => a + upgradeLevel(u.id), 0);
+export const cheapestUpgrade = () => COSTS[0];
+export const starterDone = () => { const s = data.starter; return !!s && STARTER.every(m => s.d[m.id]); };
+// segna una missione; restituisce 'new' se appena fatta, 'all' se con questa sono finite tutte (maglia sbloccata)
+export function markStarter(id) {
+  const s = starter(); if (!s || s.d[id]) return '';
+  s.d[id] = 1; let r = 'new'; if (STARTER.every(m => s.d[m.id]) && !s.claimed) { s.claimed = 1; r = 'all'; } save(); return r;
+}
 export function markXmasWin() { if (!data.xmasWin) { data.xmasWin = 1; save(); return true; } return false; }   // v127
 export function save() {
   try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
@@ -341,7 +365,7 @@ export function levelInfo(xp = data.xp) {
   return { level, grade, into: xp - floor, need, pct: (xp - floor) / need };
 }
 
-export const liveryOpen = (l, level = levelInfo().level) => l.xmas ? !!data.xmasWin : l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
+export const liveryOpen = (l, level = levelInfo().level) => l.starter ? !!data.starter?.claimed : l.xmas ? !!data.xmasWin : l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
 export function unlockedLiveries(level = levelInfo().level) {
   return LIVERIES.filter(l => liveryOpen(l, level));
 }
