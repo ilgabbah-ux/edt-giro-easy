@@ -1,8 +1,8 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=55332041';
-import { createWorld } from './scene3d.js?v=3af9f0fa';
+import { createWorld } from './scene3d.js?v=b0be6657';
 import * as A from './audio.js?v=bc8ece9d';
-import * as P from './progress.js?v=7aee1641';
+import * as P from './progress.js?v=e500ae31';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=2bfbc3ea';
@@ -2909,6 +2909,7 @@ function renderShop(back, tab = shopTab) {
     <h1 class="shoptitle">${tab === 'style' ? 'FATTI<br><em>NOTARE.</em>' : tab === 'ice' ? 'CHIODI PER<br><em>ICE SCROPHY.</em>' : tab === 'bikes' ? 'SCEGLI<br><em>LA MOTO.</em>' : tab === 'parts' ? 'FALLA<br><em>TUA.</em>' : 'POTENZIA<br><em>MOTO E PILOTA.</em>'}</h1>
     <div class="wallet">🍺 <b>${P.profile.beers}</b> birre in cassa<small class="insella">In sella: ${cur.icon} ${cur.name}</small>${Object.keys(P.currentStats()).length ? `<small class="totstat">In gara: ${P.statLabel(P.currentStats())}</small>` : ''}</div>
     <div class="shoptabs">${tabs.map(([k, n]) => `<button type="button" class="${k === tab ? 'active' : ''}" data-tab="${k}">${n}</button>`).join('')}</div>
+    ${(tab === 'parts' || tab === 'style') && P.partsRefundValue(tab) ? `<div class="respec"><span><b>${tab === 'style' ? 'Stile da rifare?' : 'Accessori da rifare?'}</b><small>Torna tutto ${tab === 'style' ? 'di serie (casco, fiamma, festa)' : 'di serie'} e riprendi l'80% delle birre spese. ${tab === 'style' ? 'Le collezioni ripartono da zero.' : ''}</small></span><button type="button" class="secondary" id="respecparts"><span>AZZERA · +${P.partsRefundValue(tab)}</span>${icon('beer')}</button></div>` : ''}
     ${tab === 'upg' && P.refundAllValue() ? `<div class="respec"><span><b>Vuoi cambiare strada?</b><small>Togli i potenziamenti e riprendi l'80% delle birre: poi potenzi altro o compri un'altra moto.</small></span><button type="button" class="secondary" id="respec"><span>RICOMINCIA · +${P.refundAllValue()}</span>${icon('beer')}</button></div>` : ''}
     ${tab === 'upg' ? ['MOTO', 'PILOTA', 'SPECIALI'].map(g => `<div class="ugroup">${g === 'SPECIALI' ? 'SPECIALI · PER CHI HA FINITO TUTTO' : g}</div><div class="upgs">${P.UPGRADES.filter(u => u.group === g).map(card).join('')}</div>`).join('')
       : tab === 'bikes' ? `<div class="upgs">${P.BIKES.map(bikeCard).join('')}</div><p class="tip">Ogni moto cambia davvero la guida. I potenziamenti valgono per tutte.</p>`
@@ -2929,6 +2930,11 @@ function renderShop(back, tab = shopTab) {
     const b = $('respec');
     if (!b.dataset.sure) { b.dataset.sure = '1'; b.classList.add('hot'); b.innerHTML = `<span>SICURO? TOCCA ANCORA · +${P.refundAllValue()}</span>${icon('beer')}`; setTimeout(() => { if (b.isConnected && b.dataset.sure) { delete b.dataset.sure; b.classList.remove('hot'); b.innerHTML = `<span>RICOMINCIA · +${P.refundAllValue()}</span>${icon('beer')}`; } }, 4000); return; }
     const r = P.resetUpgrades(); A.unlock(); A.sfx.power(); toast(`POTENZIAMENTI TOLTI: +${r} 🍺 IN CASSA`, 'gold'); renderShop(back); renderSide();
+  };
+  if ($('respecparts')) $('respecparts').onclick = () => {   // v128 · azzera accessori o stile (due tocchi: il primo chiede conferma)
+    const b = $('respecparts');
+    if (!b.dataset.sure) { b.dataset.sure = '1'; b.classList.add('hot'); b.innerHTML = `<span>SICURO? TOCCA ANCORA</span>${icon('beer')}`; setTimeout(() => { if (b.isConnected && b.dataset.sure) { delete b.dataset.sure; b.classList.remove('hot'); b.innerHTML = `<span>AZZERA · +${P.partsRefundValue(tab)}</span>${icon('beer')}`; } }, 3500); return; }
+    const r = P.resetParts(tab); A.unlock(); A.sfx.power(); toast(`${tab === 'style' ? 'STILE' : 'ACCESSORI'} AZZERATI: +${r} 🍺 IN CASSA`, 'gold'); renderShop(back, tab); renderSide();
   };
   document.querySelectorAll('[data-bike]').forEach(b => b.onclick = () => {
     const was = P.ownsBike(b.dataset.bike);
@@ -3674,7 +3680,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 127;
+const GAME_VERSION = 128;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

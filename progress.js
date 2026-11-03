@@ -307,6 +307,14 @@ export function buyPart(slot, id) {
   data.parts[slot] = id; save(); return true;
 }
 
+// v128 · si possono azzerare anche accessori (kind 'parts') e stile ('style'): tutto torna di serie e si riprende l'80% delle birre
+const partSlots = kind => PARTS.filter(pt => kind === 'style' ? pt.style : !pt.style && !pt.ice);
+export function partsRefundValue(kind) { let t = 0; for (const pt of partSlots(kind)) for (const it of pt.items) if (it.price && ownsPart(pt.slot, it.id)) t += Math.floor(it.price * REFUND); return t; }
+export function resetParts(kind) {
+  const t = partsRefundValue(kind);
+  for (const pt of partSlots(kind)) { for (const it of pt.items) if (it.price && ownsPart(pt.slot, it.id)) delete data.owned[pt.slot + ':' + it.id]; data.parts[pt.slot] = pt.items[0].id; }
+  data.beers += t; save(); return t;
+}
 // ---------- Premi del rifugio (validi per il giro successivo) ----------
 export const PRIZES = [
   { id: 'beers', icon: '🍺', name: 'Cassa di birre', desc: 'birre extra in cassa per l’officina' },

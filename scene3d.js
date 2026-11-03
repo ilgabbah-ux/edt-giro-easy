@@ -1703,6 +1703,21 @@ export function createWorld(canvas) {
     m.customProgramCacheKey = () => 'bikeTint';
     m.needsUpdate = true;
   }
+  // v128 · le ruote dei modelli generati hanno tasselli irregolari che sporgono dal profilo (girando sembrano bozzi):
+  // si porta l'asse sulla x, si centra la ruota sul cerchio della gomma e si riportano dentro i punti oltre il raggio vero
+  function roundWheel(m) {
+    if (!m?.geometry) return;
+    const g = m.geometry.clone(); g.applyMatrix4(new T.Matrix4().compose(new T.Vector3(), m.quaternion, m.scale)); m.quaternion.identity(); m.scale.set(1, 1, 1); m.geometry = g;
+    const P = g.attributes.position, n = P.count, ys = new Float32Array(n), zs = new Float32Array(n);
+    for (let i = 0; i < n; i++) { ys[i] = P.getY(i); zs[i] = P.getZ(i); }
+    ys.sort(); zs.sort(); const q = (a, f) => a[Math.min(n - 1, Math.floor(n * f))];
+    const cy = (q(ys, .01) + q(ys, .99)) / 2, cz = (q(zs, .01) + q(zs, .99)) / 2, rT = Math.min(q(ys, .99) - q(ys, .01), q(zs, .99) - q(zs, .01)) / 2;
+    for (let i = 0; i < n; i++) {
+      const y = P.getY(i) - cy, z = P.getZ(i) - cz, r = Math.hypot(y, z);
+      if (r > rT) { const k = (rT + (r - rT) * .15) / r; P.setY(i, y * k); P.setZ(i, z * k); } else { P.setY(i, y); P.setZ(i, z); }
+    }
+    P.needsUpdate = true; g.computeBoundingBox(); g.computeBoundingSphere();
+  }
   function loadBikeGlb(key, cb) {
     if (glbCache[key] === 'loading') { glbWait[key].push(cb); return; }
     if (glbCache[key]) { cb(glbCache[key]); return; }
@@ -1711,6 +1726,7 @@ export function createWorld(canvas) {
       const get = n => g.scene.getObjectByName(n);
       g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (!o.material.userData.tint) { o.material.userData.tint = true; tintable(o.material); } } });
       const wrM = get('wheel_r'), wfM = get('wheel_f'), body = get('bike_body');
+      roundWheel(wrM); roundWheel(wfM);   // v128 · gomme rotonde: niente tasselli sporgenti, ruota centrata sul mozzo
       const rAxle = wrM.position.clone(), fAxle = wfM.position.clone();
       wrM.position.set(0, 0, 0); wfM.position.set(0, 0, 0); wrM.removeFromParent(); wfM.removeFromParent(); body.removeFromParent();
       glbCache[key] = { body, wr: wrM, wf: wfM, rAxle, fAxle }; for (const f of glbWait[key]) f(glbCache[key]);
