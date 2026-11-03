@@ -469,7 +469,10 @@ export function createWorld(canvas) {
     pine.color.set(on || iceMode ? '#2c4a44' : '#30594c'); pineLight.color.set(on || iceMode ? '#eef4f7' : '#3e6d56');
     tufts.visible = !on && !iceMode && quality < 2; ferns.visible = flowers.visible = !on && !iceMode && !desertLook;
     shrubs.material.color.set(on || iceMode ? '#e6eef2' : desertLook ? '#b89a68' : '#ffffff');
-    xmasBulbs.visible = on; snowFlakes.visible = on;
+    xmasBulbs.visible = on; snowFlakes.visible = on; ornaments.visible = on; head.getObjectByName('xhat').visible = on;
+    if (ranchTex || xmasPosterTex) { ranchLogoMat.map = on ? xmasPosterTex || ranchTex : ranchTex; ranchLogoMat.needsUpdate = true; }
+    if (ranchSign) { ranchSign.mesh.material.map = on ? ranchSign.xmas : ranchSign.ranch; ranchSign.mesh.material.needsUpdate = true; }
+    if (xmasBar) xmasBar.visible = on;
   }
 
   // ---------- Paesaggi per sezione (instanced: leggero sui telefoni) ----------
@@ -491,6 +494,11 @@ export function createWorld(canvas) {
   const trunks = new T.InstancedMesh(new T.CylinderGeometry(.12, .23, 3, 8), bark, PINES);
   const crowns = new T.InstancedMesh(pineGeometry, pine, PINES);
   const tops = new T.InstancedMesh(new T.ConeGeometry(1.18, 3.7, 12), pineLight, PINES);
+  // v127 · Christmas Madness: palline colorate sugli abeti (7 per albero), si accendono solo a Natale
+  const ORN = [[-1.8, 1.35, 0], [-1.8, 1.35, 3.1], [-.8, 1.1, 1.5], [-.8, 1.1, 4.6], [.3, .82, .4], [.3, .82, 3.5], [1.3, .48, 2.2]];
+  const ornaments = new T.InstancedMesh(new T.SphereGeometry(.17, 10, 8), new T.MeshStandardMaterial({ roughness: .25, metalness: .35, emissive: '#ffffff', emissiveIntensity: .18 }), PINES * ORN.length);
+  ornaments.visible = false; ornaments.frustumCulled = false; scene.add(ornaments);
+  { const oc = ['#e3262f', '#f2c230', '#2f7de0', '#e3262f', '#f4f4f4', '#c43be0', '#f2c230'].map(c => new T.Color(c)); for (let i = 0; i < PINES * ORN.length; i++) ornaments.setColorAt(i, oc[(i * 3 + (i / 7 | 0)) % oc.length]); }
   const treeData = Array.from({ length: PINES }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 6 + Math.pow(rand(), 1.3) * 28, z: rand() * 180, scale: .65 + rand() * 1.1, rot: rand() * 6, h: rand() * .95 }));
   const PINE_D = [1, .18, .2, .18];
 
@@ -591,9 +599,10 @@ export function createWorld(canvas) {
     const shrink = 1 - trail.rough * .45;
     treeData.forEach((d, i) => {
       const z = wrapZ(d.z, t), x = center(z, t) + d.side * d.off, y = ground(z, t, d.side * d.off);
-      const s = d.scale * shrink * vis(z, PINE_D, d.h) * (ranchLook && i % 4 ? 0 : 1) * (desertLook ? 0 : 1);   // v102 · nell'astigiano pochi abeti
+      const s = d.scale * shrink * vis(z, PINE_D, d.h) * (ranchLook && !xmasLook && i % 4 ? 0 : 1) * (desertLook ? 0 : 1);   // v102 · nell'astigiano pochi abeti · v127 a Natale tutti, addobbati
       dummy.rotation.set(0, d.rot, 0); dummy.scale.setScalar(s);
       for (const [m, yy] of [[trunks, 1.5], [crowns, 4.0], [tops, 6]]) { dummy.position.set(x, y + yy * s, z); put(m, i); }
+      if (xmasLook) { const sc = dummy.scale.x; ORN.forEach(([hy, r, a], k) => { const an = a + d.rot; dummy.position.set(x + Math.cos(an) * r * s, y + (4 + hy) * s, z + Math.sin(an) * r * s); dummy.scale.setScalar(s); put(ornaments, i * ORN.length + k); }); dummy.scale.setScalar(sc); }
       if (firOK) { const card = i % 2 ? firB : firA, other = i % 2 ? firA : firB; dummy.position.set(x, y - .15, z); dummy.scale.setScalar(4.6 * s); put(card, i); other.setMatrixAt(i, zeroM); }
     });
     leafData.forEach((d, i) => {
@@ -622,6 +631,7 @@ export function createWorld(canvas) {
       if (rockVar) { const v = rockVar[i % rockVar.length], j = Math.floor(i / rockVar.length); dummy.position.y -= .14 * k; const sc = (.3 + (i % 4) * .1) * k; dummy.scale.set(sc, sc * (.8 + (i % 3) * .2), sc); put(v, j); v.count = Math.max(v.count, j + 1); }
     });
     for (const o of [trunks, crowns, tops, rocks, birchTrunks, leafCrowns, larchTrunks, larchCrowns, firA, firB, larchCards, leafCards, islandCards]) o.instanceMatrix.needsUpdate = true;
+    if (xmasLook) ornaments.instanceMatrix.needsUpdate = true;
     if (rockVar) for (const v of rockVar) v.instanceMatrix.needsUpdate = true;
   }
 
@@ -717,7 +727,7 @@ export function createWorld(canvas) {
   ponds.receiveShadow = true; pondShore.receiveShadow = true; scene.add(ponds, pondShore);
   const FENCE = 44;
   const posts = new T.InstancedMesh(new T.BoxGeometry(.13, 1.1, .13), bark, FENCE);
-  const xmasBulbs = new T.InstancedMesh(new T.SphereGeometry(.12, 8, 6), new T.MeshBasicMaterial({ toneMapped: false }), FENCE * 3); xmasBulbs.visible = false; xmasBulbs.frustumCulled = false; scene.add(xmasBulbs);
+  const xmasBulbs = new T.InstancedMesh(new T.SphereGeometry(.15, 8, 6), new T.MeshBasicMaterial({ toneMapped: false }), FENCE * 3); xmasBulbs.visible = false; xmasBulbs.frustumCulled = false; scene.add(xmasBulbs);
   { const bc = ['#ff3b3b', '#ffd23a', '#3bd26b', '#3ba7ff', '#ff7ad9'].map(c => new T.Color(c)); for (let i = 0; i < FENCE * 3; i++) xmasBulbs.setColorAt(i, bc[i % bc.length]); }
   const rails = new T.InstancedMesh(new T.BoxGeometry(.06, .09, 1), mat('#8a6a46', .9), FENCE * 2);
   posts.castShadow = rails.castShadow = true; scene.add(posts, rails);
@@ -1271,6 +1281,13 @@ export function createWorld(canvas) {
   // v72 · casco da cross in scala vera: calotta, mentoniera sporgente, frontino, maschera con elastico
   // v97 · casco da cross modellato in Blender: calotta con mentoniera a becco, frontino nervato, maschera con elastico, grafica nel colore della livrea
   const helmGroup = new T.Group(); helmGroup.position.set(0, -.01, .01); head.add(helmGroup);
+  // v127 · cappello di Babbo Natale sul casco (Christmas Madness): bordo bianco, punta rossa piegata all'indietro, pompon
+  { const xh = new T.Group(); xh.name = 'xhat'; xh.visible = false; xh.position.set(0, .135, .015); head.add(xh);
+    const red = mat('#d21f2a', .7), white = mat('#f6f4ee', .95);
+    const brim = mesh(new T.TorusGeometry(.118, .034, 8, 22), white, xh); brim.rotation.x = Math.PI / 2;
+    const tip = new T.Group(); tip.rotation.x = .85; xh.add(tip);
+    const cone = mesh(new T.ConeGeometry(.12, .3, 14), red, tip); cone.position.y = .15;
+    ball(.045, .045, .045, white, tip, 0, .31, 0); }
   { const hg = helmGroup; for (const [m, mt] of [['helmet', helmetMat], ['accent', accent], ['black', black], ['lens', lensMat]]) mesh(partGeo('helmet', m), mt, hg); }
   // v97 · action cam sul casco: cinese, GoPro, Action360 EDT (il top, su un'asticella con due obiettivi)
   const camModels = {};
@@ -1814,7 +1831,9 @@ export function createWorld(canvas) {
   const waterCap = mat('#1e6fd9', .4), waterLabel = mat('#ffffff', .6);
   const dangerRing = new T.MeshBasicMaterial({ color: '#ff3b30', transparent: true, opacity: .6, side: T.DoubleSide, depthWrite: false });
   const ranchLogoMat = new T.MeshBasicMaterial({ transparent: true, alphaTest: .05, side: T.DoubleSide, depthWrite: false });   // v102 · logo "Mud, beer & glory"
-  texLoader.load('img/gusta-ranch-logo.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; });
+  let ranchTex = null, xmasPosterTex = null;
+  texLoader.load('img/gusta-ranch-logo.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; ranchTex = t; if (!xmasLook) { ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; } });
+  texLoader.load('img/christmas-madness.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; xmasPosterTex = t; if (xmasLook) { ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; } });   // v127 · a Natale sull'arco c'è la locandina
   const henWhite = mat('#f3efe6', .85), henRed = mat('#a5512a', .8), henComb = mat('#d4241c', .6), henBeak = mat('#e8b02a', .6);   // v102
   const camelMat = mat('#c79a5e', .85), camelDarkMat = mat('#8a6236', .85), thornA = mat('#7a5a34', .95), thornB = mat('#9c7a48', .95), thornLeaf = mat('#5e6a2c', .9);   // v106.7
   const crateWood = mat('#b98a52', .9), grapeMat = mat('#4a2a5c', .5), grapeGreen = mat('#a7b54a', .5), cowWhite = mat('#f1ede4', .8), cowBlack = mat('#22201e', .8), cowPink = mat('#e7a99c', .7), boarFur = mat('#3e2f24', .95), tuskMat = mat('#efe6cf', .5), deerFur = mat('#9a6237', .85), deerLight = mat('#e2c9a3', .85), ironMat = mat('#2c2f31', .45, .6), heliRed = mat('#d0242a', .45, .2), heliWhite = mat('#f2f2f2', .5), heliGlass = mat('#1d2b38', .15, .3), eyeShine = new T.MeshBasicMaterial({ color: '#e8ff9a' }), dolmenStone = mat('#77756e', .98), goldMat = new T.MeshStandardMaterial({ color: '#ffc21a', roughness: .22, metalness: .9, emissive: '#8a5a00', emissiveIntensity: .9 }), goldFoam = mat('#fffdf2', .6), lichen = mat('#5f6b2f', .95);   // v103 · occhi che brillano nel faro
@@ -2025,7 +2044,7 @@ export function createWorld(canvas) {
   // v108 · iPad: la prima volta che compare un ostacolo (o arriva il suo modello vero) Safari deve preparare shader e texture
   // e la gara si inchioda un attimo. Qui li prepariamo tutti in anticipo (menu o conto alla rovescia) e li lasciamo pronti nei pool.
   const giftMats = {}, giftMat = c => giftMats[c] ||= mat(c, .55);   // v127
-  const WARM_TYPES = ['gift', 'bar', 'barrier', 'bigLog', 'bigRamp', 'boar', 'boulder', 'cairn', 'camel', 'chamois', 'coin', 'cone', 'cow', 'farm', 'ford', 'forkSafe', 'forkShort', 'forkSplit', 'gate', 'goat', 'grapeCrate', 'grappa', 'hay', 'hayCart', 'helmet', 'hen', 'ibex', 'landpad', 'log', 'manhole', 'marmot', 'mboard', 'pigpen', 'puddle', 'ramp', 'rock', 'rollHay', 'shortcut', 'sign', 'snowman', 'speedpad', 'step', 'stump', 'thorns', 'tree', 'trincia', 'tyre', 'water', 'wine'];
+  const WARM_TYPES = ['gift', 'goldGift', 'bar', 'barrier', 'bigLog', 'bigRamp', 'boar', 'boulder', 'cairn', 'camel', 'chamois', 'coin', 'cone', 'cow', 'farm', 'ford', 'forkSafe', 'forkShort', 'forkSplit', 'gate', 'goat', 'grapeCrate', 'grappa', 'hay', 'hayCart', 'helmet', 'hen', 'ibex', 'landpad', 'log', 'manhole', 'marmot', 'mboard', 'pigpen', 'puddle', 'ramp', 'rock', 'rollHay', 'shortcut', 'sign', 'snowman', 'speedpad', 'step', 'stump', 'thorns', 'tree', 'trincia', 'tyre', 'water', 'wine'];
   const warmDone = new Set(), TEX_KEYS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap', 'bumpMap'];
   let warmTimer = 0;
   function warmUp(onlyKey) {
@@ -2485,7 +2504,7 @@ export function createWorld(canvas) {
       g.scale.setScalar(1.45); hazardRing(g, .55);
     } else if (type === 'gift') {
       // v127 · pacchi regalo in mezzo alla pista (Christmas Madness): carta colorata e nastro
-      const pal = [['#d8262f', '#ffd23a'], ['#1f7a3a', '#ff4d4d'], ['#2a5bd7', '#f4f4f4'], ['#f2c230', '#c81f19']];
+      const pal = [['#d8262f', '#ffd23a'], ['#1f7a3a', '#ff4d4d'], ['#2a5bd7', '#f4f4f4'], ['#7a3fc4', '#ffd23a']];
       [[-.3, 0, 0, .56], [.32, 0, .05, .48], [0, .5, 0, .4]].forEach(([x, y, z, w], j) => {
         const [pc, rc] = pal[(j + Math.floor(Math.random() * 4)) % 4], c = new T.Group(); c.position.set(x, y, z); c.rotation.y = (Math.random() - .5) * .6; g.add(c);
         box(w, w * .9, w, giftMat(pc), c, 0, w * .45, 0);
@@ -2540,6 +2559,13 @@ export function createWorld(canvas) {
       rod([.5, 1.3, 0], [.72, 1.75, 0], .1, deerFur, g); ball(.2, .14, .13, deerFur, g, .82, 1.82, 0); for (const z of [-.09, .09]) ball(.06, .06, .06, eyeShine, g, .9, 1.88, z);
       { const gl = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#d8ff7a', transparent: true, opacity: .8, blending: T.AdditiveBlending, depthWrite: false })); gl.scale.set(.8, .45, 1); gl.position.set(.95, 1.88, 0); g.add(gl); }
       for (const z of [-.08, .08]) { rod([.76, 1.95, z], [.7, 2.4, z * 3], .025, hornMat, g); rod([.72, 2.2, z * 2], [.9, 2.35, z * 3.5], .02, hornMat, g); rod([.7, 2.3, z * 2.6], [.55, 2.5, z * 4], .02, hornMat, g); }
+    } else if (type === 'goldGift') {
+      // v127 · pacco regalo d'oro (Christmas Madness): gira a mezz'aria, alone dorato; dentro c'è una sorpresa
+      const spin = new T.Group(); spin.position.y = 1.0; g.add(spin); g.userData.spin = spin;
+      box(.62, .56, .62, goldMat, spin, 0, 0, 0);
+      const rm = giftMat('#d21f2a'); box(.64, .58, .1, rm, spin, 0, 0, 0); box(.1, .58, .64, rm, spin, 0, 0, 0);
+      for (const sd of [-1, 1]) { const bw = mesh(new T.TorusGeometry(.12, .04, 6, 12), rm, spin); bw.position.set(sd * .1, .32, 0); bw.rotation.y = Math.PI / 2; }
+      const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffd23a', transparent: true, opacity: .8, blending: T.AdditiveBlending, depthWrite: false })); glow.scale.set(2.4, 2.4, 1); glow.position.y = 1.0; g.add(glow);
     } else if (type === 'goldMug') {
       // v104 · boccale d'oro nascosto: d'oro massiccio, schiuma, alone che si vede da lontano
       const spin = new T.Group(); spin.position.y = 1.15; g.add(spin); g.userData.spin = spin;
@@ -2670,6 +2696,7 @@ export function createWorld(canvas) {
 
   // v102 · arrivo del Gusta Ranch: il falò con la griglia, la tavolata e il gruppo che festeggia
   const ranchFinish = new T.Group(); ranchFinish.visible = false; scene.add(ranchFinish);
+  let ranchSign = null, xmasBar = null;   // v127
   { const lg = new T.Mesh(new T.PlaneGeometry(2.9, 2.9), ranchLogoMat); lg.position.set(0, 5.65, .08); ranchFinish.add(lg); }
   const flames = [];
   {
@@ -2679,6 +2706,19 @@ export function createWorld(canvas) {
     const c = document.createElement('canvas'); c.width = 1024; c.height = 128; const x = c.getContext('2d');
     x.fillStyle = '#7a2e1c'; x.fillRect(0, 0, 1024, 128); x.fillStyle = '#ffd36a'; x.font = '900 62px Arial'; x.textAlign = 'center'; x.fillText('GUSTA RANCH • TUTTI AL FALÒ!', 512, 84);
     const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; const sg = mesh(new T.PlaneGeometry(8.5, 1.06), new T.MeshStandardMaterial({ map: t, side: T.DoubleSide }), R); sg.position.set(0, 3.55, .05);
+    // v127 · Christmas Madness: striscione "Mud, Beer, Glory" e bancone del bar con i boccali accanto al falò
+    { const c2 = document.createElement('canvas'); c2.width = 1024; c2.height = 128; const x2 = c2.getContext('2d');
+      x2.fillStyle = '#9e1620'; x2.fillRect(0, 0, 1024, 128); x2.fillStyle = '#1f6a3a'; x2.fillRect(0, 0, 1024, 12); x2.fillRect(0, 116, 1024, 12);
+      x2.fillStyle = '#ffffff'; x2.font = '900 58px Arial'; x2.textAlign = 'center'; x2.fillText('CHRISTMAS MADNESS • MUD, BEER, GLORY', 512, 84);
+      const t2 = new T.CanvasTexture(c2); t2.colorSpace = T.SRGBColorSpace; ranchSign = { mesh: sg, ranch: t, xmas: t2 }; }
+    { const bar = new T.Group(); bar.name = 'xbar'; bar.visible = false; bar.position.set(6.2, 0, -5); bar.rotation.y = -.6; R.add(bar); xmasBar = bar;
+      const plank = mat('#7a5232', .85), beerM = new T.MeshStandardMaterial({ color: '#f2a91c', roughness: .3, transparent: true, opacity: .92 }), foam = mat('#fffbee', .9), glass = new T.MeshStandardMaterial({ color: '#dff3ff', roughness: .05, transparent: true, opacity: .35 });
+      box(3.2, 1.1, .8, plank, bar, 0, .55, 0); box(3.5, .1, 1.0, wood, bar, 0, 1.13, 0);
+      for (const sx of [-1.5, 1.5]) box(.12, 2.6, .12, wood, bar, sx, 1.3, -.35);
+      { const roof = box(3.6, .1, 1.4, mat('#d21f2a', .7), bar, 0, 2.65, -.1); roof.rotation.x = .18; }
+      for (let i = 0; i < 6; i++) { const mg = new T.Group(); mg.position.set(-1.2 + i * .48, 1.18, (i % 2) * .18 - .05); bar.add(mg);
+        mesh(new T.CylinderGeometry(.11, .1, .3, 14), beerM, mg).position.y = .15; mesh(new T.CylinderGeometry(.115, .115, .06, 14), foam, mg).position.y = .32; mesh(new T.CylinderGeometry(.125, .115, .34, 14, 1, true), glass, mg).position.y = .16; }
+    }
     // falò: tronchi a capanna, sassi intorno, fiamme e bagliore
     const fire = new T.Group(); fire.position.set(0, 0, -9); fire.scale.setScalar(2); R.add(fire);
     for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; rod([Math.cos(a) * .9, .05, Math.sin(a) * .9], [0, 1.5, 0], .1, wood, fire); }
@@ -2740,6 +2780,7 @@ export function createWorld(canvas) {
     const h = head.clone(true); tb.add(h);
     const hT = { value: new T.Color(r.livery.helmet) };
     h.traverse(o => { if (o.name === 'fx' || o.name === 'fxcam') o.visible = false; if (o.isMesh && o.userData.helmGlb) { o.material = baseMat(o.material).clone(); tintable(o.material, hT); o.castShadow = false; return; } if (o.isMesh) { if (o.material === helmetMat) o.material = helm; else if (o.material === accent) o.material = acc; else if (o.material === plastic) o.material = bm(o.material); o.castShadow = false; } });
+    { const xh = h.getObjectByName('xhat'); if (xh) xh.visible = !!r.santa; }   // v127 · compagni vestiti da Babbo Natale
     body.updateMatrixWorld(true);
     const nk = NECK.sit.clone().add(HIP); nk.y += ry; body.localToWorld(nk); tb.worldToLocal(nk);
     h.position.set(nk.x, nk.y + .15, nk.z + .05); h.rotation.set(0, 0, 0); h.scale.setScalar(.9);
@@ -2750,6 +2791,7 @@ export function createWorld(canvas) {
   function makeRival(r) {
     if (rivalGlbReady()) return makeRivalGlb(r);
     const g = bike.clone(true);
+    { const xh = g.getObjectByName('xhat'); if (xh) xh.visible = !!r.santa; }
     const m = { plastic: pmat(r.livery.plastic), accent: pmat(r.livery.accent, .4), jersey: mat(r.livery.jersey, .6), pants: mat(r.livery.pants, .8), helmet: pmat(r.livery.helmet, .25) };
     if (envTex) for (const k of ['plastic', 'accent', 'helmet']) { m[k].envMap = envTex; m[k].envMapIntensity = .9; }   // v73 · compagni con la stessa vernice lucida del giocatore
     const swap = { [plastic.uuid]: m.plastic, [accent.uuid]: m.accent, [jerseyMat.uuid]: m.jersey, [pantsMat.uuid]: m.pants, [helmetMat.uuid]: m.helmet };
@@ -2839,10 +2881,11 @@ export function createWorld(canvas) {
   function renderRivals(list, t, now, live) {
     const seen = new Set();
     for (const r of list || []) {
-      seen.add(r.name);
-      let m = rivalModels.get(r.name);
+      const rk = r.name + (r.santa ? '·x' : '');   // v127 · vestito da Babbo Natale: modello a parte
+      seen.add(rk);
+      let m = rivalModels.get(rk);
       if (m && m.proc && rivalGlbReady()) { scene.remove(m.g); m = null; }   // arrivati i modelli veri: rifà il compagno
-      if (!m) { m = makeRival(r); rivalModels.set(r.name, m); }
+      if (!m) { m = makeRival(r); rivalModels.set(rk, m); }
       const z = -r.gap;
       m.g.visible = z < 11 && z > -175;
       if (m.lamp) for (const o of m.lamp) o.visible = !!weatherNow.lamp;
@@ -3013,7 +3056,7 @@ export function createWorld(canvas) {
   const FLAKES = 220, flakePos = new Float32Array(FLAKES * 3);
   const flakeGeo = new T.BufferGeometry(); flakeGeo.setAttribute('position', new T.BufferAttribute(flakePos, 3));
   const flakeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'), gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, '#fff'); gr.addColorStop(.45, 'rgba(255,255,255,.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 32, 32); return new T.CanvasTexture(c); })();
-  const snowFlakes = new T.Points(flakeGeo, new T.PointsMaterial({ color: '#ffffff', map: flakeTex, size: .16, transparent: true, opacity: .95, depthWrite: false })); snowFlakes.frustumCulled = false; snowFlakes.visible = false; scene.add(snowFlakes);
+  const snowFlakes = new T.Points(flakeGeo, new T.PointsMaterial({ color: '#ffffff', map: flakeTex, size: .1, transparent: true, opacity: .95, depthWrite: false })); snowFlakes.frustumCulled = false; snowFlakes.visible = false; scene.add(snowFlakes);
   const sf = Array.from({ length: FLAKES }, () => ({ x: (Math.random() - .5) * 28, y: Math.random() * 10, z: -Math.random() * 46 + 6, ph: Math.random() * 6, sp: .7 + Math.random() * .8 }));
   let ambLastT = null, weatherNow = { rain: 0, fog: 0, dusk: 0 };
   function ambient(dt, t, W, live) {

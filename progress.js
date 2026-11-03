@@ -55,7 +55,7 @@ export const MODES = [
     layout: [{ t: 0, len: 6, name: 'LA PISTA DEL SERIR' }, { t: 2, len: 9, climb: 1, name: 'LE PRIME DUNE' }, { t: 0, len: 6, down: 1, name: 'GIÙ DAL CORDONE' }, { t: 3, len: 8, name: 'LA HAMMADA' }, { t: 2, len: 10, climb: 1, name: 'IL MARE DI SABBIA' }, { t: 1, len: 6, name: 'L’OASI' }, { t: 2, len: 9, climb: 1, name: 'LA GRANDE DUNA' }, { t: 0, len: 6, down: 1, name: 'VERSO IL BIVACCO' }] },
   // v127 · CHRISTMAS MADNESS (evento di Natale, dal 1° dicembre all'Epifania): la gara nel fango dell'EDT, di sera con la neve,
   // lucine sulle fettucce, pacchi regalo e pupazzi di neve in pista. Il 21 dicembre (la gara vera) punti doppi.
-  { id: 17, short: 'XMAS', name: 'Christmas Madness', desc: 'La gara nel fango dell’EDT sotto la neve: lucine sulle fettucce, pacchi regalo e pupazzi di neve in mezzo alla pista, birra e fuochi d’artificio all’arrivo. Il 21 dicembre punti doppi.', event: 'xmas', difficulty: 1, sky: 7, limit: 58, unlock: 1, dense: 0,
+  { id: 17, short: 'XMAS', name: 'Christmas Madness', desc: 'La gara nel fango dell’EDT sotto la neve: lucine sulle fettucce, pacchi regalo e pupazzi di neve in mezzo alla pista, birra e fuochi d’artificio all’arrivo. Il 21 dicembre punti doppi.', event: 'xmas', ranch: true, difficulty: 1, sky: 7, limit: 58, unlock: 1, dense: 0,   /* v127 · si corre al Gusta Ranch, come la gara vera */
     obs: { 0: ['gift', 'snowman', 'log', 'gift'], 1: ['puddle', 'gift', 'puddle', 'snowman'], 2: ['gift', 'step', 'snowman', 'rock'], 3: ['rock', 'gift', 'step', 'snowman'] },
     layout: [{ t: 0, len: 6, name: 'PARTENZA DAL BAR' }, { t: 1, len: 8, wet: 1, name: 'IL FANGO DELLA MADNESS' }, { t: 0, len: 7, name: 'IL BOSCO DEI REGALI' }, { t: 1, len: 6, down: 1, wet: 1, name: 'GIÙ NEL FANGO CHE SAPONE' }, { t: 2, len: 9, climb: .7, name: 'LA SALITA DI BABBO NATALE' }, { t: 1, len: 7, wet: 1, name: 'L’IGNORANZA È QUI' }, { t: 0, len: 6, down: 1, name: 'VERSO I FUOCHI' }] },
 ];
@@ -66,9 +66,11 @@ export function xmasOn(d = new Date()) {
   const m = d.getMonth(), g = d.getDate(); return m === 11 || (m === 0 && g <= 6);
 }
 export const xmasDouble = (d = new Date()) => d.getMonth() === 11 && d.getDate() === 21;   // la notte della Christmas Madness vera
-export const eventOn = ev => ev === 'xmas' ? xmasOn() : true;
+export const xmasTeaser = (d = new Date()) => !xmasOn(d) && d.getMonth() === 10 && d.getDate() >= 15;   // v127 · dal 15 novembre si vede col lucchetto
+export const eventOn = ev => ev === 'xmas' ? xmasOn() || xmasTeaser() : true;
+export const lockText = m => m.event === 'xmas' && !xmasOn() ? 'ARRIVA IL 1° DICEMBRE' : 'LIV ' + (m.unlock || 1);
 export const SHOWN = () => MODES.filter(m => !m.hidden && (!m.event || eventOn(m.event)));
-export const isUnlocked = (m, level = levelInfo().level) => level >= (m.unlock || 1);
+export const isUnlocked = (m, level = levelInfo().level) => (m.event !== 'xmas' || xmasOn()) && level >= (m.unlock || 1);
 // v106.5 · percorso della settimana: cambia ogni lunedì e porta il doppio delle birre al rifugio
 export function weeklyTrack(d = new Date()) {
   const ids = SHOWN().filter(m => m.id !== 3 && !m.random).map(m => m.id);

@@ -1,8 +1,8 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=55332041';
-import { createWorld } from './scene3d.js?v=1488cc83';
+import { createWorld } from './scene3d.js?v=3af9f0fa';
 import * as A from './audio.js?v=bc8ece9d';
-import * as P from './progress.js?v=c208a044';
+import * as P from './progress.js?v=7aee1641';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=2bfbc3ea';
@@ -223,7 +223,7 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9, turboReadyT = 0;
 // v84 · Dopo migliora: la salita si fa dosando il gas (trazione); se ti pianti si spinge la moto
 let grip = .5, stallT = 0, stalled = false, pushP = 0, spinMsgAt = -9, tractOn = false;
 let desert = false, sandT = 0, sandStuck = false, flat = false, fixP = 0;
-let tutDoneAt = -99, easyRun = false, tutRunNow = false, rookieT = 0;   // rookieT · v125.4 secondi in più nei primi giri sull'Easy di chi arriva da fuori
+let tutDoneAt = -99, easyRun = false, tutRunNow = false, rookieT = 0, xgAt = [];   // xgAt · v127 quando escono i pacchi d'oro   // rookieT · v125.4 secondi in più nei primi giri sull'Easy di chi arriva da fuori
    // easyRun · v109.4 primo giro di chi arriva da fuori: ostacoli più radi nella prima parte   // v109.4 · quando è finito il giro guidato (per non coprirne l'ultimo messaggio)   // v106.7 · Desertone: sabbia sulle dune e gomma bucata
 let wasTract = false, lastWaveFlash = -9, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
 // v84 · Sfida del giorno: una regola diversa ogni giorno, uguale per tutti
@@ -1322,7 +1322,7 @@ function makeRunPlan() {
   if (md.gev) { plan.flash = pool.find(f => f.id === 'combo'); const nb = 1 + (rng() < .5 ? 1 : 0); for (let i = 0; i < nb; i++) plan.events.push({ kind: 'blocco', at: 14 + (i + .3 + rng() * .4) * (34 / nb) }); return plan; }
   // v103 · imprevisti tipici di ogni percorso: almeno uno a giro, poi quelli di sempre
   const own = { 0: ['vendemmia'], 10: ['tombini', 'ondata'], 11: ['mucche', 'elicottero'], 15: ['cinghiali', 'cervo'] }[md.id] || [];
-  const kinds = md.ranch ? ['galline', 'rotoballe', 'porcile', 'carro', 'pioggia'] : ['gregge', 'albero', 'frana', 'pioggia', 'dolmen'];   // v102 · al Gusta Ranch: ignoranza pura
+  const kinds = md.ranch ? ['galline', 'rotoballe', 'porcile', 'carro', ...(md.event === 'xmas' ? [] : ['pioggia'])] : ['gregge', 'albero', 'frana', 'pioggia', 'dolmen'];   // v102 · al Gusta Ranch: ignoranza pura
   if (!md.ranch) kinds.push('trattore');
   if (!md.wild && !md.ranch) kinds.push('guado');
   if (feat('night') || md.rainy) kinds.splice(kinds.indexOf('pioggia'), 1);
@@ -1765,7 +1765,9 @@ function setupRace() {
   rivals = P.MODES[mode].leap ? [] : others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
   for (const r of rivals) if (dz.includes(r.name)) r.derby = true;
   for (const r of rivals) if (r.name === 'Maggie') r.livery = { plastic: '#f3a6c6', accent: '#5a3426', jersey: '#f4f1ec', pants: '#6b4030', helmet: '#f3a6c6' };   // v107.5 · Maggie con la sua tuta bianca, marrone e rosa
-  { const ch = champRival(); for (const r of rivals) if (r.name === ch) { r.champ = true; r.livery = { ...r.livery, helmet: '#e3b021' }; } }   // v107.3 · il pilota del campione della settimana corre col casco d'oro
+  { const ch = champRival(); for (const r of rivals) if (r.name === ch) { r.champ = true; r.livery = { ...r.livery, helmet: '#e3b021' }; } }
+  xgAt = mode === 17 ? [16 + rng() * 10, 36 + rng() * 10] : [];
+  if (mode === 17) for (const r of rivals) { r.santa = 1; r.livery = { ...r.livery, jersey: '#d21f2a', pants: '#d21f2a', helmet: r.champ ? '#e3b021' : '#f6f4ee' }; }   // v127 · alla Christmas Madness sono tutti Babbi Natale   // v107.3 · il pilota del campione della settimana corre col casco d'oro
   coachStep = 0; tutDoneAt = -99; tut = null; tutPulse(null); coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
   lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
   // Meteo: un cambio a metà giro (pioggia, nebbia o tramonto), diverso a ogni gara; la Sfida del giorno è uguale per tutti.
@@ -2152,6 +2154,7 @@ function update(dt) {
     return;
   }
   if (state !== 'playing') return;
+  if (mode === 17 && xgAt.length && course >= xgAt[0] && !duel) { xgAt.shift(); objects.push({ l: Math.floor(rng() * 3), z: .02, type: 'goldGift', hit: false }); }   // v127 · pacchi d'oro della Christmas Madness
   if (runPlan?.gold?.length && course >= runPlan.gold[0].at && !duel) { const g = runPlan.gold.shift(); objects.push({ l: g.l, z: .02, type: 'goldMug', hit: false, gi: g.i, air: g.kind === 'air', lift: g.kind === 'air' ? 1.65 : .35 }); }
   // Rallentatore breve su salti perfetti e cadute.
   // v119 · caduta: finché il pilota è a terra si ferma tutto (pista, cronometro, avversari, GEV): la botta costa come prima
@@ -2353,6 +2356,16 @@ function update(dt) {
     if (o.type === 'bar') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeBar(); } continue; }
     if (o.type === 'shortcut') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeShortcut(); return; } continue; }
     if (o.type === 'forkShort' || o.type === 'forkSafe') { if (Math.abs(px - o.l) < .6 && crash <= 0 && !o.collected) takeFork(o.type === 'forkShort' ? 'short' : 'safe'); continue; }
+    if (o.type === 'goldGift') {   // v127 · pacco regalo d'oro: lo prendi passandoci sotto, dentro c'è una sorpresa
+      if (Math.abs(px - o.l) < .45 && crash <= 0) {
+        o.collected = true; const k = Math.floor(rng() * 3); run.xgifts = (run.xgifts || 0) + 1;
+        if (k === 0) { run.caps += 25; toast('🎁 SORPRESA: 25 BIRRE!', 'gold'); }
+        else if (k === 1) { charge = 100; toast('🎁 SORPRESA: TURBO PIENO!', 'gold'); }
+        else { score += 1500; toast('🎁 SORPRESA: +1500 PUNTI!', 'gold'); }
+        A.sfx.power(); flash('gold'); fxKind = 'power'; fxSerial++; bigCall('🎁 PACCO D’ORO!');
+      } else o.collected = true;
+      continue;
+    }
     if (o.type === 'goldMug') {   // v104 · boccale d'oro: sul bordo della fettuccia o in aria (serve un salto)
       const near = Math.abs(px - o.l) < (o.air ? .5 : .32);
       if (near && (!o.air || lift > 1.15) && crash <= 0) {
@@ -2931,6 +2944,7 @@ function renderShop(back, tab = shopTab) {
 }
 // v127 · Christmas Madness: banner in home durante l'evento (tocca e vai sul percorso)
 function xmasChipHTML() {
+  if (P.xmasTeaser()) { const dd = Math.ceil((new Date(new Date().getFullYear(), 11, 1) - new Date()) / 864e5); return `<div class="xmaschip soon">${icon('gift')}<span><small>IN ARRIVO</small><b>CHRISTMAS MADNESS</b><em>il percorso di Natale si apre tra <b>${dd} ${dd === 1 ? 'giorno' : 'giorni'}</b>: 1° dicembre</em></span></div>`; }
   if (!P.xmasOn()) return '';
   const d = new Date(), y = d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear(), night = new Date(y, 11, 21), days = Math.ceil((night - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
   const sub = P.xmasDouble() ? '<b>STASERA PUNTI DOPPI</b> · è la notte della Madness' : days > 0 ? `mancano <b>${days} ${days === 1 ? 'giorno' : 'giorni'}</b> alla notte del 21: punti doppi` : 'fino all’Epifania · Re del Natale in classifica';
@@ -2994,7 +3008,7 @@ function renderReady() {
     <div class="mhead tracks">${icon('flag')} CAMBIA PERCORSO <button class="linkbtn alltracks" id="alltracks" type="button">📋 TUTTI I TRACCIATI ›</button></div>
     <div class="modes" role="radiogroup" aria-label="Percorso">
       ${P.SHOWN().map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
-        ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 LIV ' + m.unlock}</small>${m.id === P.weeklyTrack() ? '<i class="wktrack">🔥 BIRRE ×2</i>' : ''}</button>`; }).join('')}
+        ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 ' + P.lockText(m)}</small>${m.id === P.weeklyTrack() ? '<i class="wktrack">🔥 BIRRE ×2</i>' : ''}</button>`; }).join('')}
     </div>
     <div class="menufoot">
       <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
@@ -3038,7 +3052,7 @@ function renderReady() {
   if ($('homebtn')) $('homebtn').onclick = () => { if (inFull()) exitFull(); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 350); };
   document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
     const m = P.MODES[Number(b.dataset.mode)];
-    if (!P.isUnlocked(m)) { b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); toast('🔒 PERCORSO BLOCCATO: ARRIVA AL LIVELLO ' + m.unlock, 'red'); return; }
+    if (!P.isUnlocked(m)) { b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); toast(m.event === 'xmas' ? '🎄 CHRISTMAS MADNESS: SI APRE IL 1° DICEMBRE!' : '🔒 PERCORSO BLOCCATO: ARRIVA AL LIVELLO ' + m.unlock, 'red'); return; }
     mode = m.id; profile.mode = mode; P.save(); A.sfx.click();
     renderReady(); renderSide();
   });
@@ -3392,7 +3406,9 @@ function potwCard(w) {
 // v106.5 · chi ha vinto la coppa della settimana scorsa corre col casco d'oro per tutta la settimana
 const isChamp = () => { try { return !!crownOf(C.getNick()); } catch { return false; } };
 function raceLivery() { const l = P.currentLivery(), c = P.currentParts().casco; return isChamp() ? { ...l, id: l.id + '-oro', helmet: '#e3b021' } : c?.color ? { ...l, id: l.id + '-' + c.id, helmet: c.color } : l; }
-const crownOf = n => { const p = C.cached()?.week?.prev; return p && n && p.n.toLowerCase() === String(n).toLowerCase() ? ' 👑' : ''; };
+const crownOf = n => { const p = C.cached()?.week?.prev; return (p && n && p.n.toLowerCase() === String(n).toLowerCase() ? ' 👑' : '') + (xmasKing() && n && xmasKing() === String(n).toLowerCase() ? ' <span class="xking" title="Re del Natale: primo alla Christmas Madness">🎅</span>' : ''); };
+// v127 · Re del Natale: finito l'evento (dopo l'Epifania) il primo della Christmas Madness ha il Babbo Natale accanto al nome fino al Natale dopo
+function xmasKing() { const d = new Date(); if (P.xmasOn() || P.xmasTeaser()) return ''; const e = C.cached()?.boards?.[17]?.[0]; return e ? String(e.n).toLowerCase() : ''; }
 // v97 · WhatsApp: messaggio pronto quando superi qualcuno, e avviso nel menu quando qualcuno supera te
 const waLink = text => 'https://wa.me/?text=' + encodeURIComponent(text);
 const trackName = m => m === 3 ? 'la Sfida del giorno' : P.MODES[m].name;
@@ -3519,7 +3535,7 @@ function renderTracks(back) {
     <h1 class="shoptitle">TUTTI I<br><em>TRACCIATI.</em></h1>
     <div class="tracklist">${P.SHOWN().map(m => { const ti = TRACK_INFO[m.id] || {}, open = P.isUnlocked(m, info.level), best = P.bestFor(m.id);
       return `<button type="button" class="trackcard ${m.id === mode ? 'active' : ''} ${open ? '' : 'locked'}" data-track="${m.id}">
-        <span class="tcart"><img src="${trackArtOf(m)}" alt="" loading="lazy">${open ? '' : `<i class="tclock">🔒 LIV ${m.unlock}</i>`}</span>
+        <span class="tcart"><img src="${trackArtOf(m)}" alt="" loading="lazy">${open ? '' : `<i class="tclock">🔒 ${P.lockText(m)}</i>`}</span>
         <span class="tcbody"><span class="ps">PS${psOf(m)} · ${ti.tipo || ''}</span><b>${m.id === 3 ? 'Sfida del giorno' : m.name}</b><small>${m.desc}</small>
         <span class="tcfacts"><span>⏱ <b>${m.limit} s</b></span><span>🔥 <b>${stars(m.difficulty || 0)}</b></span><span>🔓 <b>LIV ${m.unlock || 1}</b></span><span>🏆 <b>${best ? best.toLocaleString('it-IT') : '—'}</b></span></span>
         <span class="tcrow"><em>Ostacoli</em>${ti.ostacoli || ''}</span>
@@ -3529,7 +3545,7 @@ function renderTracks(back) {
     <div class="actions"><button class="primary" id="tback"><span>⬅ MENU PRINCIPALE</span></button></div>`;
   document.querySelectorAll('[data-track]').forEach(b => b.onclick = () => {
     const m = P.MODES[Number(b.dataset.track)];
-    if (!P.isUnlocked(m, info.level)) { toast(`🔒 SI SBLOCCA AL LIVELLO ${m.unlock}`, 'red'); return; }
+    if (!P.isUnlocked(m, info.level)) { toast(m.event === 'xmas' ? '🎄 CHRISTMAS MADNESS: SI APRE IL 1° DICEMBRE!' : `🔒 SI SBLOCCA AL LIVELLO ${m.unlock}`, 'red'); return; }
     mode = m.id; profile.mode = mode; P.save(); A.sfx.click(); applyLayout(); renderSide(); back();
   });
   $('tback').onclick = back;
@@ -3590,7 +3606,7 @@ function ghostable(m) { const md = P.MODES[m]; return !!md && !md.ice && md.rand
 document.addEventListener('click', e => { const li = e.target.closest?.('[data-ghostn]'); if (li && (state === 'ready' || state === 'ended')) ghostChallenge(li.dataset.ghostn, Number(li.dataset.ghostm)); });
 function ghostChallenge(n, m) {
   const md = P.MODES[m]; if (!md) return;
-  if (!P.isUnlocked(md, P.levelInfo().level)) { toast(`🔒 SI SBLOCCA AL LIVELLO ${md.unlock}`, 'red'); return; }
+  if (!P.isUnlocked(md, P.levelInfo().level)) { toast(md.event === 'xmas' ? '🎄 CHRISTMAS MADNESS: SI APRE IL 1° DICEMBRE!' : `🔒 SI SBLOCCA AL LIVELLO ${md.unlock}`, 'red'); return; }
   A.sfx.click(); ghostWant = { n, m }; mode = m; profile.mode = m; P.save(); applyLayout(); renderSide();
   toast('👻 SFIDA AL FANTASMA DI ' + n.toUpperCase(), 'gold'); start();
 }
