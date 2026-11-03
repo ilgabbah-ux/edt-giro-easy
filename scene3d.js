@@ -335,6 +335,7 @@ export function createWorld(canvas) {
       if (liteMats) { if (m.isMeshStandardMaterial) { const l = toLambert(m); l.color.copy(m.color); if (m.emissive) l.emissive.copy(m.emissive); l.opacity = m.opacity; l.visible = m.visible; if (m.version !== l.userData.v) { l.map = m.map || null; l.transparent = m.transparent; l.needsUpdate = true; l.userData.v = m.version; } o.material = l; } }
       else if (m.userData?.from) o.material = m.userData.from; });
   }   // v109.9 · test di fluidità: si può fermare il terreno o lo scenario per capire cosa pesa
+  let iceSheet = false; const ICE_SHEET = new T.Color('#d4ecf8');   // v133
   function terrain(t) {
     terrainN++;
     const doNorm = !terrainLite || terrainN % 3 === 0, doCol = !terrainLite || terrainN % 4 === 0;
@@ -380,6 +381,10 @@ export function createWorld(canvas) {
       dirt.color.set('#d2a56c'); grass.color.set('#efc98f'); verge.color.set('#e2b77c'); dirt.roughness = .95;
     }
     if (xmasLook) { grass.color.set('#eef3f7'); verge.color.set('#c9d1d8'); dirt.color.multiplyScalar(.82); }   // v127 · prati sotto la neve, pista di fango scuro
+    // v133 · lastre di ghiaccio (Mirco e Gabbah Fest): nel tratto ghiacciato la pista diventa vetro azzurro e lucido
+    { const ic = trail.icy || 0, wantIce = ic > .5 && !iceMode;
+      if (wantIce !== iceSheet && groundMaps) { iceSheet = wantIce; dirt.map = wantIce ? iceTex : desertLook ? sandTex : groundMaps.d; dirt.normalMap = wantIce ? null : groundMaps.dn; dirt.needsUpdate = true; }
+      if (ic > 0 && !iceMode) { dirt.color.lerp(ICE_SHEET, Math.min(1, ic * 1.1)); dirt.roughness += (.12 - dirt.roughness) * ic; dirt.metalness = .12 * ic; dirt.bumpScale *= 1 - ic * .8; if (wantIce) iceTex.offset.y = (t * 10 / 200) % 1; } }
   }
   // v66 · il burrone visto dall'alto: fondovalle dipinto (bosco, prati, torrente) e parete di roccia di fronte, senza nebbia
   const valleyTex = (() => {
