@@ -213,7 +213,8 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9, turboReadyT = 0;
 // v84 · Dopo migliora: la salita si fa dosando il gas (trazione); se ti pianti si spinge la moto
 let grip = .5, stallT = 0, stalled = false, pushP = 0, spinMsgAt = -9, tractOn = false;
 let desert = false, sandT = 0, sandStuck = false, flat = false, fixP = 0;
-let tutDoneAt = -99, easyRun = false, tutRunNow = false;   // easyRun · v109.4 primo giro di chi arriva da fuori: ostacoli più radi nella prima parte   // v109.4 · quando è finito il giro guidato (per non coprirne l'ultimo messaggio)   // v106.7 · Desertone: sabbia sulle dune e gomma bucata
+let tutDoneAt = -99, easyRun = false, tutRunNow = false, rookieT = 0;   // rookieT · v125.4 secondi in più nei primi giri sull'Easy di chi arriva da fuori
+   // easyRun · v109.4 primo giro di chi arriva da fuori: ostacoli più radi nella prima parte   // v109.4 · quando è finito il giro guidato (per non coprirne l'ultimo messaggio)   // v106.7 · Desertone: sabbia sulle dune e gomma bucata
 let wasTract = false, lastWaveFlash = -9, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
 // v84 · Sfida del giorno: una regola diversa ogni giorno, uguale per tutti
 const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RULES.length];
@@ -633,7 +634,10 @@ function start() {
   state = 'countdown'; countdown = 3.2; countStep = 4; holePre = holeDone = false;
   { const tc = $('tipcard'), nb = (P.profile.totals?.runs || 0) < 3 && !C.isEdt();   // v108.8 · nei primi giri di chi arriva da fuori: i comandi a colpo d'occhio mentre parte il via
     if (tc) { tc.innerHTML = nb ? `<small>COME SI GUIDA</small>${touchDevice ? (tiltOn ? '<b>Inclina il telefono</b> a sinistra/destra per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare' : 'Dito a <b>sinistra/destra</b> per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare') : '<b>← →</b> per sterzare · <b>SPAZIO</b> per saltare i tronchi · <b>↓</b> impenna · <b>B</b> turbo'}<br>Prendi le birre e arriva al rifugio prima del tempo!` : ''; tc.classList.toggle('show', nb); } }
-  easyRun = !C.isEdt() && (P.profile.totals?.runs || 0) === 0; tutRunNow = !P.profile.tutorialDone;
+  easyRun = !C.isEdt() && (P.profile.totals?.runs || 0) < 3; tutRunNow = !P.profile.tutorialDone;   // v125.4 · ostacoli più radi nei primi 3 giri (prima solo il primo)
+  // v125.4 · rodaggio: sull'Easy, nei primi 5 giri di chi arriva da fuori, 8 s in più (il bonus tempo resta calcolato sul tempo normale, la classifica non cambia)
+  rookieT = !C.isEdt() && mode === 0 && !duel?.racing && (P.profile.totals?.runs || 0) < 5 ? 8 : 0;
+  if (rookieT) { timeLimit += rookieT; setTimeout(() => { if (state === 'countdown' || state === 'playing') toast('⏱ RODAGGIO: +' + rookieT + ' s PER I PRIMI GIRI', 'green'); }, 1400); }
   const plainStart = !P.profile.tutorialDone && !P.MODES[mode].ice;   // v109.4 · primo giro guidato: al via solo "come si guida", niente varianti, sfide lampo e consigli
   if (!plainStart) setTimeout(() => { if (state === 'countdown') toast('🚀 TOCCA SALTA AL VIA = PARTENZA A RAZZO', 'gold'); }, 600);
   // v89 · primo giro su un percorso: il consiglio della sua meccanica sta nella cartolina del via (sparisce al VIA, non copre la gara)
@@ -686,7 +690,7 @@ function finish(win, reason = '') {
   setTimeout(() => { if (state === 'ended' || state === 'ready') A.menuMusic(); }, 4000);   // v109 · dopo l'arrivo torna la canzone del menu
   setDisabled(false);
   if (ice) endDrift(true);
-  const timeBonus = win && !leap ? Math.round((timeLimit - elapsed) * (ice ? 40 : 100)) : 0;
+  const timeBonus = win && !leap ? Math.max(0, Math.round((timeLimit - rookieT - elapsed) * (ice ? 40 : 100))) : 0;   // v125.4 · i secondi del rodaggio non danno punti
   if (win) score += lives * 250 + timeBonus;
   checkDailyGoal(win);
   if (leap) score = win ? Math.round(leapBest * 100) + (leapPerfect ? 500 : 0) + 7 : 0;   // v67 · il 7 finale segna i punteggi col salto in metri nel campo tempo   // v59 · al Taglio di Angelo conta solo il salto: 100 punti a metro (+500 stacco perfetto)
