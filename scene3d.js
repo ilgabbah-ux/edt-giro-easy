@@ -2,7 +2,7 @@
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { GLTFLoader } from './GLTFLoader.js';
 import { DRACOLoader } from './DRACOLoader.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=c8fcb816';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=b9c35116';
 import * as T from './three.module.min.js';
 import { RIDER_PARTS } from './pilota3d.js?v=842708b6';
 
@@ -31,6 +31,9 @@ const PRESETS = [
   // v132 · Mirco e Gabbah Fest: fine inverno al Gusta Ranch, tramonto arancio, prati brinati, lucine della festa
   { name: 'Sera della Fest', top: '#22305e', horizon: '#ffb070', sunDir: [-.5, .14, -.85], sunColor: '#ffc08a', clouds: .4, cloud: '#f0d0c0',
     light: '#ffdcb8', lightI: 2.8, hemiSky: '#c4d0f0', hemiGround: '#6a5644', hemiI: 1.7, fog: '#d0bcc4', fogNear: 55, fogFar: 175, exposure: 1.0, ridge: '#6f7a96', snowLine: -99, fest: true },
+  // v133 · Leventino Vietnam Edition: afa e diluvio, cielo verde-grigio, foschia umida sulle risaie
+  { name: 'Afa del Vietnam', top: '#56665e', horizon: '#b9c4b0', sunDir: [.3, .45, -.84], sunColor: '#e9efd6', clouds: .9, cloud: '#9aa597',
+    light: '#e6ead6', lightI: 2.5, hemiSky: '#c4d0bc', hemiGround: '#4a4428', hemiI: 1.75, fog: '#a8b4a2', fogNear: 40, fogFar: 150, exposure: 1.02, ridge: '#5f6e5e' },
 ];
 
 export function createWorld(canvas) {
@@ -901,6 +904,59 @@ export function createWorld(canvas) {
       }
     }
     vineLeaf.instanceMatrix.needsUpdate = true;
+  }
+
+  // v133 · LEVENTINO: muretti a secco lungo la mulattiera, baite di pietra coi tetti di losa, bandiere tricolori degli Alpini
+  const WALLN = 64, WSTEP = 180 / 32;
+  const levWall = new T.InstancedMesh(new T.BoxGeometry(.55, .7, WSTEP * 1.02), new T.MeshStandardMaterial({ color: '#8b8a80', roughness: 1, flatShading: true }), WALLN);
+  { const c = new T.Color(), cols = ['#8b8a80', '#7d7b70', '#9a978a', '#86847a']; for (let i = 0; i < WALLN; i++) levWall.setColorAt(i, c.set(cols[i % 4])); }
+  const BAITE = 6, baitaData = Array.from({ length: BAITE }, (_, i) => ({ side: i % 2 ? 1 : -1, off: 22 + rand() * 26, z: i * 31 + rand() * 9, rot: rand() * 6 }));
+  const baitaWall = new T.InstancedMesh(new T.BoxGeometry(5, 3, 4), new T.MeshStandardMaterial({ color: '#7f7a70', roughness: 1, flatShading: true }), BAITE);
+  const baitaRoof = new T.InstancedMesh((() => { const g = new T.CylinderGeometry(0, 3.4, 1.6, 4, 1); g.rotateY(Math.PI / 4); g.scale(1.1, 1, .95); return g; })(), new T.MeshStandardMaterial({ color: '#4c4f55', roughness: .85, flatShading: true }), BAITE);
+  const FLAGS = 8, flagTex = (() => { const c = document.createElement('canvas'); c.width = 96; c.height = 64; const x = c.getContext('2d'); ['#1f8f3a', '#ffffff', '#d2232a'].forEach((col, i) => { x.fillStyle = col; x.fillRect(i * 32, 0, 32, 64); }); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t; })();
+  const flagPole = new T.InstancedMesh(new T.CylinderGeometry(.04, .05, 3.2, 6), mat('#d9d9d4', .4, .5), FLAGS);
+  const flagCloth = new T.InstancedMesh(new T.PlaneGeometry(1.2, .8), new T.MeshLambertMaterial({ map: flagTex, side: T.DoubleSide }), FLAGS);
+  const levMeshes = [levWall, baitaWall, baitaRoof, flagPole, flagCloth];
+  for (const m of levMeshes) { m.castShadow = m !== flagCloth; m.receiveShadow = true; m.visible = false; m.frustumCulled = false; scene.add(m); }
+  function biellese(t, on, now) {
+    for (const m of levMeshes) m.visible = on;
+    if (!on) return;
+    for (let i = 0; i < WALLN; i++) {   // due file di muretti, a tratti interrotti
+      const side = i % 2 ? 1 : -1, k = i >> 1, z = wrapZ(k * WSTEP, t), w = side * (4.7 + trail.rough * .3) * (trail.width * .5 + .5), x = center(z, t) + w;
+      const z2 = z - .5, yaw = Math.atan2(x - (center(z2, t) + w), z - z2), gap = (k * 7 + (side > 0 ? 3 : 0)) % 9 === 0;
+      dummy.rotation.set(0, yaw, 0); dummy.scale.set(1, gap ? 0 : .8 + (k % 3) * .15, 1); dummy.position.set(x, ground(z, t, w) + .3, z); put(levWall, i);
+    }
+    baitaData.forEach((d, i) => { const z = wrapZ(d.z, t), w = d.side * d.off, x = center(z, t) + w, y = ground(z, t, w);
+      dummy.rotation.set(0, d.rot, 0); dummy.scale.setScalar(1); dummy.position.set(x, y + 1.4, z); put(baitaWall, i); dummy.position.set(x, y + 3.7, z); put(baitaRoof, i); });
+    for (let i = 0; i < FLAGS; i++) { const side = i % 2 ? 1 : -1, z = wrapZ(i * 22.5 + 6, t), w = side * 6.1, x = center(z, t) + w, y = ground(z, t, w);
+      dummy.rotation.set(0, 0, 0); dummy.scale.setScalar(1); dummy.position.set(x, y + 1.6, z); put(flagPole, i);
+      dummy.rotation.set(0, Math.PI / 2 + Math.sin(now / 400 + i) * .25, 0); dummy.position.set(x - side * .62, y + 2.75, z); put(flagCloth, i); }
+    for (const m of levMeshes) m.instanceMatrix.needsUpdate = true;
+  }
+  // v133 · VIETNAM EDITION: risaie allagate ai lati (specchi d'acqua con gli argini) e piantine di riso a file
+  const PADS = 24, RICE = 480;
+  const padWater = new T.InstancedMesh(new T.PlaneGeometry(1, 1), new T.MeshStandardMaterial({ color: '#7f9a96', roughness: .08, metalness: .35, transparent: true, opacity: .88 }), PADS);
+  const padDike = new T.InstancedMesh(new T.BoxGeometry(1, .35, .6), new T.MeshStandardMaterial({ color: '#5e4a2e', roughness: 1 }), PADS * 2);
+  const rice = new T.InstancedMesh((() => { const g = new T.ConeGeometry(.22, .75, 5, 1, true); g.translate(0, .37, 0); return g; })(), new T.MeshStandardMaterial({ color: '#7cc246', roughness: .8, side: T.DoubleSide }), RICE);
+  { const c = new T.Color(), cols = ['#7cc246', '#8fd14f', '#6ab23c', '#9bd85a']; for (let i = 0; i < RICE; i++) rice.setColorAt(i, c.set(cols[i % 4])); }
+  const vietMeshes = [padWater, padDike, rice];
+  for (const m of vietMeshes) { m.receiveShadow = true; m.visible = false; m.frustumCulled = false; scene.add(m); }
+  padWater.rotation.x = 0;
+  function risaie(t, on) {
+    for (const m of vietMeshes) m.visible = on;
+    if (!on) return;
+    const PL = 15;   // lunghezza di una risaia lungo la pista
+    for (let i = 0; i < PADS; i++) {
+      const side = i % 2 ? 1 : -1, col = (i >> 1) % 2, k = i >> 2, z = wrapZ(k * PL + col * 4, t), off = 7 + col * 13, w = side * (off + 6), x = center(z, t) + w, y = ground(z, t, side * (off + 1)) - .05;
+      dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.set(12, PL - 1, 1); dummy.position.set(x, y + .08, z); put(padWater, i);
+      dummy.rotation.set(0, 0, 0); dummy.scale.set(12.6, 1, 1); dummy.position.set(x, y + .1, z - PL / 2); put(padDike, i * 2);
+      dummy.scale.set(1, 1, PL / .6); dummy.rotation.set(0, Math.PI / 2, 0); dummy.scale.set(PL, 1, 1); dummy.position.set(x - side * 6.2, y + .1, z); put(padDike, i * 2 + 1);
+    }
+    for (let i = 0; i < RICE; i++) {
+      const side = i % 2 ? 1 : -1, row = (i >> 1) % 8, k = i >> 4, z = wrapZ(k * 6 + row * .7, t), w = side * (8.5 + row * 1.5 + (k % 2) * .6), x = center(z, t) + w, y = ground(z, t, side * 8) + .05;
+      dummy.rotation.set(0, i, 0); dummy.scale.setScalar(.8 + (i % 5) * .1); dummy.position.set(x, y, z); put(rice, i);
+    }
+    for (const m of vietMeshes) m.instanceMatrix.needsUpdate = true;
   }
 
   // v102 · Gusta Ranch sulle colline dell'Astigiano: noccioleti in filari, cascine e campanili sui bricchi
@@ -2756,6 +2812,28 @@ export function createWorld(canvas) {
 
   // v102 · arrivo del Gusta Ranch: il falò con la griglia, la tavolata e il gruppo che festeggia
   const ranchFinish = new T.Group(); ranchFinish.visible = false; scene.add(ranchFinish);
+  const levFinish = new T.Group(); levFinish.visible = false; scene.add(levFinish);   // v133 · arrivo del Leventino: arco «LEVENTINO» e paiolo della polenta
+  let levSteam = [];
+  { const L = levFinish, pole = mat('#d9d9d4', .4, .5);
+    for (const sx of [-1, 1]) box(.18, 4.4, .18, pole, L, sx * 4.6, 2.2, 6);
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 140; const x = c.getContext('2d');
+    x.fillStyle = '#1f8f3a'; x.fillRect(0, 0, 341, 140); x.fillStyle = '#ffffff'; x.fillRect(341, 0, 342, 140); x.fillStyle = '#d2232a'; x.fillRect(683, 0, 341, 140);
+    x.fillStyle = '#111111'; x.font = '900 66px Arial'; x.textAlign = 'center'; x.fillText('LEVENTINO • POLENTA!', 512, 92);
+    const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace; const sg = mesh(new T.PlaneGeometry(9, 1.25), new T.MeshStandardMaterial({ map: tx, side: T.DoubleSide }), L); sg.position.set(0, 3.9, 6);
+    const pot = new T.Group(); pot.position.set(-5.5, 0, 2); L.add(pot);
+    for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2; rod([Math.cos(a) * .9, 0, Math.sin(a) * .9], [0, 2.2, 0], .05, mat('#3a3a3a', .6, .4), pot); }
+    const cauldron = mesh(new T.SphereGeometry(.65, 16, 10, 0, Math.PI * 2, Math.PI * .45, Math.PI * .55), mat('#2a2622', .5, .5), pot); cauldron.position.y = 1.2;
+    const polenta = mesh(new T.CircleGeometry(.6, 16), mat('#f2c230', .6), pot); polenta.rotation.x = -Math.PI / 2; polenta.position.y = 1.17;
+    const fireM = new T.SpriteMaterial({ map: glowTex, color: '#ff8a2a', transparent: true, opacity: .9, blending: T.AdditiveBlending, depthWrite: false });
+    const fl = new T.Sprite(fireM); fl.scale.set(1.4, 1.1, 1); fl.position.y = .45; pot.add(fl);
+    const stM = new T.SpriteMaterial({ map: glowTex, color: '#ffffff', transparent: true, opacity: .35, depthWrite: false });
+    for (let i = 0; i < 4; i++) { const st = new T.Sprite(stM); st.scale.setScalar(.9); st.position.set(0, 1.6 + i * .5, 0); st.userData.k = i; pot.add(st); levSteam.push(st); }
+    const tent = new T.Group(); tent.position.set(5.6, 0, 1); L.add(tent);
+    for (const [sx, sz] of [[-1.3, -1.2], [1.3, -1.2], [-1.3, 1.2], [1.3, 1.2]]) box(.08, 2.5, .08, pole, tent, sx, 1.25, sz);
+    { const roof = mesh(new T.ConeGeometry(2.1, .8, 4), mat('#f4f4f0', .8), tent); roof.position.y = 2.9; roof.rotation.y = Math.PI / 4; }
+    box(2.4, .8, .8, mat('#8a6a48', .85), tent, 0, .4, 0);
+    const bal = ['#ff4fc0', '#3fd0ff', '#ff8fd0', '#ffffff'];
+    for (let i = 0; i < 8; i++) { const sx = i < 4 ? -1 : 1, b = mesh(new T.SphereGeometry(.3, 12, 8), new T.MeshStandardMaterial({ color: bal[i % 4], roughness: .3 }), L); b.position.set(sx * 4.6 + Math.cos(i) * .4, 4.7 + (i % 2) * .35, 6 + Math.sin(i) * .3); b.scale.set(1, 1.2, 1); } }
   let ranchSign = null, xmasBar = null, festBalloons = null;   // v127 · v132
   { const lg = new T.Mesh(new T.PlaneGeometry(2.9, 2.9), ranchLogoMat); lg.position.set(0, 5.65, .08); ranchFinish.add(lg); }
   const flames = [];
@@ -3203,7 +3281,7 @@ export function createWorld(canvas) {
     const live = s.state === 'playing' || s.state === 'paused' || s.state === 'countdown';
     const boostAmount = live ? (s.turbo || 0) : 0;
     trail = routeAt(s.elapsed || 0, t);
-    ranchLook = !!s.ranch; curShape = ranchLook ? RANCH_SHAPE : s.ice ? null : trackShape(s.mode, s.variant || 0, GAME_LENGTH / (s.courseScale || .04)); forkF = s.fork || null; if (!DBG.noTerrain) terrain(t); if (!DBG.noScenery) { instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook); }
+    ranchLook = !!s.ranch; curShape = ranchLook ? RANCH_SHAPE : s.ice ? null : trackShape(s.mode, s.variant || 0, GAME_LENGTH / (s.courseScale || .04)); forkF = s.fork || null; if (!DBG.noTerrain) terrain(t); if (!DBG.noScenery) { instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook); biellese(t, s.look === 'lev', now); risaie(t, s.look === 'viet'); }
     weatherNow = s.weather || weatherNow;
     applyWeather(s.weather, s.sight || 0);
     ambient(fdt, t, trail.w, live);
@@ -3540,6 +3618,8 @@ export function createWorld(canvas) {
     finish.position.set(center(gz, t), height(gz, t), gz);
     finish.visible = remain < 5 && !ranchLook;
     ranchFinish.visible = remain < 5 && ranchLook;
+    levFinish.visible = remain < 5 && !ranchLook && (s.look === 'lev' || s.look === 'viet');
+    if (levFinish.visible) { levFinish.position.copy(finish.position); levFinish.rotation.copy(finish.rotation); const k = now / 1000; for (const st of levSteam) { const u = (k * .5 + st.userData.k * .25) % 1; st.position.y = 1.5 + u * 2.2; st.material.opacity = .35 * (1 - u); } }
     if (ranchFinish.visible) { ranchFinish.position.copy(finish.position); ranchFinish.rotation.copy(finish.rotation); const k = now / 1000;
       for (const f of flames) { if (f.userData.bob !== undefined) f.position.y = Math.max(0, Math.sin(k * 7 + f.userData.bob * 1.3)) * .25; else if (f.isSprite && f.material.color.r < .9) { f.position.y += .01; if (f.position.y > 4) f.position.y = 1.6; } else f.scale.y = .85 + Math.sin(k * 13 + f.position.x * 40) * .18; } }   // v102 · fiamme che ballano, fumo che sale, gruppo che salta
 

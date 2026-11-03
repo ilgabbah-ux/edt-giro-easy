@@ -60,14 +60,18 @@ export const MODES = [
     layout: [{ t: 0, len: 6, name: 'PARTENZA DAL BAR' }, { t: 1, len: 8, wet: 1, name: 'IL FANGO DELLA MADNESS' }, { t: 0, len: 7, name: 'IL BOSCO DEI REGALI' }, { t: 1, len: 6, down: 1, wet: 1, name: 'GIÙ NEL FANGO CHE SAPONE' }, { t: 2, len: 9, climb: .7, name: 'LA SALITA DI BABBO NATALE' }, { t: 1, len: 7, wet: 1, name: 'L’IGNORANZA È QUI' }, { t: 0, len: 6, down: 1, name: 'VERSO I FUOCHI' }] },
   // v132 · LEVENTINO: la passeggiata enduristica di Sostegno (marzo). Mulattiere degli Alpini, guadi, prati e pietraie; a metà il ristoro coi gazebo.
   // I compagni corrono vestiti da «Leventino Girls» (parrucca fucsia o azzurra e occhiali a cuore).
-  { id: 18, short: 'LEVENTINO', name: 'Leventino', desc: 'La passeggiata enduristica di Sostegno: mulattiere degli Alpini, guadi, prati in salita e pietraie. A metà giro il ristoro coi gazebo (birra e salame al volo) e i compagni corrono vestiti da Leventino Girls.', difficulty: 1, sky: 0, limit: 58, unlock: 4, ristoro: true, wigs: true, story: true, song: 22,
+  { id: 18, short: 'LEVENTINO', name: 'Leventino', desc: 'La passeggiata enduristica di Sostegno: mulattiere degli Alpini, guadi, prati in salita e pietraie. A metà giro il ristoro coi gazebo (birra e salame al volo) e i compagni corrono vestiti da Leventino Girls.', difficulty: 1, sky: 0, limit: 58, unlock: 4, ristoro: true, wigs: true, story: true, look: 'lev', song: 22,
     obs: { 0: ['log', 'root', 'rock', 'stump'], 1: ['puddle', 'rock', 'puddle', 'root'], 2: ['step', 'rock', 'log', 'step'], 3: ['rock', 'step', 'cairn', 'rock'] },
     layout: [{ t: 0, len: 6, name: 'PARTENZA DA SOSTEGNO' }, { t: 3, len: 9, name: 'LA MULATTIERA DEGLI ALPINI' }, { t: 1, len: 7, down: 1, name: 'GIÙ NEL GUADO' }, { t: 2, len: 9, climb: .8, name: 'IL PRATONE IN SALITA' }, { t: 0, len: 6, name: 'IL RISTORO' }, { t: 3, len: 9, climb: 1, name: 'LA PIETRAIA DEL LEVENTINO' }, { t: 0, len: 7, down: 1, name: 'VERSO LA POLENTA' }] },
+  // v133 · LEVENTINO VIETNAM EDITION: l'edizione super bagnata del Leventino. Diluvio dall'inizio alla fine, risaie allagate, fango fino al casco e sudore.
   { id: 19, hidden: true, short: '—', name: '(riservato)', desc: '', difficulty: 1, sky: 0, limit: 58, unlock: 99 },   // 19 = classifica delle cadute
   // v132 · MIRCO E GABBAH FEST: il compleanno di Mirco e del Gabbah al Gusta Ranch, il 1° marzo. Ghiaccio e fango, lucine, palloncini, torte in pista.
   { id: 20, short: 'FEST', name: 'Mirco e Gabbah Fest', desc: 'Il compleanno di Mirco e del Gabbah al Gusta Ranch: lastre di ghiaccio e fango, lucine sulle fettucce, palloncini e torte di compleanno in mezzo alla pista. All’arrivo «Tanti auguri» e fuochi d’artificio. Il 1° marzo punti doppi.', ranch: true, fest: true, story: true, difficulty: 1, sky: 8, limit: 57, unlock: 5, dense: 0, song: 21,
     obs: { 0: ['cake', 'hay', 'puddle', 'stump'], 1: ['puddle', 'cake', 'puddle', 'hay'], 2: ['cake', 'step', 'hay', 'rock'], 3: ['hay', 'cake', 'puddle', 'stump'] },
     layout: [{ t: 0, len: 6, name: 'LA FESTA COMINCIA' }, { t: 1, len: 8, wet: 1, name: 'IL FANGO DI MIRCO' }, { t: 0, len: 7, icy: 1, name: 'LASTRA DI GHIACCIO' }, { t: 1, len: 7, down: 1, wet: 1, name: 'CAMPA GIÙ!' }, { t: 0, len: 8, name: 'LE TORTE IN PISTA' }, { t: 0, len: 7, icy: 1, name: 'IL GHIACCIO DEL GUSTA' }, { t: 0, len: 5, down: 1, name: 'TANTI AUGURI!' }] },
+  { id: 21, short: 'VIETNAM', name: 'Leventino Vietnam Edition', desc: 'L’edizione super bagnata del Leventino: piove dall’inizio alla fine, risaie allagate ai lati, guadi uno dopo l’altro, fango fino al casco e sudore negli occhi. Il ristoro c’è anche qui… sotto un gazebo che gocciola.', difficulty: 2, sky: 9, limit: 60, unlock: 6, rainy: true, ristoro: true, wigs: true, story: true, look: 'viet', song: 22, dense: .02,
+    obs: { 0: ['puddle', 'log', 'root', 'puddle'], 1: ['puddle', 'puddle', 'root', 'log'], 2: ['puddle', 'step', 'root', 'log'], 3: ['puddle', 'rock', 'root', 'step'] },
+    layout: [{ t: 1, len: 6, name: 'PARTENZA SOTTO IL DILUVIO' }, { t: 1, len: 9, name: 'LE RISAIE' }, { t: 1, len: 7, down: 1, name: 'IL GUADO INFINITO' }, { t: 2, len: 8, climb: .7, wet: 1, name: 'LA SALITA DEL SUDORE' }, { t: 1, len: 6, name: 'IL RISTORO ALLAGATO' }, { t: 3, len: 9, wet: 1, name: 'FANGO FINO AL CASCO' }, { t: 1, len: 7, down: 1, name: 'ARRIVO A MOLLO' }] },
 ];
 // v59 · percorsi tolti dal menu (restano nell'elenco per non mescolare record e classifiche già salvati)
 // v127 · eventi a tempo: Christmas Madness dal 1° dicembre al 6 gennaio (con ?xmas=1 si vede prima, per le prove)
@@ -343,7 +347,7 @@ export function pendingBoosts() { return Object.keys(data.boosts).filter(k => da
 
 // v130 · TRE STELLE PER PERCORSO: ★ arrivi al rifugio · ★★ tempo d'argento (6 s sotto il massimo) · ★★★ tempo d'oro (12 s sotto) senza cadute.
 // Premi a 9, 18 e 27 stelle. Valgono i percorsi "a tempo" fissi (niente Potter, Ice, Sfida del giorno ed eventi).
-export const STAR_MODES = [0, 1, 10, 11, 12, 13, 14, 15, 16, 18, 20];
+export const STAR_MODES = [0, 1, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21];
 export const starTimes = m => { const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };
 export const starsFor = m => (data.stars || {})[m] || 0;
 export const totalStars = () => STAR_MODES.reduce((a, m) => a + starsFor(m), 0);

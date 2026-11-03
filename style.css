@@ -2002,3 +2002,14 @@ aside#hub { gap: 10px; }
 .radiorow.nope { animation: shake .3s; }
 @media (max-width: 380px) { .homeduo b { font-size: 16px; } .homeduo button { padding: 8px 10px; gap: 7px; } }
 .homeduo .champchip { grid-column: 1 / -1; }
+
+/* v133 · Vietnam Edition: gocce di sudore che colano sullo schermo */
+#game.sweat::after { content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; animation: sweatDrip 2.6s ease-in forwards;
+  background:
+    radial-gradient(ellipse 14px 20px at 18% 22%, #ffffff55 0 30%, #bfe6ff33 45%, transparent 70%),
+    radial-gradient(ellipse 10px 15px at 74% 16%, #ffffff55 0 30%, #bfe6ff33 45%, transparent 70%),
+    radial-gradient(ellipse 18px 26px at 86% 48%, #ffffff4d 0 30%, #bfe6ff2e 45%, transparent 70%),
+    radial-gradient(ellipse 12px 18px at 30% 60%, #ffffff4d 0 30%, #bfe6ff2e 45%, transparent 70%),
+    radial-gradient(ellipse 9px 13px at 55% 34%, #ffffff55 0 30%, #bfe6ff33 45%, transparent 70%),
+    radial-gradient(ellipse 120% 90% at 50% 50%, transparent 60%, #d7f0ff22 100%); }
+@keyframes sweatDrip { 0% { opacity: 0; transform: translateY(-6px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translateY(46px); } }

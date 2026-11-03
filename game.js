@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=c8fcb816';
-import { createWorld } from './scene3d.js?v=8458e87e';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
+import { createWorld } from './scene3d.js?v=a977a5f9';
 import * as A from './audio.js?v=4a9e1806';
-import * as P from './progress.js?v=c4e8d897';
+import * as P from './progress.js?v=8ba599df';
 import { createMud } from './mudfx.js?v=ae45cf9e';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=71a0c2da';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=a85e5b31';
-import * as C from './classifica.js?v=09f67fa9';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
+import * as C from './classifica.js?v=4e5e7763';
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -231,7 +231,7 @@ const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RU
 const rule = id => mode === 3 && dailyRule().id === id;
 const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
-const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness', 18: 'leventino', 20: 'mirco-gabbah-fest' };
+const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness', 18: 'leventino', 20: 'mirco-gabbah-fest', 21: 'leventino-vietnam' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
 const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
@@ -375,7 +375,7 @@ let wasClimb = false, throttleSlip = 0, overT = 0, wasSweet = false, gasLock = f
 let ice = false, drift = 0, driftT = 0, driftSum = 0, driftPend = 0, driftChain = 0, driftGap = 9, driftScore = 0, driftBest = 0, driftCount = 0, snowT = 0, bendNow = 0, lastWall = -9, driftM = 0, driftMP = 0;   // v92 · metri percorsi di traverso
 // v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
 let draftT = 0, draftR = null, draftSaid = -9, lastDraftAt = -9, catchT = 0;   // v107 · scia dietro ai compagni e rimonta
-let peloAt = -99, volata = 0, champRun = false, icyWarn = 0, ristoroDone = 0;   // v130 · v132
+let peloAt = -99, volata = 0, champRun = false, icyWarn = 0, ristoroDone = 0, sweatAt = 6;   // v130 · v132
 let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos = '';
 let weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0 }, nextFlash = 5, weatherPlan = [], weatherSaid = '', lastRainMud = 0;
 const curLift = () => jumpHeight(jump, jumpDur, jumpH);
@@ -598,7 +598,7 @@ function resetRun() {
   combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
   lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
   replayBuf = []; recClock = 0; recLast = 0; replay = null; highlights = []; hlPend = [];
-  volata = 0; peloAt = -99; icyWarn = 0; ristoroDone = 0; volataShow(null); ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = fallT = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
+  volata = 0; peloAt = -99; icyWarn = 0; ristoroDone = 0; sweatAt = 6; volataShow(null); ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = fallT = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
   grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9; lastRiderHit = -99;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
   for (const k of Object.keys(up)) { const l = P.upgradeLevel(k); up[k] = l <= P.LEGEND_FROM ? l : P.LEGEND_FROM + (l - P.LEGEND_FROM) * .4; }   // v106.6 · livelli Leggenda: +0,4 l'uno
@@ -1800,7 +1800,8 @@ function setupRace() {
   if (rule('fog')) weatherPlan = [{ kind: 'fog', from: 0, to: 999 }];
   if (feat('night')) weatherPlan.push({ kind: 'night', from: 0, to: 999 });
   if (mode === 17) weatherPlan = [{ kind: 'dusk', from: 24 + rng() * 10, to: 999 }];
-  if (P.MODES[mode].fest) weatherPlan = [{ kind: 'dusk', from: 18 + rng() * 10, to: 999 }];   // v132 · la Fest finisce col buio e le lucine   // v127 · Christmas Madness: niente pioggia, scende la sera   // v84 · MotoFogna (e la notturna del giorno)
+  if (P.MODES[mode].fest) weatherPlan = [{ kind: 'dusk', from: 18 + rng() * 10, to: 999 }];
+  if (P.MODES[mode].look === 'viet') weatherPlan = [{ kind: 'rain', from: 0, to: 999 }];   // v134 · Vietnam: diluvio sì, nebbia no (se no le risaie non si vedono)   // v132 · la Fest finisce col buio e le lucine   // v127 · Christmas Madness: niente pioggia, scende la sera   // v84 · MotoFogna (e la notturna del giorno)
   // v97 · ora e meteo diversi a ogni giro: tramonto o nebbia del mattino a caso, così lo stesso percorso cambia faccia
   timeOfDay = '';
   if (!P.MODES[mode].ice && !P.MODES[mode].leap && !feat('night') && !P.MODES[mode].rainy && mode !== 3 && !weatherPlan.length) {
@@ -2325,6 +2326,7 @@ function update(dt) {
     A.engineUpdate(speed * (1 + elapsed / 200) * (ice ? 1 + throttleSlip * .55 : 1), gas, turbo > 0, jump > 0 || (ice && throttleSlip > .5), surf); }   // v49 · sul ghiaccio la ruota pattina: giri alti
   A.musicIntensity(turbo > 0 ? 1 : .35 + (multiplier() - 1) * .15);
   volataTick();
+  if (P.MODES[mode].look === 'viet' && state === 'playing' && elapsed > sweatAt) { sweatAt = elapsed + 9 + rng() * 6; sweatFx(); }   // v133 · Vietnam Edition: il sudore ti cola negli occhi
 
   spawn -= dt * speed;
   if (spawn <= 0) {
@@ -2582,7 +2584,7 @@ function drawState() {
     courseScale: GAME_LENGTH / (courseLength(P.MODES[mode].difficulty) * 19.5), objects, invincible, roadTime, wheelPhase, turbo, combo, fxKind, fxSerial,
     gas, wet, magnet, whip, shake, crash, fall: fallT, speed: speedNow,
     riderName: profile.rider, riderNumber: riderNum(),
-    livery: raceLivery(), preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, bikeId: P.currentBike().id, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
+    livery: raceLivery(), look: P.MODES[mode].look || '', preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, bikeId: P.currentBike().id, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
     leapPitch: leap && leapState === 2 ? leapPitch : undefined, leapCam: leap && leapState === 2, canyon: leap && canyonX0 !== null ? { x0: canyonX0, len: canyonLen, land: canyonLand } : null,
     gev: gev ? { L: 1 + gevSide * GEV_OFF, z: gevZ, arm: gevArm, t: elapsed } : null,
     ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs, variant: variantOf(mode),
@@ -3001,6 +3003,8 @@ function starGoal(m) {
   const n = P.starsFor(m), t = P.starTimes(m);
   return n >= 3 ? 'TUTTE E TRE: SEI UN MANICO' : n === 2 ? `3ª STELLA: SOTTO I ${t.gold} s SENZA CADUTE` : n === 1 ? `2ª STELLA: SOTTO I ${t.silver} s` : '1ª STELLA: ARRIVA AL RIFUGIO';
 }
+const SWEAT_LINES = ['SUDORE NEGLI OCCHI!', 'UMIDITÀ AL 110%', 'IL CASCO È UNA SAUNA', 'MAGLIA DA STRIZZARE', 'ACQUA SOPRA, FANGO SOTTO', 'CHI HA DETTO GIRO EASY?'];
+function sweatFx() { const gm = $('game'); gm.classList.remove('sweat'); void gm.offsetWidth; gm.classList.add('sweat'); pop('💦 ' + SWEAT_LINES[Math.floor(rng() * SWEAT_LINES.length)], 'small'); setTimeout(() => gm.classList.remove('sweat'), 2700); }
 function volataShow(t, cls = '') {
   let el = $('volata');
   if (!t) { if (el) el.hidden = true; return; }
@@ -3872,7 +3876,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 133;
+const GAME_VERSION = 134;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
