@@ -644,7 +644,7 @@ footer { font: 600 14px var(--ui); letter-spacing: .5px; border-top: 1px solid #
 .sharebutton.install { background: #ffffff14; color: var(--y); }
 .sharebutton[hidden] { display: none; }
 /* Telefono in orizzontale: HUD e comandi più compatti */
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .shell { padding: 4px 8px; }
   header { display: none; }
   main { grid-template-columns: 1fr; }
@@ -666,13 +666,13 @@ footer { font: 600 14px var(--ui); letter-spacing: .5px; border-top: 1px solid #
   .sharebutton.install span { display: none; }
   .sharebutton.install .ic { display: inline-block; }
 }
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .banner { top: 64px; font-size: 16px; padding: 5px 20px; }
   .gas { bottom: 70px; left: auto; right: 14px; transform: none; animation: none; min-height: 44px; padding: 6px 22px; font-size: 18px; }
   .rightctrl { flex-direction: row; }
   .bigcall { top: 38%; font-size: 64px; }
 }
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .controls .boost { position: absolute; left: 0; bottom: 62px; height: 42px; min-width: 128px; flex: none; }
   .tracklabel { bottom: auto; top: 96px; left: 12px; }
 }
@@ -710,7 +710,7 @@ footer { font: 600 14px var(--ui); letter-spacing: .5px; border-top: 1px solid #
   .gas { right: 10px; bottom: 150px; }
   .erika { bottom: 150px; }
 }
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .pops { top: 70px; }
   .gas { bottom: 70px; right: 14px; }
 }
@@ -755,7 +755,7 @@ footer { font: 600 14px var(--ui); letter-spacing: .5px; border-top: 1px solid #
   .gas { right: 8px; bottom: 124px; min-height: 46px; padding: 6px 20px; font-size: 18px; }
   .erika { bottom: 124px; }
 }
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .controls .boost { position: static; height: auto; min-width: 0; flex: 1; max-width: 140px; }
   .controls { bottom: 8px; }
   .ctrl, .wheelie { height: 48px; }
@@ -765,7 +765,7 @@ footer { font: 600 14px var(--ui); letter-spacing: .5px; border-top: 1px solid #
   .erika { bottom: 104px; }
 }
 /* Telefono in orizzontale: il cruscotto sta nella riga dei comandi, tra sterzo e salto. */
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .dash { left: 128px; right: 236px; bottom: 8px; height: 48px; align-items: center; }
   .dash .speedo { display: none; }
   .trackbox .tl { font-size: 10px; padding: 2px 10px 2px 6px; }
@@ -805,7 +805,7 @@ main { grid-template-columns: minmax(0, 1fr) 340px; }
 .game:-webkit-full-screen { width: 100vw; height: 100vh; max-width: none; margin: 0; }
 body.isfull .installhelp { display: none; }
 /* v34: in orizzontale lo sterzo ha larghezza fissa, così la barra del percorso non ci finisce sotto */
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .controls { left: 8px; right: 8px; }
   .steer { gap: 6px; }
   .steer .ctrl { min-width: 0; width: 54px; flex: none; }
@@ -862,7 +862,7 @@ body.isfull .installhelp { display: none; }
   .posbox { position: absolute; top: 68px; left: 50%; transform: translateX(-50%); }
   .posbox.bump { animation: none; }
 }
-@media (max-height: 500px) and (orientation: landscape) { .posbox { position: static; transform: none; } }
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) { .posbox { position: static; transform: none; } }
 .erika.angelo { left: auto; right: 3%; flex-direction: row-reverse; }
 .erika.angelo .bubble { margin: 0 -14px 52% 0; transform: rotate(4deg); box-shadow: -6px 6px 0 var(--y); }
 .erika.angelo .bubble::before { left: auto; right: -16px; border-right: 10px solid transparent; border-left: 18px solid #111; }
@@ -872,7 +872,7 @@ body.isfull .installhelp { display: none; }
 @media (max-width: 900px) { .erika.angelo { right: 2%; } .erika.angelo .bubble { font-size: 17px; white-space: normal; max-width: 150px; } }
 .erika.angelo { bottom: 210px; }
 @media (max-width: 900px) { .erika.angelo { bottom: 200px; } .erika.angelo img { width: 120px; } .erika.angelo .bubble { margin: 0 -10px 40% 0; } }
-@media (max-height: 500px) and (orientation: landscape) { .erika.angelo { bottom: 80px; } }
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) { .erika.angelo { bottom: 80px; } }
 .homebtn { width: 100%; margin: 4px 0 10px; font-size: 14px; }
 
 /* v44: officina con moto e accessori */
@@ -929,11 +929,11 @@ body.isfull .installhelp { display: none; }
 .chip.boanal { border-color: #f2c230 !important; background: linear-gradient(135deg, #3a2c08, #151515) !important; }
 .chip.boanal span { color: #ffe08a; }
 .shoptabs { flex-wrap: wrap; }
-@media (max-height: 500px) and (orientation: landscape) { .driftbox { min-width: 0; padding: 2px 10px 2px 6px; } .driftbox b { font-size: 20px; } .driftbox .dgauge { transform: scale(.8); } }
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) { .driftbox { min-width: 0; padding: 2px 10px 2px 6px; } .driftbox b { font-size: 20px; } .driftbox .dgauge { transform: scale(.8); } }
 .mode.icy { background: linear-gradient(135deg, #12324a, #0d1c28) !important; border-color: #5fd4ff !important; }
 .mode.icy.active { box-shadow: 0 0 0 2px #5fd4ff, 0 0 20px #5fd4ff55; }
 @media (max-width: 900px) { .coach { margin-top: 38px; max-width: 70vw; } }
-@media (max-height: 500px) and (orientation: landscape) { .coach { margin-top: 0; max-width: 44vw; font-size: 11px; } }
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) { .coach { margin-top: 0; max-width: 44vw; font-size: 11px; } }
 
 /* v47 · pulsante schermo intero sempre visibile nei menu */
 .ovfull { position: absolute; top: 12px; right: 14px; z-index: 6; width: 46px; height: 42px; color: #fff; pointer-events: auto; }
@@ -959,7 +959,7 @@ body.isfull .installhelp { display: none; }
 .panel.panelmax .liveries, .panel.panelmax #liveries { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 body.panelopen { overflow: hidden; }
 /* v48 · telefono in orizzontale: la posizione va accanto al tempo, non sulla strada */
-@media (max-height: 500px) and (orientation: landscape) { .posbox { position: absolute !important; top: 0; left: calc(50% + 56px); transform: none; } }
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) { .posbox { position: absolute !important; top: 0; left: calc(50% + 56px); transform: none; } }
 
 /* v48 · classifica: punti o tempi migliori */
 .kindtabs { display: flex; gap: 6px; margin: 8px 0 2px; }
@@ -969,7 +969,7 @@ body.panelopen { overflow: hidden; }
 
 /* v49 · gas bloccato in salita */
 .gas.locked { background: #3ddc84 !important; color: #0b1a10 !important; box-shadow: 0 0 18px #3ddc8466; }
-@media (max-height: 500px) and (orientation: landscape) { .coach { position: absolute; top: 48px; left: 50%; transform: translateX(-50%); margin: 0; } .coach.show { animation-name: coachL; } }
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) { .coach { position: absolute; top: 48px; left: 50%; transform: translateX(-50%); margin: 0; } .coach.show { animation-name: coachL; } }
 @keyframes coachL { 0% { opacity: 0; } 8%, 86% { opacity: .92; } 100% { opacity: 0; } }
 @media (max-width: 900px) and (orientation: portrait) { .coach { position: absolute; top: 300px; left: 50%; transform: translateX(-50%); margin: 0; max-width: 78vw; } .coach.show { animation-name: coachL; } }
 
@@ -1423,7 +1423,7 @@ aside#hub { gap: 10px; }
 @keyframes speedfx { from { transform: scale(1) rotate(0deg); } to { transform: scale(1.06) rotate(1.2deg); } }
 
 /* v106 · telefono in orizzontale: menu su due colonne, così "ACCENDI LA MOTO" si vede subito senza scorrere */
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .card:has(> .menuhead) { width: min(900px, 100%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 14px; align-items: start; }
   .card:has(> .menuhead) > * { grid-column: 1 / -1; }
   .card:has(> .menuhead) > .menuhead { grid-column: 1; grid-row: 1; margin: 0; }
@@ -1503,7 +1503,7 @@ aside#hub { gap: 10px; }
 .coach .ic { width: 1.2em; height: 1.2em; vertical-align: -.22em; color: var(--y); }
 .ctrl.tutpulse { animation: tutpulse .7s ease-in-out infinite alternate !important; box-shadow: 0 0 0 3px var(--y), 0 0 22px var(--y) !important; }
 @keyframes tutpulse { from { transform: scale(1); } to { transform: scale(1.08); } }
-@media (max-height: 500px) and (orientation: landscape) { .coach.hold { transform: translateX(-50%); animation: none; } }
+@media (max-height: 500px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) { .coach.hold { transform: translateX(-50%); animation: none; } }
 /* v107.3 · maglia "Sono un endurista semplice" nel selettore livree: la stampa vera su fondo bianco */
 .livery.shirt i { background: #f4f3ee; display: grid; place-items: center; overflow: hidden; }
 .livery .lvshirt { width: 40px; height: auto; transform: skewX(12deg); }
@@ -1574,7 +1574,7 @@ aside#hub { gap: 10px; }
 .derbywin { display: flex; align-items: center; gap: 8px; margin: 6px 0; padding: 8px 10px; border-radius: 8px; background: #10243a; border: 1px solid #4aa3ff88; color: #fff; font: 700 13px var(--ui); }
 .derbywin span { flex: 1; } .derbywin b { color: var(--y); }
 /* v107.6 · tablet in orizzontale (iPad): comandi grandi ai lati, turbo sopra SALTA a portata di pollice destro */
-@media (pointer: coarse) and (orientation: landscape) and (min-height: 501px) {
+@media (pointer: coarse) and (orientation: landscape) and (min-height: 621px) {   /* v125.4 · tablet veri: i telefoni grandi in orizzontale (fino a 620 px di altezza) usano il layout del telefono */
   .controls { left: 14px; right: 14px; bottom: 14px; }
   .steer { gap: 10px; }
   .steer .ctrl { min-width: 100px; height: 88px; font-size: 42px; }
@@ -1718,7 +1718,7 @@ aside#hub { gap: 10px; }
 @media (max-width: 420px) { .respec { flex-direction: column; align-items: stretch; } }
 .nickerr { margin: 6px 0 0; color: #ff8a7a; font: 700 13px var(--ui); }
 /* v109.4 · telefono in orizzontale: il benvenuto sta tutto nello schermo, i pulsanti si vedono subito */
-@media (max-height: 520px) and (orientation: landscape) {
+@media (max-height: 520px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .welcome { grid-template-columns: 1fr minmax(240px, 42%); column-gap: 18px; row-gap: 6px; align-items: start; }
   .welcome .menushield, .welcome .wfacts { display: none; }
   .welcome .eyebrow, .welcome .title, .welcome .wlead { grid-column: 1; }
@@ -1729,7 +1729,7 @@ aside#hub { gap: 10px; }
   .welcome .wvideo { grid-column: 2; grid-row: 4; }
 }
 /* v109.4 · telefono in orizzontale, conto alla rovescia: "come si guida" a sinistra, cartolina del percorso a destra */
-@media (max-height: 520px) and (orientation: landscape) {
+@media (max-height: 520px) and (orientation: landscape), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .tipcard, .tipcard.show { left: 14px; top: 118px; width: min(270px, 38vw); transform: none; }
   .trackintro { left: 69%; width: min(56%, 440px); }
 }
@@ -1799,7 +1799,7 @@ aside#hub { gap: 10px; }
 .game.tiltmode .dash { left: 14px !important; right: 14px !important; bottom: calc(var(--tp) + var(--BH) + var(--SH) + 2 * var(--gap) + 6px) !important; }
 .game.tiltmode .flashchip { bottom: calc(var(--tp) + var(--BH) + var(--SH) + 2 * var(--gap) + 58px); }
 /* orizzontale sul telefono: isole sui lati, pista libera al centro, cruscotto in mezzo in basso */
-@media (orientation: landscape) and (max-height: 520px) {
+@media (orientation: landscape) and (max-height: 520px), (orientation: landscape) and (pointer: coarse) and (max-height: 620px) {
   .game.tiltmode { --bw: 136px; --bh: 78px; --sh: 50px; --gap: 8px; --tp: 14px; --tl: max(16px, env(safe-area-inset-left, 0px)); --tr: max(16px, env(safe-area-inset-right, 0px)); }
   .game.tiltmode .dash { left: calc(var(--tl) + var(--BW) + 34px) !important; right: calc(var(--tr) + var(--BW) + 16px) !important; bottom: 10px !important; height: auto; }
   .game.tiltmode .flashchip { bottom: calc(var(--tp) + var(--BH) + var(--SH) + 2 * var(--gap) + 8px); left: var(--tl); }
