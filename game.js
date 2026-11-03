@@ -1859,7 +1859,7 @@ function updateGroupGhost() {
     const tg = a >= p.length - 1 ? p.length - 1 : a + Math.max(0, Math.min(1, (course - p[a]) / Math.max(.001, p[a + 1] - p[a])));
     const gap = elapsed - tg, ch = $('ghostchip');
     if (elapsed > 1.5) { ch.hidden = false; ch.className = 'ghostchip ' + (gap > 0 ? 'behind' : 'ahead'); ch.innerHTML = `👻 ${gGhost.name.toUpperCase()}<b>${gap > 0 ? '+' : '−'}${Math.abs(gap).toFixed(1).replace('.', ',')} s</b>`; } }
-  if (!gGhostPassed && elapsed > 3 && course > gc + .3) { gGhostPassed = true; pop('👻 HAI PASSATO IL FANTASMA DI ' + gGhost.name.toUpperCase() + '!', 'gold'); A.sfx.near(); }
+  if (!gGhostPassed && elapsed > 3 && course > gc + .3) { gGhostPassed = true; pop('👻 HAI PASSATO IL FANTASMA ' + (/^il /i.test(gGhost.name) ? 'DEL ' + gGhost.name.slice(3) : 'DI ' + gGhost.name).toUpperCase() + '!', 'gold'); A.sfx.near(); }
   if (gGhostPassed && course < gc - 1.5) { gGhostPassed = false; pop('👻 ' + gGhost.name.toUpperCase() + ' TI HA RIPRESO', 'small'); }
   $('gghost').hidden = false; $('gghost').style.left = Math.min(100, gc / GAME_LENGTH * 100) + '%'; $('gghost').title = 'Fantasma di ' + gGhost.name + ' (1° nel gruppo)';
 }
@@ -2200,7 +2200,7 @@ function update(dt) {
   { let dr = null;
     if (!ice && !leap && crash <= 0) for (const r of rivals) if (r.gap > 2.5 && r.gap < (has('slip') ? 26 : 17) && Math.abs(r.lx - px) < (has('slip') ? .8 : .55)) { dr = r; break; }
     draftT = dr ? draftT + dt : Math.max(0, draftT - dt * 2.5); if (dr) draftR = dr;
-    if (draftT > .5) { lastDraftAt = elapsed; if (elapsed - draftSaid > 6) { draftSaid = elapsed; pop('⚡ IN SCIA A ' + draftR.name.toUpperCase() + '!', 'white'); buzz(10); } }
+    if (draftT > .5) { lastDraftAt = elapsed; if (elapsed - draftSaid > 6) { draftSaid = elapsed; pop('⚡ IN SCIA ' + (/^il /i.test(draftR.name) ? 'AL ' + draftR.name.slice(3) : 'A ' + draftR.name).toUpperCase() + '!', 'white')   /* v125.4 · «al Gabbah», non «a il Gabbah» */; buzz(10); } }
     // v107 · RIMONTA: ultimo e staccato (dopo una botta) = un filo di spinta per rientrare in gara
     const ahead = rivals.filter(r => r.gap > 0 && !r.duel), far = !ice && !leap && rivals.length && ahead.length === rivals.length && Math.min(...ahead.map(r => r.gap)) > 30;
     catchT = far ? Math.min(1, catchT + dt * .5) : Math.max(0, catchT - dt); }
