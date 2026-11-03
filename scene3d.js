@@ -2,7 +2,7 @@
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { GLTFLoader } from './GLTFLoader.js';
 import { DRACOLoader } from './DRACOLoader.js';
-import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=55332041';
+import { OBSTACLE_HEIGHT, iceShape, iceBend, iceHeading, ranchShape, ranchHeading, ranchBend, trackShape, GAME_LENGTH, JUMP_DURATION, JUMP_HEIGHT, jumpHeight, routeAt, sectionWeights, terrainHeight, terrainGrade } from './physics.js?v=c8fcb816';
 import * as T from './three.module.min.js';
 import { RIDER_PARTS } from './pilota3d.js?v=842708b6';
 
@@ -28,6 +28,9 @@ const PRESETS = [
   // v127 · Christmas Madness: sera d'inverno, cielo blu e rosa, neve sui prati, fango in pista
   { name: 'Sera di Natale', top: '#1d2b5c', horizon: '#f0a98a', sunDir: [-.45, .12, -.88], sunColor: '#ffb27a', clouds: .35, cloud: '#e8d2dc',
     light: '#ffd9b4', lightI: 2.7, hemiSky: '#bccaf0', hemiGround: '#6a5644', hemiI: 1.65, fog: '#c9b8cc', fogNear: 55, fogFar: 175, exposure: 1.0, ridge: '#6f7a96', snowLine: -99, xmas: true },
+  // v132 · Mirco e Gabbah Fest: fine inverno al Gusta Ranch, tramonto arancio, prati brinati, lucine della festa
+  { name: 'Sera della Fest', top: '#22305e', horizon: '#ffb070', sunDir: [-.5, .14, -.85], sunColor: '#ffc08a', clouds: .4, cloud: '#f0d0c0',
+    light: '#ffdcb8', lightI: 2.8, hemiSky: '#c4d0f0', hemiGround: '#6a5644', hemiI: 1.7, fog: '#d0bcc4', fogNear: 55, fogFar: 175, exposure: 1.0, ridge: '#6f7a96', snowLine: -99, fest: true },
 ];
 
 export function createWorld(canvas) {
@@ -469,10 +472,12 @@ export function createWorld(canvas) {
     pine.color.set(on || iceMode ? '#2c4a44' : '#30594c'); pineLight.color.set(on || iceMode ? '#eef4f7' : '#3e6d56');
     tufts.visible = !on && !iceMode && quality < 2; ferns.visible = flowers.visible = !on && !iceMode && !desertLook;
     shrubs.material.color.set(on || iceMode ? '#e6eef2' : desertLook ? '#b89a68' : '#ffffff');
-    xmasBulbs.visible = on; snowFlakes.visible = on; ornaments.visible = on; head.getObjectByName('xhat').visible = on;
-    if (ranchTex || xmasPosterTex) { ranchLogoMat.map = on ? xmasPosterTex || ranchTex : ranchTex; ranchLogoMat.needsUpdate = true; }
-    if (ranchSign) { ranchSign.mesh.material.map = on ? ranchSign.xmas : ranchSign.ranch; ranchSign.mesh.material.needsUpdate = true; }
-    if (xmasBar) xmasBar.visible = on;
+    const X = on === 'xmas', F = on === 'fest';   // v132 · stesso inverno, due feste: Natale o il compleanno di Mirco e del Gabbah
+    xmasBulbs.visible = !!on; snowFlakes.visible = X; ornaments.visible = !!on; head.getObjectByName('xhat').visible = X;
+    if (ranchTex || xmasPosterTex || festPosterTex) { ranchLogoMat.map = X ? xmasPosterTex || ranchTex : F ? festPosterTex || ranchTex : ranchTex; ranchLogoMat.needsUpdate = true; }
+    if (ranchSign) { ranchSign.mesh.material.map = X ? ranchSign.xmas : F ? ranchSign.fest : ranchSign.ranch; ranchSign.mesh.material.needsUpdate = true; }
+    if (xmasBar) xmasBar.visible = !!on;
+    if (festBalloons) festBalloons.visible = F;
   }
 
   // ---------- Paesaggi per sezione (instanced: leggero sui telefoni) ----------
@@ -1288,6 +1293,12 @@ export function createWorld(canvas) {
     const tip = new T.Group(); tip.rotation.x = .85; xh.add(tip);
     const cone = mesh(new T.ConeGeometry(.12, .3, 14), red, tip); cone.position.y = .15;
     ball(.045, .045, .045, white, tip, 0, .31, 0); }
+  // v132 · parrucca da Leventino Girl sopra al casco: caschetto liscio con frangia
+  const wigMat = new T.MeshStandardMaterial({ color: '#ff4fc0', roughness: .55, metalness: .05 });
+  { const wg = new T.Group(); wg.name = 'wig'; wg.visible = false; wg.position.set(0, .02, .01); head.add(wg);
+    const cap = mesh(new T.SphereGeometry(.185, 18, 12, 0, Math.PI * 2, 0, Math.PI * .55), wigMat, wg); cap.scale.set(1.05, 1.1, 1.12);
+    const bob = mesh(new T.CylinderGeometry(.2, .23, .2, 18, 1, true, Math.PI * .28, Math.PI * 1.44), wigMat, wg); bob.position.set(0, -.04, -.01); bob.rotation.y = Math.PI;
+    for (const sx of [-1, 1]) { const lock = mesh(new T.BoxGeometry(.05, .2, .14), wigMat, wg); lock.position.set(sx * .205, -.08, .04); } }
   { const hg = helmGroup; for (const [m, mt] of [['helmet', helmetMat], ['accent', accent], ['black', black], ['lens', lensMat]]) mesh(partGeo('helmet', m), mt, hg); }
   // v97 · action cam sul casco: cinese, GoPro, Action360 EDT (il top, su un'asticella con due obiettivi)
   const camModels = {};
@@ -1847,9 +1858,10 @@ export function createWorld(canvas) {
   const waterCap = mat('#1e6fd9', .4), waterLabel = mat('#ffffff', .6);
   const dangerRing = new T.MeshBasicMaterial({ color: '#ff3b30', transparent: true, opacity: .6, side: T.DoubleSide, depthWrite: false });
   const ranchLogoMat = new T.MeshBasicMaterial({ transparent: true, alphaTest: .05, side: T.DoubleSide, depthWrite: false });   // v102 · logo "Mud, beer & glory"
-  let ranchTex = null, xmasPosterTex = null;
+  let ranchTex = null, xmasPosterTex = null, festPosterTex = null;
+  texLoader.load('img/mirco-gabbah-fest.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; festPosterTex = t; if (xmasLook === 'fest') { ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; } });   // v132
   texLoader.load('img/gusta-ranch-logo.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; ranchTex = t; if (!xmasLook) { ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; } });
-  texLoader.load('img/christmas-madness.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; xmasPosterTex = t; if (xmasLook) { ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; } });   // v127 · a Natale sull'arco c'è la locandina
+  texLoader.load('img/christmas-madness.webp?t=1', t => { t.colorSpace = T.SRGBColorSpace; xmasPosterTex = t; if (xmasLook === 'xmas') { ranchLogoMat.map = t; ranchLogoMat.needsUpdate = true; } });   // v127 · a Natale sull'arco c'è la locandina
   const henWhite = mat('#f3efe6', .85), henRed = mat('#a5512a', .8), henComb = mat('#d4241c', .6), henBeak = mat('#e8b02a', .6);   // v102
   const camelMat = mat('#c79a5e', .85), camelDarkMat = mat('#8a6236', .85), thornA = mat('#7a5a34', .95), thornB = mat('#9c7a48', .95), thornLeaf = mat('#5e6a2c', .9);   // v106.7
   const crateWood = mat('#b98a52', .9), grapeMat = mat('#4a2a5c', .5), grapeGreen = mat('#a7b54a', .5), cowWhite = mat('#f1ede4', .8), cowBlack = mat('#22201e', .8), cowPink = mat('#e7a99c', .7), boarFur = mat('#3e2f24', .95), tuskMat = mat('#efe6cf', .5), deerFur = mat('#9a6237', .85), deerLight = mat('#e2c9a3', .85), ironMat = mat('#2c2f31', .45, .6), heliRed = mat('#d0242a', .45, .2), heliWhite = mat('#f2f2f2', .5), heliGlass = mat('#1d2b38', .15, .3), eyeShine = new T.MeshBasicMaterial({ color: '#e8ff9a' }), dolmenStone = mat('#77756e', .98), goldMat = new T.MeshStandardMaterial({ color: '#ffc21a', roughness: .22, metalness: .9, emissive: '#8a5a00', emissiveIntensity: .9 }), goldFoam = mat('#fffdf2', .6), lichen = mat('#5f6b2f', .95);   // v103 · occhi che brillano nel faro
@@ -2060,7 +2072,7 @@ export function createWorld(canvas) {
   // v108 · iPad: la prima volta che compare un ostacolo (o arriva il suo modello vero) Safari deve preparare shader e texture
   // e la gara si inchioda un attimo. Qui li prepariamo tutti in anticipo (menu o conto alla rovescia) e li lasciamo pronti nei pool.
   const giftMats = {}, giftMat = c => giftMats[c] ||= mat(c, .55);   // v127
-  const WARM_TYPES = ['gift', 'goldGift', 'bar', 'barrier', 'bigLog', 'bigRamp', 'boar', 'boulder', 'cairn', 'camel', 'chamois', 'coin', 'cone', 'cow', 'farm', 'ford', 'forkSafe', 'forkShort', 'forkSplit', 'gate', 'goat', 'grapeCrate', 'grappa', 'hay', 'hayCart', 'helmet', 'hen', 'ibex', 'landpad', 'log', 'manhole', 'marmot', 'mboard', 'pigpen', 'puddle', 'ramp', 'rock', 'rollHay', 'shortcut', 'sign', 'snowman', 'speedpad', 'step', 'stump', 'thorns', 'tree', 'trincia', 'tyre', 'water', 'wine'];
+  const WARM_TYPES = ['cake', 'ristoro', 'gift', 'goldGift', 'bar', 'barrier', 'bigLog', 'bigRamp', 'boar', 'boulder', 'cairn', 'camel', 'chamois', 'coin', 'cone', 'cow', 'farm', 'ford', 'forkSafe', 'forkShort', 'forkSplit', 'gate', 'goat', 'grapeCrate', 'grappa', 'hay', 'hayCart', 'helmet', 'hen', 'ibex', 'landpad', 'log', 'manhole', 'marmot', 'mboard', 'pigpen', 'puddle', 'ramp', 'rock', 'rollHay', 'shortcut', 'sign', 'snowman', 'speedpad', 'step', 'stump', 'thorns', 'tree', 'trincia', 'tyre', 'water', 'wine'];
   const warmDone = new Set(), TEX_KEYS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap', 'bumpMap'];
   let warmTimer = 0;
   function warmUp(onlyKey) {
@@ -2518,6 +2530,33 @@ export function createWorld(canvas) {
         for (let k = 0; k < 6; k++) ball(.09, .08, .08, Math.random() < .6 ? grapeMat : grapeGreen, c, -.18 + (k % 3) * .18, .28, k < 3 ? -.08 : .08);
       }
       g.scale.setScalar(1.45); hazardRing(g, .55);
+    } else if (type === 'cake') {
+      // v132 · torta di compleanno in mezzo alla pista (Mirco e Gabbah Fest): tre piani di panna e fragole, candeline accese
+      const cream = mat('#fbf3e6', .7), pink = mat('#f59ac0', .6), choc = mat('#5a3420', .8), plate = mat('#d9dde0', .3, .4), straw = mat('#e0262f', .5), wax = mat('#ffffff', .6);
+      mesh(new T.CylinderGeometry(.62, .62, .04, 24), plate, g).position.y = .02;
+      const tiers = [[.52, .26, choc], [.4, .22, pink], [.28, .2, cream]]; let y = .04;
+      tiers.forEach(([r, h, m]) => { mesh(new T.CylinderGeometry(r, r, h, 24), m, g).position.y = y + h / 2; mesh(new T.TorusGeometry(r, .03, 6, 24), cream, g).rotation.x = Math.PI / 2; g.children[g.children.length - 1].position.y = y + h; y += h; });
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; ball(.045, .05, .045, straw, g, Math.cos(a) * .44, .32, Math.sin(a) * .44); }
+      const glowM = new T.SpriteMaterial({ map: glowTex, color: '#ffb04a', transparent: true, opacity: .9, blending: T.AdditiveBlending, depthWrite: false });
+      for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2, cx = Math.cos(a) * .15, cz = Math.sin(a) * .15;
+        mesh(new T.CylinderGeometry(.018, .018, .14, 6), k % 2 ? wax : pink, g).position.set(cx, y + .07, cz);
+        const fl = new T.Sprite(glowM); fl.scale.set(.12, .16, 1); fl.position.set(cx, y + .18, cz); g.add(fl); }
+      g.scale.setScalar(1.3); hazardRing(g, .55);
+    } else if (type === 'ristoro') {
+      // v132 · ristoro del Leventino: gazebo bianchi sul prato, tavolo con birre e salame, il Fiorino bianco parcheggiato accanto
+      const tent = mat('#f4f4f0', .8), pole = mat('#cfd3d6', .4, .5), tableM = mat('#8a6a48', .85), cloth = mat('#e8e2d0', .9), salame = mat('#8e2a2a', .7), van = mat('#f2f2ee', .35, .2), glassM = mat('#1d2a33', .1, .3), tyre = mat('#1b1b1b', .9);
+      for (const [sx, sz] of [[-1.2, -.9], [1.2, -.9], [-1.2, .9], [1.2, .9]]) box(.08, 2.6, .08, pole, g, sx, 1.3, sz);
+      { const roof = mesh(new T.ConeGeometry(1.95, .8, 4), tent, g); roof.position.y = 3; roof.rotation.y = Math.PI / 4; }
+      box(2.5, .3, .04, tent, g, 0, 2.5, -.92); box(2.5, .3, .04, tent, g, 0, 2.5, .92);
+      const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d');
+      x.fillStyle = '#ffffff'; x.fillRect(0, 0, 512, 128); x.fillStyle = '#e8217a'; x.font = '900 60px Arial'; x.textAlign = 'center'; x.fillText('RISTORO', 256, 62); x.fillStyle = '#2f9fe0'; x.font = '900 30px Arial'; x.fillText('LEVENTINO • BIRRA E SALAME', 256, 108);
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace; const sign = mesh(new T.PlaneGeometry(2.2, .55), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); sign.position.set(0, 2.15, .95);
+      for (const sd of [-1, 1]) { box(.9, .75, .6, tableM, g, sd * 1.75, .375, 0); box(.95, .03, .65, cloth, g, sd * 1.75, .77, 0);
+        for (let k = 0; k < 2; k++) { mesh(new T.CylinderGeometry(.09, .085, .22, 12), beerMat, g).position.set(sd * 1.75 + (k - .5) * .3, .9, .1); mesh(new T.CylinderGeometry(.1, .1, .05, 12), foamMat, g).position.set(sd * 1.75 + (k - .5) * .3, 1.03, .1); }
+        const sl = mesh(new T.CylinderGeometry(.07, .07, .42, 10), salame, g); sl.rotation.z = Math.PI / 2; sl.position.set(sd * 1.75, .85, -.15); }
+      const fv = new T.Group(); fv.position.set(-4.3, 0, -1.4); fv.rotation.y = .35; g.add(fv);   // il Fiorino
+      box(1.5, .7, 3.4, van, fv, 0, .75, 0); box(1.45, .6, 1.2, van, fv, 0, 1.4, .9); box(1.38, .42, .05, glassM, fv, 0, 1.45, 1.51);
+      for (const [wx, wz] of [[-.72, 1.1], [.72, 1.1], [-.72, -1.1], [.72, -1.1]]) { const w = mesh(new T.CylinderGeometry(.3, .3, .2, 14), tyre, fv); w.rotation.z = Math.PI / 2; w.position.set(wx, .3, wz); }
     } else if (type === 'gift') {
       // v127 · pacchi regalo in mezzo alla pista (Christmas Madness): carta colorata e nastro
       const pal = [['#d8262f', '#ffd23a'], ['#1f7a3a', '#ff4d4d'], ['#2a5bd7', '#f4f4f4'], ['#7a3fc4', '#ffd23a']];
@@ -2712,7 +2751,7 @@ export function createWorld(canvas) {
 
   // v102 · arrivo del Gusta Ranch: il falò con la griglia, la tavolata e il gruppo che festeggia
   const ranchFinish = new T.Group(); ranchFinish.visible = false; scene.add(ranchFinish);
-  let ranchSign = null, xmasBar = null;   // v127
+  let ranchSign = null, xmasBar = null, festBalloons = null;   // v127 · v132
   { const lg = new T.Mesh(new T.PlaneGeometry(2.9, 2.9), ranchLogoMat); lg.position.set(0, 5.65, .08); ranchFinish.add(lg); }
   const flames = [];
   {
@@ -2726,7 +2765,16 @@ export function createWorld(canvas) {
     { const c2 = document.createElement('canvas'); c2.width = 1024; c2.height = 128; const x2 = c2.getContext('2d');
       x2.fillStyle = '#9e1620'; x2.fillRect(0, 0, 1024, 128); x2.fillStyle = '#1f6a3a'; x2.fillRect(0, 0, 1024, 12); x2.fillRect(0, 116, 1024, 12);
       x2.fillStyle = '#ffffff'; x2.font = '900 58px Arial'; x2.textAlign = 'center'; x2.fillText('CHRISTMAS MADNESS • MUD, BEER, GLORY', 512, 84);
-      const t2 = new T.CanvasTexture(c2); t2.colorSpace = T.SRGBColorSpace; ranchSign = { mesh: sg, ranch: t, xmas: t2 }; }
+      const t2 = new T.CanvasTexture(c2); t2.colorSpace = T.SRGBColorSpace;
+      const c3 = document.createElement('canvas'); c3.width = 1024; c3.height = 128; const x3 = c3.getContext('2d');   // v132 · striscione della Fest
+      x3.fillStyle = '#111111'; x3.fillRect(0, 0, 1024, 128); x3.fillStyle = '#f2c230'; x3.fillRect(0, 0, 1024, 12); x3.fillRect(0, 116, 1024, 12);
+      x3.fillStyle = '#ffffff'; x3.font = '900 56px Arial'; x3.textAlign = 'center'; x3.fillText('MIRCO E GABBAH FEST • TANTI AUGURI!', 512, 84);
+      const t3 = new T.CanvasTexture(c3); t3.colorSpace = T.SRGBColorSpace; ranchSign = { mesh: sg, ranch: t, xmas: t2, fest: t3 }; }
+    { const bg = new T.Group(); bg.visible = false; R.add(bg); festBalloons = bg;   // v132 · grappoli di palloncini sui pali dell'arrivo
+      const cols = ['#ff3b6b', '#f2c230', '#3ba7ff', '#3bd26b', '#ffffff', '#c45cff'], str = mat('#eeeeee', .9);
+      for (const sx of [-1, 1]) for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2, px = sx * 4.4 + Math.cos(a) * .45, pz = Math.sin(a) * .35, py = 4.9 + (k % 3) * .32;
+        const b = mesh(new T.SphereGeometry(.34, 14, 10), new T.MeshStandardMaterial({ color: cols[(k + (sx > 0 ? 3 : 0)) % cols.length], roughness: .25, metalness: .05 }), bg); b.position.set(px, py, pz); b.scale.set(1, 1.2, 1);
+        rod([px, py - .4, pz], [sx * 4.4, 4.2, 0], .012, str, bg); } }
     { const bar = new T.Group(); bar.name = 'xbar'; bar.visible = false; bar.position.set(6.2, 0, -5); bar.rotation.y = -.6; R.add(bar); xmasBar = bar;
       const plank = mat('#7a5232', .85), beerM = new T.MeshStandardMaterial({ color: '#f2a91c', roughness: .3, transparent: true, opacity: .92 }), foam = mat('#fffbee', .9), glass = new T.MeshStandardMaterial({ color: '#dff3ff', roughness: .05, transparent: true, opacity: .35 });
       box(3.2, 1.1, .8, plank, bar, 0, .55, 0); box(3.5, .1, 1.0, wood, bar, 0, 1.13, 0);
@@ -2797,6 +2845,7 @@ export function createWorld(canvas) {
     const hT = { value: new T.Color(r.livery.helmet) };
     h.traverse(o => { if (o.name === 'fx' || o.name === 'fxcam') o.visible = false; if (o.isMesh && o.userData.helmGlb) { o.material = baseMat(o.material).clone(); tintable(o.material, hT); o.castShadow = false; return; } if (o.isMesh) { if (o.material === helmetMat) o.material = helm; else if (o.material === accent) o.material = acc; else if (o.material === plastic) o.material = bm(o.material); o.castShadow = false; } });
     { const xh = h.getObjectByName('xhat'); if (xh) xh.visible = !!r.santa; }   // v127 · compagni vestiti da Babbo Natale
+    { const wg = h.getObjectByName('wig'); if (wg) { wg.visible = !!r.wig; if (r.wig) { const wm = wigMat.clone(); wm.color.set(r.wig); wg.traverse(o => { if (o.isMesh) o.material = wm; }); } } }   // v132 · Leventino Girls
     body.updateMatrixWorld(true);
     const nk = NECK.sit.clone().add(HIP); nk.y += ry; body.localToWorld(nk); tb.worldToLocal(nk);
     h.position.set(nk.x, nk.y + .15, nk.z + .05); h.rotation.set(0, 0, 0); h.scale.setScalar(.9);
@@ -2808,6 +2857,7 @@ export function createWorld(canvas) {
     if (rivalGlbReady()) return makeRivalGlb(r);
     const g = bike.clone(true);
     { const xh = g.getObjectByName('xhat'); if (xh) xh.visible = !!r.santa; }
+    { const wg = g.getObjectByName('wig'); if (wg) { wg.visible = !!r.wig; if (r.wig) { const wm = wigMat.clone(); wm.color.set(r.wig); wg.traverse(o => { if (o.isMesh) o.material = wm; }); } } }
     const m = { plastic: pmat(r.livery.plastic), accent: pmat(r.livery.accent, .4), jersey: mat(r.livery.jersey, .6), pants: mat(r.livery.pants, .8), helmet: pmat(r.livery.helmet, .25) };
     if (envTex) for (const k of ['plastic', 'accent', 'helmet']) { m[k].envMap = envTex; m[k].envMapIntensity = .9; }   // v73 · compagni con la stessa vernice lucida del giocatore
     const swap = { [plastic.uuid]: m.plastic, [accent.uuid]: m.accent, [jerseyMat.uuid]: m.jersey, [pantsMat.uuid]: m.pants, [helmetMat.uuid]: m.helmet };
@@ -2897,7 +2947,7 @@ export function createWorld(canvas) {
   function renderRivals(list, t, now, live) {
     const seen = new Set();
     for (const r of list || []) {
-      const rk = r.name + (r.santa ? '·x' : '');   // v127 · vestito da Babbo Natale: modello a parte
+      const rk = r.name + (r.santa ? '·x' : '') + (r.wig ? '·w' + r.wig : '');   // v127 · vestito da Babbo Natale: modello a parte
       seen.add(rk);
       let m = rivalModels.get(rk);
       if (m && m.proc && rivalGlbReady()) { scene.remove(m.g); m = null; }   // arrivati i modelli veri: rifà il compagno
@@ -3099,7 +3149,7 @@ export function createWorld(canvas) {
       });
       flakeGeo.attributes.position.needsUpdate = true;
     }
-    rainMat.opacity = xmasLook ? 0 : Math.min(.8, Math.max(W[1] * .75, weatherNow.rain * .8));   // v127 · a Natale nevica, non piove
+    rainMat.opacity = xmasLook === 'xmas' ? 0 : Math.min(.8, Math.max(W[1] * .75, weatherNow.rain * .8));   // v127 · a Natale nevica, non piove
     rain.visible = rainMat.opacity > .02;
     if (rain.visible) {
       rd.forEach((d, i) => {
@@ -3131,8 +3181,9 @@ export function createWorld(canvas) {
     adaptQuality();
     applyPreset(s.preset ?? 0);
     setPano(s.mode ?? 0);
-    { const pr = PRESETS[s.preset ?? 0] || {}; if (pr.desert) { setIce(false); setDesert(true); } else { setDesert(false); setIce(!!pr.ice); } setXmas(!!pr.xmas); }   // v106.7 · prima si toglie un fondo, poi si mette l'altro
+    { const pr = PRESETS[s.preset ?? 0] || {}; if (pr.desert) { setIce(false); setDesert(true); } else { setDesert(false); setIce(!!pr.ice); } setXmas(pr.xmas ? 'xmas' : pr.fest ? 'fest' : false); }   // v106.7 · prima si toglie un fondo, poi si mette l'altro
     applyLivery(s.livery);
+    { const wg = head.getObjectByName('wig'), wc = s.livery?.wig || ''; if (wg && wg.userData.c !== wc) { wg.userData.c = wc; wg.visible = !!wc; if (wc) wigMat.color.set(wc); } }   // v132 · maglia Leventino Girl = parrucca rosa
     setBikeModel(s.bikeId);
     applyCustom(s.bikeLook, s.parts, s.livery);
     syncBikeModel();

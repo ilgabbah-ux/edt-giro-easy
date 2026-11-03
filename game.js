@@ -1,12 +1,12 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
-import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=55332041';
-import { createWorld } from './scene3d.js?v=b0be6657';
+import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=c8fcb816';
+import { createWorld } from './scene3d.js?v=454aaf5b';
 import * as A from './audio.js?v=c71ef50f';
-import * as P from './progress.js?v=6f713d1d';
+import * as P from './progress.js?v=c4e8d897';
 import { createMud } from './mudfx.js?v=ae45cf9e';
-import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
-import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=f992d114';
-import * as C from './classifica.js?v=67f4a9be';
+import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=71a0c2da';   // v89 · schede dei percorsi e regole del giorno in un file a parte
+import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=a85e5b31';
+import * as C from './classifica.js?v=09f67fa9';
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -171,7 +171,7 @@ function layoutFor(m, fresh = false) {
 }
 // v97 · VARIANTE DELLA SETTIMANA: ogni lunedì i percorsi fissi cambiano ordine dei tratti e curve (uguale per tutti)
 const VARIANT_NAMES = ['A', 'B', 'C'];
-function variantOf(m) { const md = P.MODES[m]; if (!md?.layout || md.ice || md.leap || md.random) return 0; return ((P.weekKey() % 9973) + m * 31) % 3; }
+function variantOf(m) { const md = P.MODES[m]; if (!md?.layout || md.ice || md.leap || md.random || md.story) return 0; return ((P.weekKey() % 9973) + m * 31) % 3; }
 function variantLayout(layout, v) {
   if (!v || !layout || layout.length < 3) return layout;
   const first = layout[0], rest = layout.slice(1);
@@ -231,7 +231,7 @@ const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RU
 const rule = id => mode === 3 && dailyRule().id === id;
 const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
-const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness' };
+const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness', 18: 'leventino', 20: 'mirco-gabbah-fest' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
 const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
@@ -242,7 +242,7 @@ let travelRate = 25;
 let gev = false, gevZ = 8, gevThrow = 4, gevArm = 0, gevLost = 0, gevGone = false, gevShout = 0, gevSide = 1, gevFine = 0;
 const GEV_OFF = 1.72;   // v125.2 · la jeep corre sul bordo della pista, non più sopra la staccionata (era 2,15)
 const GEV_SHOUTS = ['📢 FERMO! GUARDIE ECOLOGICHE!', '📢 ACCOSTI LA MOTO!', '📢 DOCUMENTI E LIBRETTO!', '📢 QUI NON SI PUÒ PASSARE!', '📢 HA VISTO IL CARTELLO?', '📢 SCENDA DALLA MOTO!'];
-const GEV_SOFT = new Set(['pigpen', 'hayCart', 'forkShort', 'forkSafe', 'gevmark', 'bar', 'coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
+const GEV_SOFT = new Set(['pigpen', 'hayCart', 'forkShort', 'forkSafe', 'gevmark', 'bar', 'ristoro', 'coin', 'helmet', 'wine', 'grappa', 'water', 'sgap', 'shortcut', 'gate', 'ramp', 'ford']);
 // v48 · fantasma del primo nella classifica del gruppo
 let gGhost = null, gGhostPassed = false;
 // v50 · guida libera: la moto va dove la porti (niente più corsie fisse).
@@ -375,7 +375,7 @@ let wasClimb = false, throttleSlip = 0, overT = 0, wasSweet = false, gasLock = f
 let ice = false, drift = 0, driftT = 0, driftSum = 0, driftPend = 0, driftChain = 0, driftGap = 9, driftScore = 0, driftBest = 0, driftCount = 0, snowT = 0, bendNow = 0, lastWall = -9, driftM = 0, driftMP = 0;   // v92 · metri percorsi di traverso
 // v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
 let draftT = 0, draftR = null, draftSaid = -9, lastDraftAt = -9, catchT = 0;   // v107 · scia dietro ai compagni e rimonta
-let peloAt = -99, volata = 0, champRun = false;   // v130
+let peloAt = -99, volata = 0, champRun = false, icyWarn = 0, ristoroDone = 0;   // v130 · v132
 let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos = '';
 let weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0 }, nextFlash = 5, weatherPlan = [], weatherSaid = '', lastRainMud = 0;
 const curLift = () => jumpHeight(jump, jumpDur, jumpH);
@@ -598,7 +598,7 @@ function resetRun() {
   combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
   lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
   replayBuf = []; recClock = 0; recLast = 0; replay = null; highlights = []; hlPend = [];
-  volata = 0; peloAt = -99; volataShow(null); ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = fallT = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
+  volata = 0; peloAt = -99; icyWarn = 0; ristoroDone = 0; volataShow(null); ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = fallT = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
   grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9; lastRiderHit = -99;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
   for (const k of Object.keys(up)) { const l = P.upgradeLevel(k); up[k] = l <= P.LEGEND_FROM ? l : P.LEGEND_FROM + (l - P.LEGEND_FROM) * .4; }   // v106.6 · livelli Leggenda: +0,4 l'uno
@@ -671,7 +671,7 @@ function startMusic() {
   const md = P.MODES[mode];
   const transpose = md.random === 'daily' ? (P.todayKey() % 5) - 2 : md.random === 'run' ? Math.floor(Math.random() * 5) - 2 : 0;
   const rs = radioPick();
-  A.musicStart(duel?.racing ? A.DUEL_STYLE : champRun ? A.CHAMP_STYLE : rs ?? mode, { transpose: rs == null ? transpose : 0 });   // v131 · campionato: «Il Re dell'Ignoranza» · radio EDT   // v105.4 · nel duello suona "Angelo vs Gabbah"
+  A.musicStart(duel?.racing ? A.DUEL_STYLE : champRun ? A.CHAMP_STYLE : rs ?? songOf(mode), { transpose: rs == null ? transpose : 0 });   // v131 · campionato: «Il Re dell'Ignoranza» · radio EDT   // v105.4 · nel duello suona "Angelo vs Gabbah"
 }
 function go() {
   $('tipcard')?.classList.remove('show');
@@ -718,7 +718,8 @@ function finish(win, reason = '') {
   }
   run.position = rivals.length ? racePos() : 0;
   if (win && run.position === 1 && !leap) score += 500;
-  if (mode === 17 && P.xmasDouble() && !leap) { score *= 2; run.xmasDouble = 1; }   // v127 · 21 dicembre: la notte della Christmas Madness vale doppio
+  if (mode === 17 && P.xmasDouble() && !leap) { score *= 2; run.xmasDouble = 1; }
+  if (mode === 20 && P.festDouble() && !leap) { score *= 2; run.festDouble = 1; }   // v132 · 1° marzo: il compleanno vero vale doppio   // v127 · 21 dicembre: la notte della Christmas Madness vale doppio
   score = Math.floor(score);
   run.score = score;
   const finished = win ? 1 : 0;
@@ -745,7 +746,10 @@ function finish(win, reason = '') {
   if (!tut) { const chest = P.claimDaily() || pendingChest; pendingChest = null; if (chest) setTimeout(() => { if (state === 'ended' && !$('chestpop')) showChest(chest); else pendingChest = chest; }, win ? 2200 : 1100); }
   if (gev) A.sfx.whistle();
   if (win) buzz([60, 70, 60, 70, 160]);
-  if (win) celebrate(mode === 17 ? 'fuochi' : P.currentParts().festa?.id);
+  if (win) celebrate(mode === 17 || mode === 20 ? 'fuochi' : P.currentParts().festa?.id);
+  if (win && mode === 20) setTimeout(() => bigCall('TANTI AUGURI!'), 600);
+  if (win && mode === 20 && run.position === 1 && P.markFestWin()) setTimeout(() => toast('👑 MAGLIE «SUPER GABBAH» E «SUPER MIRCO» SBLOCCATE: LE TROVI NEL GARAGE', 'gold'), 2500);   // v132
+  if (win && mode === 18 && run.position === 1 && P.markLevWin()) setTimeout(() => toast('💖 MAGLIA «LEVENTINO GIRL» SBLOCCATA: PARRUCCA ROSA COMPRESA, LA TROVI NEL GARAGE', 'gold'), 2500);   // v132
   setTimeout(() => { if (win && mode === 0) starterTick('easy'); if (run.perfect >= 3) starterTick('perfect'); P.starterAuto().forEach(starterTick); }, 1800);   // v129
   setTimeout(() => P.radioNew().forEach((id, k) => setTimeout(() => toast('📻 NUOVA CANZONE IN RADIO EDT: ' + songName(id).split(' · ')[0].toUpperCase(), 'gold'), k * 2600)), 3400);   // v131
   if (win && mode === 17 && P.markXmasWin()) setTimeout(() => toast('🎅 MAGLIA «BABBO NATALE» SBLOCCATA: LA TROVI NEL GARAGE', 'gold'), 2500);   // v127 · Christmas Madness: fuochi d'artificio all'arrivo
@@ -857,11 +861,13 @@ function steerStep(dt, route) {
   const maxLat = 4.1 * (1 + (bs.steer || 0)) * (1 + up.tyres * .05) * (touchDevice ? 1.08 : 1) * (1 - route.rough * .18) * (1 - weather.rain * .12) * (has('mule') && route.rough > .4 ? 1.3 : 1) * (has('nimble') ? 1.25 : 1);
   // v106.2 · senza comandi la moto si assesta piano al centro della corsia più vicina (niente più "a metà" tra due corsie)
   const want = st ? st * maxLat : aimPx !== null ? Math.max(-maxLat, Math.min(maxLat, (aimPx - px) * 7.5)) : (Math.round(Math.max(0, Math.min(2, px))) - px) * 2.6;
-  const acc = (14 - route.rough * 3.5) * (wet > 0 ? .6 : 1) * (1 + (bs.steer || 0) * .5);
+  const acc = (14 - route.rough * 3.5) * (wet > 0 ? .6 : 1) * (1 + (bs.steer || 0) * .5) * (1 - (route.icy || 0) * .55);   // v132 · sul ghiaccio la moto risponde in ritardo
+  if ((route.icy || 0) > .5 && !icyWarn && state === 'playing') { icyWarn = 1; bigCall('GHIACCIO!'); toast('❄ LASTRA DI GHIACCIO: STERZA DOLCE, LA MOTO SCIVOLA', 'gold'); } else if ((route.icy || 0) < .2) icyWarn = 0;
   vx += (want - vx) * Math.min(1, dt * acc);
   px += vx * dt;
   if (barT > 0) px += Math.sin(elapsed * 4.2) * 1.8 * (1 - up.damper * .12) * dt * Math.min(1, barT);   // v84 · dopo la birra la moto balla
   { const slick = Math.max(wet > 0 ? 1 : 0, route.wet * weather.rain, route.wet * .35);   // v104 · sul fango e nelle pozze la moto scivola un filo di lato: va tenuta
+    if ((route.icy || 0) > .05 && jump <= 0) { slideT += dt; px += (Math.sin(slideT * 2.2) + Math.sin(slideT * 5.1) * .5) * .55 * route.icy * (1 - up.tyres * .1) * dt; }   // v132 · ghiaccio: si scivola di lato
     if (slick > .05 && jump <= 0) { slideT += dt; px += (Math.sin(slideT * 3.1) + Math.sin(slideT * 7.3) * .4) * .28 * slick * (1 - up.tyres * .12) * dt; } }
   if (!ice && !leap) ranchCorner(dt);   // v106.1 · la corda conta su tutti i tracciati veri, non solo al Gusta Ranch
   if (aimPx !== null && Math.abs(aimPx - px) < .02 && Math.abs(vx) < .15) { px += (aimPx - px) * .5; }
@@ -1340,7 +1346,7 @@ function makeRunPlan() {
   for (let i = 0; i < n; i++) { const k = i === ownSlot && firstOwn ? firstOwn : kinds.splice(Math.floor(rng() * kinds.length), 1)[0]; plan.events.push({ kind: k, at: 9 + (i + .2 + rng() * .6) * (40 / n) }); }
   const near = (at, d) => plan.events.some(e => Math.abs(e.at - at) < d) || plan.forks.some(f => Math.abs(f.at - at) < d + 4) || plan.zones.some(z => at > z.from - d && at < z.to + d);
   const nf = 1 + (rng() < .45 ? 1 : 0);
-  for (let i = 0; i < nf; i++) { let at = 0, tries = 0; do { at = 15 + rng() * 32; } while (++tries < 40 && near(at, 5)); if (!near(at, 5) || !i) plan.forks.push({ at }); }
+  for (let i = 0; i < nf; i++) { let at = 0, tries = 0; do { at = 15 + rng() * 32; } while (++tries < 40 && (near(at, 5) || (md.ristoro && at > 28 && at < 42))); if (!near(at, 5) || !i) plan.forks.push({ at }); }
   plan.forks.sort((a, b) => a.at - b.at);
   for (const kind of ['flow', 'pietraia']) { let at = 0, tries = 0; do { at = 11 + rng() * 40; } while (++tries < 40 && near(at, 4)); plan.zones.push({ kind, from: at, to: at + 4 + rng() * 1.5, said: false }); }
   return plan;
@@ -1767,8 +1773,9 @@ function setupRace() {
   const others = RIDERS.filter(r => r !== profile.rider).sort(() => rng() - .5).slice(0, 3);
   const chC = champRun && P.champ();   // v130 · al campionato sempre gli stessi tre
   if (chC) { const fx = chC.rivals.filter(n => n !== profile.rider); others.splice(0, 3, ...fx, ...others.filter(n => !fx.includes(n))); others.length = 3; }
+  else if (P.MODES[mode].fest) { const fx = ['Mirco', 'Il Gabbah'].filter(n => n !== profile.rider); const rest = RIDERS.filter(n => n !== profile.rider && !fx.includes(n)).sort(() => rng() - .5); others.splice(0, 3, ...fx, ...rest); others.length = 3; }   // v132 · alla Fest ci sono sempre i festeggiati
   // v107.4 · derby del giorno: i due piloti del derby sono sempre tra i compagni (senza toccare il caso, così la sfida del giorno resta uguale per tutti)
-  const dz = P.MODES[mode].leap || duel?.racing || chC ? [] : derbyPair().filter(n => n !== profile.rider);
+  const dz = P.MODES[mode].leap || duel?.racing || chC || P.MODES[mode].fest ? [] : derbyPair().filter(n => n !== profile.rider);
   dz.forEach((n, k) => { const j = others.indexOf(n); if (j >= 0) others.splice(j, 1); others.splice(1 + k, 0, n); });
   others.length = 3;
   const starts = [-7, 26, 58], lvSoft = P.levelInfo().level <= 2 ? .955 : P.levelInfo().level <= 4 ? .98 : 1, skills = [1.09, 1.04, .99].map(k => k * lvSoft);   // v81 · ai primi livelli i compagni vanno un filo più piano   // v48 · un filo più forti (salite più dure anche per loro)
@@ -1776,6 +1783,8 @@ function setupRace() {
   for (const r of rivals) if (dz.includes(r.name)) r.derby = true;
   for (const r of rivals) if (r.name === 'Maggie') r.livery = { plastic: '#f3a6c6', accent: '#5a3426', jersey: '#f4f1ec', pants: '#6b4030', helmet: '#f3a6c6' };   // v107.5 · Maggie con la sua tuta bianca, marrone e rosa
   { const ch = champRival(); for (const r of rivals) if (r.name === ch) { r.champ = true; r.livery = { ...r.livery, helmet: '#e3b021' }; } }
+  if (P.MODES[mode].fest) for (const r of rivals) { const sv = P.LIVERIES.find(l => l.id === (r.name === 'Mirco' ? 'supermirco' : r.name === 'Il Gabbah' ? 'supergabbah' : '')); if (sv) r.livery = { ...r.livery, ...sv }; }   // v132 · alla Fest i festeggiati corrono vestiti da supereroi
+  if (P.MODES[mode].wigs) rivals.forEach((r, i) => { r.wig = ['#ff4fc0', '#3fd0ff', '#ff8fd0'][i % 3]; r.livery = { ...r.livery, jersey: ['#e8217a', '#2f9fe0', '#f5a9c8'][i % 3] }; });   // v132 · Leventino Girls
   xgAt = mode === 17 ? [16 + rng() * 10, 36 + rng() * 10] : [];
   if (mode === 17) for (const r of rivals) { r.santa = 1; r.livery = { ...r.livery, jersey: '#d21f2a', pants: '#d21f2a', helmet: r.champ ? '#e3b021' : '#f6f4ee' }; }   // v127 · alla Christmas Madness sono tutti Babbi Natale   // v107.3 · il pilota del campione della settimana corre col casco d'oro
   coachStep = 0; tutDoneAt = -99; tut = null; tutPulse(null); coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
@@ -1790,7 +1799,8 @@ function setupRace() {
   if (rule('rain')) weatherPlan = [{ kind: 'rain', from: 0, to: 999 }];
   if (rule('fog')) weatherPlan = [{ kind: 'fog', from: 0, to: 999 }];
   if (feat('night')) weatherPlan.push({ kind: 'night', from: 0, to: 999 });
-  if (mode === 17) weatherPlan = [{ kind: 'dusk', from: 24 + rng() * 10, to: 999 }];   // v127 · Christmas Madness: niente pioggia, scende la sera   // v84 · MotoFogna (e la notturna del giorno)
+  if (mode === 17) weatherPlan = [{ kind: 'dusk', from: 24 + rng() * 10, to: 999 }];
+  if (P.MODES[mode].fest) weatherPlan = [{ kind: 'dusk', from: 18 + rng() * 10, to: 999 }];   // v132 · la Fest finisce col buio e le lucine   // v127 · Christmas Madness: niente pioggia, scende la sera   // v84 · MotoFogna (e la notturna del giorno)
   // v97 · ora e meteo diversi a ogni giro: tramonto o nebbia del mattino a caso, così lo stesso percorso cambia faccia
   timeOfDay = '';
   if (!P.MODES[mode].ice && !P.MODES[mode].leap && !feat('night') && !P.MODES[mode].rainy && mode !== 3 && !weatherPlan.length) {
@@ -1977,14 +1987,14 @@ function spawnShortcut() {
   toast('BIVIO! TAGLIO DI ANGELO A ' + (l === 0 ? 'SINISTRA' : 'DESTRA'), 'gold');
 }
 // v84 · sosta al bar: si passa sotto il tendone, birra al volo e punti, ma per qualche secondo la moto balla
-function spawnBar() {
+function spawnBar(type = 'bar') {
   const l = rng() < .5 ? 0 : 2;
-  objects.push({ l, z: -.05, type: 'bar', hit: false });
-  toast('🍺 BAR A ' + (l === 0 ? 'SINISTRA' : 'DESTRA') + ': PASSA SOTTO PER UNA BIONDA', 'gold');
+  objects.push({ l, z: -.05, type, hit: false });
+  toast(type === 'ristoro' ? '🍺 RISTORO DEL LEVENTINO A ' + (l === 0 ? 'SINISTRA' : 'DESTRA') + ': PASSA SOTTO I GAZEBO' : '🍺 BAR A ' + (l === 0 ? 'SINISTRA' : 'DESTRA') + ': PASSA SOTTO PER UNA BIONDA', 'gold');
 }
-function takeBar() {
+function takeBar(rist) {
   barT = 4.5; run.caps += 5; run.bars = (run.bars || 0) + 1;
-  A.sfx.beer(); reward(500, 'SOSTA AL BAR!', 'trick', false);
+  A.sfx.beer(); reward(500, rist ? 'BIRRA E SALAME!' : 'SOSTA AL BAR!', 'trick', false);
   flash('gold'); bigCall('🍺 ALLA SALUTE!');
   setTimeout(() => { if (state === 'playing') toast('🥴 OCCHIO: LA MOTO BALLA UN PO’', 'gold'); }, 700);
 }
@@ -2276,7 +2286,8 @@ function update(dt) {
   coachUpdate();
   if (gev) gevStep(dt, diff);
   if (leap) { leapStep(dt); if (state !== 'playing') return; }
-  if (!ice && !P.MODES[mode].slalom && !P.MODES[mode].ranch && !P.MODES[mode].leap && shortcutsDone < 2 && elapsed > nextShortcut && course > 12 && !objects.some(o => o.type === 'bar' && !o.hit) && course < GAME_LENGTH * .8 && route.id !== 3) { nextShortcut = elapsed + 18 + rng() * 10; spawnShortcut(); }
+  if (!ice && !P.MODES[mode].slalom && !P.MODES[mode].ranch && !P.MODES[mode].leap && shortcutsDone < 2 && elapsed > nextShortcut && course > 12 && !objects.some(o => (o.type === 'bar' || o.type === 'ristoro') && !o.hit) && course < GAME_LENGTH * .8 && route.id !== 3) { nextShortcut = elapsed + 18 + rng() * 10; spawnShortcut(); }
+  if (P.MODES[mode].ristoro && !ristoroDone && !leap && course > 34 && state === 'playing') { ristoroDone = 1; spawnBar('ristoro'); }   // v132 · Leventino: il ristoro coi gazebo a metà giro
   if (barsLeft > 0 && !leap && elapsed > nextBar && course > 10 && course < GAME_LENGTH * .85 && !objects.some(o => o.type === 'shortcut' && !o.hit)) { barsLeft--; nextBar = elapsed + 16 + rng() * 6; spawnBar(); }
   while (elapsed >= ghostNextSplit) { ghostSplits.push(course); ghostNextSplit += .5; }
   const gc = ghostCourse(elapsed);
@@ -2365,7 +2376,7 @@ function update(dt) {
       }
       continue;
     }
-    if (o.type === 'bar') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeBar(); } continue; }
+    if (o.type === 'bar' || o.type === 'ristoro') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeBar(o.type === 'ristoro'); } continue; }
     if (o.type === 'shortcut') { if (Math.abs(px - o.l) < .6 && crash <= 0) { o.collected = true; takeShortcut(); return; } continue; }
     if (o.type === 'forkShort' || o.type === 'forkSafe') { if (Math.abs(px - o.l) < .6 && crash <= 0 && !o.collected) takeFork(o.type === 'forkShort' ? 'short' : 'safe'); continue; }
     if (o.type === 'goldGift') {   // v127 · pacco regalo d'oro: lo prendi passandoci sotto, dentro c'è una sorpresa
@@ -2457,7 +2468,7 @@ function update(dt) {
         run.jumps++;
         const perfect = has('precise') ? phase > .2 && phase < .8 : isPerfectJump(phase);
         const base = o.type === 'rock' || o.type === 'rollRock' || o.type === 'rollHay' || o.type === 'ibex' ? 200 : o.type === 'bigLog' ? 250 : o.type === 'goat' ? 220 : 150;
-        const names = { gift: 'PACCO SALTATO!', rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hen: 'GALLINA SALTATA!', grapeCrate: 'CASSETTA SALTATA!', dolmen: 'DOLMEN VOLATO!', manhole: 'TOMBINO SALTATO!', boar: 'CINGHIALE SALTATO!', barrier: 'BLOCCO SALTATO!', rollHay: 'ROTOBALLA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!', cone: 'BIRILLO SALTATO!', tyre: 'COPERTONE SALTATO!', sign: 'DIVIETO IGNORATO!', barrier: 'TRANSENNA VOLATA!' };
+        const names = { cake: 'TORTA SALTATA!', gift: 'PACCO SALTATO!', rock: 'ROCCIA SUPERATA!', puddle: 'ASCIUTTO!', step: 'GRADONE SUPERATO!', bigLog: 'TRONCO VOLATO!', goat: 'CAPRA SALTATA!', hen: 'GALLINA SALTATA!', grapeCrate: 'CASSETTA SALTATA!', dolmen: 'DOLMEN VOLATO!', manhole: 'TOMBINO SALTATO!', boar: 'CINGHIALE SALTATO!', barrier: 'BLOCCO SALTATO!', rollHay: 'ROTOBALLA SALTATA!', hay: 'SOPRA IL FIENO!', stump: 'CEPPO SUPERATO!', cairn: 'OMETTO SALTATO!', rollRock: 'SCHIVATA LA FRANA!', ibex: 'STAMBECCO SALTATO!', chamois: 'CAMOSCIO SALTATO!', marmot: 'MARMOTTA SALVA!', snowman: 'PUPAZZO SALTATO!', cone: 'BIRILLO SALTATO!', tyre: 'COPERTONE SALTATO!', sign: 'DIVIETO IGNORATO!', barrier: 'TRANSENNA VOLATA!' };
         if (perfect) { run.perfect++; A.sfx.perfect(); if (touchDevice && navigator.vibrate) try { buzz([10, 40, 10]); } catch {} reward(Math.round(base * (has('precise') ? 2 : 1.5)), 'SALTO PERFETTO!', 'perfect'); flash('gold'); slowmo = .3; slowScale = .45; }
         else { reward(base, names[o.type] || 'BEL SALTO!', 'jump'); if (touchDevice && navigator.vibrate) try { buzz(8); } catch {} }
       } else if (wheelie && (o.type === 'root' || o.type === 'puddle')) {
@@ -2500,7 +2511,7 @@ function update(dt) {
         fallT = .001; slowmo = 0; { const fl = FALL_LINES[Math.floor(Math.random() * FALL_LINES.length)]; run.fallLine = fl; if (lives > 0 && Math.random() < .5) setTimeout(() => { if (state === 'playing') bigCall(fl); }, 380); }   // v122 · la frase resta per la schermata finale   // v119 · caduta vera: il pilota vola giù dalla moto
         if (wheelie) endWheelie(false);
         if (o.type === 'dolmen') run.dolmenHit = 1;
-        const lines = { gift: 'REGALO APERTO IN ANTICIPO.', snowman: 'PUPAZZO ABBATTUTO. NATALE ROVINATO.', trincia: 'TRINCIATO DAL GUSTA.', rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hen: 'COCCODÈ. PIUME OVUNQUE.', grapeCrate: 'MOSTO DAPPERTUTTO.', dolmen: 'IL DOLMEN DI COSTA NON SI SPOSTA.', cow: 'MUUU. LA MUCCA HA VINTO.', manhole: 'DENTRO IL TOMBINO.', boar: 'IL CINGHIALE NON PERDONA.', deer: 'CORNA DEL CERVO.', rollHay: 'ARROTOBALLATO DAL GUSTA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
+        const lines = { cake: 'TORTA IN FACCIA. TANTI AUGURI!', gift: 'REGALO APERTO IN ANTICIPO.', snowman: 'PUPAZZO ABBATTUTO. NATALE ROVINATO.', trincia: 'TRINCIATO DAL GUSTA.', rock: 'NON ERA UN SASSOLINO.', bigLog: 'IL TRONCO HA VINTO.', goat: 'LA CAPRA NON SI È SPOSTATA.', hen: 'COCCODÈ. PIUME OVUNQUE.', grapeCrate: 'MOSTO DAPPERTUTTO.', dolmen: 'IL DOLMEN DI COSTA NON SI SPOSTA.', cow: 'MUUU. LA MUCCA HA VINTO.', manhole: 'DENTRO IL TOMBINO.', boar: 'IL CINGHIALE NON PERDONA.', deer: 'CORNA DEL CERVO.', rollHay: 'ARROTOBALLATO DAL GUSTA.', hay: 'FIENO DAPPERTUTTO.', rollRock: 'TRAVOLTO DALLA FRANA.', stump: 'CEPPO 1 — PILOTA 0.', cairn: 'HAI SMONTATO L’OMETTO.', ibex: 'LO STAMBECCO HA LE CORNA DURE.', chamois: 'IL CAMOSCIO TI GUARDA MALE.', marmot: 'LA MARMOTTA FISCHIA. DI RABBIA.', tree: 'L’ALBERO NON SI SPOSTA.', snowman: 'PUPAZZO ESPLOSO.', boulder: 'DRITTO SUL PIETRONE.', cone: 'BIRILLO DELLE GEV IN FACCIA.', tyre: 'COPERTONE DELLE GEV.', sign: 'DIVIETO DI TRANSITO… ANCHE PER TE.', barrier: 'LA TRANSENNA DELLE GEV HA VINTO.' };
         if (o.type === 'tree') slalomN = 0;
         // v49 · Erika anche su ogni albero di MontaFiga
         if (o.type === 'log' || o.type === 'bigLog' || o.type === 'tree') erika(); else toast(lines[o.type] || 'DOPO MIGLIORA… DICONO.', 'red');
@@ -2702,7 +2713,7 @@ async function startClip() {
   if (!type) { toast('📵 QUESTO TELEFONO NON SA REGISTRARE IL VIDEO', 'red'); return; }
   const c2 = document.createElement('canvas'); c2.width = CLIP_W; c2.height = CLIP_H;
   const g = c2.getContext('2d');
-  const vs = c2.captureStream(30), song = A.clipAudio(duel?.racing ? A.DUEL_STYLE : mode);
+  const vs = c2.captureStream(30), song = A.clipAudio(duel?.racing ? A.DUEL_STYLE : songOf(mode));
   const stream = new MediaStream([...vs.getVideoTracks(), ...(song ? song.stream.getAudioTracks() : [])]);
   let mr; try { mr = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 4500000 }); } catch { song?.stop(); toast('📵 QUESTO TELEFONO NON SA REGISTRARE IL VIDEO', 'red'); return; }
   const chunks = []; mr.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
@@ -3089,11 +3100,12 @@ function starResHTML(res) {
 
 // v131 · RADIO EDT: scegli la canzone del giro (quella del percorso o una sbloccata)
 const songName = i => (A.STYLES[i] || A.STYLES[0]).name;
+const songOf = m => P.MODES[m]?.song ?? m;   // v132 · i percorsi nuovi suonano una canzone fuori sequenza
 const radioPick = () => { const r = profile.radio; return r != null && A.STYLES[r]?.file && P.radioOpen(r) ? r : null; };
 function radioList() {
   const seen = new Set(), out = [];
   for (const x of P.RADIO_EXTRA) out.push({ id: x.id, open: x.ok(), how: x.how, extra: true });   // prima le canzoni nuove da sbloccare
-  for (let i = 0; i <= 18; i++) { const f = A.STYLES[i]?.file; if (!f || seen.has(f)) continue; seen.add(f); out.push({ id: i, open: true }); }
+  for (const i of [...Array(19).keys(), 22, 21]) { const f = A.STYLES[i]?.file; if (!f || seen.has(f)) continue; seen.add(f); out.push({ id: i, open: true }); }
   return out;
 }
 function renderRadio() {
@@ -3166,7 +3178,7 @@ function renderReady() {
       ${heroList.length > 1 ? `<button class="thnav prev" id="thprev" type="button" aria-label="Percorso precedente">‹</button><button class="thnav next" id="thnext" type="button" aria-label="Percorso successivo">›</button>
       <div class="thdots" aria-hidden="true">${heroList.map(m => `<i class="${m.id === mode ? 'on' : ''}"></i>`).join('')}</div>` : ''}
     </div>
-    <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + songName(radioPick() ?? mode)}</small></span>${icon('chevrons')}</button>
+    <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + songName(radioPick() ?? songOf(mode))}</small></span>${icon('chevrons')}</button>
     ${xmasChipHTML()}
     ${starterHTML()}
     ${champChipHTML()}
@@ -3727,7 +3739,7 @@ function renderTracks(back) {
         <span class="tcrow"><em>Ostacoli</em>${ti.ostacoli || ''}</span>
         <span class="tcrow"><em>Speciale</em>${ti.speciale || ''}</span>
         <span class="tcrow"><em>Consiglio</em>${ti.consiglio || ''}</span>
-        <span class="tcrow"><em>Musica</em>🎵 ${A.STYLES[m.id]?.name || ''}</span></span></button>`; }).join('')}</div>
+        <span class="tcrow"><em>Musica</em>🎵 ${A.STYLES[songOf(m.id)]?.name || ''}</span></span></button>`; }).join('')}</div>
     <div class="actions"><button class="primary" id="tback"><span>⬅ MENU PRINCIPALE</span></button></div>`;
   document.querySelectorAll('[data-track]').forEach(b => b.onclick = () => {
     const m = P.MODES[Number(b.dataset.track)];
@@ -3860,7 +3872,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 131;
+const GAME_VERSION = 132;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3994,9 +4006,9 @@ function renderSide() {
   $('shopside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady)); };
   $('bikeside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes')); };
   $('liveries').innerHTML = P.LIVERIES.filter(l => (!l.xmas || P.liveryOpen(l) || P.xmasOn()) && (!l.starter || P.liveryOpen(l) || P.profile.starter)).map(l => {
-    const locked = !P.liveryOpen(l, info.level), why = l.starter ? 'Si vince finendo le missioni del pilota nuovo' : l.xmas ? 'Si vince finendo la Christmas Madness' : l.streak ? `Si sblocca tornando ${l.streak} giorni di fila (forziere del giorno)` : 'Si sblocca al livello ' + l.level;
+    const locked = !P.liveryOpen(l, info.level), why = l.starter ? 'Si vince finendo le missioni del pilota nuovo' : l.xmas ? 'Si vince finendo la Christmas Madness' : l.lev ? 'Si vince arrivando primo al Leventino' : l.fest ? 'Si vince arrivando primo alla Mirco e Gabbah Fest' : l.stars ? `Si sblocca con ${l.stars} stelle` : l.streak ? `Si sblocca tornando ${l.streak} giorni di fila (forziere del giorno)` : 'Si sblocca al livello ' + l.level;
     return `<button type="button" class="livery ${l.id === current.id ? 'active' : ''} ${l.shirt ? 'shirt' : ''}" data-livery="${l.id}" ${locked ? 'aria-disabled="true"' : ''} title="${locked ? why : l.name}">
-      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}">${l.shirt ? `<img class="lvshirt" src="img/maglia-${l.shirt}.webp" alt="" loading="lazy">` : `<b class="lvicon">${l.icon || ''}</b>`}</i><span>${locked ? (l.starter ? '🔒 MISSIONI' : l.xmas ? '🔒 CHRISTMAS MADNESS' : l.streak ? '🔒 ' + l.streak + ' GIORNI DI FILA' : '🔒 LIV ' + l.level) : l.name}</span></button>`;
+      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}">${l.shirt ? `<img class="lvshirt" src="img/maglia-${l.shirt}.webp" alt="" loading="lazy">` : `<b class="lvicon">${l.icon || ''}</b>`}</i><span>${locked ? (l.starter ? '🔒 MISSIONI' : l.xmas ? '🔒 CHRISTMAS MADNESS' : l.lev ? '🔒 LEVENTINO' : l.fest ? '🔒 FEST' : l.stars ? '🔒 ' + l.stars + ' STELLE' : l.streak ? '🔒 ' + l.streak + ' GIORNI DI FILA' : '🔒 LIV ' + l.level) : l.name}</span></button>`;
   }).join('');
   document.querySelectorAll('[data-livery]').forEach(b => b.onclick = () => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;

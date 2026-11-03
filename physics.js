@@ -24,7 +24,8 @@ export const OBSTACLE_HEIGHT = {
   rollRock: .90,  // sasso che rotola giù dalla frana (mulattiera)
   water: .50,     // bottiglia d'acqua: da evitare o saltare
   snowman: .92,
-  gift: .74,      // v127 · pacchi regalo (Christmas Madness): si saltano
+  gift: .74,
+  cake: .74,      // v132 · torte di compleanno (Mirco e Gabbah Fest): si saltano      // v127 · pacchi regalo (Christmas Madness): si saltano
   ibex: .95,      // v46 · stambecco (Valle Argentera)
   chamois: .85,   // v46 · camoscio
   marmot: .38,    // v46 · marmotta
@@ -90,7 +91,7 @@ export function setLayout(layout = CLASSIC_LAYOUT) {
     const len = x.len / total * GAME_LENGTH, b = BASE[x.t];
     const seg = {
       i, t: x.t, from, to: from + len,
-      climb: x.climb ?? b.climb, rough: x.rough ?? b.rough, wet: x.wet ?? b.wet, down: x.down || 0,
+      climb: x.climb ?? b.climb, rough: x.rough ?? b.rough, wet: x.wet ?? b.wet, down: x.down || 0, icy: x.icy || 0,
       name: x.name || (x.t === 3 && x.climb ? 'MULATTIERA IN SALITA' : x.t === 3 && x.down ? 'MULATTIERA IN DISCESA' : SECTION_NAMES[x.t]),
     };
     from += len;
@@ -160,6 +161,7 @@ export function routeAt(seconds, travel = 0) {
     rough,
     wet: Math.max(0, Math.min(1, blend(seconds, 'wet'))),
     down: Math.max(0, Math.min(1, blend(seconds, 'down', .75))),
+    icy: Math.max(0, Math.min(1, blend(seconds, 'icy', 1))),   // v132 · lastre di ghiaccio (Mirco e Gabbah Fest)
     w: sectionWeights(seconds),
   };
   route.grade = terrainGrade(0, travel, route);

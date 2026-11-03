@@ -58,6 +58,16 @@ export const MODES = [
   { id: 17, short: 'XMAS', name: 'Christmas Madness', desc: 'La gara nel fango dell’EDT sotto la neve: lucine sulle fettucce, pacchi regalo e pupazzi di neve in mezzo alla pista, birra e fuochi d’artificio all’arrivo. Il 21 dicembre punti doppi.', event: 'xmas', ranch: true, difficulty: 1, sky: 7, limit: 58, unlock: 1, dense: 0,   /* v127 · si corre al Gusta Ranch, come la gara vera */
     obs: { 0: ['gift', 'snowman', 'log', 'gift'], 1: ['puddle', 'gift', 'puddle', 'snowman'], 2: ['gift', 'step', 'snowman', 'rock'], 3: ['rock', 'gift', 'step', 'snowman'] },
     layout: [{ t: 0, len: 6, name: 'PARTENZA DAL BAR' }, { t: 1, len: 8, wet: 1, name: 'IL FANGO DELLA MADNESS' }, { t: 0, len: 7, name: 'IL BOSCO DEI REGALI' }, { t: 1, len: 6, down: 1, wet: 1, name: 'GIÙ NEL FANGO CHE SAPONE' }, { t: 2, len: 9, climb: .7, name: 'LA SALITA DI BABBO NATALE' }, { t: 1, len: 7, wet: 1, name: 'L’IGNORANZA È QUI' }, { t: 0, len: 6, down: 1, name: 'VERSO I FUOCHI' }] },
+  // v132 · LEVENTINO: la passeggiata enduristica di Sostegno (marzo). Mulattiere degli Alpini, guadi, prati e pietraie; a metà il ristoro coi gazebo.
+  // I compagni corrono vestiti da «Leventino Girls» (parrucca fucsia o azzurra e occhiali a cuore).
+  { id: 18, short: 'LEVENTINO', name: 'Leventino', desc: 'La passeggiata enduristica di Sostegno: mulattiere degli Alpini, guadi, prati in salita e pietraie. A metà giro il ristoro coi gazebo (birra e salame al volo) e i compagni corrono vestiti da Leventino Girls.', difficulty: 1, sky: 0, limit: 58, unlock: 4, ristoro: true, wigs: true, story: true, song: 22,
+    obs: { 0: ['log', 'root', 'rock', 'stump'], 1: ['puddle', 'rock', 'puddle', 'root'], 2: ['step', 'rock', 'log', 'step'], 3: ['rock', 'step', 'cairn', 'rock'] },
+    layout: [{ t: 0, len: 6, name: 'PARTENZA DA SOSTEGNO' }, { t: 3, len: 9, name: 'LA MULATTIERA DEGLI ALPINI' }, { t: 1, len: 7, down: 1, name: 'GIÙ NEL GUADO' }, { t: 2, len: 9, climb: .8, name: 'IL PRATONE IN SALITA' }, { t: 0, len: 6, name: 'IL RISTORO' }, { t: 3, len: 9, climb: 1, name: 'LA PIETRAIA DEL LEVENTINO' }, { t: 0, len: 7, down: 1, name: 'VERSO LA POLENTA' }] },
+  { id: 19, hidden: true, short: '—', name: '(riservato)', desc: '', difficulty: 1, sky: 0, limit: 58, unlock: 99 },   // 19 = classifica delle cadute
+  // v132 · MIRCO E GABBAH FEST: il compleanno di Mirco e del Gabbah al Gusta Ranch, il 1° marzo. Ghiaccio e fango, lucine, palloncini, torte in pista.
+  { id: 20, short: 'FEST', name: 'Mirco e Gabbah Fest', desc: 'Il compleanno di Mirco e del Gabbah al Gusta Ranch: lastre di ghiaccio e fango, lucine sulle fettucce, palloncini e torte di compleanno in mezzo alla pista. All’arrivo «Tanti auguri» e fuochi d’artificio. Il 1° marzo punti doppi.', ranch: true, fest: true, story: true, difficulty: 1, sky: 8, limit: 57, unlock: 5, dense: 0, song: 21,
+    obs: { 0: ['cake', 'hay', 'puddle', 'stump'], 1: ['puddle', 'cake', 'puddle', 'hay'], 2: ['cake', 'step', 'hay', 'rock'], 3: ['hay', 'cake', 'puddle', 'stump'] },
+    layout: [{ t: 0, len: 6, name: 'LA FESTA COMINCIA' }, { t: 1, len: 8, wet: 1, name: 'IL FANGO DI MIRCO' }, { t: 0, len: 7, icy: 1, name: 'LASTRA DI GHIACCIO' }, { t: 1, len: 7, down: 1, wet: 1, name: 'CAMPA GIÙ!' }, { t: 0, len: 8, name: 'LE TORTE IN PISTA' }, { t: 0, len: 7, icy: 1, name: 'IL GHIACCIO DEL GUSTA' }, { t: 0, len: 5, down: 1, name: 'TANTI AUGURI!' }] },
 ];
 // v59 · percorsi tolti dal menu (restano nell'elenco per non mescolare record e classifiche già salvati)
 // v127 · eventi a tempo: Christmas Madness dal 1° dicembre al 6 gennaio (con ?xmas=1 si vede prima, per le prove)
@@ -94,6 +104,9 @@ export const LIVERIES = [
   { id: 'oro', name: 'Oro Leggenda', icon: '🏆', level: 9, plastic: '#d9a826', accent: '#111111', jersey: '#141414', pants: '#141414', helmet: '#e7b934', pattern: 'righe', ink: '#f6d46a' },
   { id: 'stelle', name: 'Stellare', icon: '⭐', level: 1, stars: 18, plastic: '#1b1f3a', accent: '#f2c230', jersey: '#1b1f3a', pants: '#f2c230', helmet: '#f2c230', pattern: 'bolle', ink: '#f2c230' },   // v130 · 18 stelle
   { id: 'rookie', name: 'Debuttante EDT', icon: '🎓', level: 1, starter: true, plastic: '#1f8fd8', accent: '#fcd326', jersey: '#ffffff', pants: '#1f8fd8', helmet: '#fcd326' },   // v129 · si vince finendo le missioni del pilota nuovo
+  { id: 'levgirl', name: 'Leventino Girl', icon: '💖', level: 1, lev: true, plastic: '#ff3fb4', accent: '#3fd0ff', jersey: '#ff3fb4', pants: '#1d1d1b', helmet: '#ff3fb4', wig: '#ff4fc0' },   // v132 · primo al Leventino
+  { id: 'supergabbah', name: 'Super Gabbah', icon: '👑', level: 1, fest: true, plastic: '#141414', accent: '#d9ad2b', jersey: '#141414', pants: '#141414', helmet: '#d9ad2b' },   // v132 · si vince arrivando primo alla Mirco e Gabbah Fest
+  { id: 'supermirco', name: 'Super Mirco', icon: '⚡', level: 1, fest: true, plastic: '#2160d6', accent: '#e32020', jersey: '#2160d6', pants: '#1d2440', helmet: '#e32020' },
   { id: 'babbo', name: 'Babbo Natale', icon: '🎅', level: 1, xmas: true, plastic: '#d8262f', accent: '#ffffff', jersey: '#d8262f', pants: '#1d1d1b', helmet: '#ffffff' },   // v127 · si vince finendo la Christmas Madness
 ];
 
@@ -330,7 +343,7 @@ export function pendingBoosts() { return Object.keys(data.boosts).filter(k => da
 
 // v130 · TRE STELLE PER PERCORSO: ★ arrivi al rifugio · ★★ tempo d'argento (6 s sotto il massimo) · ★★★ tempo d'oro (12 s sotto) senza cadute.
 // Premi a 9, 18 e 27 stelle. Valgono i percorsi "a tempo" fissi (niente Potter, Ice, Sfida del giorno ed eventi).
-export const STAR_MODES = [0, 1, 10, 11, 12, 13, 14, 15, 16];
+export const STAR_MODES = [0, 1, 10, 11, 12, 13, 14, 15, 16, 18, 20];
 export const starTimes = m => { const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };
 export const starsFor = m => (data.stars || {})[m] || 0;
 export const totalStars = () => STAR_MODES.reduce((a, m) => a + starsFor(m), 0);
@@ -372,9 +385,7 @@ export const RADIO_EXTRA = [
   { id: 19, how: 'Finisci un Campionato EDT', ok: () => !!(data.champDone || data.champWins) },
   { id: 20, how: '9 stelle', ok: () => totalStars() >= 9 },
   { id: 24, how: '18 stelle', ok: () => totalStars() >= 18 },
-  { id: 21, how: 'Livello 5', ok: () => levelInfo().level >= 5 },
   { id: 23, how: 'Livello 7', ok: () => levelInfo().level >= 7 },
-  { id: 22, how: 'Vinci un Campionato EDT', ok: () => (data.champWins || 0) > 0 },
 ];
 export const radioOpen = id => { const x = RADIO_EXTRA.find(r => r.id === id); return !x || x.ok(); };
 export function radioNew() {   // canzoni appena sbloccate (una volta sola)
@@ -407,6 +418,9 @@ export function markStarter(id) {
   const s = starter(); if (!s || s.d[id]) return '';
   s.d[id] = 1; let r = 'new'; if (STARTER.every(m => s.d[m.id]) && !s.claimed) { s.claimed = 1; r = 'all'; } save(); return r;
 }
+export function markFestWin() { if (!data.festWin) { data.festWin = 1; save(); return true; } return false; }
+export function markLevWin() { if (!data.levWin) { data.levWin = 1; save(); return true; } return false; }   // v132
+export const festDouble = (d = new Date()) => d.getMonth() === 2 && d.getDate() === 1;   // v132 · 1° marzo: il compleanno vero
 export function markXmasWin() { if (!data.xmasWin) { data.xmasWin = 1; save(); return true; } return false; }   // v127
 export function save() {
   try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
@@ -422,7 +436,7 @@ export function levelInfo(xp = data.xp) {
   return { level, grade, into: xp - floor, need, pct: (xp - floor) / need };
 }
 
-export const liveryOpen = (l, level = levelInfo().level) => l.stars ? totalStars() >= l.stars : l.starter ? !!data.starter?.claimed : l.xmas ? !!data.xmasWin : l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
+export const liveryOpen = (l, level = levelInfo().level) => l.stars ? totalStars() >= l.stars : l.starter ? !!data.starter?.claimed : l.xmas ? !!data.xmasWin : l.lev ? !!data.levWin : l.fest ? !!data.festWin : l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
 export function unlockedLiveries(level = levelInfo().level) {
   return LIVERIES.filter(l => liveryOpen(l, level));
 }

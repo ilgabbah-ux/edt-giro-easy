@@ -22,7 +22,7 @@
 //       'pub' per i giri pubblici, vuota per l'EDT (così tutte le righe vecchie restano dell'EDT). Classifiche, tempi e coppa
 //       si fanno separati per gruppo; i nomi protetti restano unici per tutti.
 const SHEET = 'Punteggi';
-const MODES = 20;           // percorsi 0..19 (9 Ice Scrophy, 10 MotoFogna, 11 Valle Argentera, 12 MontaFiga, 13 Anti-GEV · v57; spazio per quelli futuri)
+const MODES = 22;           // v132 · percorsi 0..21 (18 Leventino, 20 Mirco e Gabbah Fest) · prima: percorsi 0..19 (9 Ice Scrophy, 10 MotoFogna, 11 Valle Argentera, 12 MontaFiga, 13 Anti-GEV · v57; spazio per quelli futuri)
 const DAILY = 3;
 const ICE = 9;
 const CAP = { 0: 200000, 1: 150000, 2: 60000, 3: 160000, 9: 120000, 10: 210000, 11: 150000, 12: 160000, 13: 230000, 14: 160000, 15: 160000, 16: 160000 };   // v102 · rifatti col bot a potenziamenti tutti al massimo (moto, pilota, speciali, pezzi Factory): circa il doppio del suo punteggio migliore   // v96 · punteggio massimo credibile per percorso
