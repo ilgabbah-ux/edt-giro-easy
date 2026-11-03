@@ -1866,3 +1866,13 @@ aside#hub { gap: 10px; }
 .rescustom svg { width: 20px; height: 20px; }
 .rescustom small { flex-basis: 100%; font: 600 13px var(--ui); letter-spacing: .3px; text-transform: none; opacity: .8; }
 .resulttext small { font-size: .85em; opacity: .75; }
+
+/* v126 · foto profilo */
+.phpick { display: flex; align-items: center; gap: 12px; margin: 4px 0 10px; }
+.phpick .phopt { width: 64px; height: 64px; flex: none; display: grid; place-items: center; background: #2b2c28; color: var(--y); }
+.phpick .phopt svg { width: 30px; height: 30px; }
+.phpick .phopt img, .avatar img[data-ph] { width: 100%; height: 100%; object-fit: cover; display: block; }
+.phpick span { display: flex; flex-direction: column; gap: 2px; }
+.phpick b { font: italic 800 15px var(--display, inherit); letter-spacing: 1px; color: var(--y); }
+.phpick small { font: 600 13px var(--ui); opacity: .8; }
+.rideroption .rc-photo.rc-me { object-fit: cover; object-position: 50% 40%; }

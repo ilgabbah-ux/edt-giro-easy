@@ -13,6 +13,9 @@
 //       del codice, non il codice). Chi usa lo stesso nome con un codice diverso non entra in classifica (taken: true).
 //       b = livello della moto (somma dei potenziamenti dell'officina), mostrato accanto al nome.
 // v108.5 · edtName: i nomi dei piloti EDT e quelli prenotati prima del 28/10/2026 vanno sempre nella classifica EDT (il gioco si sposta da solo).
+// v126 · FOTO PROFILO: POST {name,k,img} (img = JPEG 96×96 in base64, '' = togli). Foglio "Foto" (una riga per nome);
+//       solo chi ha il codice del nome può cambiarla. Le classifiche mandano fv = {nome: versione}; le foto si scaricano
+//       a parte con ?action=foto&n=nome1,nome2 (max 40). Per togliere una foto sconcia: cancella la riga nel foglio "Foto".
 // v123 · players = telefoni diversi che hanno aperto il gioco (per il contatore in home). Classifica cadute (percorso 19): punteggio = settimana×1000 + cadute della settimana.
 // v108.3 · DUE CLASSIFICHE: grp = 'edt' (amici dell'Enduro Drinking Team) o 'pub' (tutti gli altri). Colonna L del foglio:
 //       'pub' per i giri pubblici, vuota per l'EDT (così tutte le righe vecchie restano dell'EDT). Classifiche, tempi e coppa
@@ -139,6 +142,43 @@ function boards_(day, minv, act, grp) {
   return { out: out, times: times, week: week };
 }
 
+function photos_() {
+  const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
+  let s = ss.getSheetByName('Foto');
+  if (!s) { s = ss.insertSheet('Foto'); s.getRange(1, 1, 1, 3).setValues([['Nome', 'Foto', 'Data']]).setFontWeight('bold'); s.setFrozenRows(1); }
+  return s;
+}
+// mappa nome → versione (millisecondi), in cache 10 minuti (si azzera quando qualcuno carica una foto)
+function photoVers_() {
+  const c = CacheService.getScriptCache(), hit = c.get('fotov'); if (hit) return JSON.parse(hit);
+  const s = photos_(), last = s.getLastRow(), out = {};
+  if (last > 1) s.getRange(2, 1, last - 1, 3).getValues().forEach(r => { if (r[0] && r[1]) out[String(r[0])] = r[2] instanceof Date ? r[2].getTime() : 1; });
+  c.put('fotov', JSON.stringify(out), 600);
+  return out;
+}
+function photoGet_(names) {
+  const s = photos_(), last = s.getLastRow(), want = {}, out = {};
+  names.forEach(n => want[n] = 1);
+  if (last > 1) s.getRange(2, 1, last - 1, 3).getValues().forEach(r => { if (want[String(r[0])] && r[1]) out[String(r[0])] = { d: String(r[1]), v: r[2] instanceof Date ? r[2].getTime() : 1 }; });
+  return out;
+}
+function doPost(e) {
+  let p = {}; try { p = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (err) {}
+  if (p.action !== 'foto') return reply_({ ok: false });
+  const name = clean_(p.name, 16), key = name.toLowerCase(), img = String(p.img || '');
+  const k = /^[a-z0-9]{4,12}$/.test(p.k || '') ? p.k : '';
+  if (!name || !k || (img && !/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]{200,16000}$/.test(img))) return reply_({ ok: false });
+  const lock = LockService.getScriptLock(); lock.waitLock(8000);
+  try {
+    if (!claim_(name, k)) return reply_({ ok: false, taken: true });
+    const s = photos_(), last = s.getLastRow();
+    const rows = last > 1 ? s.getRange(2, 1, last - 1, 1).getValues() : [];
+    const i = rows.findIndex(r => String(r[0]) === key);
+    if (i >= 0) s.getRange(i + 2, 2, 1, 2).setValues([[img, new Date()]]); else if (img) s.appendRow([key, img, new Date()]);
+    CacheService.getScriptCache().remove('fotov');
+  } finally { lock.releaseLock(); }
+  return reply_({ ok: true });
+}
 function reply_(obj, cb) {
   const txt = JSON.stringify(obj);
   if (cb && /^[\w.$]+$/.test(cb)) return ContentService.createTextOutput(cb + '(' + txt + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
@@ -188,6 +228,7 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   const day = /^\d{4}-\d{2}-\d{2}$/.test(p.day || '') ? p.day : Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd');
   if (p.action === 'hit') { try { hit_(p, day); } catch (err) {} return reply_({ ok: true }, p.callback); }
+  if (p.action === 'foto') { const n = String(p.n || '').toLowerCase().split(',').map(x => clean_(x, 16)).filter(Boolean).slice(0, 40); let f = {}; try { f = photoGet_(n); } catch (err) {} return reply_({ ok: true, f: f }, p.callback); }
   let saved = false, taken = false, edtName = false;
   if (p.action === 'add') {
     const name = clean_(p.name, 16);
@@ -219,5 +260,6 @@ function doGet(e) {
   const grp = p.grp === 'pub' && !edtName ? 'pub' : 'edt';
   const b = boardsCached_(day, minv, act.length ? act : ACTIVE, grp);
   let players = 0; try { players = players_(); } catch (err) {}
-  return reply_({ ok: true, iceDesc: true, players: players, grp: grp, edtName: edtName, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
+  let fv = {}; try { fv = photoVers_(); } catch (err) {}
+  return reply_({ ok: true, iceDesc: true, players: players, fv: fv, grp: grp, edtName: edtName, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
 }

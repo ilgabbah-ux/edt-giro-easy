@@ -82,6 +82,7 @@ async function call(params, keep = true) {
     data = await r.json();
   } catch { data = await jsonp(url); }
   if (!data?.ok) throw new Error('risposta');
+  if (data.fv) syncPhotos(data.fv);   // v126 · foto profilo: versioni dal server, le foto nuove si scaricano a parte
   splitAv(data);   // v125 · «Nome~7» nel campo pilota = pilota creato col casco n. 7
   if (data.edtName && !isEdt()) { try { localStorage.setItem(EDT_KEY, '1'); } catch {} data.joinedEdt = true; }   // v108.5 · pilota EDT riconosciuto dal nome: entra da solo nella classifica EDT
   if (!keep) return data;
@@ -196,4 +197,32 @@ export function positionOf(data, mode, name) {
   const list = data?.boards?.[mode] || [];
   const i = list.findIndex(e => e.n.toLowerCase() === cleanNick(name).toLowerCase());
   return i + 1;
+}
+
+// v126 · FOTO PROFILO (visibili a tutti). Il server manda fv = {nome: versione}; qui si tengono le foto già scaricate
+// (localStorage, max 120) e si chiedono solo quelle nuove o cambiate. photoOf(nome) → dataURL o ''.
+const PH_KEY = 'edt-giro-easy-foto';
+let phMem = null, phVers = {}, phBusy = false;
+function phRead() { if (phMem) return phMem; try { phMem = JSON.parse(localStorage.getItem(PH_KEY) || '{}'); } catch { phMem = {}; } return phMem; }
+function phWrite() { try { const e = Object.entries(phMem); localStorage.setItem(PH_KEY, JSON.stringify(Object.fromEntries(e.slice(-120)))); } catch {} }
+export function photoOf(name) { const k = String(name || '').toLowerCase(), c = phRead()[k]; return c && phVers[k] && c.v === phVers[k] ? c.d : ''; }
+const phListeners = new Set();
+export const onPhotos = fn => phListeners.add(fn);
+function syncPhotos(fv) {
+  phVers = fv || {}; const have = phRead();
+  for (const k of Object.keys(have)) if (!phVers[k]) delete have[k];   // foto tolta dal server
+  const need = Object.keys(phVers).filter(k => !have[k] || have[k].v !== phVers[k]).slice(0, 40);
+  if (!need.length || phBusy || !enabled()) { phListeners.forEach(f => f()); return; }
+  phBusy = true;
+  const url = API + '?' + new URLSearchParams({ action: 'foto', n: need.join(',') }).toString();
+  fetch(url, { redirect: 'follow' }).then(r => r.json()).catch(() => jsonp(url)).then(d => {
+    Object.entries(d?.f || {}).forEach(([k, o]) => { if (o && /^data:image\/jpeg;base64,/.test(o.d)) have[k] = { v: o.v, d: o.d }; });
+    phWrite(); phListeners.forEach(f => f());
+  }).catch(() => {}).finally(() => { phBusy = false; });
+}
+// carica (img = dataURL JPEG) o toglie (img = '') la foto del nome in classifica; serve il codice pilota del telefono
+export function uploadPhoto(name, img) {
+  if (!enabled()) return Promise.resolve(false);
+  const body = JSON.stringify({ action: 'foto', name: cleanNick(name), k: getCode(), img: img || '' });
+  return fetch(API, { method: 'POST', mode: 'no-cors', body }).then(() => { const k = cleanNick(name).toLowerCase(); if (img) { phRead()[k] = { v: -1, d: img }; } else delete phRead()[k]; phWrite(); cache = null; return true; }).catch(() => false);
 }

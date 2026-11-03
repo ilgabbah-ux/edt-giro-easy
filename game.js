@@ -6,7 +6,7 @@ import * as P from './progress.js?v=91d6b436';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=0645440a';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=2bfbc3ea';
-import * as C from './classifica.js?v=33842059';
+import * as C from './classifica.js?v=ffc9096f';
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -84,7 +84,7 @@ const photoURL = name => PHOTOS[name] ? (FOTO[PHOTOS[name]] || null) : null;
 const SKILL_IC = { steady: 'compass', stones: 'rock', drifter: 'snow', sommelier: 'wine', turbo: 'bolt', nose: 'magnet', climb: 'mountain', amphibious: 'wave', scrub: 'scrub', lion: 'helmetplus', downhill: 'downhill', veteran: 'stopwatch', spring: 'spring', precise: 'target', wheelie: 'wheelie', schettino: 'anchor', rocket: 'rocket', tank: 'shield', angel: 'heart', sprint: 'flag', blessed: 'chapel', mulcher: 'tractor', dry: 'nowater', slip: 'chevrons', nimble: 'tyre' };
 function riderCardHTML(name, i) {
   const k = PHOTOS[name], sk = SKILLS[name] || {}, nm = name.replace('Il ', '');
-  const pic = k ? `<img class="rc-photo" src="img/piloti/${k}.webp" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=window.__edtFoto('${k}')">` : profile.custom?.av && name === profile.custom.name ? `<span class="rc-photo rc-av">${avSVG(profile.custom.av - 1)}</span>` : `<span class="rc-photo rc-initials">${nm.slice(0, 2).toUpperCase()}</span>`;
+  const pic = k ? `<img class="rc-photo" src="img/piloti/${k}.webp" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=window.__edtFoto('${k}')">` : profile.custom?.photo && name === profile.custom.name ? `<img class="rc-photo rc-me" src="${profile.custom.photo}" alt="">` : profile.custom?.av && name === profile.custom.name ? `<span class="rc-photo rc-av">${avSVG(profile.custom.av - 1)}</span>` : `<span class="rc-photo rc-initials">${nm.slice(0, 2).toUpperCase()}</span>`;
   return `${pic}<span class="rc-num">${String(i + 1).padStart(2, '0')}</span><span class="rc-tag">IN SELLA</span>
     <span class="rc-bar"><b class="rc-name">${name.startsWith('Il ') ? '<small>IL</small>' : ''}${nm}</b><span class="rc-skill" title="${sk.desc || ''}">${icon(SKILL_IC[sk.id] || 'star')}<span>${sk.name || ''}</span></span></span>`;
 }
@@ -121,12 +121,21 @@ function avSVG(i) {
 const myAv = () => (profile.custom?.av | 0);
 const avSpan = (n, cls = '', label = '') => `<span class="avatar avsvg ${cls}"${label ? ` aria-label="${label}"` : ''}>${avSVG(n - 1)}</span>`;
 // voce di classifica: pilota EDT → foto; pilota creato con casco scelto → casco; altrimenti cerchio vuoto
-const entryAv = (e, cls = '') => RIDERS.includes(e?.r) ? avatarHTML(e.r, cls) : e?.av > 0 ? avSpan(e.av, cls) : '<i class="noav"></i>';
+// v126 · foto profilo caricata dal giocatore (vale per il suo nome in classifica, prima di tutto il resto)
+const phSpan = (url, cls = '', n = '') => `<span class="avatar ${cls}"${n ? ` data-pn="${n}"` : ''}><img src="${url}" alt=""></span>`;
+const entryAv = (e, cls = '') => { const pn = String(e?.n || '').toLowerCase(), ph = C.photoOf(pn); if (ph) return phSpan(ph, cls, pn);
+  const base = RIDERS.includes(e?.r) ? avatarHTML(e.r, cls) : e?.av > 0 ? avSpan(e.av, cls) : '<i class="noav"></i>';
+  return pn ? base.replace(/^<(span|i) class="/, `<$1 data-pn="${pn}" data-pc="${cls}" class="`) : base; };
+// quando arrivano foto nuove dal server, le voci già a schermo si aggiornano da sole
+function swapPhotos(root = document) { root.querySelectorAll?.('[data-pn]').forEach(el => { if (el.querySelector('img[data-ph]')) return; const ph = C.photoOf(el.dataset.pn); if (!ph) return; const cls = el.dataset.pc ?? [...el.classList].filter(c => c === 'tiny' || c === 'big').join(' '); const n = document.createElement('span'); n.className = 'avatar ' + cls; n.dataset.pn = el.dataset.pn; n.innerHTML = `<img data-ph="1" src="${ph}" alt="">`; el.replaceWith(n); }); }
+C.onPhotos(() => swapPhotos());
+const myPhoto = () => (isCustom() && profile.custom?.photo) || '';
 // nel campo "pilota" della classifica il casco viaggia in coda al nome (Nome~7): niente modifiche al foglio
 // v125.3 · chi ha corso: il nome in classifica, col pilota scelto se è diverso («Pizzi con Il Gabbah»)
 const whoRan = () => { const n = C.getNick(), r = profile.rider; return n && n.toLowerCase() !== r.toLowerCase() && !isCustom() ? `${n} <small>con ${r}</small>` : r; };
 const riderTag = () => isCustom() && myAv() ? profile.rider.slice(0, 16) + '~' + myAv() : profile.rider;
 function avatarHTML(name, cls = '') {
+  if (name && profile.custom?.photo && name === profile.custom.name && !RIDERS.includes(name)) return phSpan(profile.custom.photo, cls);   // v126
   if (name && profile.custom?.av && name === profile.custom.name && !RIDERS.includes(name)) return avSpan(profile.custom.av, cls, name);
   const url = photoURL(name);
   return url
@@ -3456,6 +3465,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
   box.innerHTML = `<div class="ghead">🏆 ${grpLabel()} · ${MODE_LABEL(runInfo.mode)}</div><p class="gwait">Invio il punteggio di <b>${nick}</b>…</p>`;
   const { sent, sentAs, ...payload } = runInfo;
   const beforeList = (C.cached()?.boards?.[runInfo.mode] || []).map(e => e.n);
+  try { syncMyPhoto(); } catch {}   // v126 · foto profilo non ancora sul server (es. nome cambiato)
   C.submit({ ...payload, name: nick, v: String(GAME_VERSION), b: P.UPGRADES.reduce((a, u) => a + P.upgradeLevel(u.id), 0) }).then(d => {
     if (d.taken) {   // v89 · nome già prenotato da un altro telefono
       if (!$('groupres')) return;
@@ -3635,7 +3645,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 125.4;
+const GAME_VERSION = 126;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3683,12 +3693,13 @@ function renderCustom(back) {
   if (state !== 'ended') state = 'ready';
   setMenu(true); $('overlay').classList.remove('hidden');
   const c = profile.custom || { name: '', num: 1 + Math.floor(Math.random() * 98) };
-  let av = c.av || 1 + Math.floor(Math.random() * AV.length);
+  let av = c.av || 1 + Math.floor(Math.random() * AV.length), photo = c.photo || '';   // v126 · photo = foto profilo (JPEG 96×96)
   $('card').innerHTML = `<div class="eyebrow">NON SEI DELL'EDT? NESSUN PROBLEMA</div>
     <h1 class="shoptitle">IL TUO<br><em>PILOTA.</em></h1>
     <p>Scegli il casco, il nome che vedi in gara e in classifica e il numero sulla tabella. Puoi sempre correre anche coi piloti dell'EDT.</p>
     <form class="customform" id="customform">
-      <div class="avpick" role="radiogroup" aria-label="Il tuo casco">${AV.map((_, i) => `<button type="button" role="radio" class="avopt" data-av="${i + 1}" aria-checked="${i + 1 === av}" aria-label="Casco ${i + 1}">${avSVG(i)}</button>`).join('')}</div>
+      <div class="phpick"><button type="button" role="radio" class="avopt phopt" id="phopt" aria-checked="${!!photo}" aria-label="La tua foto">${photo ? `<img src="${photo}" alt="">` : icon('face')}</button><span><b>LA TUA FOTO</b><small>${photo ? 'tocca per cambiarla · la vedono tutti in classifica' : 'tocca per caricarla · oppure scegli un casco'}</small></span><input type="file" id="phfile" accept="image/*" hidden></div>
+      <div class="avpick" role="radiogroup" aria-label="Il tuo casco">${AV.map((_, i) => `<button type="button" role="radio" class="avopt" data-av="${i + 1}" aria-checked="${!photo && i + 1 === av}" aria-label="Casco ${i + 1}">${avSVG(i)}</button>`).join('')}</div>
       <label>NOME<input id="cname" maxlength="16" autocomplete="nickname" placeholder="Es. Il Fulmine" value="${c.name}"></label>
       <label>NUMERO<input id="cnum" type="number" inputmode="numeric" min="1" max="99" value="${c.num}"></label>
       <p class="cerr" id="cerr"></p>
@@ -3696,7 +3707,23 @@ function renderCustom(back) {
     </form>`;
   iconizeEl($('card'));
   $('cback').onclick = back;
-  document.querySelectorAll('.avopt').forEach(b => b.onclick = () => { av = +b.dataset.av; document.querySelectorAll('.avopt').forEach(x => x.setAttribute('aria-checked', x === b)); A.sfx.click(); });
+  document.querySelectorAll('.avopt:not(.phopt)').forEach(b => b.onclick = () => { av = +b.dataset.av; photo = ''; document.querySelectorAll('.avopt').forEach(x => x.setAttribute('aria-checked', x === b)); A.sfx.click(); });
+  // v126 · foto profilo: ritaglio quadrato al centro, 96×96, JPEG leggero (circa 4 KB)
+  $('phopt').onclick = () => { A.sfx.click(); if (photo && $('phopt').getAttribute('aria-checked') !== 'true') { document.querySelectorAll('.avopt').forEach(x => x.setAttribute('aria-checked', x.id === 'phopt')); return; } $('phfile').click(); };
+  $('phfile').onchange = () => {
+    const f = $('phfile').files?.[0]; if (!f) return;
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => {
+      const s = Math.min(img.naturalWidth, img.naturalHeight), cv = document.createElement('canvas'); cv.width = cv.height = 96;
+      cv.getContext('2d').drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2.6, s, s, 0, 0, 96, 96);
+      URL.revokeObjectURL(url);
+      photo = cv.toDataURL('image/jpeg', .74);
+      $('phopt').innerHTML = `<img src="${photo}" alt="">`; document.querySelectorAll('.avopt').forEach(x => x.setAttribute('aria-checked', x.id === 'phopt'));
+      document.querySelector('.phpick small').textContent = 'fatto! tocca IN SELLA per tenerla';
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); toast('QUESTA FOTO NON SI APRE: PROVANE UN’ALTRA', 'red'); };
+    img.src = url;
+  };
   $('customform').onsubmit = e => {
     e.preventDefault();
     const name = C.cleanNick($('cname').value), num = Math.round(+$('cnum').value);
@@ -3709,12 +3736,20 @@ function renderCustom(back) {
   };
   function finishCustom(name, num) {
     const old = profile.custom?.name;
-    profile.custom = { name, num, av }; profile.rider = name; P.save();
+    const oldPhoto = profile.custom?.photo || '';
+    profile.custom = { name, num, av, photo, photoFor: photo === oldPhoto && name === old ? profile.custom?.photoFor : '' }; profile.rider = name; P.save();
     if (!C.getNick() || C.getNick() === old) C.setNick(name);   // il nome in classifica segue il pilota (se non ne hai già scelto un altro)
+    syncMyPhoto(oldPhoto && !photo);
     A.unlock(); A.sfx.click(); toast('🏁 ' + name.toUpperCase() + ' #' + num + ' È IN SELLA', 'green');
     renderSide(); renderReady();
   };
   $('cname').focus?.();
+}
+// v126 · la foto va sul server col nome in classifica, solo se è quello del pilota creato (non si cambia la foto a un pilota EDT)
+function syncMyPhoto(removed = false) {
+  const c = profile.custom, nick = C.getNick(); if (!c || !nick || nick.toLowerCase() !== c.name.toLowerCase()) return;
+  if (removed) { C.uploadPhoto(nick, ''); c.photoFor = ''; P.save(); return; }
+  if (c.photo && c.photoFor !== nick) C.uploadPhoto(nick, c.photo).then(ok => { if (ok) { c.photoFor = nick; P.save(); } });
 }
 function renderSide() {
   $('ridergrid').innerHTML = customCardHTML() + RIDERS.map((name, i) => `<button type="button" class="rideroption" data-rider="${name}" aria-pressed="${name === profile.rider}" aria-label="Scegli ${name}">
