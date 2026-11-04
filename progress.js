@@ -72,6 +72,9 @@ export const MODES = [
   { id: 21, short: 'VIETNAM', name: 'Leventino Vietnam Edition', desc: 'L’edizione super bagnata del Leventino: piove dall’inizio alla fine, risaie allagate ai lati, guadi uno dopo l’altro, fango fino al casco e sudore negli occhi. Il ristoro c’è anche qui… sotto un gazebo che gocciola.', difficulty: 2, sky: 9, limit: 60, unlock: 6, rainy: true, ristoro: true, wigs: true, story: true, look: 'viet', song: 22, dense: .02,
     obs: { 0: ['puddle', 'log', 'root', 'puddle'], 1: ['puddle', 'puddle', 'root', 'log'], 2: ['puddle', 'step', 'root', 'log'], 3: ['puddle', 'rock', 'root', 'step'] },
     layout: [{ t: 1, len: 6, name: 'PARTENZA SOTTO IL DILUVIO' }, { t: 1, len: 9, name: 'LE RISAIE' }, { t: 1, len: 7, down: 1, name: 'IL GUADO INFINITO' }, { t: 2, len: 8, climb: .7, wet: 1, name: 'LA SALITA DEL SUDORE' }, { t: 1, len: 6, name: 'IL RISTORO ALLAGATO' }, { t: 3, len: 9, wet: 1, name: 'FANGO FINO AL CASCO' }, { t: 1, len: 7, down: 1, name: 'ARRIVO A MOLLO' }] },
+  // v140 · SCUOLA DI ENDURO EDT: giro di allenamento lento, senza tempo e senza cadute che contano: un ostacolo alla volta col suo cartello.
+  { id: 22, hidden: true, school: true, short: 'SCUOLA', name: 'Scuola di enduro EDT', desc: 'Il giro di allenamento: piano, senza tempo, un ostacolo alla volta con le istruzioni.', difficulty: 0, sky: 0, limit: 240, unlock: 1, story: true, song: 6,
+    layout: [{ t: 0, len: 60, name: 'SCUOLA DI ENDURO EDT' }] },
 ];
 // v59 · percorsi tolti dal menu (restano nell'elenco per non mescolare record e classifiche già salvati)
 // v127 · eventi a tempo: Christmas Madness dal 1° dicembre al 6 gennaio (con ?xmas=1 si vede prima, per le prove)

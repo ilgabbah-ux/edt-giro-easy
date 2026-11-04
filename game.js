@@ -2,7 +2,7 @@
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
 import { createWorld } from './scene3d.js?v=b36211dc';
 import * as A from './audio.js?v=ce4eed2f';
-import * as P from './progress.js?v=7ed158a6';
+import * as P from './progress.js?v=0619c202';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
@@ -733,6 +733,7 @@ function finish(win, reason = '') {
   });
   run.km = Math.round(roadTime * 19.5) / 1000;   // v96 · per le statistiche
   const res = P.recordRun(run);
+  if (P.MODES[mode].school && win) { res.school = !P.profile.schoolDone; P.profile.schoolDone = 1; P.profile.tutorialDone = true; P.save(); }   // v140 · diploma: si apre la carriera
   A.musicRush(false); volata = 0; volataShow(null);
   if (!tut && !duel?.racing && !champRun) { res.stars = P.recordStars(mode, win, elapsed, run.hits); if (res.stars?.prizes?.length) res.wallet = P.profile.beers; }   // v130 · tre stelle
   if (champRun) { res.champ = champFinish(win); res.wallet = P.profile.beers; }   // v130 · campionato EDT
@@ -1522,6 +1523,25 @@ function duelNoPlan() { return false; }
 // v106.2 · gli ostacoli compaiono più lontano (≈63 m invece di ≈45 m): mezzo secondo in più per vederli e decidere.
 // Le distanze tra loro non cambiano; restano dove sono i cartelli legati al paesaggio (bivio) e le cose lanciate.
 const Z_AHEAD = .32, Z_FIXED = new Set(['forkSplit', 'forkShort', 'forkSafe', 'heli', 'gevmark', 'landpad', 'mboard', 'bigRamp', 'speedpad']);
+// v140 · SCUOLA DI ENDURO EDT: lezioni in fila, ognuna col suo cartello
+const SCHOOL = [
+  { say: 'STERZA: PRENDI LE BIRRE', sub: 'inclina il telefono (o tieni il dito a destra/sinistra) e passaci sopra', add: a => { [0, 1, 2, 2, 1, 0].forEach((l, i) => a(l, -.07 * i, 'coin')); } },
+  { say: 'TRONCO: SALTA!', sub: 'premi SALTA quando ti arriva vicino', add: a => a(1, 0, 'log') },
+  { say: 'POZZA: SALTALA', sub: 'o passaci di lato, se no ti infanghi e rallenti', add: a => a(1, 0, 'puddle') },
+  { say: 'SASSI: PASSA NEL VARCO', sub: 'quelli grossi è meglio schivarli', add: a => { a(0, 0, 'rock'); a(2, 0, 'rock'); } },
+  { say: 'GRADONE: SALTA!', sub: 'salto perfetto = tocchi SALTA proprio sotto, punti doppi', add: a => a(1, 0, 'step') },
+  { say: 'BAR: PASSA SOTTO', sub: 'birra e +500, ma poi la moto balla un po’', bar: true },
+  { say: 'TURBO PIENO: USALO!', sub: 'quando la barra del turbo è piena premi TURBO', turbo: true },
+  { say: 'IMPENNA!', sub: 'tieni premuto IMPENNA sul dritto: più la tieni, più punti', add: a => { for (let i = 0; i < 4; i++) a(1, -.07 * i, 'coin'); } },
+  { say: 'ULTIMA PROVA: TRONCO E POZZA', sub: 'salta il tronco, poi sterza o salta la pozza', add: a => { a(1, 0, 'log'); a(0, -.3, 'puddle'); a(2, -.3, 'puddle'); } },
+];
+let schoolStep = 0;
+function spawnSchool() {
+  const s = SCHOOL[schoolStep]; if (!s) return; schoolStep++;
+  const add = (l, z, type) => objects.push({ l, z, type, hit: false });
+  if (s.bar) spawnBar(); else if (s.turbo) { charge = 100; hud(); } else s.add(add);
+  bigCall(s.say); toast('🎓 ' + s.sub.toUpperCase(), 'gold');
+}
 function spawnWave() {
   if (tut || (coachOn && !ice && !leap && !duel?.racing)) return;   // v107.2 · giro guidato: niente ostacoli finché non hai provato le mosse
   const before = new Set(objects);
@@ -1530,6 +1550,7 @@ function spawnWave() {
   for (const o of objects) if (!before.has(o) && !o.fly && !o.of && !Z_FIXED.has(o.type)) o.z -= Z_AHEAD;
 }
 function spawnWaveCore() {
+  if (P.MODES[mode].school) return spawnSchool();   // v140
   if (leap) return spawnLeapWave();
   if (P.MODES[mode].ranch && spawnRanchSpecial()) return;
   if (ice) return spawnIceWave();
@@ -1779,7 +1800,7 @@ function setupRace() {
   dz.forEach((n, k) => { const j = others.indexOf(n); if (j >= 0) others.splice(j, 1); others.splice(1 + k, 0, n); });
   others.length = 3;
   const starts = [-7, 26, 58], lvSoft = P.levelInfo().level <= 2 ? .955 : P.levelInfo().level <= 4 ? .98 : 1, skills = [1.09, 1.04, .99].map(k => k * lvSoft);   // v81 · ai primi livelli i compagni vanno un filo più piano   // v48 · un filo più forti (salite più dure anche per loro)
-  rivals = P.MODES[mode].leap ? [] : others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
+  rivals = P.MODES[mode].leap || P.MODES[mode].school ? [] : others.map((name, i) => ({ name, gap: starts[i], lane: [2, 0, 2][i], lx: [2, 0, 2][i], skill: skills[i] + (rng() - .5) * .05, ahead: starts[i] > 0, laneT: 2 + rng() * 3, livery: RIVAL_LIVERIES[(i + Math.floor(rng() * 5)) % 5], number: RIDERS.indexOf(name) + 1, lean: 0 }));
   for (const r of rivals) if (dz.includes(r.name)) r.derby = true;
   for (const r of rivals) if (r.name === 'Maggie') r.livery = { plastic: '#f3a6c6', accent: '#5a3426', jersey: '#f4f1ec', pants: '#6b4030', helmet: '#f3a6c6' };   // v107.5 · Maggie con la sua tuta bianca, marrone e rosa
   { const ch = champRival(); for (const r of rivals) if (r.name === ch) { r.champ = true; r.livery = { ...r.livery, helmet: '#e3b021' }; } }
@@ -1787,7 +1808,7 @@ function setupRace() {
   if (P.MODES[mode].wigs) rivals.forEach((r, i) => { r.wig = ['#ff4fc0', '#3fd0ff', '#ff8fd0'][i % 3]; r.livery = { ...r.livery, jersey: ['#e8217a', '#2f9fe0', '#f5a9c8'][i % 3] }; });   // v132 · Leventino Girls
   xgAt = mode === 17 ? [16 + rng() * 10, 36 + rng() * 10] : [];
   if (mode === 17) for (const r of rivals) { r.santa = 1; r.livery = { ...r.livery, jersey: '#d21f2a', pants: '#d21f2a', helmet: r.champ ? '#e3b021' : '#f6f4ee' }; }   // v127 · alla Christmas Madness sono tutti Babbi Natale   // v107.3 · il pilota del campione della settimana corre col casco d'oro
-  coachStep = 0; tutDoneAt = -99; tut = null; tutPulse(null); coachOn = ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; $('coach')?.classList.remove('show');
+  coachStep = 0; tutDoneAt = -99; tut = null; tutPulse(null); coachOn = P.MODES[mode].school ? false : ice ? !P.profile.iceTutorial52 : !P.profile.tutorialDone; schoolStep = 0; $('coach')?.classList.remove('show');
   lastSuka = -99; shortcutsDone = 0; nextShortcut = 14 + rng() * 8; shownPos = '';
   // Meteo: un cambio a metà giro (pioggia, nebbia o tramonto), diverso a ogni gara; la Sfida del giorno è uguale per tutti.
   const kinds = ['rain', 'fog', 'dusk'], k = kinds[Math.floor(rng() * 3)];
@@ -2249,7 +2270,7 @@ function update(dt) {
     // v107 · RIMONTA: ultimo e staccato (dopo una botta) = un filo di spinta per rientrare in gara
     const ahead = rivals.filter(r => r.gap > 0 && !r.duel), far = !ice && !leap && rivals.length && ahead.length === rivals.length && Math.min(...ahead.map(r => r.gap)) > 30;
     catchT = far ? Math.min(1, catchT + dt * .5) : Math.max(0, catchT - dt); }
-  const speedT = (draftT > .5 ? (has('slip') ? 1.1 : 1.07) : 1) * (1 + catchT * .05) * tractMul * paceFor(route, gas || has('climb'), ice ? 0 : turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (cornerLine > 0 ? 1.07 : cornerLine < 0 ? .93 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
+  const speedT = (P.MODES[mode].school ? .72 : 1) * (draftT > .5 ? (has('slip') ? 1.1 : 1.07) : 1) * (1 + catchT * .05) * tractMul * paceFor(route, gas || has('climb'), ice ? 0 : turbo, has('amphibious') ? 0 : wet) * (has('downhill') ? 1 + route.down * .25 : 1) * (has('mule') ? 1 + route.rough * .08 : 1) * (stun > 0 ? .45 : 1) * (waterT > 0 ? .62 : 1) * (wheelie ? 1.08 : 1) * (has('rocket') && elapsed < 8 ? 1.1 : 1) * (has('sprint') && course > GAME_LENGTH * .75 ? 1.1 : 1) * (snowT > 0 ? .62 : 1) * (edgeT > 0 ? .85 : 1) * (cornerLine > 0 ? 1.07 : cornerLine < 0 ? .93 : 1) * (leap ? leapMul * (leapState >= 2 ? .42 : 1) : 1);   // v62 · Taglio di Angelo: la discesa ti fa prendere velocità
   // Discesa: "Campa giù!"
   if (route.down > .45 && !downAnnounced) { downAnnounced = true; if (profile.rider === 'Mirco') riderLine('start'); else A.say('campa'); bigCall('CAMPA GIÙ!'); explainOnce('campa'); }
   if (route.down < .15) downAnnounced = false;
@@ -2346,6 +2367,7 @@ function update(dt) {
   if (spawn <= 0) {
     spawn = ice ? 2.2 - Math.min(.5, course * .006) : P.MODES[mode].slalom ? Math.max(.72, 1.0 - course * .004) : Math.max(.95, (1.8 - diff * .16 - course * .002) * (route.id === 3 ? .8 : 1));
     if (easyRun && course < GAME_LENGTH * ((P.profile.totals?.runs || 0) < 2 ? 1 : .6)) spawn *= 1.35;   // v138 · nei primi 2 giri ostacoli radi per tutto il percorso
+    if (P.MODES[mode].school) spawn = 2.9;   // v140 · scuola: un ostacolo alla volta, con calma
     spawnWave();
   }
 
@@ -2519,7 +2541,7 @@ function update(dt) {
         if (elapsed - lastRiderHit > 5) { lastRiderHit = elapsed; riderLine('hit'); }
         if (ice) endDrift(false);
         markHighlight('BOTTA!', 650);
-        lives--; run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0) + (bs.protect || 0); breakCombo(); charge = Math.max(0, charge - 10); mistake();
+        lives--; if (P.MODES[mode].school) { lives = Math.max(lives, 1); toast('NIENTE PAURA: A SCUOLA LE CADUTE NON CONTANO', 'green'); } run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0) + (bs.protect || 0); breakCombo(); charge = Math.max(0, charge - 10); mistake();
         fxKind = 'hit'; fxSerial++; shake = 1; A.sfx.hit(); flash('hit');
         // v58 · dopo una botta la fila subito dopo si apre: niente botte a catena mentre la moto riparte
         for (const q of objects) if (q !== o && !q.hit && q.z > .66 && q.z < .91 && OBSTACLE_HEIGHT[q.type] !== undefined && q.type !== 'water') q.collected = true;
@@ -3100,6 +3122,7 @@ function renderChamp() {
   };
 }
 function againGo() {
+  if (P.MODES[mode].school && P.profile.schoolDone) { mode = 0; profile.mode = 0; P.save(); renderReady(); start(); return; }   // v140 · dopo il diploma si parte col Giro Easy
   if (champRun && P.champ()) { renderChamp(); return; }
   champRun = false;
   if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); }
@@ -3116,6 +3139,34 @@ function edtNudgeHTML() {
   const r = edtTwin(); if (!r) return '';
   return `<div class="edtnudge">${icon('crown')}<span><b>SEI DELL'EDT?</b><small>Questo giro è finito nella classifica di tutti. Metti la parola segreta e corri in quella degli amici.</small>
     <form class="nickrow pform" id="edtnform"><input id="edtnword" maxlength="40" autocomplete="off" placeholder="parola segreta"><button class="primary" type="submit"><span>ENTRA</span></button></form></span></div>`;
+}
+// v140 · SUUUKA EDITION · BATTI IL GABBAH: chi batte il tempo del Gabbah sul percorso della sfida vince il maxi adesivo Sukaediscion
+function sukaInfo() {
+  const d = C.isEdt() ? C.cached() : C.cachedGroup('edt'); if (!d?.boards) return null;
+  const gt = m => { const e = (d.boards[m] || []).find(x => normName(x.n) === 'gabbah' && x.w && (x.bt || x.t) > 20); return e ? +(e.bt || e.t) : 0; };
+  const cand = [P.weeklyTrack(), 0, 18, 1, 14, 20].filter((m, i, a) => a.indexOf(m) === i && P.STAR_MODES.includes(m) && P.isUnlocked(P.MODES[m]));
+  for (const m of cand) { const t = gt(m); if (t) return { m, t }; }
+  return null;
+}
+window.__suka = () => sukaInfo();
+const iAmGabbah = () => normName(C.getNick() || profile.rider) === 'gabbah';
+function sukaChipHTML() {
+  const s = sukaInfo(); if (!s || iAmGabbah()) return '';
+  return `<button class="sukachip" id="sukachip" type="button">${icon('crown')}<span><small>SUUUKA EDITION · BATTI IL GABBAH</small><b>${P.MODES[s.m].name}: sotto i ${fmtS(s.t)} s</b><em>in palio il maxi adesivo Sukaediscion</em></span>${icon('chevrons')}</button>`;
+}
+function sukaGo() { const s = sukaInfo(); if (!s) return; A.unlock(); A.sfx.click(); mode = s.m; profile.mode = mode; P.save(); ghostWant = { n: 'Il Gabbah', m: s.m }; renderReady(); toast('👻 IL FANTASMA DEL GABBAH TI ASPETTA: BATTI ' + fmtS(s.t) + ' s', 'gold'); }
+function sukaCode() { const s = (C.getNick() || profile.rider) + '|' + P.weekKey?.() + '|' + elapsed.toFixed(1); let h = 7; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return 'SUKA-' + h.toString(36).toUpperCase().slice(-5); }
+function sukaResHTML(win) {
+  const s = sukaInfo(); if (!s || s.m !== mode || iAmGabbah() || leap || ice) return '';
+  if (win && elapsed < s.t) {
+    const code = sukaCode(), msg = `SUUUKA! 🏆 Ho battuto il Gabbah a «Tranquilli, è un Giro Easy!» su ${P.MODES[mode].name}: ${fmtS(elapsed)} s contro i suoi ${fmtS(s.t)} s. Codice vincita ${code}. Voglio il mio maxi adesivo Sukaediscion da mettere sulla moto! 😂`;
+    return `<div class="sukares win">${icon('crown')}<span><small>SUUUKA EDITION</small><b>HAI BATTUTO IL GABBAH!</b><em>${fmtS(elapsed)} s contro ${fmtS(s.t)} s · codice <b>${code}</b></em><a class="primary sukawa" href="${waLink(msg)}" target="_blank" rel="noopener">${icon('phone')} MANDALO AL GABBAH E RITIRA L’ADESIVO</a></span></div>`;
+  }
+  return `<div class="sukares">${icon('crown')}<span><small>SUUUKA EDITION · BATTI IL GABBAH</small><b>${win ? 'Ti mancano ' + fmtS(elapsed - s.t) + ' s' : 'Arriva al rifugio sotto i ' + fmtS(s.t) + ' s'}</b><em>batti il Gabbah e vinci il maxi adesivo Sukaediscion</em></span></div>`;
+}
+function schoolResHTML(win) {
+  if (!P.MODES[mode].school) return '';
+  return win ? `<div class="schoolres">${icon('book')}<span><small>SCUOLA DI ENDURO EDT</small><b>DIPLOMA DI ENDURISTA EASY!</b><em>Adesso sai tutto: si apre la carriera, tutti i percorsi, la classifica e le missioni.</em></span></div>` : '';
 }
 function tomorrowHTML() {   // v138 · motivi per tornare domani
   const d0 = P.dailyInfo(); if (tut) return '';
@@ -3224,7 +3275,7 @@ function renderReady() {
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + songName(radioPick() ?? songOf(mode))}</small></span>${icon('chevrons')}</button>
     ${xmasChipHTML()}
     ${starterHTML()}
-    ${champChipHTML()}
+    ${sukaChipHTML()}${champChipHTML()}
     ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
     <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
     ${dailyChipHTML()}
@@ -3245,7 +3296,7 @@ function renderReady() {
         ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 ' + P.lockText(m)}</small>${open && P.STAR_MODES.includes(m.id) ? starsHTML(P.starsFor(m.id), 'mini') : ''}${m.id === P.weeklyTrack() ? '<i class="wktrack">🔥 BIRRE ×2</i>' : ''}</button>`; }).join('')}
     </div>
     <div class="menufoot">
-      <button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
+      <button class="mini" id="schoolmenu" type="button">${icon('book')} SCUOLA DI ENDURO</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}
     </div>
     <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>`;
@@ -3257,6 +3308,9 @@ function renderReady() {
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
   $('champchip').onclick = () => { A.sfx.click(); renderChamp(); };   // v130
   $('starchip').onclick = () => { A.sfx.click(); renderStars(); };
+  $('schoolmenu').onclick = () => { A.sfx.click(); mode = 22; renderReady(); start(); };   // v140
+  $('sukachip')?.addEventListener('click', sukaGo);
+  if (!$('sukachip') && !sukaInfo()) C.loadGroup?.('edt').then(() => { if (state === 'ready' && !$('sukachip') && sukaInfo() && document.querySelector('.homeduo')) { document.querySelector('.homeduo').insertAdjacentHTML('beforebegin', sukaChipHTML()); iconizeEl($('sukachip')); $('sukachip').addEventListener('click', sukaGo); } }).catch(() => {});
   $('radiochip').onclick = () => { A.sfx.click(); renderRadio(); };
   $('xmaschip')?.addEventListener('click', () => { A.sfx.click(); mode = 17; profile.mode = mode; P.save(); renderReady(); });   // v127
   $('openshop').onclick = () => renderShop(renderReady);
@@ -3368,7 +3422,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
       ${leap || ice ? '' : `<div><b>${run.hits}</b><small>CADUTE</small></div>`}
       <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
     </div>
-    ${edtNudgeHTML()}${champResHTML(res.champ)}${starResHTML(res)}${installNudgeHTML(win)}${tomorrowHTML()}
+    ${schoolResHTML(win)}${sukaResHTML(win)}${edtNudgeHTML()}${champResHTML(res.champ)}${starResHTML(res)}${installNudgeHTML(win)}${tomorrowHTML()}
     ${shopNudgeHTML()}
     ${res.weeklyDone?.length ? `<div class="donelist weeklydone">${res.weeklyDone.map(c => `<div><span>🗓 MISSIONE DELLA SETTIMANA: ${c.text}</span><b>+${c.beers} 🍺</b></div>`).join('')}</div>` : ''}
     ${res.completed.length ? `<div class="donelist">${res.completed.map(c => `<div><span>✔ ${c.text}</span><b>+${c.xp} XP</b></div>`).join('')}</div>` : ''}
@@ -3387,7 +3441,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     <button class="cardprev" id="cardprev" type="button"><img alt="Cartolina del risultato" src="${cardURL || 'data:,'}"><span><b>📸 LA TUA CARTOLINA</b><small>${C.isEdt() ? 'Toccala e mandala nel gruppo WhatsApp: risultato, posizione e link per giocare.' : 'Toccala e mandala su WhatsApp: risultato e link per sfidarti.'}</small></span></button>
     <div class="sharerow"><button class="secondary" id="shareScore" type="button">📲 CARTOLINA</button><button class="secondary" id="sharestory" type="button">📸 STORIA</button></div>
     <div class="actions">
-      <button class="primary big" id="again"><span>${champRun && P.champ() ? 'AVANTI: GARA ' + (P.champ().i + 1) + ' DI 5' : champRun ? 'UN ALTRO GIRO' : 'UN ALTRO GIRO'}</span>${icon('chevrons')}</button>
+      <button class="primary big" id="again"><span>${P.MODES[mode].school && win ? 'VIA ALLA CARRIERA: GIRO EASY' : champRun && P.champ() ? 'AVANTI: GARA ' + (P.champ().i + 1) + ' DI 5' : champRun ? 'UN ALTRO GIRO' : 'UN ALTRO GIRO'}</span>${icon('chevrons')}</button>
       ${ghostChallengeHTML(score)}
       ${replayReady() ? '<button class="secondary replaybtn" id="replaybtn" type="button">🎬 RIVEDI GLI ULTIMI 10 s</button><button class="secondary replaybtn hot" id="replayvid" type="button">🎥 CLIP DEL GIRO (VIDEO PER LE STORIE)</button>' : ''}
       <button class="secondary shopsec" id="shopres">🔧 OFFICINA</button>
@@ -3413,6 +3467,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   const bindResult = () => { $('cardprev').onclick = () => shareScore(win, res); if ($('sharestory')) $('sharestory').onclick = () => shareScore(win, res, 'story'); refreshCardPreview(); $('again').onclick = againGo; drawDuelResult(); if ($('menu')) $('menu').onclick = renderReady; $('shopres').onclick = () => renderShop(renderReady); $('shareScore').onclick = () => shareScore(win, res); if ($('finalscore')) $('finalscore').textContent = score.toLocaleString('it-IT'); if ($('groupres') && lastGroupRun) groupResult(lastGroupRun); };
   resultSnapshot = { html: $('card').innerHTML, bind: bindResult };
   const gOK = win && !ice && P.MODES[mode].random !== 'run';
+  if (P.MODES[mode].school) document.getElementById('groupres')?.remove();
   if ($('groupres')) groupResult({ hits: run.hits || 0, score, mode, rider: riderTag(), time: ice ? Math.round(driftM * 10) / 10 : win ? (leap ? leapBest : elapsed) : 0, win, g: gOK ? C.encodeGhost([...ghostSplits, GAME_LENGTH]) : '' });
   // Conteggio animato del punteggio
   const target = score, t0 = performance.now();
@@ -3923,7 +3978,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 139;
+const GAME_VERSION = 140;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -3959,6 +4014,7 @@ function renderWelcome() {
     <p class="wlead">Tronchi, pietraie, fango e salitoni: <b>arriva al rifugio prima del tempo</b>, prendi le birre al volo e scala la classifica.</p>
 
     <button class="primary big wgo" id="wplay" type="button"><span class="st"><span>TOCCA E PARTI</span><small>un giro da 1 minuto, gratis</small></span>${icon('chevrons')}</button>
+    <button class="linkbtn wskip" id="wskip" type="button">Sono già un manico: salta la scuola ›</button>
     <button class="secondary" id="wcustom" type="button">${icon('helmet')} PRIMA CREA IL TUO PILOTA</button>
     <ul class="wfacts"><li>${icon('pad')} Gratis, dal telefono o dal computer: niente da installare</li><li>${icon('helmet')} Corri coi piloti veri dell'Enduro Drinking Team… o crea il tuo</li><li>${icon('trophy')} Classifica online con chiunque giochi</li></ul>
     <button class="linkbtn wvideo" id="wvideo" type="button">▶ GUARDA COME SI GIOCA · 30 s</button>
@@ -3966,7 +4022,9 @@ function renderWelcome() {
   iconizeEl($('card'));
   $('wcustom').onclick = () => { A.unlock(); A.sfx.click(); renderCustom(renderReady); };
   $('wvideo').onclick = () => { A.sfx.click(); showHowVideo(); };
-  $('wplay').onclick = () => { A.unlock(); A.sfx.click(); if (profile.rider === RIDERS[0] && !(profile.xp > 0)) { profile.rider = RIDERS[1 + Math.floor(Math.random() * (RIDERS.length - 1))]; P.save(); renderSide(); } renderReady(); start(); };   // v125.3 · non tutti col Gabbah   // parte subito: il primo giro è quello guidato
+  $('wskip').onclick = () => { A.unlock(); A.sfx.click(); P.profile.schoolDone = 1; P.save(); mode = 0; renderReady(); start(); };   // v140
+  $('wplay').onclick = () => { A.unlock(); A.sfx.click(); if (!P.profile.schoolDone && !(P.profile.totals?.runs > 0)) { mode = 22; renderReady(); start(); return; }   // v140 · prima la scuola di enduro
+    if (profile.rider === RIDERS[0] && !(profile.xp > 0)) { profile.rider = RIDERS[1 + Math.floor(Math.random() * (RIDERS.length - 1))]; P.save(); renderSide(); } renderReady(); start(); };   // v125.3 · non tutti col Gabbah   // parte subito: il primo giro è quello guidato
 }
 function renderCustom(back) {
   if (state !== 'ended') state = 'ready';
