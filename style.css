@@ -2028,3 +2028,10 @@ aside#hub { gap: 10px; }
 .installnudge { width: 100%; display: flex; align-items: center; gap: 12px; margin: 10px 0; padding: 12px 14px; border: 0; cursor: pointer; text-align: left; color: #fff; background: linear-gradient(90deg, #1f4f8c, #15160f); border-left: 4px solid #4aa3ff; }
 .installnudge > svg { width: 26px; height: 26px; flex: none; color: #8cc8ff; } .installnudge > svg:last-child { width: 18px; height: 18px; margin-left: auto; }
 .installnudge span { display: flex; flex-direction: column; } .installnudge b { font: italic 400 19px/1.05 var(--display); } .installnudge small { font: 600 13px var(--ui); color: #c7defa; }
+
+/* v139 · sei un pilota dell'EDT? */
+.edtnudge { display: flex; gap: 12px; margin: 10px 0; padding: 12px 14px; background: linear-gradient(90deg, #3a2f08, #15160f); border-left: 4px solid var(--y); }
+.edtnudge > svg { width: 28px; height: 28px; flex: none; color: var(--y); }
+.edtnudge span { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.edtnudge b { font: italic 400 20px/1.05 var(--display); } .edtnudge small { font: 600 13px/1.3 var(--ui); color: var(--muted, #b9b2a2); }
+.edtnudge form { margin-top: 4px; }

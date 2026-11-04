@@ -3104,6 +3104,19 @@ function againGo() {
   champRun = false;
   if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); }
 }
+// v139 · chi gioca fuori dall'EDT con il nome di un pilota EDT (es. «Linus9»): invito a entrare nella classifica degli amici
+const normName = s => String(s || '').toLowerCase().normalize('NFD').replace(/[^a-z]/g, '').replace(/^il/, '');
+function edtTwin() {
+  if (C.isEdt()) return '';
+  const mine = [C.getNick(), profile.custom?.name].map(normName).filter(n => n.length >= 3);
+  return RIDERS.find(r => mine.includes(normName(r))) || '';
+}
+window.__edtTwin = () => edtTwin();
+function edtNudgeHTML() {
+  const r = edtTwin(); if (!r) return '';
+  return `<div class="edtnudge">${icon('crown')}<span><b>SEI ${r.toUpperCase()} DELL'EDT?</b><small>Questo giro è finito nella classifica di tutti. Metti la parola segreta e corri in quella degli amici.</small>
+    <form class="nickrow pform" id="edtnform"><input id="edtnword" maxlength="40" autocomplete="off" placeholder="parola segreta"><button class="primary" type="submit"><span>ENTRA</span></button></form></span></div>`;
+}
 function tomorrowHTML() {   // v138 · motivi per tornare domani
   const d0 = P.dailyInfo(); if (tut) return '';
   const d = { streak: d0.done ? d0.streak : d0.next };   // il forziere di oggi si apre subito dopo i risultati
@@ -3355,7 +3368,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
       ${leap || ice ? '' : `<div><b>${run.hits}</b><small>CADUTE</small></div>`}
       <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
     </div>
-    ${champResHTML(res.champ)}${starResHTML(res)}${installNudgeHTML(win)}${tomorrowHTML()}
+    ${edtNudgeHTML()}${champResHTML(res.champ)}${starResHTML(res)}${installNudgeHTML(win)}${tomorrowHTML()}
     ${shopNudgeHTML()}
     ${res.weeklyDone?.length ? `<div class="donelist weeklydone">${res.weeklyDone.map(c => `<div><span>🗓 MISSIONE DELLA SETTIMANA: ${c.text}</span><b>+${c.beers} 🍺</b></div>`).join('')}</div>` : ''}
     ${res.completed.length ? `<div class="donelist">${res.completed.map(c => `<div><span>✔ ${c.text}</span><b>+${c.xp} XP</b></div>`).join('')}</div>` : ''}
@@ -3382,6 +3395,13 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   iconizeEl($('card'));
   $('rescustom')?.addEventListener('click', () => { A.sfx.click(); renderCustom(renderReady); });
   $('installnudge')?.addEventListener('click', () => { A.sfx.click(); $('installapp')?.click(); });   // v138
+  $('edtnform')?.addEventListener('submit', async e => {   // v139
+    e.preventDefault(); const w = $('edtnword').value, twin = edtTwin();
+    if (!(await C.checkSecret(w))) { toast('PAROLA SEGRETA SBAGLIATA', 'red'); A.sfx.click(); return; }
+    C.setEdt(true); C.rememberSecret(w); if (twin) C.setNick(C.cleanNick(twin)); syncShare(); A.sfx.click();
+    toast('🏁 BENVENUTO NELL’EDT, ' + String(twin).toUpperCase() + ': DAL PROSSIMO GIRO SEI NELLA CLASSIFICA DEGLI AMICI', 'green');
+    document.querySelector('.edtnudge')?.remove(); renderSide();
+  });
   $('again').onclick = againGo;
   drawDuelResult();
   if ($('menu')) $('menu').onclick = renderReady;
@@ -3903,7 +3923,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 138;
+const GAME_VERSION = 139;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
