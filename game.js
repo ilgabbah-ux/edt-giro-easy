@@ -3151,10 +3151,11 @@ function sukaInfo() {
 window.__suka = () => sukaInfo();
 const iAmGabbah = () => normName(C.getNick() || profile.rider) === 'gabbah';
 function sukaChipHTML() {
-  const s = sukaInfo(); if (!s || iAmGabbah()) return '';
+  const s = sukaInfo(); if (!s) return '';
+  if (iAmGabbah()) return `<button class="sukachip mine" id="sukachip" type="button">${icon('shield')}<span><small>SUUUKA EDITION · DIFENDI IL TUO TEMPO</small><b>${P.MODES[s.m].name}: ${fmtS(s.t)} s</b><em>chi ti batte vince il maxi adesivo Sukaediscion</em></span>${icon('chevrons')}</button>`;   // v141 · versione del Gabbah
   return `<button class="sukachip" id="sukachip" type="button">${icon('crown')}<span><small>SUUUKA EDITION · BATTI IL GABBAH</small><b>${P.MODES[s.m].name}: sotto i ${fmtS(s.t)} s</b><em>in palio il maxi adesivo Sukaediscion</em></span>${icon('chevrons')}</button>`;
 }
-function sukaGo() { const s = sukaInfo(); if (!s) return; A.unlock(); A.sfx.click(); mode = s.m; profile.mode = mode; P.save(); ghostWant = { n: 'Il Gabbah', m: s.m }; renderReady(); toast('👻 IL FANTASMA DEL GABBAH TI ASPETTA: BATTI ' + fmtS(s.t) + ' s', 'gold'); }
+function sukaGo() { const s = sukaInfo(); if (!s) return; A.unlock(); A.sfx.click(); mode = s.m; profile.mode = mode; P.save(); if (iAmGabbah()) { renderReady(); toast('🛡 DIFENDI IL TUO ' + fmtS(s.t) + ' s: MIGLIORALO E NESSUNO TI PRENDE', 'gold'); return; } ghostWant = { n: 'Il Gabbah', m: s.m }; renderReady(); toast('👻 IL FANTASMA DEL GABBAH TI ASPETTA: BATTI ' + fmtS(s.t) + ' s', 'gold'); }
 function sukaCode() { const s = (C.getNick() || profile.rider) + '|' + P.weekKey?.() + '|' + elapsed.toFixed(1); let h = 7; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return 'SUKA-' + h.toString(36).toUpperCase().slice(-5); }
 function sukaResHTML(win) {
   const s = sukaInfo(); if (!s || s.m !== mode || iAmGabbah() || leap || ice) return '';
@@ -3978,7 +3979,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 140;
+const GAME_VERSION = 141;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

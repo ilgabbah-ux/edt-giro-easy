@@ -2051,3 +2051,4 @@ aside#hub { gap: 10px; }
 .sukawa { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; padding: 10px 12px; text-decoration: none; font: 800 14px var(--ui); letter-spacing: .5px; }
 .sukawa svg { width: 18px; height: 18px; }
 .wskip { display: block; margin: 4px auto 8px; }
+.sukachip.mine { background: linear-gradient(90deg, #3a2f08, #1a1210); border-left-color: #ffcf16; }
