@@ -673,8 +673,10 @@ export function menuMusic(on = true) {
   if (!on) { if (music?.menu) musicStop(); return; }
   if (!musicOn || music?.menu || !ensure()) return;
   if (ctx.state === 'suspended') ctx.resume?.().catch?.(() => {});
-  musicStart(0, { menu: true });
+  musicStart(MENU_SONGS[menuTurn++ % MENU_SONGS.length], { menu: true });   // v136 · menu: prima Giro Easy, poi a turno Brindisi Easy e Bosco Veloce
 }
+const MENU_SONGS = [0, 6, 12];
+let menuTurn = 0;
 // v107.2 · colonna sonora della clip del giro: la canzone del tracciato (dal ritornello circa), dentro il video e nelle casse
 export function clipAudio(styleId) {
   if (!ensure() || !ctx.createMediaStreamDestination) return null;
