@@ -293,7 +293,7 @@ function oriQuat(a, b, g) {   // W3C: Z(alpha) · X'(beta) · Y''(gamma)
   const ca = Math.cos(a * D2R / 2), sa = Math.sin(a * D2R / 2), cb = Math.cos(b * D2R / 2), sb = Math.sin(b * D2R / 2), cg = Math.cos(g * D2R / 2), sg = Math.sin(g * D2R / 2);
   return [ca * cb * cg - sa * sb * sg, ca * sb * cg - sa * cb * sg, ca * cb * sg + sa * sb * cg, ca * sb * sg + sa * cb * cg];   // w, x, y, z
 }
-let tiltQ0 = null;
+let tiltQ0 = null, tiltA0 = 0;
 function twistDeg(q) {   // rotazione attorno all'asse z del telefono rispetto al riferimento tiltQ0
   const [w0, x0, y0, z0] = tiltQ0, [w, x, y, z] = q;
   const rw = w0 * w + x0 * x + y0 * y + z0 * z, rz = w0 * z - z0 * w - x0 * y + y0 * x;   // conj(q0) · q
@@ -303,8 +303,13 @@ window.addEventListener('deviceorientation', e => {
   if (e.gamma === null || e.gamma === undefined) return;
   tiltSeen = tiltOriSeen = performance.now();
   const q = oriQuat(e.alpha || 0, e.beta || 0, e.gamma || 0);
-  if (tiltZero === null || !tiltQ0) tiltQ0 = q;
-  const raw = -twistDeg(q);   // a destra = come girare un volante verso destra
+  // v142 · la bussola (alpha) dei telefoni Android sbanda dopo qualche minuto e lo sterzo impazziva: se il telefono non è piatto
+  // si misura la rotazione solo con la gravità (beta/gamma, niente bussola); la bussola resta solo per chi gioca sdraiato col telefono piatto
+  const bR = (e.beta || 0) * D2R, gR = (e.gamma || 0) * D2R, ux = -Math.sin(gR) * Math.cos(bR), uy = Math.sin(bR), upA = Math.atan2(ux, uy) / D2R, flat = Math.hypot(ux, uy) < .3;
+  if (tiltZero === null || !tiltQ0) { tiltQ0 = q; tiltA0 = upA; }
+  let raw;
+  if (!flat) { let d = upA - tiltA0; if (d > 180) d -= 360; if (d < -180) d += 360; raw = -d; }
+  else raw = -twistDeg(q);   // a destra = come girare un volante verso destra
   if (!tiltOn) { tiltSteer = 0; tiltRaw = raw; return; }
   tiltApply(raw);
 });
@@ -3979,7 +3984,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 141;
+const GAME_VERSION = 142;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
