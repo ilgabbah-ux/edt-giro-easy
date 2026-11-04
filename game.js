@@ -2,7 +2,7 @@
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
 import { createWorld } from './scene3d.js?v=b36211dc';
 import * as A from './audio.js?v=ce4eed2f';
-import * as P from './progress.js?v=8ba599df';
+import * as P from './progress.js?v=7ed158a6';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
@@ -647,7 +647,7 @@ function start() {
     if (tc) { tc.innerHTML = nb ? `<small>COME SI GUIDA</small>${touchDevice ? (tiltOn ? '<b>Inclina il telefono</b> a sinistra/destra per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare' : 'Dito a <b>sinistra/destra</b> per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare') : '<b>← →</b> per sterzare · <b>SPAZIO</b> per saltare i tronchi · <b>↓</b> impenna · <b>B</b> turbo'}<br>Prendi le birre e arriva al rifugio prima del tempo!` : ''; tc.classList.toggle('show', nb); } }
   easyRun = !C.isEdt() && (P.profile.totals?.runs || 0) < 3; tutRunNow = !P.profile.tutorialDone;   // v125.4 · ostacoli più radi nei primi 3 giri (prima solo il primo)
   // v125.4 · rodaggio: sull'Easy, nei primi 5 giri di chi arriva da fuori, 8 s in più (il bonus tempo resta calcolato sul tempo normale, la classifica non cambia)
-  rookieT = !C.isEdt() && mode === 0 && !duel?.racing && (P.profile.totals?.runs || 0) < 5 ? 8 : 0;
+  { const md0 = P.MODES[mode], n0 = P.profile.totals?.runs || 0; rookieT = rookieNow() && !duel?.racing && !md0.leap && !md0.ice ? (n0 < 2 ? 15 : 10) : 0; }   // v138 · finché non arrivi la prima volta al rifugio: +15 s (+10 dal 3° giro)
   if (rookieT) { timeLimit += rookieT; setTimeout(() => { if (state === 'countdown' || state === 'playing') toast('⏱ RODAGGIO: +' + rookieT + ' s PER I PRIMI GIRI', 'green'); }, 1400); }
   const plainStart = !P.profile.tutorialDone && !P.MODES[mode].ice;   // v109.4 · primo giro guidato: al via solo "come si guida", niente varianti, sfide lampo e consigli
   if (!plainStart) setTimeout(() => { if (state === 'countdown') toast('🚀 TOCCA SALTA AL VIA = PARTENZA A RAZZO', 'gold'); }, 600);
@@ -2076,6 +2076,12 @@ function offerContinue() {
   clearInterval(continueTimer);
   continueTimer = setInterval(() => { left--; if (state !== 'continue') { clearInterval(continueTimer); return; } if (left <= 0) { clearInterval(continueTimer); finish(false); } else draw(); }, 1000);
 }
+const rookieNow = () => !C.isEdt() && !(P.profile.totals?.wins > 0) && (P.profile.totals?.runs || 0) < 6;   // v138 · nuovo giocatore che non è ancora arrivato al rifugio
+function freeRevive() {   // v138 · nei primi giri San Miti ti rimette in sella gratis, una volta
+  run.continued = true; lives = 1; invincible = 3; crash = 0; stun = 0; shownLives = -1;
+  objects = objects.filter(o => o.z > .95 || o.z < .5);
+  bigCall('SAN MITI TI SALVA!'); toast('⛑ PRIMI GIRI: SAN MITI TI RIMETTE IN SELLA GRATIS', 'green'); hud();
+}
 function doContinue() {
   if (state !== 'continue') return;
   P.profile.beers -= CONTINUE_COST; P.save();
@@ -2339,7 +2345,7 @@ function update(dt) {
   spawn -= dt * speed;
   if (spawn <= 0) {
     spawn = ice ? 2.2 - Math.min(.5, course * .006) : P.MODES[mode].slalom ? Math.max(.72, 1.0 - course * .004) : Math.max(.95, (1.8 - diff * .16 - course * .002) * (route.id === 3 ? .8 : 1));
-    if (easyRun && course < GAME_LENGTH * .6) spawn *= 1.35;
+    if (easyRun && course < GAME_LENGTH * ((P.profile.totals?.runs || 0) < 2 ? 1 : .6)) spawn *= 1.35;   // v138 · nei primi 2 giri ostacoli radi per tutto il percorso
     spawnWave();
   }
 
@@ -2528,7 +2534,7 @@ function update(dt) {
         if (navigator.vibrate) try { buzz(120); } catch {}
         if (has('schettino') && lives > 0) { turbo = Math.max(turbo, 2); setTimeout(() => toast('⚓ CAPITAN SCHETTINO ABBANDONA LA NAVE!', 'gold'), 600); }
         if (gev && lives > 0) setTimeout(() => toast(lives === 1 ? '🚨 ULTIMO TENTATIVO! POI È MULTA' : `🚨 TENTATIVI RIMASTI: ${lives}`, 'red'), 700);
-        if (lives <= 0) { hud(); if (!run.continued && P.profile.beers >= CONTINUE_COST) offerContinue(); else finish(false); return; }
+        if (lives <= 0) { hud(); if (!run.continued && rookieT) { freeRevive(); return; } if (!run.continued && P.profile.beers >= CONTINUE_COST) offerContinue(); else finish(false); return; }
       }
     } else if (o.type !== 'puddle' && gap < (has('fox') ? .9 : .68) && invincible <= 0 && o.type !== 'bigLog') {
       run.near++; A.sfx.near();
@@ -2551,6 +2557,7 @@ function update(dt) {
   hud();
   if (course >= GAME_LENGTH && !leap) finish(true);
   else if (leap && course >= GAME_LENGTH && leapState < 2) finish(false, 'time');
+  else if (elapsed >= timeLimit && rookieT && !run.timeSaved && course > GAME_LENGTH * .6) { run.timeSaved = 1; timeLimit += 10; bigCall('+10 SECONDI!'); toast('⏱ RODAGGIO: 10 SECONDI IN REGALO, ARRIVA AL RIFUGIO!', 'green'); }   // v138
   else if (elapsed >= timeLimit) finish(false, 'time');
 }
 
@@ -3097,6 +3104,17 @@ function againGo() {
   champRun = false;
   if (duel?.racing && D.isOn()) renderDuel(); else { if (duel) duel.racing = false; start(); }
 }
+function tomorrowHTML() {   // v138 · motivi per tornare domani
+  const d0 = P.dailyInfo(); if (tut) return '';
+  const d = { streak: d0.done ? d0.streak : d0.next };   // il forziere di oggi si apre subito dopo i risultati
+  const nx = P.LIVERIES.filter(l => l.streak && l.streak > d.streak).sort((a, b) => a.streak - b.streak)[0], toGold = 7 - d.streak, tb = P.CHEST[Math.min(d.streak + 1, P.CHEST.length) - 1];
+  const extra = [toGold > 1 ? `tra ${toGold} giorni il <b>forziere d'oro</b> (${P.CHEST[6]} birre)` : toGold === 1 ? `domani il <b>forziere d'oro</b>!` : '', nx ? `tra ${nx.streak - d.streak} ${nx.streak - d.streak > 1 ? 'giorni' : 'giorno'} la maglia «${nx.name}»` : ''].filter(Boolean).join(' · ');
+  return `<div class="tomorrow">${icon('calendar')}<span><small>DOMANI TI ASPETTA</small><b>Forziere del giorno ${d.streak + 1}: +${tb} birre e una sfida del giorno nuova</b>${extra ? `<em>${extra}</em>` : ''}</span></div>`;
+}
+function installNudgeHTML(win) {   // v138 · dopo il primo arrivo al rifugio: mettilo nella schermata Home
+  if (!win || standalone || window.EDT_PUBLIC_URL || (P.profile.totals?.wins || 0) > 2) return '';
+  return `<button class="installnudge" id="installnudge" type="button">${icon('phone')}<span><b>METTI IL GIOCO NELLA HOME</b><small>la prossima volta parte con un tocco, come un'app</small></span>${icon('chevrons')}</button>`;
+}
 function champResHTML(ch) {
   if (!ch) return '';
   const c = ch.c, my = (c.pts.__me || 0) - (ch.before.__me || 0);
@@ -3337,7 +3355,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
       ${leap || ice ? '' : `<div><b>${run.hits}</b><small>CADUTE</small></div>`}
       <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
     </div>
-    ${champResHTML(res.champ)}${starResHTML(res)}
+    ${champResHTML(res.champ)}${starResHTML(res)}${installNudgeHTML(win)}${tomorrowHTML()}
     ${shopNudgeHTML()}
     ${res.weeklyDone?.length ? `<div class="donelist weeklydone">${res.weeklyDone.map(c => `<div><span>🗓 MISSIONE DELLA SETTIMANA: ${c.text}</span><b>+${c.beers} 🍺</b></div>`).join('')}</div>` : ''}
     ${res.completed.length ? `<div class="donelist">${res.completed.map(c => `<div><span>✔ ${c.text}</span><b>+${c.xp} XP</b></div>`).join('')}</div>` : ''}
@@ -3363,6 +3381,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     </div>`;
   iconizeEl($('card'));
   $('rescustom')?.addEventListener('click', () => { A.sfx.click(); renderCustom(renderReady); });
+  $('installnudge')?.addEventListener('click', () => { A.sfx.click(); $('installapp')?.click(); });   // v138
   $('again').onclick = againGo;
   drawDuelResult();
   if ($('menu')) $('menu').onclick = renderReady;
@@ -3884,7 +3903,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 137;
+const GAME_VERSION = 138;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

@@ -450,7 +450,7 @@ export function currentLivery() {
 }
 
 // ---------- v107.3 · Forziere del giorno: al primo giro di ogni giorno, più birre se torni tutti i giorni di fila ----------
-export const CHEST = [20, 30, 40, 50, 60, 80, 120];
+export const CHEST = [20, 30, 40, 50, 60, 80, 300];   // v138 · settimo giorno di fila: forziere d'oro
 const dayIndex = (d = new Date()) => Math.round(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12).getTime() / 864e5);
 export function dailyInfo() {
   const g = data.daily || {}, today = dayIndex();
@@ -593,6 +593,7 @@ export function recordRun(run) {
   for (const m of weeklyMissions()) if (!m.done && m.ok(run)) { data.weekly.done[m.id] = true; data.beers += m.beers; weeklyDone.push(m); stats().weekly = (stats().weekly || 0) + 1; }
   const before = levelInfo();
   data.totals.runs = (data.totals.runs || 0) + 1;
+  if (run.finishTime > 0) data.totals.wins = (data.totals.wins || 0) + 1;   // v138 · arrivi al rifugio (per l'aiuto ai nuovi)
   data.totals.caps = (data.totals.caps || 0) + run.caps;
   data.totals.jumps = (data.totals.jumps || 0) + run.jumps;
 

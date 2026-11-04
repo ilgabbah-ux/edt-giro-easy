@@ -2018,3 +2018,13 @@ aside#hub { gap: 10px; }
 .volata.rist { border-color: #ff4fc0; animation: volIn .35s ease-out, ristBlink 1s ease-in-out infinite; } .volata.rist b { color: #ff8fd0; } .volata.rist em { font-size: 22px; }
 @keyframes ristBlink { 50% { box-shadow: 0 0 0 3px #ff4fc055; } }
 .volata svg { width: 18px; height: 18px; vertical-align: -3px; }
+
+/* v138 · domani ti aspetta, metti nella home */
+.tomorrow { display: flex; align-items: center; gap: 12px; margin: 10px 0; padding: 10px 14px; background: linear-gradient(90deg, #2a3d1c, #15160f); border-left: 4px solid #7ddc4a; }
+.tomorrow > svg { width: 28px; height: 28px; flex: none; color: #9cf06b; }
+.tomorrow span { display: flex; flex-direction: column; gap: 2px; }
+.tomorrow small { font: 800 10px var(--ui); letter-spacing: 2px; color: #9cf06b; }
+.tomorrow b { font: 700 16px/1.2 var(--ui); } .tomorrow em { font: 600 13px/1.25 var(--ui); font-style: normal; color: var(--muted, #b9b2a2); } .tomorrow em b { font-size: 13px; color: #fff; }
+.installnudge { width: 100%; display: flex; align-items: center; gap: 12px; margin: 10px 0; padding: 12px 14px; border: 0; cursor: pointer; text-align: left; color: #fff; background: linear-gradient(90deg, #1f4f8c, #15160f); border-left: 4px solid #4aa3ff; }
+.installnudge > svg { width: 26px; height: 26px; flex: none; color: #8cc8ff; } .installnudge > svg:last-child { width: 18px; height: 18px; margin-left: auto; }
+.installnudge span { display: flex; flex-direction: column; } .installnudge b { font: italic 400 19px/1.05 var(--display); } .installnudge small { font: 600 13px var(--ui); color: #c7defa; }
