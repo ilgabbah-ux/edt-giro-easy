@@ -2013,3 +2013,8 @@ aside#hub { gap: 10px; }
     radial-gradient(ellipse 9px 13px at 55% 34%, #ffffff55 0 30%, #bfe6ff33 45%, transparent 70%),
     radial-gradient(ellipse 120% 90% at 50% 50%, transparent 60%, #d7f0ff22 100%); }
 @keyframes sweatDrip { 0% { opacity: 0; transform: translateY(-6px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translateY(46px); } }
+
+/* v135 · cartello del ristoro del Leventino */
+.volata.rist { border-color: #ff4fc0; animation: volIn .35s ease-out, ristBlink 1s ease-in-out infinite; } .volata.rist b { color: #ff8fd0; } .volata.rist em { font-size: 22px; }
+@keyframes ristBlink { 50% { box-shadow: 0 0 0 3px #ff4fc055; } }
+.volata svg { width: 18px; height: 18px; vertical-align: -3px; }

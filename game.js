@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
-import { createWorld } from './scene3d.js?v=a977a5f9';
+import { createWorld } from './scene3d.js?v=b36211dc';
 import * as A from './audio.js?v=4a9e1806';
 import * as P from './progress.js?v=8ba599df';
 import { createMud } from './mudfx.js?v=ae45cf9e';
@@ -375,7 +375,7 @@ let wasClimb = false, throttleSlip = 0, overT = 0, wasSweet = false, gasLock = f
 let ice = false, drift = 0, driftT = 0, driftSum = 0, driftPend = 0, driftChain = 0, driftGap = 9, driftScore = 0, driftBest = 0, driftCount = 0, snowT = 0, bendNow = 0, lastWall = -9, driftM = 0, driftMP = 0;   // v92 · metri percorsi di traverso
 // v41 · avversari EDT in pista, scorciatoie di Angelo e meteo che cambia
 let draftT = 0, draftR = null, draftSaid = -9, lastDraftAt = -9, catchT = 0;   // v107 · scia dietro ai compagni e rimonta
-let peloAt = -99, volata = 0, champRun = false, icyWarn = 0, ristoroDone = 0, sweatAt = 6;   // v130 · v132
+let peloAt = -99, volata = 0, champRun = false, icyWarn = 0, ristoroDone = 0, sweatAt = 6, ristLane = 0, ristAt = 0, ristShown = false;   // v130 · v132
 let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos = '';
 let weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0 }, nextFlash = 5, weatherPlan = [], weatherSaid = '', lastRainMud = 0;
 const curLift = () => jumpHeight(jump, jumpDur, jumpH);
@@ -598,7 +598,7 @@ function resetRun() {
   combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
   lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
   replayBuf = []; recClock = 0; recLast = 0; replay = null; highlights = []; hlPend = [];
-  volata = 0; peloAt = -99; icyWarn = 0; ristoroDone = 0; sweatAt = 6; volataShow(null); ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = fallT = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
+  volata = 0; peloAt = -99; icyWarn = 0; ristoroDone = 0; sweatAt = 6; ristAt = 0; ristShown = false; volataShow(null); ghostSplits = [0]; ghostPassed = false; ghostNextSplit = .5; course = vx = crash = fallT = stun = slowmo = kmh = 0; slowScale = 1; warned = false; timeLimit = P.MODES[mode].limit; skill = SKILLS[profile.rider]?.id || ''; if (has('veteran')) timeLimit += 4;
   grappa = waterT = earsT = errors = wheelieT = wheelieCD = segErrors = 0; earsPermanent = wheelie = wheelieHeld = downAnnounced = false; lastYee = -10; lastSpecial = -9; lastRiderHit = -99;
   jumpDur = JUMP_DURATION; jumpH = JUMP_HEIGHT;
   for (const k of Object.keys(up)) { const l = P.upgradeLevel(k); up[k] = l <= P.LEGEND_FROM ? l : P.LEGEND_FROM + (l - P.LEGEND_FROM) * .4; }   // v106.6 · livelli Leggenda: +0,4 l'uno
@@ -1346,7 +1346,7 @@ function makeRunPlan() {
   for (let i = 0; i < n; i++) { const k = i === ownSlot && firstOwn ? firstOwn : kinds.splice(Math.floor(rng() * kinds.length), 1)[0]; plan.events.push({ kind: k, at: 9 + (i + .2 + rng() * .6) * (40 / n) }); }
   const near = (at, d) => plan.events.some(e => Math.abs(e.at - at) < d) || plan.forks.some(f => Math.abs(f.at - at) < d + 4) || plan.zones.some(z => at > z.from - d && at < z.to + d);
   const nf = 1 + (rng() < .45 ? 1 : 0);
-  for (let i = 0; i < nf; i++) { let at = 0, tries = 0; do { at = 15 + rng() * 32; } while (++tries < 40 && (near(at, 5) || (md.ristoro && at > 28 && at < 42))); if (!near(at, 5) || !i) plan.forks.push({ at }); }
+  for (let i = 0; i < nf; i++) { let at = 0, tries = 0; do { at = 15 + rng() * 32; } while (++tries < 40 && (near(at, 5) || (md.ristoro && Math.abs(at - ristoroAt()) < 8))); if (!near(at, 5) || !i) plan.forks.push({ at }); }
   plan.forks.sort((a, b) => a.at - b.at);
   for (const kind of ['flow', 'pietraia']) { let at = 0, tries = 0; do { at = 11 + rng() * 40; } while (++tries < 40 && near(at, 4)); plan.zones.push({ kind, from: at, to: at + 4 + rng() * 1.5, said: false }); }
   return plan;
@@ -1988,10 +1988,11 @@ function spawnShortcut() {
   toast('BIVIO! TAGLIO DI ANGELO A ' + (l === 0 ? 'SINISTRA' : 'DESTRA'), 'gold');
 }
 // v84 · sosta al bar: si passa sotto il tendone, birra al volo e punti, ma per qualche secondo la moto balla
-function spawnBar(type = 'bar') {
-  const l = rng() < .5 ? 0 : 2;
+function ristoroAt() { const s = layoutSegments().find(x => /RISTORO/.test(x.name)); return s ? s.from : 30; }
+function spawnBar(type = 'bar', lane = -1) {
+  const l = lane >= 0 ? lane : rng() < .5 ? 0 : 2;
   objects.push({ l, z: -.05, type, hit: false });
-  toast(type === 'ristoro' ? '🍺 RISTORO DEL LEVENTINO A ' + (l === 0 ? 'SINISTRA' : 'DESTRA') + ': PASSA SOTTO I GAZEBO' : '🍺 BAR A ' + (l === 0 ? 'SINISTRA' : 'DESTRA') + ': PASSA SOTTO PER UNA BIONDA', 'gold');
+  if (type !== 'ristoro') toast( '🍺 BAR A ' + (l === 0 ? 'SINISTRA' : 'DESTRA') + ': PASSA SOTTO PER UNA BIONDA', 'gold');
 }
 function takeBar(rist) {
   barT = 4.5; run.caps += 5; run.bars = (run.bars || 0) + 1;
@@ -2288,7 +2289,14 @@ function update(dt) {
   if (gev) gevStep(dt, diff);
   if (leap) { leapStep(dt); if (state !== 'playing') return; }
   if (!ice && !P.MODES[mode].slalom && !P.MODES[mode].ranch && !P.MODES[mode].leap && shortcutsDone < 2 && elapsed > nextShortcut && course > 12 && !objects.some(o => (o.type === 'bar' || o.type === 'ristoro') && !o.hit) && course < GAME_LENGTH * .8 && route.id !== 3) { nextShortcut = elapsed + 18 + rng() * 10; spawnShortcut(); }
-  if (P.MODES[mode].ristoro && !ristoroDone && !leap && course > 34 && state === 'playing') { ristoroDone = 1; spawnBar('ristoro'); }   // v132 · Leventino: il ristoro coi gazebo a metà giro
+  if (P.MODES[mode].ristoro && !ristoroDone && !leap && /RISTORO/.test(route.name) && state === 'playing') {   // v135 · il ristoro arriva appena entri nel tratto «IL RISTORO»
+    ristoroDone = 1; ristLane = rng() < .5 ? 0 : 2; ristAt = elapsed + 1.8; toast('🍺 RISTORO DEL LEVENTINO IN ARRIVO: CORSIA ' + (ristLane === 0 ? 'SINISTRA' : 'DESTRA'), 'gold'); }
+  if (ristoroDone === 1 && ristAt && elapsed >= ristAt) { ristAt = 0; spawnBar('ristoro', ristLane); }
+  { const rs = objects.find(o => o.type === 'ristoro' && !o.hit && !o.collected) || (ristoroDone === 1 && ristAt ? { l: ristLane, z: -1 } : null);   // v135 · ristoro ben segnalato: cartello a schermo e corsia sgombra
+    ristShown = !!rs;
+    if (rs) { for (const o of objects) if (o !== rs && !o.hit && o.l === rs.l && OBSTACLE_HEIGHT[o.type] !== undefined && o.z > rs.z - .55 && o.z < rs.z + .2) o.collected = true;
+      if (!volata) volataShow(`<small>RISTORO</small><span>${rs.l === 0 ? icon('back') + ' CORSIA <b>SINISTRA</b>' : 'CORSIA <b>DESTRA</b> ' + icon('chevrons')}</span><em>${icon('beers')}</em>`, 'rist'); }
+    else if (ristoroDone === 1) { ristoroDone = 2; if (!volata) volataShow(null); } }   // v132 · Leventino: il ristoro coi gazebo a metà giro
   if (barsLeft > 0 && !leap && elapsed > nextBar && course > 10 && course < GAME_LENGTH * .85 && !objects.some(o => o.type === 'shortcut' && !o.hit)) { barsLeft--; nextBar = elapsed + 16 + rng() * 6; spawnBar(); }
   while (elapsed >= ghostNextSplit) { ghostSplits.push(course); ghostNextSplit += .5; }
   const gc = ghostCourse(elapsed);
@@ -3012,7 +3020,7 @@ function volataShow(t, cls = '') {
   el.hidden = false; el.className = 'volata ' + cls; if (el.dataset.t !== t) { el.dataset.t = t; el.innerHTML = t; }
 }
 function volataTick() {
-  if (state !== 'playing' || ice || leap || tut || !rivals.length || course < GAME_LENGTH - 10 || course >= GAME_LENGTH) { if (volata) { volata = 0; A.musicRush(false); } volataShow(null); return; }
+  if (state !== 'playing' || ice || leap || tut || !rivals.length || course < GAME_LENGTH - 10 || course >= GAME_LENGTH) { if (volata) { volata = 0; A.musicRush(false); } if (!ristShown) volataShow(null); return; }
   let r = null; for (const x of rivals) if (!r || Math.abs(x.gap) < Math.abs(r.gap)) r = x;
   const sec = Math.abs(r.gap) / Math.max(5, kmh * 19.5 / 31), close = sec < (volata ? 5 : 3.5);
   if (!close) { if (volata) { volata = 0; A.musicRush(false); } volataShow(null); return; }
@@ -3876,7 +3884,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 134;
+const GAME_VERSION = 135;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

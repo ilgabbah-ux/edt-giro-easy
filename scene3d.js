@@ -2606,16 +2606,18 @@ export function createWorld(canvas) {
     } else if (type === 'ristoro') {
       // v132 · ristoro del Leventino: gazebo bianchi sul prato, tavolo con birre e salame, il Fiorino bianco parcheggiato accanto
       const tent = mat('#f4f4f0', .8), pole = mat('#cfd3d6', .4, .5), tableM = mat('#8a6a48', .85), cloth = mat('#e8e2d0', .9), salame = mat('#8e2a2a', .7), van = mat('#f2f2ee', .35, .2), glassM = mat('#1d2a33', .1, .3), tyre = mat('#1b1b1b', .9);
-      for (const [sx, sz] of [[-1.2, -.9], [1.2, -.9], [-1.2, .9], [1.2, .9]]) box(.08, 2.6, .08, pole, g, sx, 1.3, sz);
-      { const roof = mesh(new T.ConeGeometry(1.95, .8, 4), tent, g); roof.position.y = 3; roof.rotation.y = Math.PI / 4; }
-      box(2.5, .3, .04, tent, g, 0, 2.5, -.92); box(2.5, .3, .04, tent, g, 0, 2.5, .92);
+      for (const [sx, sz] of [[-1.45, -.9], [1.45, -.9], [-1.45, .9], [1.45, .9]]) box(.1, 3, .1, mat('#e23a8f', .5), g, sx, 1.5, sz);   // v135 · pali fucsia, ben visibili
+      { const roof = mesh(new T.ConeGeometry(2.3, .9, 4), tent, g); roof.position.y = 3.45; roof.rotation.y = Math.PI / 4; }
+      { const glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#ffd36a', transparent: true, opacity: .75, blending: T.AdditiveBlending, depthWrite: false })); glow.scale.set(4.2, 2.6, 1); glow.position.set(0, 2.4, .9); g.add(glow); }
+      { const ring = mesh(new T.RingGeometry(.75, 1.05, 32), new T.MeshBasicMaterial({ color: '#ffd36a', transparent: true, opacity: .85, side: T.DoubleSide }), g); ring.rotation.x = -Math.PI / 2; ring.position.y = .06; }
+      box(3, .3, .04, tent, g, 0, 2.95, -.92); box(3, .3, .04, tent, g, 0, 2.95, .92);
       const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d');
       x.fillStyle = '#ffffff'; x.fillRect(0, 0, 512, 128); x.fillStyle = '#e8217a'; x.font = '900 60px Arial'; x.textAlign = 'center'; x.fillText('RISTORO', 256, 62); x.fillStyle = '#2f9fe0'; x.font = '900 30px Arial'; x.fillText('LEVENTINO • BIRRA E SALAME', 256, 108);
-      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace; const sign = mesh(new T.PlaneGeometry(2.2, .55), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); sign.position.set(0, 2.15, .95);
+      const tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace; const sign = mesh(new T.PlaneGeometry(2.8, .7), new T.MeshBasicMaterial({ map: tx, side: T.DoubleSide }), g); sign.position.set(0, 2.55, .95);
       for (const sd of [-1, 1]) { box(.9, .75, .6, tableM, g, sd * 1.75, .375, 0); box(.95, .03, .65, cloth, g, sd * 1.75, .77, 0);
         for (let k = 0; k < 2; k++) { mesh(new T.CylinderGeometry(.09, .085, .22, 12), beerMat, g).position.set(sd * 1.75 + (k - .5) * .3, .9, .1); mesh(new T.CylinderGeometry(.1, .1, .05, 12), foamMat, g).position.set(sd * 1.75 + (k - .5) * .3, 1.03, .1); }
         const sl = mesh(new T.CylinderGeometry(.07, .07, .42, 10), salame, g); sl.rotation.z = Math.PI / 2; sl.position.set(sd * 1.75, .85, -.15); }
-      const fv = new T.Group(); fv.position.set(-4.3, 0, -1.4); fv.rotation.y = .35; g.add(fv);   // il Fiorino
+      const fv = new T.Group(); fv.position.set(-4.8, 0, -1.6); fv.rotation.y = .35; g.add(fv);   // il Fiorino
       box(1.5, .7, 3.4, van, fv, 0, .75, 0); box(1.45, .6, 1.2, van, fv, 0, 1.4, .9); box(1.38, .42, .05, glassM, fv, 0, 1.45, 1.51);
       for (const [wx, wz] of [[-.72, 1.1], [.72, 1.1], [-.72, -1.1], [.72, -1.1]]) { const w = mesh(new T.CylinderGeometry(.3, .3, .2, 14), tyre, fv); w.rotation.z = Math.PI / 2; w.position.set(wx, .3, wz); }
     } else if (type === 'gift') {
