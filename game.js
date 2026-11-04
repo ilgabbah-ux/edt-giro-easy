@@ -3114,7 +3114,7 @@ function edtTwin() {
 window.__edtTwin = () => edtTwin();
 function edtNudgeHTML() {
   const r = edtTwin(); if (!r) return '';
-  return `<div class="edtnudge">${icon('crown')}<span><b>SEI ${r.toUpperCase()} DELL'EDT?</b><small>Questo giro è finito nella classifica di tutti. Metti la parola segreta e corri in quella degli amici.</small>
+  return `<div class="edtnudge">${icon('crown')}<span><b>SEI DELL'EDT?</b><small>Questo giro è finito nella classifica di tutti. Metti la parola segreta e corri in quella degli amici.</small>
     <form class="nickrow pform" id="edtnform"><input id="edtnword" maxlength="40" autocomplete="off" placeholder="parola segreta"><button class="primary" type="submit"><span>ENTRA</span></button></form></span></div>`;
 }
 function tomorrowHTML() {   // v138 · motivi per tornare domani
@@ -3399,7 +3399,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     e.preventDefault(); const w = $('edtnword').value, twin = edtTwin();
     if (!(await C.checkSecret(w))) { toast('PAROLA SEGRETA SBAGLIATA', 'red'); A.sfx.click(); return; }
     C.setEdt(true); C.rememberSecret(w); if (twin) C.setNick(C.cleanNick(twin)); syncShare(); A.sfx.click();
-    toast('🏁 BENVENUTO NELL’EDT, ' + String(twin).toUpperCase() + ': DAL PROSSIMO GIRO SEI NELLA CLASSIFICA DEGLI AMICI', 'green');
+    toast('🏁 BENVENUTO NELL’EDT: DAL PROSSIMO GIRO SEI NELLA CLASSIFICA DEGLI AMICI', 'green');
     document.querySelector('.edtnudge')?.remove(); renderSide();
   });
   $('again').onclick = againGo;
