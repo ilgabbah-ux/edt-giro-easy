@@ -976,7 +976,7 @@ for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) $('gas').
 });
 window.addEventListener('keyup', e => {
   if (['ArrowLeft', 'a', 'A'].includes(e.key) && keyL) { keyL = false; if (performance.now() - keyAt.l < TAP_MS) move(-1); }
-  if (['ArrowRight', 'd', 'D'].includes(e.key) && keyR) { keyR = false; if (performance.now() - keyAt.r < TAP_MS) move(1); } if (e.key.toLowerCase() === 'w') gas = false; if (['s', 'S', 'ArrowDown'].includes(e.key)) stopWheelieInput(); });
+  if (['ArrowRight', 'd', 'D'].includes(e.key) && keyR) { keyR = false; if (performance.now() - keyAt.r < TAP_MS) move(1); } if (['w', 'v', 'n'].includes(e.key.toLowerCase())) gas = false; if (['s', 'S', 'ArrowDown'].includes(e.key)) stopWheelieInput(); });
 window.addEventListener('blur', () => { gas = false; keyL = keyR = btnL = btnR = false; zoneSteer = 0; if (state === 'playing') pause(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && (state === 'playing' || state === 'countdown')) pause(); });
 $('left').onpointerdown = e => { e.preventDefault(); btnL = true; btnAt.l = performance.now(); try { $('left').setPointerCapture(e.pointerId); } catch {} };
@@ -1085,7 +1085,7 @@ document.addEventListener('webkitfullscreenchange', onFsChange);
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   const k = e.key;
-  if (k.toLowerCase() === 'w') { e.preventDefault(); if (state === 'playing') gas = true; return; }
+  if (['w', 'v', 'n'].includes(k.toLowerCase())) { e.preventDefault(); if (state === 'playing') { gas = true; if (!e.repeat && (stalled || sandStuck)) hop(); } return; }   // v143 · gas anche con V e N (vicino al turbo B); da tastiera il gas spinge la moto piantata
   if (['s', 'S', 'ArrowDown'].includes(k)) { e.preventDefault(); if (!e.repeat) startWheelie(); return; }
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', ' ', 'a', 'A', 'd', 'D', 'p', 'P', 'Shift', 'b', 'B', 'Enter'].includes(k)) {
     if (k === 'Enter' && document.activeElement && document.activeElement.tagName === 'BUTTON' && state !== 'playing') return;
@@ -3305,7 +3305,7 @@ function renderReady() {
       <button class="mini" id="schoolmenu" type="button">${icon('book')} SCUOLA DI ENDURO</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}
     </div>
-    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → · SPAZIO · W · B</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>`;
+    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → sterzo · SPAZIO salta · V (o W) gas · B turbo · S impenna</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>`;
   if ($('openstats')) $('openstats').onclick = () => { A.sfx.click(); showStats(); };
   $('openmissions').onclick = () => { const box = $('missionbox'), open = box.hidden; box.hidden = !open; $('openmissions').setAttribute('aria-expanded', String(open)); $('openmissions').classList.toggle('on', open); A.sfx.click(); };
   requestAnimationFrame(() => { const act = document.querySelector('.modes .mode.active'); if (act) act.parentElement.scrollLeft = act.offsetLeft - act.parentElement.clientWidth / 2 + act.offsetWidth / 2; });
@@ -3984,7 +3984,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 142;
+const GAME_VERSION = 143;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
