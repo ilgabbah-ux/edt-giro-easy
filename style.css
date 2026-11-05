@@ -2085,3 +2085,9 @@ aside#hub { gap: 10px; }
 .nexttrack > svg { width: 22px; height: 22px; color: var(--y); flex: none; }
 .resmore { margin: 8px 0; } .resmore > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: #ffffff0d; font: 800 12px var(--ui); letter-spacing: 1.5px; color: #e9dccb; }
 .resmore > summary::-webkit-details-marker { display: none; } .resmore > summary svg { width: 14px; height: 14px; transition: transform .2s; } .resmore[open] > summary svg { transform: rotate(90deg); }
+/* v146 · menu in tre parti: GIOCA (in alto), OGGI, SFIDE ED EXTRA */
+.hsec { display: flex; align-items: center; gap: 8px; margin: 22px 0 6px; font: 800 12px var(--ui); letter-spacing: 3px; color: var(--y); text-transform: uppercase; }
+.hsec::after { content: ''; flex: 1; height: 2px; background: linear-gradient(90deg, #ffcf1666, transparent); }
+.hsec svg { width: 16px; height: 16px; }
+.trackhero .thchips .var, .trackhero .thchips .gold { display: none; }   /* scheda del percorso più pulita: variante e boccali stanno nelle info */
+.trackhero:has(.thnav) .thtext { padding-bottom: 6px; }

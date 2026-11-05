@@ -3370,19 +3370,26 @@ function renderReady() {
       <span class="record">${icon('trophy')} ${best ? `RECORD${md.id === 3 ? ' DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span>
       ${C.enabled() ? `<span class="thlead" id="thlead">${heroLead(C.cached())}</span>` : ''}</div>
       ${heroList.length > 1 ? `<button class="thnav prev" id="thprev" type="button" aria-label="Percorso precedente">‹</button><button class="thnav next" id="thnext" type="button" aria-label="Percorso successivo">›</button>
-      <div class="thdots" aria-hidden="true">${heroList.map(m => `<i class="${m.id === mode ? 'on' : ''}"></i>`).join('')}</div>` : ''}
+` : ''}
     </div>
     <button class="primary big startbtn" id="start"><span class="st"><span>ACCENDI LA MOTO</span><small>${P.pendingBoosts().length ? '🎁 ' + P.pendingBoosts().map(k => P.PRIZES.find(x => x.id === k)?.name).join(' · ') : 'musica: ' + songName(radioPick() ?? songOf(mode))}</small></span>${icon('chevrons')}</button>
-    ${xmasChipHTML()}
-    ${starterHTML()}
-    ${schoolChipHTML()}${sukaChipHTML()}${champChipHTML()}
-    ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
-    <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
+    <div class="mhead tracks">${icon('flag')} ALTRI PERCORSI <button class="linkbtn alltracks" id="alltracks" type="button">📋 TUTTI I TRACCIATI ›</button></div>
+    <div class="modes" role="radiogroup" aria-label="Percorso">
+      ${P.SHOWN().map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
+        ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 ' + P.lockText(m)}</small>${open && P.STAR_MODES.includes(m.id) ? starsHTML(P.starsFor(m.id), 'mini') : ''}${m.id === P.weeklyTrack() ? '<i class="wktrack">🔥 BIRRE ×2</i>' : ''}</button>`; }).join('')}
+    </div>
+    <div class="hsec">${icon('calendar')} OGGI</div>
     ${dailyChipHTML()}
     ${goalChipHTML()}
     ${P.MODES[mode].leap ? '' : derbyChipHTML()}
     ${C.enabled() ? '<div class="potw" id="potw" hidden></div><button class="rivalbar" id="rivalbar" type="button" hidden></button>' : ''}
     ${C.enabled() ? '<button class="cupbar" id="cupbar" type="button" hidden><span class="cupi">🏆</span><span class="cupt"><small>COPPA DELLA SETTIMANA</small><b id="cuplead">…</b><em id="cupme"></em></span><span class="cupx" id="cupprev"></span></button>' : ''}
+    <div class="hsec">${icon('swords')} SFIDE ED EXTRA</div>
+    ${xmasChipHTML()}
+    ${starterHTML()}
+    ${schoolChipHTML()}${sukaChipHTML()}${champChipHTML()}
+    <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
+    ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
     <div class="quickrow">
       <button class="qbtn" id="opengarage" type="button"><span class="qi">🎨</span><b>GARAGE</b><small>livree e moto</small></button>
       <button class="qbtn" id="openshop" type="button"><span class="qi">🔧</span><b>OFFICINA</b><small>${P.profile.beers} 🍺</small></button>
@@ -3390,11 +3397,6 @@ function renderReady() {
       <button class="qbtn" id="openmissions" type="button" aria-expanded="false"><span class="qi">🏁</span><b>MISSIONI</b><small>${missions.length} attive · 🗓 ${P.weeklyMissions().filter(m => m.done).length}/3</small></button>
     </div>
     <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul><button class="linkbtn statsbtn" type="button" id="openstats">⏱ STATISTICHE E TROFEI ›</button><div class="wkhead">🗓 MISSIONI DELLA SETTIMANA · uguali per tutti, cambiano il lunedì</div><ul class="weekly">${P.weeklyMissions().map(m => `<li class="${m.done ? 'done' : ''}"><span class="mtext">${m.done ? '✔ ' : ''}${m.text}</span><span class="mxp">+${m.beers} 🍺</span></li>`).join('')}</ul></div>
-    <div class="mhead tracks">${icon('flag')} CAMBIA PERCORSO <button class="linkbtn alltracks" id="alltracks" type="button">📋 TUTTI I TRACCIATI ›</button></div>
-    <div class="modes" role="radiogroup" aria-label="Percorso">
-      ${P.SHOWN().map(m => { const open = P.isUnlocked(m, info.level), ta = trackArt(m); return `<button type="button" role="radio" class="mode sky${m.sky ?? 0} ${m.id === mode ? 'active' : ''} ${m.id === 3 ? 'daily' : ''} ${m.ice ? 'icy' : ''} ${open ? '' : 'locked'}" data-mode="${m.id}" aria-checked="${m.id === mode}" ${open ? '' : 'aria-disabled="true"'}>
-        ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 ' + P.lockText(m)}</small>${open && P.STAR_MODES.includes(m.id) ? starsHTML(P.starsFor(m.id), 'mini') : ''}${m.id === P.weeklyTrack() ? '<i class="wktrack">🔥 BIRRE ×2</i>' : ''}</button>`; }).join('')}
-    </div>
     <div class="menufoot">
       <button class="mini" id="schoolmenu" type="button">${icon('book')} GIRO DI PROVA</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}
