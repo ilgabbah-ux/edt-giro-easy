@@ -153,15 +153,33 @@ function photos_() {
 function photoVers_() {
   const c = CacheService.getScriptCache(), hit = c.get('fotov'); if (hit) return JSON.parse(hit);
   const s = photos_(), last = s.getLastRow(), out = {};
-  if (last > 1) s.getRange(2, 1, last - 1, 3).getValues().forEach(r => { if (r[0] && r[1]) out[String(r[0])] = r[2] instanceof Date ? r[2].getTime() : 1; });
+  if (last > 1) s.getRange(2, 1, last - 1, 5).getValues().forEach(r => { if (r[0] && r[1] && !phHidden_(r)) out[String(r[0])] = r[2] instanceof Date ? r[2].getTime() : 1; });
   c.put('fotov', JSON.stringify(out), 600);
   return out;
 }
 function photoGet_(names) {
   const s = photos_(), last = s.getLastRow(), want = {}, out = {};
   names.forEach(n => want[n] = 1);
-  if (last > 1) s.getRange(2, 1, last - 1, 3).getValues().forEach(r => { if (want[String(r[0])] && r[1]) out[String(r[0])] = { d: String(r[1]), v: r[2] instanceof Date ? r[2].getTime() : 1 }; });
+  if (last > 1) s.getRange(2, 1, last - 1, 5).getValues().forEach(r => { if (want[String(r[0])] && r[1] && !phHidden_(r)) out[String(r[0])] = { d: String(r[1]), v: r[2] instanceof Date ? r[2].getTime() : 1 }; });
   return out;
+}
+// v146 · MODERAZIONE FOTO (richiesta da Google Play): colonna D = segnalazioni, colonna E = nascosta.
+// Una foto sparisce per tutti con 3 segnalazioni da telefoni diversi, oppure se nel foglio «Foto» scrivi SI nella colonna E.
+// Per rimetterla: scrivi NO nella colonna E (le segnalazioni restano scritte nel foglio «Segnalazioni»).
+function phHidden_(r) { const h = String(r[4] || '').trim().toUpperCase(); if (h === 'NO') return false; return h === 'SI' || h === 'SÌ' || h === 'TRUE' || Number(r[3]) >= 3; }
+function report_(p) {
+  const n = clean_(p.n, 16).toLowerCase(), id = /^[a-z0-9]{6,16}$/.test(p.id || '') ? p.id : ''; if (!n || !id) return;
+  const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
+  let r = ss.getSheetByName('Segnalazioni'); if (!r) { r = ss.insertSheet('Segnalazioni'); r.getRange(1, 1, 1, 3).setValues([['Data', 'Nome', 'Telefono']]).setFontWeight('bold'); r.setFrozenRows(1); }
+  const last = r.getLastRow(), prev = last > 1 ? r.getRange(2, 2, last - 1, 2).getValues() : [];
+  if (prev.some(x => String(x[0]) === n && String(x[1]) === id)) return;   // stesso telefono, stessa foto: conta una volta
+  r.appendRow([new Date(), n, id]);
+  const count = prev.filter(x => String(x[0]) === n).length + 1;
+  const s = photos_(), sl = s.getLastRow(); if (sl < 2) return;
+  if (s.getRange(1, 4).getValue() === '') s.getRange(1, 4, 1, 2).setValues([['Segnalazioni', 'Nascosta']]).setFontWeight('bold');
+  const names = s.getRange(2, 1, sl - 1, 1).getValues(), i = names.findIndex(x => String(x[0]) === n);
+  if (i >= 0) s.getRange(i + 2, 4).setValue(count);
+  CacheService.getScriptCache().remove('fotov');
 }
 function doPost(e) {
   let p = {}; try { p = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (err) {}
@@ -257,6 +275,7 @@ function doGet(e) {
   const day = /^\d{4}-\d{2}-\d{2}$/.test(p.day || '') ? p.day : Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd');
   if (p.action === 'hit') { try { hit_(p, day); } catch (err) {} return reply_({ ok: true }, p.callback); }
   if (p.action === 'stats') { let st = {}; try { st = stats_(); } catch (err) { st = { err: String(err) }; } return reply_({ ok: true, stats: st }, p.callback); }
+  if (p.action === 'segnala') { try { report_(p); } catch (err) {} return reply_({ ok: true }, p.callback); }   // v146
   if (p.action === 'foto') { const n = String(p.n || '').toLowerCase().split(',').map(x => clean_(x, 16)).filter(Boolean).slice(0, 40); let f = {}; try { f = photoGet_(n); } catch (err) {} return reply_({ ok: true, f: f }, p.callback); }
   let saved = false, taken = false, edtName = false;
   if (p.action === 'add') {

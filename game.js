@@ -6,7 +6,7 @@ import * as P from './progress.js?v=11428cbc';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
-import * as C from './classifica.js?v=4e5e7763';
+import * as C from './classifica.js?v=be456254';
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -129,6 +129,19 @@ const entryAv = (e, cls = '') => { const pn = String(e?.n || '').toLowerCase(), 
 // quando arrivano foto nuove dal server, le voci già a schermo si aggiornano da sole
 function swapPhotos(root = document) { root.querySelectorAll?.('[data-pn]').forEach(el => { if (el.querySelector('img[data-ph]')) return; const ph = C.photoOf(el.dataset.pn); if (!ph) return; const cls = el.dataset.pc ?? [...el.classList].filter(c => c === 'tiny' || c === 'big').join(' '); const n = document.createElement('span'); n.className = 'avatar ' + cls; n.dataset.pn = el.dataset.pn; n.innerHTML = `<img data-ph="1" src="${ph}" alt="">`; el.replaceWith(n); }); }
 C.onPhotos(() => swapPhotos());
+// v146 · Play Store: ogni foto caricata dai giocatori si può aprire e segnalare
+document.addEventListener('click', e => {
+  const sp = e.target.closest?.('[data-pn]'); if (!sp || !sp.querySelector('img')) return;
+  const pn = sp.dataset.pn, ph = C.photoOf(pn); if (!ph || pn === String(C.getNick() || '').toLowerCase()) return;
+  e.preventDefault(); e.stopPropagation();
+  const m = document.createElement('div'); m.className = 'phmodal';
+  m.innerHTML = `<div class="phbox"><img src="${ph}" alt=""><b>${pn.toUpperCase()}</b><small>Foto caricata da un giocatore</small><div class="phbtns"><button type="button" class="secondary" id="phrep">🚩 SEGNALA FOTO</button><button type="button" class="primary" id="phok">CHIUDI</button></div></div>`;
+  document.body.appendChild(m); A.sfx?.click?.();
+  const close = () => m.remove();
+  m.addEventListener('click', ev => { if (ev.target === m) close(); });
+  m.querySelector('#phok').onclick = close;
+  m.querySelector('#phrep').onclick = () => { C.reportPhoto(pn); close(); toast('🚩 FOTO SEGNALATA: NON LA VEDI PIÙ. GRAZIE!', 'green'); document.querySelectorAll(`[data-pn="${pn}"] img`).forEach(i => i.remove()); };
+}, true);
 const myPhoto = () => (isCustom() && profile.custom?.photo) || '';
 // nel campo "pilota" della classifica il casco viaggia in coda al nome (Nome~7): niente modifiche al foglio
 // v125.3 · chi ha corso: il nome in classifica, col pilota scelto se è diverso («Pizzi con Il Gabbah»)
@@ -3397,7 +3410,7 @@ function renderReady() {
     <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul><button class="linkbtn statsbtn" type="button" id="openstats">⏱ STATISTICHE E TROFEI ›</button><div class="wkhead">🗓 MISSIONI DELLA SETTIMANA · uguali per tutti, cambiano il lunedì</div><ul class="weekly">${P.weeklyMissions().map(m => `<li class="${m.done ? 'done' : ''}"><span class="mtext">${m.done ? '✔ ' : ''}${m.text}</span><span class="mxp">+${m.beers} 🍺</span></li>`).join('')}</ul></div>
     <details class="menufoot setbox"><summary>${icon('gear')} IMPOSTAZIONI</summary>
       <button class="mini" id="schoolmenu" type="button">${icon('book')} GIRO DI PROVA</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
-      ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}
+      ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}<a class="mini" href="privacy.html" target="_blank" rel="noopener">🔒 PRIVACY</a>
     </details>
     <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → sterzo · SPAZIO salta · V (o W) gas · B turbo · S impenna</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>`;
   if ($('openstats')) $('openstats').onclick = () => { A.sfx.click(); showStats(); };

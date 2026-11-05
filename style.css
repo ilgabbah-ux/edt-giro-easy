@@ -2117,3 +2117,10 @@ aside#hub { gap: 10px; }
 .setbox > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font: 800 12px var(--ui); letter-spacing: 2px; color: #cdbfa9; width: 100%; }
 .setbox > summary::-webkit-details-marker { display: none; } .setbox > summary svg { width: 16px; height: 16px; }
 .setbox[open] > summary { margin-bottom: 6px; color: var(--y); }
+/* v146 · foto dei giocatori: apri e segnala */
+.phmodal { position: fixed; inset: 0; z-index: 90; background: #000b; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.phbox { background: #15160f; border-left: 4px solid var(--y); padding: 16px; width: min(92vw, 340px); display: flex; flex-direction: column; align-items: center; gap: 6px; color: #fff; }
+.phbox img { width: 180px; height: 180px; object-fit: cover; border-radius: 50%; border: 3px solid var(--y); }
+.phbox b { font: italic 400 24px var(--display); } .phbox small { font: 600 12px var(--ui); color: #cdbfa9; }
+.phbtns { display: flex; gap: 8px; margin-top: 8px; width: 100%; } .phbtns button { flex: 1; min-height: 44px; }
+a.mini { text-decoration: none; display: inline-flex; align-items: center; }

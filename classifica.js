@@ -205,7 +205,15 @@ const PH_KEY = 'edt-giro-easy-foto';
 let phMem = null, phVers = {}, phBusy = false;
 function phRead() { if (phMem) return phMem; try { phMem = JSON.parse(localStorage.getItem(PH_KEY) || '{}'); } catch { phMem = {}; } return phMem; }
 function phWrite() { try { const e = Object.entries(phMem); localStorage.setItem(PH_KEY, JSON.stringify(Object.fromEntries(e.slice(-120)))); } catch {} }
-export function photoOf(name) { const k = String(name || '').toLowerCase(), c = phRead()[k]; return c && phVers[k] && c.v === phVers[k] ? c.d : ''; }
+// v146 · foto segnalate da questo telefono: non si vedono più qui (e il server le nasconde a tutti dopo 3 segnalazioni)
+const hiddenPh = () => { try { return JSON.parse(localStorage.getItem('edt-ph-hide') || '[]'); } catch { return []; } };
+export function photoOf(name) { const k = String(name || '').toLowerCase(), c = phRead()[k]; if (hiddenPh().includes(k)) return ''; return c && phVers[k] && c.v === phVers[k] ? c.d : ''; }
+export function reportPhoto(name) {
+  const k = String(name || '').toLowerCase(); if (!k) return;
+  try { const h = hiddenPh(); if (!h.includes(k)) { h.push(k); localStorage.setItem('edt-ph-hide', JSON.stringify(h.slice(-200))); } } catch {}
+  if (!enabled()) return;
+  try { fetch(API + '?' + new URLSearchParams({ action: 'segnala', n: k, id: devId() || '' }).toString(), { mode: 'no-cors', keepalive: true }).catch(() => {}); } catch {}
+}
 const phListeners = new Set();
 export const onPhotos = fn => phListeners.add(fn);
 function syncPhotos(fv) {
