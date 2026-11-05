@@ -3350,7 +3350,7 @@ function renderReady() {
   const trackArt = trackArtOf;
   const art = trackArt(md);
   const heroList = P.SHOWN().filter(m => P.isUnlocked(m, info.level));
-  $('card').classList.toggle('newbie', (P.profile.totals?.runs || 0) < 3 && !C.isEdt());   // v108.6 · ai primi giri di chi arriva da fuori: menu essenziale
+  $('card').classList.toggle('newbie', (P.profile.totals?.runs || 0) < 3 && !C.isEdt()); $('card').classList.toggle('veteran', (P.profile.totals?.runs || 0) >= 1);   // v146 · chi ha già giocato: testata su una riga   // v108.6 · ai primi giri di chi arriva da fuori: menu essenziale
   const heroLead = d => { const top = d?.boards?.[mode]?.[0]; return top ? `👑 1° ${C.isEdt() ? 'NEL GRUPPO' : 'IN CLASSIFICA'}: <b>${top.n}</b> · ${top.s.toLocaleString('it-IT')}` : '👑 NESSUNO IN CLASSIFICA: IL PRIMO SEI TU'; };
   $('card').innerHTML = `
     <div class="menuhead">
@@ -3379,9 +3379,7 @@ function renderReady() {
         ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 ' + P.lockText(m)}</small>${open && P.STAR_MODES.includes(m.id) ? starsHTML(P.starsFor(m.id), 'mini') : ''}${m.id === P.weeklyTrack() ? '<i class="wktrack">🔥 BIRRE ×2</i>' : ''}</button>`; }).join('')}
     </div>
     <div class="hsec">${icon('calendar')} OGGI</div>
-    ${dailyChipHTML()}
-    ${goalChipHTML()}
-    ${P.MODES[mode].leap ? '' : derbyChipHTML()}
+    <div class="oggibox">${dailyChipHTML()}${goalChipHTML()}${P.MODES[mode].leap ? '' : derbyChipHTML()}</div>
     ${C.enabled() ? '<div class="potw" id="potw" hidden></div><button class="rivalbar" id="rivalbar" type="button" hidden></button>' : ''}
     ${C.enabled() ? '<button class="cupbar" id="cupbar" type="button" hidden><span class="cupi">🏆</span><span class="cupt"><small>COPPA DELLA SETTIMANA</small><b id="cuplead">…</b><em id="cupme"></em></span><span class="cupx" id="cupprev"></span></button>' : ''}
     <div class="hsec">${icon('swords')} SFIDE ED EXTRA</div>
@@ -3397,10 +3395,10 @@ function renderReady() {
       <button class="qbtn" id="openmissions" type="button" aria-expanded="false"><span class="qi">🏁</span><b>MISSIONI</b><small>${missions.length} attive · 🗓 ${P.weeklyMissions().filter(m => m.done).length}/3</small></button>
     </div>
     <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul><button class="linkbtn statsbtn" type="button" id="openstats">⏱ STATISTICHE E TROFEI ›</button><div class="wkhead">🗓 MISSIONI DELLA SETTIMANA · uguali per tutti, cambiano il lunedì</div><ul class="weekly">${P.weeklyMissions().map(m => `<li class="${m.done ? 'done' : ''}"><span class="mtext">${m.done ? '✔ ' : ''}${m.text}</span><span class="mxp">+${m.beers} 🍺</span></li>`).join('')}</ul></div>
-    <div class="menufoot">
+    <details class="menufoot setbox"><summary>${icon('gear')} IMPOSTAZIONI</summary>
       <button class="mini" id="schoolmenu" type="button">${icon('book')} GIRO DI PROVA</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}
-    </div>
+    </details>
     <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → sterzo · SPAZIO salta · V (o W) gas · B turbo · S impenna</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>`;
   if ($('openstats')) $('openstats').onclick = () => { A.sfx.click(); showStats(); };
   $('openmissions').onclick = () => { const box = $('missionbox'), open = box.hidden; box.hidden = !open; $('openmissions').setAttribute('aria-expanded', String(open)); $('openmissions').classList.toggle('on', open); A.sfx.click(); };

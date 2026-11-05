@@ -2091,3 +2091,29 @@ aside#hub { gap: 10px; }
 .hsec svg { width: 16px; height: 16px; }
 .trackhero .thchips .var, .trackhero .thchips .gold { display: none; }   /* scheda del percorso più pulita: variante e boccali stanno nelle info */
 .trackhero:has(.thnav) .thtext { padding-bottom: 6px; }
+/* v146 · chi ha già giocato: testata su una riga, il percorso e «Accendi la moto» salgono */
+.card.veteran > .menuhead { margin: 0 0 8px; }
+.card.veteran > .menuhead .eyebrow { display: none; }
+.card.veteran > .menuhead .menushield { width: 44px; }
+.card.veteran > .menuhead h1.title { font-size: clamp(22px, 6.2vw, 34px); }
+.card.veteran > .menuhead h1.title .t1 { font-size: .5em; vertical-align: middle; }
+.card.veteran > .menuhead h1.title .t1, .card.veteran > .menuhead h1.title .t2 { display: inline-block; }
+.card.veteran > .menuhead h1.title::after { display: none; }
+/* v146 · OGGI in un riquadro solo: tre righe corte, le cose fatte in grigio con la spunta */
+.oggibox { display: flex; flex-direction: column; background: #0b0c09d9; border: 1px solid #ffffff1a; border-left: 4px solid #9be15d; }
+.oggibox > * { margin: 0 !important; border: 0 !important; border-radius: 0 !important; clip-path: none !important; background: transparent !important; padding: 8px 12px !important; min-height: 0; }
+.oggibox > * + * { border-top: 1px solid #ffffff14 !important; }
+.oggibox .chi { font-size: 20px !important; width: 26px; text-align: center; }
+.oggibox .chi svg { width: 20px; height: 20px; }
+.oggibox small { font-size: 10px !important; letter-spacing: 1.5px; }
+.oggibox b { font-size: 13px !important; line-height: 1.2 !important; }
+.oggibox em { font-size: 11px !important; }
+.oggibox .chdots { display: none !important; }
+.oggibox .derbychip .avatar { width: 26px !important; height: 26px !important; flex: none; }
+.oggibox .dzvs { font-size: 10px; }
+.oggibox > .done { opacity: .55; } .oggibox > .done small::after { content: ' ✓'; color: #9be15d; }
+.oggibox .dailychip.risk { background: #4a20104d !important; }
+/* v146 · impostazioni dietro un'icona */
+.setbox > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font: 800 12px var(--ui); letter-spacing: 2px; color: #cdbfa9; width: 100%; }
+.setbox > summary::-webkit-details-marker { display: none; } .setbox > summary svg { width: 16px; height: 16px; }
+.setbox[open] > summary { margin-bottom: 6px; color: var(--y); }
