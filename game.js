@@ -212,7 +212,7 @@ function ghostCourse(t) {
   return g.splits[a] + (g.splits[a + 1] - g.splits[a]) * (i - a);
 }
 let course = 0, vx = 0, crash = 0, fallT = 0, stun = 0, slowmo = 0, slowScale = 1, timeLimit = 70, kmh = 0, warned = false;
-const courseLength = diff => 60 * (1 + diff * .35) + 16; // distanza del percorso (unità di strada)
+const courseLength = diff => (P.MODES[mode]?.school ? 5 : 1) * (60 * (1 + diff * .35) + 16);   // v145.2 · il giro di prova è lungo 5 volte: la strada non finisce prima delle tappe // distanza del percorso (unità di strada)
 // v17: birre, vino (calamita), grappa (super salto), acqua (malus), orecchie da coniglio, impennata, discese.
 let grappa = 0, waterT = 0, earsT = 0, earsPermanent = false, errors = 0;
 let wheelie = false, wheelieHeld = false, wheelieT = 0, wheelieCD = 0, lastYee = -10, downAnnounced = false, lastSpecial = -9;
@@ -2373,7 +2373,7 @@ function update(dt) {
   roadTime += travelStep / 19.5;
   if (leap && leapState < 2 && dt > 0) leapZRate = travelStep / 55 / dt;
   course = Math.min(GAME_LENGTH, roadTime / courseLength(diff) * GAME_LENGTH);
-  if (P.MODES[mode].school && sch) { course = Math.min(course, GAME_LENGTH * .96); roadTime = Math.min(roadTime, courseLength(diff) * .96); }   // v145 · il giro di prova finisce quando hai fatto tutte le tappe
+  if (P.MODES[mode].school && sch) course = Math.min(course, GAME_LENGTH * .96);   // v145.2 · la moto non si ferma più: si blocca solo la barra   // v145 · il giro di prova finisce quando hai fatto tutte le tappe
   kmh = Math.round(travelStep / dt / 19.5 * 31);
   if (leap && leapState === 2) kmh = Math.round(leapStartKmh);   // v64 · in volo il mondo scorre più piano (si vede l'atterraggio), la velocità resta quella dello stacco
   updateRivals(dt, travelStep, route, diff);
