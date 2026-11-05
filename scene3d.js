@@ -1643,6 +1643,7 @@ export function createWorld(canvas) {
     if (kind === 'stripes') { x.fillStyle = a; x.fillRect(0, 34, 256, 22); x.fillStyle = b; x.fillRect(0, 62, 256, 10); x.fillStyle = a; x.fillRect(0, 78, 256, 6); }
     else if (kind === 'flames') { x.fillStyle = '#ff6a13'; for (let i = 0; i < 6; i++) { x.beginPath(); x.moveTo(0, 30 + i * 12); x.quadraticCurveTo(120 + i * 18, 10 + i * 14, 250 - i * 22, 40 + i * 10); x.quadraticCurveTo(140, 70 + i * 6, 0, 60 + i * 12); x.fill(); } x.fillStyle = '#ffd400'; for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(0, 50 + i * 12); x.quadraticCurveTo(100 + i * 12, 40 + i * 12, 180 - i * 20, 60 + i * 8); x.quadraticCurveTo(100, 80, 0, 74 + i * 10); x.fill(); } }
     else if (kind === 'boanal') { const gr = x.createLinearGradient(0, 20, 0, 110); gr.addColorStop(0, '#fff2b0'); gr.addColorStop(.5, '#f2c230'); gr.addColorStop(1, '#a8770c'); x.fillStyle = '#111'; x.fillRect(0, 22, 256, 84); x.fillStyle = gr; x.font = 'italic 900 52px Arial'; x.textAlign = 'center'; x.fillText('BO-anal', 128, 72); x.font = '900 18px Arial'; x.fillText('SPECIAL PARTS', 128, 98); }
+    else if (kind === 'fakedomi') { x.fillStyle = '#111'; x.fillRect(0, 18, 256, 92); x.fillStyle = '#d42a1e'; for (const [x0, y0] of [[8, 30], [214, 84], [190, 26]]) { x.beginPath(); x.moveTo(x0, y0); x.lineTo(x0 + 34, y0 + 6); x.lineTo(x0 + 14, y0 + 12); x.lineTo(x0 + 40, y0 + 22); x.lineTo(x0 + 4, y0 + 14); x.lineTo(x0 + 20, y0 + 8); x.fill(); } x.font = 'italic 900 46px Arial'; x.textAlign = 'center'; x.lineWidth = 7; x.strokeStyle = '#d42a1e'; x.strokeText('FAKE DOMI', 128, 70); x.fillStyle = '#fcd326'; x.fillText('FAKE DOMI', 128, 70); x.font = 'italic 900 15px Arial'; x.fillStyle = '#ffffff'; x.fillText('ENDURO DRINKING TEAM', 128, 98); }
     else if (kind === 'factory') { x.fillStyle = '#151515'; x.fillRect(0, 26, 256, 76); x.fillStyle = '#f2c230'; x.fillRect(0, 26, 256, 6); x.fillRect(0, 96, 256, 6); x.font = 'italic 900 40px Arial'; x.textAlign = 'center'; x.fillText('EDT FACTORY', 128, 80); }
     else if (kind === 'edt') { x.fillStyle = b; x.font = 'italic 900 78px Arial'; x.textAlign = 'center'; x.lineWidth = 8; x.strokeStyle = '#111'; x.strokeText('EDT', 128, 96); x.fillText('EDT', 128, 96); }
     sideDecalTex.needsUpdate = true;
@@ -1667,7 +1668,7 @@ export function createWorld(canvas) {
     const st = parts.studs?.id || 'none';
     for (const sset of studSets) sset.visible = st !== 'none';
     if (st !== 'none') { studMat.color.set(parts.studs.color || '#c9d2d6'); studMat.emissive.set(st === 'icefury' ? '#1a6f9a' : st === 'boanal' ? '#5a4200' : st === 'factory' ? '#8a6400' : '#000000'); studMat.metalness = st === 'puntine' ? .3 : .85; }
-    const dk = look.boanal && (parts.decal?.id || 'none') === 'none' ? 'boanal' : parts.decal?.id || 'none';
+    const dk = (look.boanal || look.fakedomi) && (parts.decal?.id || 'none') === 'none' ? (look.fakedomi ? 'fakedomi' : 'boanal') : parts.decal?.id || 'none';
     bike.traverse(o => { if (o.name === 'sidedecal') o.visible = dk !== 'none'; });
     if (dk !== 'none') paintSideDecal(dk, livery.accent || '#fcd326', livery.helmet || '#ffffff');
     // v71 · con la livrea "EDT Classica" ogni moto ha i colori di fabbrica delle foto del garage
@@ -1749,7 +1750,7 @@ export function createWorld(canvas) {
   // Le ruote restano quelle procedurali (girano e sterzano); il resto della moto procedurale si nasconde.
   // Le plastiche del modello prendono il colore della livrea.
   let bikeIdNow = null;
-  const BIKE_GLB = { edt250: 'enduro', gp125: 'enduro', ts300: 'enduro', mulo450: 'enduro', factory: 'enduro', trial: 'trial', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', pitbike: 'pitbike', bestia: 'bestia', hard300: 'hard300' };
+  const BIKE_GLB = { edt250: 'enduro', gp125: 'enduro', ts300: 'enduro', mulo450: 'enduro', factory: 'enduro', trial: 'trial', vintage: 'vintage', boanal: 'adventure', fakedomi: 'adventure', electric: 'electric', dakar: 'dakar', pitbike: 'pitbike', bestia: 'bestia', hard300: 'hard300' };
   // misure prese dai modelli: manubrio (mezza larghezza, altezza, z) e sella, per mettere mani e sedere al posto giusto
   const BIKE_FIT = { enduro: [.44, 1.42, -.2, 1.106], trial: [.5, 1.45, -.27, .99], vintage: [.47, 1.39, -.26, .921], adventure: [.5, 1.5, -.25, 1.011], electric: [.46, 1.43, -.29, 1.133], dakar: [.4, 1.31, -.24, 1.063], hard300: [.46, 1.36, -.41, 1.065], bestia: [.5, 1.49, -.34, 1.173], pitbike: [.44, 1.2, -.3, .903] };   // [manubrio x, y, z, sella sotto il sedere]
   const glbCache = {}, glbWait = {}, bikeTint = { value: new T.Color('#ffffff') };
