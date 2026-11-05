@@ -1750,9 +1750,9 @@ export function createWorld(canvas) {
   // Le ruote restano quelle procedurali (girano e sterzano); il resto della moto procedurale si nasconde.
   // Le plastiche del modello prendono il colore della livrea.
   let bikeIdNow = null;
-  const BIKE_GLB = { edt250: 'enduro', gp125: 'enduro', ts300: 'enduro', mulo450: 'enduro', factory: 'enduro', trial: 'trial', vintage: 'vintage', boanal: 'adventure', fakedomi: 'adventure', electric: 'electric', dakar: 'dakar', pitbike: 'pitbike', bestia: 'bestia', hard300: 'hard300' };
+  const BIKE_GLB = { edt250: 'enduro', gp125: 'enduro', ts300: 'enduro', mulo450: 'enduro', factory: 'enduro', trial: 'trial', vintage: 'vintage', boanal: 'adventure', fakedomi: 'fakedomi', electric: 'electric', dakar: 'dakar', pitbike: 'pitbike', bestia: 'bestia', hard300: 'hard300' };
   // misure prese dai modelli: manubrio (mezza larghezza, altezza, z) e sella, per mettere mani e sedere al posto giusto
-  const BIKE_FIT = { enduro: [.44, 1.42, -.2, 1.106], trial: [.5, 1.45, -.27, .99], vintage: [.47, 1.39, -.26, .921], adventure: [.5, 1.5, -.25, 1.011], electric: [.46, 1.43, -.29, 1.133], dakar: [.4, 1.31, -.24, 1.063], hard300: [.46, 1.36, -.41, 1.065], bestia: [.5, 1.49, -.34, 1.173], pitbike: [.44, 1.2, -.3, .903] };   // [manubrio x, y, z, sella sotto il sedere]
+  const BIKE_FIT = { enduro: [.44, 1.42, -.2, 1.106], trial: [.5, 1.45, -.27, .99], vintage: [.47, 1.39, -.26, .921], adventure: [.5, 1.5, -.25, 1.011], electric: [.46, 1.43, -.29, 1.133], dakar: [.4, 1.31, -.24, 1.063], hard300: [.46, 1.36, -.41, 1.065], bestia: [.5, 1.49, -.34, 1.173], pitbike: [.44, 1.2, -.3, .903], fakedomi: [.46, 1.33, -.45, 1.11] };   // [manubrio x, y, z, sella sotto il sedere]
   const glbCache = {}, glbWait = {}, bikeTint = { value: new T.Color('#ffffff') };
   let procBike = null, glbNow = null, glbWant = null;
   function procBikeParts() {
@@ -1824,7 +1824,7 @@ export function createWorld(canvas) {
     loadBikeGlb(key, use);
   }
   const riderY0 = rider.position.y;
-  loadBikeGlb('enduro_lo', () => {});   // i compagni usano la moto vera in versione leggera: la carichiamo subito
+  loadBikeGlb('enduro_lo', () => {}); loadBikeGlb('fakedomi', () => {});   // v144 · la Fake Domi serve anche al Gabbah avversario   // i compagni usano la moto vera in versione leggera: la carichiamo subito
   function syncBikeModel() {
     helmTint.value.set(helmetMat.map && helmetMat.userData.base ? helmetMat.userData.base : helmetMat.color);
     if (riderGlb) { if (jerseyMat.map && jerseyMat.userData.base) riderJerseyTint.value.set(jerseyMat.userData.base); else riderJerseyTint.value.copy(jerseyMat.color); riderPantsTint.value.copy(pantsMat.color); }
@@ -2909,9 +2909,10 @@ export function createWorld(canvas) {
   const rivalMats = ['plastic', 'accent', 'jersey', 'pants', 'helmet'];
   // v105 · compagni con moto e pilota veri (stessi modelli del giocatore), ognuno con le sue tinte
   const rivalGlbReady = () => !!(riderGlb && riderStatic && helmGlb && glbCache.enduro_lo && glbCache.enduro_lo !== 'loading');
+  const gabbahFd = r => /gabbah/i.test(r.name || '') && !!glbCache.fakedomi && glbCache.fakedomi !== 'loading';
   function makeRivalGlb(r) {
-    const G = glbCache.enduro_lo, fit = BIKE_FIT.enduro;
-    const bT = { value: new T.Color(r.livery.plastic) }, jT = { value: new T.Color(r.livery.jersey) }, pT = { value: new T.Color(r.livery.pants) };
+    const fd = gabbahFd(r), G = fd ? glbCache.fakedomi : glbCache.enduro_lo, fit = fd ? BIKE_FIT.fakedomi : BIKE_FIT.enduro;   // v144 · il Gabbah corre con la sua Fake Domi
+    const bT = { value: new T.Color(fd ? '#f4f4f4' : r.livery.plastic) }, jT = { value: new T.Color(r.livery.jersey) }, pT = { value: new T.Color(r.livery.pants) };
     const mats = new Map();
     const bm = src => { if (!mats.has(src)) { const m = src.clone(); tintable(m, bT); mats.set(src, m); } return mats.get(src); };
     const root = new T.Group(), body = new T.Group(); root.add(body);
@@ -3033,7 +3034,7 @@ export function createWorld(canvas) {
   function renderRivals(list, t, now, live) {
     const seen = new Set();
     for (const r of list || []) {
-      const rk = r.name + (r.santa ? '·x' : '') + (r.wig ? '·w' + r.wig : '');   // v127 · vestito da Babbo Natale: modello a parte
+      const rk = r.name + (r.santa ? '·x' : '') + (r.wig ? '·w' + r.wig : '') + (gabbahFd(r) ? '·fd' : '');   // v127 · vestito da Babbo Natale: modello a parte
       seen.add(rk);
       let m = rivalModels.get(rk);
       if (m && m.proc && rivalGlbReady()) { scene.remove(m.g); m = null; }   // arrivati i modelli veri: rifà il compagno
