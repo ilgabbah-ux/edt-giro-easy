@@ -2064,7 +2064,13 @@ aside#hub { gap: 10px; }
 .lesson.no { border-left-color: #ff3b3b; background: #2a0f0fe6; animation: lessonNo .35s; }
 @keyframes lessonIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translateX(-50%); } }
 @keyframes lessonNo { 25% { transform: translateX(calc(-50% - 6px)); } 75% { transform: translateX(calc(-50% + 6px)); } }
-@media (orientation: landscape) and (max-height: 620px) { .lesson { top: 46px; width: min(60vw, 480px); padding: 7px 12px 8px; } .lesson b { font-size: 19px; } .lesson span { font-size: 12.5px; } }
+/* v145.1 · in orizzontale il cartello sta a sinistra, sotto i punti, piccolo: la pista resta libera */
+@media (orientation: landscape) and (max-height: 620px) { .lesson { top: 64px; left: 10px; transform: none; width: min(30vw, 270px); padding: 6px 10px 7px; background: #0b0c09c8; } .lesson b { font-size: 16px; gap: 6px; } .lesson span { font-size: 11.5px; line-height: 1.25; } .lesson small { font-size: 9px; letter-spacing: 1.5px; } .lesson i { font-size: 10px; }
+  .lesson.show { animation-name: lessonInL; } .lesson.no { animation-name: lessonNoL; } }
+@keyframes lessonInL { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+@keyframes lessonNoL { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+/* mentre arriva l'ostacolo resta solo il titolo */
+.lesson.mini span { display: none; }
 .game.paused .lesson { visibility: hidden; }
 .sukachip.school { background: linear-gradient(90deg, #163a5c, #10151a); border-left-color: #4aa3ff; } .sukachip.school small { color: #8cc8ff; }
 .schooltips { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }

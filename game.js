@@ -1537,7 +1537,7 @@ const WHEELIE_TXT = () => touchDevice ? 'tieni premuto IMPENNA (o tieni il dito 
 const TURBO_TXT = () => touchDevice ? 'tocca TURBO' : 'premi B';
 const SCHOOL = [
   { k: 'intro', ic: 'book', t: 'BENVENUTO AL GIRO DI PROVA', s: () => 'il Gabbah ti insegna tutto: ostacoli, punti e trucchi. Qui non c’è il cronometro e le cadute non contano', wait: 6.5 },
-  { k: 'steer', ic: 'beer', t: 'STERZA E PRENDI LE BIRRE', s: () => STEER_TXT() + ': ogni birra vale 100 punti', pulse: 'steer', add: a => [0, 1, 2, 2, 1, 0].forEach((l, i) => a(l, -.07 * i, 'coin')), ok: d => d.caps >= 4, fail: 'ne hai prese troppo poche', max: 3 },
+  { k: 'steer', ic: 'beer', t: 'STERZA E PRENDI LE BIRRE', s: () => STEER_TXT() + ': ogni birra vale 100 punti', pulse: 'steer', add: a => [1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2].forEach((l, i) => a(l, -.07 * i, 'coin')), ok: d => d.caps >= 8, fail: 'ne hai prese troppo poche', max: 3 },
   { k: 'jump', ic: 'log', t: 'TRONCO: SALTALO', s: () => JUMP_TXT() + ' quando il tronco ti arriva vicino', pulse: 'jump', add: a => a(1, 0, 'log'), ok: d => d.hits === 0, fail: 'l’hai preso in pieno', max: 4 },
   { k: 'perfect', ic: 'star', t: 'SALTO PERFETTO', s: () => 'salta all’ultimo, quando il gradone è proprio sotto la ruota: i punti valgono una volta e mezza', pulse: 'jump', add: a => a(1, 0, 'step'), ok: d => d.perfect > 0, soft: d => d.hits === 0, fail: 'troppo presto: aspetta ancora un attimo', max: 3 },
   { k: 'puddle', ic: 'drop', t: 'POZZA: SALTALA O GIRALE INTORNO', s: () => 'se ci finisci dentro ti infanghi, rallenti e perdi la combo', add: a => a(1, 0, 'puddle'), ok: d => d.splashes === 0, fail: 'sei finito nel fango', max: 4 },
@@ -1546,7 +1546,7 @@ const SCHOOL = [
   { k: 'water', ic: 'water', t: 'ACQUA: SALTALA O SCHIVALA', s: () => 'l’acqua è il nemico dell’EDT: se la prendi ti spuntano le orecchie da coniglio e perdi turbo', add: a => { a(1, 0, 'coin'); a(1, -.1, 'coin'); a(1, -.2, 'water'); }, ok: d => d.waters === 0, fail: 'hai bevuto acqua. Vergogna!', max: 4 },
   { k: 'ramp', ic: 'spring', t: 'RAMPA: PRENDILA IN PIENO', s: () => 'non serve saltare: la rampa ti lancia e in aria prendi le birre al volo (150 l’una)', add: a => { a(1, 0, 'ramp'); for (let k = 1; k <= 4; k++) a(1, -k * .055, 'coin', { air: true, lift: [1.6, 2.6, 2.8, 2.2][k - 1] }); }, ok: d => d.ramps > 0, fail: 'la rampa era nella corsia in mezzo', max: 3 },
   { k: 'bonus', ic: 'wine', t: 'BONUS: VINO E GRAPPA', s: () => 'vino rosso: le birre arrivano da sole e valgono doppio. Grappa: super salto e sei invincibile', add: a => { a(1, 0, 'wine'); a(1, -.25, 'grappa'); }, ok: d => d.magnets + d.grappas > 0, fail: 'li hai lasciati lì', max: 3 },
-  { k: 'combo', ic: 'flame', t: 'COMBO: BIRRE IN FILA', s: () => 'birre una dietro l’altra = combo ×2, ×3, ×4. Se sbatti o ti infanghi riparte da zero', add: a => { for (let i = 0; i < 8; i++) a(i < 4 ? 0 : 2, -.07 * i, 'coin'); }, ok: d => d.caps >= 6, fail: 'ne hai perse troppe per strada', max: 3 },
+  { k: 'combo', ic: 'flame', t: 'COMBO: BIRRE IN FILA', s: () => 'birre una dietro l’altra = combo ×2, ×3, ×4. Se sbatti o ti infanghi riparte da zero', add: a => [1, 1, 1, 0, 0, 0, 0, 1, 1, 1].forEach((l, i) => a(l, -.07 * i, 'coin')), ok: d => d.caps >= 7, fail: 'ne hai perse troppe per strada', max: 3 },
   { k: 'wheelie', ic: 'wheelie', t: 'IMPENNA', s: () => WHEELIE_TXT() + ' sul dritto: più la tieni, più punti. Sulle radici e nelle pozze vale doppio', pulse: 'wheelie', add: a => { for (let i = 0; i < 4; i++) a(1, -.07 * i, 'coin'); a(1, -.36, 'root'); }, ok: d => d.wheelieMax >= 1, fail: 'tienila su almeno un secondo', max: 3 },
   { k: 'turbo', ic: 'bolt', t: 'TURBO PIENO: USALO!', s: () => 'la barra si riempie con birre, salti e sorpassi. Quando è piena ' + TURBO_TXT(), pulse: 'boost', turbo: true, ok: d => d.turbos > 0, fail: 'il turbo era pieno, usalo!', max: 3, waitMax: 7 },
   { k: 'bar', ic: 'beers', t: 'IL BAR: PASSA SOTTO', s: () => 'un giro di birre e +500, ma dopo la moto balla un po’', bar: true, ok: d => d.bars > 0, fail: 'il bar era dall’altra parte', max: 3 },
@@ -1563,7 +1563,7 @@ function schoolCard(st, extra = '') {
   const el = $('lesson'); if (!el) return;
   const n = SCHOOL.indexOf(st);
   el.innerHTML = `<small>GIRO DI PROVA · ${n + 1}/${SCHOOL.length}</small><b>${icon(st.ic)} ${st.t}</b><span>${st.s()}</span>${extra}`;
-  el.classList.remove('show', 'ok', 'no'); void el.offsetWidth; el.classList.add('show');
+  el.classList.remove('show', 'ok', 'no', 'mini'); void el.offsetWidth; el.classList.add('show');
 }
 function schoolSnap() { const o = {}; for (const k of SCHOOL_KEYS) o[k] = run[k] || 0; o.wm = run.wheelieMax || 0; return o; }
 function schoolBegin(i) {
@@ -1581,6 +1581,7 @@ function schoolSpawn() {
   else if (st.add) st.add(add);
   sch.objs = objects.filter(o => !before.has(o));
   sch.snap = schoolSnap(); sch.phase = 'run'; sch.t = 0;
+  if (innerWidth > innerHeight) $('lesson')?.classList.add('mini');   // v145.1 · in orizzontale, mentre guidi, solo il titolo
 }
 function schoolTick(dt) {
   if (!P.MODES[mode].school || state !== 'playing') return;
