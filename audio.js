@@ -216,6 +216,20 @@ export async function testVoices(onStep) {
   }
   onStep?.('fine', true, ctx.state);
 }
+// v145 · Giro di prova: le spiegazioni con la voce del Gabbah (MP3 in audio/scuola/, caricati quando parte la scuola)
+const schoolBuf = new Map();
+function schoolClip(key) {
+  if (schoolBuf.has(key)) return schoolBuf.get(key);
+  const p = fetch('audio/scuola/' + key + '.mp3').then(r => r.ok ? r.arrayBuffer() : null).then(b => b && ensure() ? ctx.decodeAudioData(b) : null).catch(() => null);
+  schoolBuf.set(key, p); return p;
+}
+export function preloadSchool(keys) { if (ensure()) for (const k of keys) schoolClip(k); }
+export async function saySchool(key) {
+  if (!enabled || !ensure()) return 0;
+  const buf = await schoolClip(key);
+  if (!buf || !enabled) return 0;
+  playVoice(buf); return buf.duration;
+}
 // ---------- Battute dei piloti (voci registrate su ElevenLabs) ----------
 // Chiavi: <pilota>_start (partenza), <pilota>_hit (botta), <pilota>_win (arrivo).
 // v80 · le battute (670 KB) si caricano dopo il menu, non bloccano l'avvio

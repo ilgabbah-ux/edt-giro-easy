@@ -2052,3 +2052,22 @@ aside#hub { gap: 10px; }
 .sukawa svg { width: 18px; height: 18px; }
 .wskip { display: block; margin: 4px auto 8px; }
 .sukachip.mine { background: linear-gradient(90deg, #3a2f08, #1a1210); border-left-color: #ffcf16; }
+/* v145 · giro di prova: cartello fisso della tappa */
+.lesson { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); width: min(92vw, 520px); z-index: 6; pointer-events: none; display: none; flex-direction: column; gap: 3px; padding: 10px 16px 12px; background: #0b0c09e6; color: #fff; border-left: 5px solid var(--y); clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); box-shadow: 0 8px 24px #0008; }
+.lesson.show { display: flex; animation: lessonIn .35s ease-out; }
+.lesson small { font: 800 10px var(--ui); letter-spacing: 2px; color: var(--y); }
+.lesson b { display: flex; align-items: center; gap: 8px; font: italic 400 clamp(20px, 5.4vw, 28px)/1.05 var(--display); text-transform: uppercase; }
+.lesson b svg { width: 1.1em; height: 1.1em; flex: none; color: var(--y); }
+.lesson span { font: 600 clamp(13px, 3.6vw, 15px)/1.3 var(--ui); color: #f0e6d6; }
+.lesson i { font: italic 800 11px var(--ui); letter-spacing: 1.5px; color: #ff9b8a; }
+.lesson.ok { border-left-color: #3fd17f; background: #0d2a18e6; } .lesson.ok small { color: #3fd17f; }
+.lesson.no { border-left-color: #ff3b3b; background: #2a0f0fe6; animation: lessonNo .35s; }
+@keyframes lessonIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translateX(-50%); } }
+@keyframes lessonNo { 25% { transform: translateX(calc(-50% - 6px)); } 75% { transform: translateX(calc(-50% + 6px)); } }
+@media (orientation: landscape) and (max-height: 620px) { .lesson { top: 46px; width: min(60vw, 480px); padding: 7px 12px 8px; } .lesson b { font-size: 19px; } .lesson span { font-size: 12.5px; } }
+.game.paused .lesson { visibility: hidden; }
+.sukachip.school { background: linear-gradient(90deg, #163a5c, #10151a); border-left-color: #4aa3ff; } .sukachip.school small { color: #8cc8ff; }
+.schooltips { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.schooltips li { display: grid; grid-template-columns: 22px auto; column-gap: 8px; align-items: center; }
+.schooltips li svg { width: 20px; height: 20px; color: #ffcf16; grid-row: span 2; }
+.schooltips li b { font: italic 400 16px/1 var(--display); } .schooltips li i { font: 600 12px var(--ui); font-style: normal; color: #cdbfa9; }
