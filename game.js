@@ -4554,17 +4554,23 @@ if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.ED
 // versione nuova quando torni al gioco e ogni 10 minuti nel menu; se c'è e non stai correndo, si ricarica da solo.
 if (location.protocol === 'https:' && !window.EDT_PUBLIC_URL) {
   const mine = (import.meta.url.match(/[?&]v=([0-9a-z]+)/) || [])[1] || '';
-  let lastCheck = Date.now(), updating = false;
+  let lastCheck = 0, updating = false;   // v146 · controlla subito all'apertura (prima solo dopo un minuto)
   const checkUpdate = () => {
-    if (!mine || updating || Date.now() - lastCheck < 60000) return; lastCheck = Date.now();
+    if (!mine || updating || Date.now() - lastCheck < 20000) return; lastCheck = Date.now();
     fetch('./index.html?u=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(html => {
       const live = (html.match(/game\.js\?v=([0-9a-z]+)/) || [])[1];
       if (!live || live === mine) return;
-      const go = () => { if (state === 'ready') { updating = true; toast('NUOVA VERSIONE DEL GIOCO: AGGIORNO…', 'gold'); setTimeout(() => location.reload(), 1200); } else setTimeout(go, 3000); };   // v125.3 · si aggiorna nel menu, non sulla scheda del risultato
+      const go = () => { if (state === 'ready') {
+        // v146 · niente giri a vuoto: al massimo 2 ricariche ogni 10 minuti; l'indirizzo cambia così nessuna cache ridà la versione vecchia
+        let n = []; try { n = JSON.parse(sessionStorage.getItem('edt-upd') || '[]').filter(t => Date.now() - t < 600000); } catch {}
+        if (n.length >= 2) return; n.push(Date.now()); try { sessionStorage.setItem('edt-upd', JSON.stringify(n)); } catch {}
+        updating = true; toast('NUOVA VERSIONE DEL GIOCO: AGGIORNO…', 'gold');
+        const u = new URL(location.href); u.searchParams.set('u', live); setTimeout(() => location.replace(u.toString()), 900); } else setTimeout(go, 3000); };   // v125.3 · si aggiorna nel menu, non sulla scheda del risultato
       go();
     }).catch(() => {});
   };
   window.__edtCheckUpdate = checkUpdate;
+  setTimeout(checkUpdate, 2500);   // v146 · appena aperto: se il telefono ha tenuto una versione vecchia, si aggiorna subito nel menu
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
   setInterval(() => { if (!document.hidden && (state === 'ready' || state === 'ended')) checkUpdate(); }, 120000);   // v125.3 · ogni 2 minuti (prima 10)
 }
