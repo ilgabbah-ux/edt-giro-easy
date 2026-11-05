@@ -227,7 +227,7 @@ function players_() {
 function bump_(grp) { try { const c = CacheService.getScriptCache(); c.put('ver|' + grp, String(Date.now()), 21600); } catch (e) {} }
 
 // v129 · NUMERI DEL GIOCO (pagina numeri.html): telefoni al giorno, provenienza, ritorni, primo giro finito, percorsi. Solo conteggi, niente dati personali. In cache 5 minuti.
-const TRACK_NAMES = { 0: 'Giro easy', 1: 'Dopo migliora', 2: 'Angelo Potter', 3: 'Sfida del giorno', 9: 'Ice Scrofy', 10: 'MotoFogna', 11: 'Valle Argentera', 12: 'MontaFiga', 13: 'Anti-GEV', 14: 'Gusta Ranch', 15: 'Frontali', 16: 'Desertone', 17: 'Christmas Madness' };
+const TRACK_NAMES = { 0: 'Giro easy', 1: 'Dopo migliora', 2: 'Angelo Potter', 3: 'Sfida del giorno', 9: 'Ice Scrofy', 10: 'MotoFogna', 11: 'Valle Argentera', 12: 'MontaFiga', 13: 'Anti-GEV', 14: 'Gusta Ranch', 15: 'Frontali', 16: 'Desertone', 17: 'Christmas Madness', 18: 'Leventino', 20: 'Mirco e Gabbah Fest', 21: 'Leventino Vietnam' };
 function stats_() {
   const c = CacheService.getScriptCache(); const hit = c.get('stats'); if (hit) return JSON.parse(hit);
   const s = visits_(), last = s.getLastRow(), rows = last > 1 ? s.getRange(2, 2, last - 1, 5).getValues() : [];

@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
-import { createWorld } from './scene3d.js?v=d5fb2633';
+import { createWorld } from './scene3d.js?v=fdf1f3b8';
 import * as A from './audio.js?v=698e13bb';
 import * as P from './progress.js?v=11428cbc';
 import { createMud } from './mudfx.js?v=ae45cf9e';
@@ -635,7 +635,7 @@ function resetRun() {
 function start() {
   quietMenu = false;
   A.voicesSoon?.();
-  world?.preloadObstacles?.();   // v107.2 · al primo giro arrivano i modelli degli ostacoli
+  { const md = P.MODES[mode]; world?.preloadObstacles?.(['log', 'bigLog', ...Object.values(md.obs || {}).flat(), ...SECTION_OBS.flat(), ...(md.ranch ? ['cow', 'trincia', 'hen', 'hay'] : [])]); }   // v146 · solo gli ostacoli di questo percorso
   try { world?.warmUp?.(); } catch {}
   C.hit('play', String(GAME_VERSION));
   world?.resetPerf?.();   // v108 · shader e texture pronti prima del via: niente scatti alla prima apparizione
@@ -3195,6 +3195,25 @@ function renderChamp() {
     renderReady(); champRun = true; start();
   };
 }
+// v146 · risultati più corti: al massimo 2 avvisi in vista, gli altri chiusi in «ALTRE NOVITÀ»
+function resNudges(list) {
+  const l = list.filter(h => h && h.trim());
+  if (l.length <= 2) return l.join('');
+  return l.slice(0, 2).join('') + `<details class="resmore"><summary>${icon('chevrons')} ALTRE NOVITÀ (${l.length - 2})</summary>${l.slice(2).join('')}</details>`;
+}
+// v146 · dopo l'arrivo: «PROSSIMO PERCORSO» per far girare i giocatori su tutti i tracciati
+function nextTrack() {
+  const md = P.MODES[mode]; if (md.school || md.id === 3 || champRun || duel?.racing || md.leap) return null;
+  const list = P.SHOWN().filter(m => m.id !== 3 && !m.leap && P.isUnlocked(m, P.levelInfo().level));
+  const i = list.findIndex(m => m.id === mode); if (i < 0 || list.length < 2) return null;
+  const fresh = list.find((m, k) => k > i && !P.bestFor(m.id)) || list.find(m => m.id !== mode && !P.bestFor(m.id));
+  return fresh || list[(i + 1) % list.length];
+}
+function nextTrackHTML(win) {
+  if (!win) return ''; const n = nextTrack(); if (!n) return '';
+  return `<button class="nexttrack" id="nexttrack" type="button"><img src="${trackArtOf(n)}" alt=""><span><small>PROSSIMO PERCORSO</small><b>${n.name}</b><em>${n.limit} s · ${TRACK_INFO[n.id]?.tipo || ''}${P.bestFor(n.id) ? '' : ' · mai fatto'}</em></span>${icon('chevrons')}</button>`;
+}
+function nextTrackGo() { const n = nextTrack(); if (!n) return; A.sfx.click(); mode = n.id; profile.mode = mode; P.save(); renderReady(); start(); }
 function againGo() {
   if (P.MODES[mode].school && P.profile.schoolDone) { mode = 0; profile.mode = 0; P.save(); renderReady(); start(); return; }   // v140 · dopo il diploma si parte col Giro Easy
   if (champRun && P.champ()) { renderChamp(); return; }
@@ -3504,8 +3523,8 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
       ${leap || ice ? '' : `<div><b>${run.hits}</b><small>CADUTE</small></div>`}
       <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
     </div>
-    ${schoolResHTML(win, res)}${sukaResHTML(win)}${edtNudgeHTML()}${champResHTML(res.champ)}${starResHTML(res)}${installNudgeHTML(win)}${tomorrowHTML()}
-    ${shopNudgeHTML()}
+    ${nextTrackHTML(win)}
+    ${resNudges([schoolResHTML(win, res), sukaResHTML(win), champResHTML(res.champ), starResHTML(res), edtNudgeHTML(), tomorrowHTML(), installNudgeHTML(win), shopNudgeHTML()])}
     ${res.weeklyDone?.length ? `<div class="donelist weeklydone">${res.weeklyDone.map(c => `<div><span>🗓 MISSIONE DELLA SETTIMANA: ${c.text}</span><b>+${c.beers} 🍺</b></div>`).join('')}</div>` : ''}
     ${res.completed.length ? `<div class="donelist">${res.completed.map(c => `<div><span>✔ ${c.text}</span><b>+${c.xp} XP</b></div>`).join('')}</div>` : ''}
     <div class="loot">
@@ -3538,7 +3557,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     toast('🏁 BENVENUTO NELL’EDT: DAL PROSSIMO GIRO SEI NELLA CLASSIFICA DEGLI AMICI', 'green');
     document.querySelector('.edtnudge')?.remove(); renderSide();
   });
-  $('again').onclick = againGo;
+  $('again').onclick = againGo; $('nexttrack')?.addEventListener('click', nextTrackGo);
   drawDuelResult();
   if ($('menu')) $('menu').onclick = renderReady;
   $('shopres').onclick = () => renderShop(renderReady);

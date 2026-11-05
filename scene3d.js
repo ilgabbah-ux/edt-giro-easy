@@ -1824,7 +1824,7 @@ export function createWorld(canvas) {
     loadBikeGlb(key, use);
   }
   const riderY0 = rider.position.y;
-  loadBikeGlb('enduro_lo', () => {}); loadBikeGlb('fakedomi', () => {});   // v144 · la Fake Domi serve anche al Gabbah avversario   // i compagni usano la moto vera in versione leggera: la carichiamo subito
+  loadBikeGlb('enduro_lo', () => {});   // i compagni usano la moto vera in versione leggera: la carichiamo subito
   function syncBikeModel() {
     helmTint.value.set(helmetMat.map && helmetMat.userData.base ? helmetMat.userData.base : helmetMat.color);
     if (riderGlb) { if (jerseyMat.map && jerseyMat.userData.base) riderJerseyTint.value.set(jerseyMat.userData.base); else riderJerseyTint.value.copy(jerseyMat.color); riderPantsTint.value.copy(pantsMat.color); }
@@ -2107,8 +2107,8 @@ export function createWorld(canvas) {
     for (const t of Object.keys(OBJ_GLB)) if (OBJ_GLB[t][0] === k && pools[t]) pools[t].length = 0;   // i prossimi oggetti nascono già col modello vero
     warmSoon(k);
   }, undefined, () => {}); }
-  function preloadObstacles() { for (const k of new Set(Object.values(OBJ_GLB).map(v => v[0]))) loadObsGlb(k); }
-  setTimeout(preloadObstacles, 30000);   // v116 · nel menu non rubano rete a moto, pilota e pista: partono al via del primo giro (o dopo 30 s)   // v108 · prima: così i modelli arrivano (e si preparano) mentre sei ancora nel menu   // se non parti subito, si scaricano comunque con calma
+  // v146 · si scaricano solo i modelli degli ostacoli del percorso che stai per fare (gli altri arrivano quando servono)
+  function preloadObstacles(types) { const list = types ? types.filter(t => OBJ_GLB[t]).map(t => OBJ_GLB[t][0]) : Object.values(OBJ_GLB).map(v => v[0]); for (const k of new Set(list)) loadObsGlb(k); }   // v116 · nel menu non rubano rete a moto, pilota e pista: partono al via del primo giro (o dopo 30 s)   // v108 · prima: così i modelli arrivano (e si preparano) mentre sei ancora nel menu   // se non parti subito, si scaricano comunque con calma
   const _bx = new T.Box3(), _bm = new T.Matrix4();
   function glbSwap(g, type) {
     const spec = OBJ_GLB[type]; const G = spec && objGlb[spec[0]]; if (!G) return;
@@ -2909,7 +2909,8 @@ export function createWorld(canvas) {
   const rivalMats = ['plastic', 'accent', 'jersey', 'pants', 'helmet'];
   // v105 · compagni con moto e pilota veri (stessi modelli del giocatore), ognuno con le sue tinte
   const rivalGlbReady = () => !!(riderGlb && riderStatic && helmGlb && glbCache.enduro_lo && glbCache.enduro_lo !== 'loading');
-  const gabbahFd = r => /gabbah/i.test(r.name || '') && !!glbCache.fakedomi && glbCache.fakedomi !== 'loading';
+  let fdAsked = false;
+  const gabbahFd = r => { if (!/gabbah/i.test(r.name || '')) return false; if (!fdAsked) { fdAsked = true; loadBikeGlb('fakedomi', () => {}); } return !!glbCache.fakedomi && glbCache.fakedomi !== 'loading'; };   // v146 · la Fake Domi si scarica solo quando il Gabbah è in gara
   function makeRivalGlb(r) {
     const fd = gabbahFd(r), G = fd ? glbCache.fakedomi : glbCache.enduro_lo, fit = fd ? BIKE_FIT.fakedomi : BIKE_FIT.enduro;   // v144 · il Gabbah corre con la sua Fake Domi
     const bT = { value: new T.Color(fd ? '#f4f4f4' : r.livery.plastic) }, jT = { value: new T.Color(r.livery.jersey) }, pT = { value: new T.Color(r.livery.pants) };

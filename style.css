@@ -2077,3 +2077,11 @@ aside#hub { gap: 10px; }
 .schooltips li { display: grid; grid-template-columns: 22px auto; column-gap: 8px; align-items: center; }
 .schooltips li svg { width: 20px; height: 20px; color: #ffcf16; grid-row: span 2; }
 .schooltips li b { font: italic 400 16px/1 var(--display); } .schooltips li i { font: 600 12px var(--ui); font-style: normal; color: #cdbfa9; }
+/* v146 · risultati: prossimo percorso e avvisi raccolti */
+.nexttrack { width: 100%; display: flex; align-items: center; gap: 12px; margin: 12px 0 6px; padding: 8px 14px 8px 8px; border: 0; cursor: pointer; text-align: left; color: #fff; background: linear-gradient(90deg, #2c2a12, #15160f); border-left: 4px solid var(--y); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+.nexttrack img { width: 74px; height: 56px; object-fit: cover; flex: none; }
+.nexttrack span { display: flex; flex-direction: column; gap: 2px; flex: 1; } .nexttrack small { font: 800 10px var(--ui); letter-spacing: 2px; color: var(--y); }
+.nexttrack b { font: italic 400 22px/1 var(--display); text-transform: uppercase; } .nexttrack em { font: 600 12px var(--ui); font-style: normal; color: #cdbfa9; }
+.nexttrack > svg { width: 22px; height: 22px; color: var(--y); flex: none; }
+.resmore { margin: 8px 0; } .resmore > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: #ffffff0d; font: 800 12px var(--ui); letter-spacing: 1.5px; color: #e9dccb; }
+.resmore > summary::-webkit-details-marker { display: none; } .resmore > summary svg { width: 14px; height: 14px; transition: transform .2s; } .resmore[open] > summary svg { transform: rotate(90deg); }
