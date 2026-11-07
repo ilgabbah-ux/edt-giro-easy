@@ -56,11 +56,20 @@ function hash_(k) { return Utilities.base64Encode(Utilities.computeDigest(Utilit
 // true = il nome si può usare con questo codice (e se era libero viene prenotato)
 function claim_(name, k) {
   const s = names_(), last = s.getLastRow(), key = name.toLowerCase();
-  const rows = last > 1 ? s.getRange(2, 1, last - 1, 2).getValues() : [];
-  const row = rows.find(r => String(r[0]) === key);
-  if (row) return !!k && row[1] === hash_(k);
+  const rng = last > 1 ? s.getRange(2, 1, last - 1, 2) : null;
+  const rows = rng ? rng.getValues() : [];
+  const i = rows.findIndex(r => String(r[0]) === key);
+  if (i >= 0) {
+    if (!k) return false;
+    const h = hash_(k), v = rows[i][1];
+    if (v === h) return true;
+    // v148 · impronte che iniziano con "+" finivano lette come formula (#NAME?): le riconosco dalla formula e le riparo
+    const f = String(s.getRange(i + 2, 2).getFormula() || '').replace(/^=/, '');
+    if (f === h) { s.getRange(i + 2, 2).setValue("'" + h); return true; }
+    return false;
+  }
   if (!k) return true;   // client vecchio su nome libero: passa ma non prenota
-  s.appendRow([key, hash_(k), new Date()]);
+  s.appendRow([key, "'" + hash_(k), new Date()]);   // v148 · l'apostrofo tiene l'impronta come testo
   return true;
 }
 

@@ -1850,7 +1850,7 @@ export function createWorld(canvas) {
     const cam = new T.PerspectiveCamera(30, 1, .1, 60);
     const holder = new T.Group(); sc.add(holder);
     const floor = new T.Mesh(new T.CircleGeometry(1.9, 48), new T.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: .35, depthWrite: false })); floor.rotation.x = -Math.PI / 2; floor.position.y = .01; sc.add(floor);
-    let key = '', model = null, ang = .7, vis = true, raf = 0, last = 0;
+    let key = '', model = null, ang = 0, vis = true, raf = 0, last = 0;
     const hideMats = new Set([flameMat, flameCore.material, magnetAura.material, auraMaterial]);
     function rebuild() {
       if (model) holder.remove(model);
@@ -1869,7 +1869,7 @@ export function createWorld(canvas) {
         const w = cv.clientWidth, h = cv.clientHeight;
         if (w && h && (cv.width !== Math.round(w * r2.getPixelRatio()) || cv.height !== Math.round(h * r2.getPixelRatio()))) { r2.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
         const d = cam.aspect < 1.2 ? 6.6 : 5.6; cam.position.set(Math.sin(.6) * d, 2.3, Math.cos(.6) * d); cam.lookAt(0, 1.05, 0);
-        ang += .018; holder.rotation.y = ang;
+        holder.rotation.y = 2.17 + ang + Math.sin(t / 1900) * .55;   // v148 · garage: moto di fianco che ondeggia (prima girava e spesso si vedeva da dietro)
         r2.render(sc, cam);
       }
       raf = requestAnimationFrame(tick);

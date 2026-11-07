@@ -244,7 +244,7 @@ const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RU
 const rule = id => mode === 3 && dailyRule().id === id;
 const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
-const TRACK_ART_FILE = { 2: 'angelo-potter', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness', 18: 'leventino', 20: 'mirco-gabbah-fest', 21: 'leventino-vietnam-2' };
+const TRACK_ART_FILE = { 2: 'angelo-potter-card', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness', 18: 'leventino', 20: 'mirco-gabbah-fest', 21: 'leventino-vietnam-2' };
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
 const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
@@ -1076,6 +1076,7 @@ document.querySelectorAll('aside > .panel').forEach(sec => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && maxPanel) closePanel(true); });
 // v53 · i pannelli a lato sono schede: se ne vede una alla volta
+function extraOpen() { try { return localStorage.getItem('edt-extra') === '1'; } catch { return false; } }   // v148 · sfide ed extra: chiuse di base, si ricorda se le apri
 function showHub(name) {
   $('hub').dataset.hub = name;
   document.querySelectorAll('[data-hubtab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.hubtab === name)));
@@ -3393,14 +3394,10 @@ function renderReady() {
     </div>
     <div class="hsec">${icon('calendar')} OGGI</div>
     <div class="oggibox">${dailyChipHTML()}${goalChipHTML()}${P.MODES[mode].leap ? '' : derbyChipHTML()}</div>
-    ${C.enabled() ? '<div class="potw" id="potw" hidden></div><button class="rivalbar" id="rivalbar" type="button" hidden></button>' : ''}
     ${C.enabled() ? '<button class="cupbar" id="cupbar" type="button" hidden><span class="cupi">🏆</span><span class="cupt"><small>COPPA DELLA SETTIMANA</small><b id="cuplead">…</b><em id="cupme"></em></span><span class="cupx" id="cupprev"></span></button>' : ''}
-    <div class="hsec">${icon('swords')} SFIDE ED EXTRA</div>
     ${xmasChipHTML()}
     ${starterHTML()}
-    ${schoolChipHTML()}${sukaChipHTML()}${champChipHTML()}
-    <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
-    ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
+    ${schoolChipHTML()}
     <div class="quickrow">
       <button class="qbtn" id="opengarage" type="button"><span class="qi">🎨</span><b>GARAGE</b><small>livree e moto</small></button>
       <button class="qbtn" id="openshop" type="button"><span class="qi">🔧</span><b>OFFICINA</b><small>${P.profile.beers} 🍺</small></button>
@@ -3408,17 +3405,25 @@ function renderReady() {
       <button class="qbtn" id="openmissions" type="button" aria-expanded="false"><span class="qi">🏁</span><b>MISSIONI</b><small>${missions.length} attive · 🗓 ${P.weeklyMissions().filter(m => m.done).length}/3</small></button>
     </div>
     <div class="missions" id="missionbox" hidden><ul>${missionsHTML()}</ul><button class="linkbtn statsbtn" type="button" id="openstats">⏱ STATISTICHE E TROFEI ›</button><div class="wkhead">🗓 MISSIONI DELLA SETTIMANA · uguali per tutti, cambiano il lunedì</div><ul class="weekly">${P.weeklyMissions().map(m => `<li class="${m.done ? 'done' : ''}"><span class="mtext">${m.done ? '✔ ' : ''}${m.text}</span><span class="mxp">+${m.beers} 🍺</span></li>`).join('')}</ul></div>
+    <details class="extrabox" id="extrabox"${extraOpen() ? ' open' : ''}><summary>${icon('swords')} SFIDE, CAMPIONATO ED EXTRA<span class="exsub">campionato · rivale · stelle · radio · 1 contro 1</span></summary>
+    ${C.enabled() ? '<div class="potw" id="potw" hidden></div><button class="rivalbar" id="rivalbar" type="button" hidden></button>' : ''}
+    ${sukaChipHTML()}${champChipHTML()}
+    <button class="secondary duelbtn" id="duelbtn" type="button">⚔️ SFIDA 1 CONTRO 1 DAL VIVO${duel && D.isOn() ? ' · CON ' + duel.opp.n.toUpperCase() : ''}</button>
+    ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
+    </details>
     <details class="menufoot setbox"><summary>${icon('gear')} IMPOSTAZIONI</summary>
-      <button class="mini" id="schoolmenu" type="button">${icon('book')} GIRO DI PROVA</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
+      <button class="mini" id="schoolmenu" type="button">${icon('book')} GIRO DI PROVA</button><button class="mini" id="rulesmenu" type="button">📖 REGOLE</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}<a class="mini" href="privacy.html" target="_blank" rel="noopener">🔒 PRIVACY</a>
     </details>
-    <p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → sterzo · SPAZIO salta · V (o W) gas · B turbo · S impenna</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>`;
+    ${(P.profile.totals?.runs || 0) < 3 ? `<p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → sterzo · SPAZIO salta · V (o W) gas · B turbo · S impenna</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>` : ''}`;
   if ($('openstats')) $('openstats').onclick = () => { A.sfx.click(); showStats(); };
   $('openmissions').onclick = () => { const box = $('missionbox'), open = box.hidden; box.hidden = !open; $('openmissions').setAttribute('aria-expanded', String(open)); $('openmissions').classList.toggle('on', open); A.sfx.click(); };
   requestAnimationFrame(() => { const act = document.querySelector('.modes .mode.active'); if (act) act.parentElement.scrollLeft = act.offsetLeft - act.parentElement.clientWidth / 2 + act.offsetWidth / 2; });
   iconizeEl($('card'));
   $('start').onclick = () => { if (duel) duel.racing = false; start(); };
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
+  $('extrabox')?.addEventListener('toggle', e => { try { localStorage.setItem('edt-extra', e.target.open ? '1' : '0'); } catch {} });
+  $('rulesmenu')?.addEventListener('click', () => { A.sfx.click(); showHub('regole'); document.querySelector('[data-hub="regole"].panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   $('champchip').onclick = () => { A.sfx.click(); renderChamp(); };   // v130
   $('starchip').onclick = () => { A.sfx.click(); renderStars(); };
   $('schoolmenu').onclick = () => { A.sfx.click(); mode = 22; renderReady(); start(); };   // v140
@@ -3680,6 +3685,7 @@ function showPodium(w) {
   topLayer().appendChild(el);
   A.sfx.perfect?.();
   $('podok').onclick = () => el.remove();
+  el.addEventListener('click', e => { if (e.target === el) el.remove(); });   // v148 · si chiude anche toccando fuori
 }
 // v106.6 · festa al traguardo (stile comprato in officina): coriandoli, pioggia di birre o fuochi d'artificio
 function celebrate(kind) {
@@ -4132,10 +4138,20 @@ function renderWelcome() {
     <button class="secondary" id="wcustom" type="button">${icon('helmet')} PRIMA CREA IL TUO PILOTA</button>
     <ul class="wfacts"><li>${icon('pad')} Gratis, dal telefono o dal computer: niente da installare</li><li>${icon('helmet')} Corri coi piloti veri dell'Enduro Drinking Team… o crea il tuo</li><li>${icon('trophy')} Classifica online con chiunque giochi</li></ul>
     <button class="linkbtn wvideo" id="wvideo" type="button">▶ GUARDA COME SI GIOCA · 30 s</button>
+    ${C.enabled() ? `<details class="wback"><summary>🔒 Giocavi già su un altro telefono o tablet? <b>Riprendi il tuo nome</b></summary>
+      <form class="nickrow pform" id="wbackform"><input id="wbnick" maxlength="16" autocomplete="nickname" placeholder="il tuo nome in classifica"><input id="wbcode" maxlength="12" autocomplete="off" placeholder="codice pilota"><button class="primary" type="submit"><span>ENTRA</span></button></form>
+      <p class="note">Il <b>codice pilota</b> lo trovi sull'altro telefono: Classifica → in fondo, 6 lettere gialle. Così i tuoi giri vanno in classifica col tuo nome.</p></details>` : ''}
   </div>`;
   iconizeEl($('card'));
   $('wcustom').onclick = () => { A.unlock(); A.sfx.click(); renderCustom(renderReady); };
   $('wvideo').onclick = () => { A.sfx.click(); showHowVideo(); };
+  $('wbackform')?.addEventListener('submit', e => {   // v148 · telefono nuovo (o app appena installata): riprendi nome e codice subito, prima di giocare
+    e.preventDefault(); const n = C.cleanNick($('wbnick').value), c = $('wbcode').value;
+    if (!n) { toast('SCRIVI IL TUO NOME IN CLASSIFICA', 'red'); return; }
+    if (C.setCode(c).length < 4) { toast('🔒 SCRIVI IL CODICE DELL’ALTRO TELEFONO', 'red'); return; }
+    A.unlock(); A.sfx.click(); C.setNick(n); P.profile.schoolDone = 1; P.profile.tutorialDone = true; P.save();
+    toast('🔒 FATTO: SEI ' + n.toUpperCase() + ' ANCHE QUI', 'green'); C.load(true).catch(() => {}); renderSide(); renderReady();
+  });
   $('wskip').onclick = () => { A.unlock(); A.sfx.click(); P.profile.schoolDone = 1; P.save(); mode = 0; renderReady(); start(); };   // v140
   $('wplay').onclick = () => { A.unlock(); A.sfx.click(); if (!P.profile.schoolDone && !(P.profile.totals?.runs > 0)) { mode = 22; renderReady(); start(); return; }   // v140 · prima la scuola di enduro
     if (profile.rider === RIDERS[0] && !(profile.xp > 0)) { profile.rider = RIDERS[1 + Math.floor(Math.random() * (RIDERS.length - 1))]; P.save(); renderSide(); } renderReady(); start(); };   // v125.3 · non tutti col Gabbah   // parte subito: il primo giro è quello guidato
