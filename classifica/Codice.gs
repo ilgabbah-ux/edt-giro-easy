@@ -1,3 +1,6 @@
+// ⚠️ ATTENZIONE (7/11/2026): lo script pubblicato (deployment v21) contiene ANCHE il salvataggio cloud di EDT Kingdom
+//    (riga 'cloudsave/cloudload' in doGet + funzione cloud_ in fondo, foglio "Salvataggi"), che NON è in questa copia.
+//    Per aggiornare: modificare lo script nell'editor Apps Script, MAI sostituirlo intero con questo file.
 // EDT Giro Easy · Classifica del gruppo (Google Apps Script; i dati vanno nel foglio "Giro Easy · Classifica" su Drive)
 // Pubblicato come app web: Esegui come "Me", accesso "Chiunque".
 // GET ?action=top                 → classifiche di tutti i percorsi (migliori 10, un record per nome) + coppa della settimana
