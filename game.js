@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
-import { createWorld } from './scene3d.js?v=fdf1f3b8';
+import { createWorld } from './scene3d.js?v=c0fc7cd9';
 import * as A from './audio.js?v=698e13bb';
 import * as P from './progress.js?v=11428cbc';
 import { createMud } from './mudfx.js?v=ae45cf9e';
@@ -3671,7 +3671,7 @@ function showStats() {
 }
 // v96 · podio del lunedì: alla prima apertura della settimana i primi 3 della coppa appena finita
 function showPodium(w) {
-  if (!w?.prev3?.length || state !== 'ready') return;
+  if (!w?.prev3?.length || state !== 'ready' || !$('game').classList.contains('menu') || $('overlay').classList.contains('hidden')) return;   // v148 · mai sopra la gara (prima poteva arrivare durante la presentazione del percorso)
   let seen = ''; try { seen = localStorage.getItem('edt-podio') || ''; } catch {}
   if (seen === w.from) return;
   try { localStorage.setItem('edt-podio', w.from); } catch {}
