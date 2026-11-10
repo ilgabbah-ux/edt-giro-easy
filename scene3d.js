@@ -1649,7 +1649,7 @@ export function createWorld(canvas) {
     sideDecalTex.needsUpdate = true;
   }
   function applyCustom(look = {}, parts = {}, livery = {}) {
-    const key = JSON.stringify([look, parts.rims?.id, parts.pipe?.id, parts.guards?.id, parts.seat?.id, parts.decal?.id, parts.light?.id, parts.studs?.id, parts.cam?.id, livery.id]);
+    const key = JSON.stringify([look, parts.rims?.id, parts.pipe?.id, parts.guards?.id, parts.seat?.id, parts.decal?.id, parts.light?.id, parts.studs?.id, parts.cam?.id, livery.id, iceMode]);
     if (key === customKey) return; customKey = key;
     rimMat.color.set(parts.rims?.color || '#a3b7bb'); rimMat.metalness = parts.rims?.id === 'black' ? .3 : .7;
     pipeMat.color.set(parts.pipe?.color || '#a3b7bb'); chamberMat.color.copy(pipeMat.color); pipeMat.metalness = chamberMat.metalness = parts.pipe?.id === 'carbon' ? .2 : .75; pipeMat.roughness = chamberMat.roughness = parts.pipe?.id === 'chrome' ? .08 : .3;
@@ -1666,7 +1666,7 @@ export function createWorld(canvas) {
     for (const m of meshesWith(vintageMat)) m.visible = !!look.vintage;
     for (const m of meshesWith(seatMat)) m.visible = !look.trial;
     const st = parts.studs?.id || 'none';
-    for (const sset of studSets) sset.visible = st !== 'none';
+    for (const sset of studSets) sset.visible = st !== 'none' && iceMode;   // v149 · i chiodi si vedono solo su Ice Scrophy (prima comparivano su tutti i percorsi)
     if (st !== 'none') { studMat.color.set(parts.studs.color || '#c9d2d6'); studMat.emissive.set(st === 'icefury' ? '#1a6f9a' : st === 'boanal' ? '#5a4200' : st === 'factory' ? '#8a6400' : '#000000'); studMat.metalness = st === 'puntine' ? .3 : .85; }
     const dk = (look.boanal || look.fakedomi) && (parts.decal?.id || 'none') === 'none' ? (look.fakedomi ? 'fakedomi' : 'boanal') : parts.decal?.id || 'none';
     bike.traverse(o => { if (o.name === 'sidedecal') o.visible = dk !== 'none'; });
