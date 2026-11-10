@@ -3140,7 +3140,7 @@ export function createWorld(canvas) {
     if (q === 9) { for (const m of [tufts, ferns, reeds, flowers, shrubs]) { m.userData.n0 ??= m.count; m.count = 0; } for (const m of [firA, firB, larchCards, leafCards, islandCards, vineLeaf]) m.count = Math.ceil(m.userData.n0 * .35); }
   }
   const bigScreen = () => Math.min(innerWidth, innerHeight) >= 600 && (matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
-  const maxQ = () => bigScreen() ? 6 : (lite ? 5 : 4);   // v117 · niente più gradini 7-9 (materiali semplici, metà vegetazione, risoluzione 0,5): la grafica resta piena, il ritmo lo tiene il blocco a 30 fotogrammi
+  const maxQ = () => bigScreen() ? 6 : (lite ? (frameAvg > 36 ? 7 : 5) : 4);   // v149 · telefoni molto lenti (sotto 28 FPS anche con la grafica leggera): due gradini in più di risoluzione   // v117 · niente più gradini 7-9 (materiali semplici, metà vegetazione, risoluzione 0,5): la grafica resta piena, il ritmo lo tiene il blocco a 30 fotogrammi
   const FOLIAGE = [firA, firB, larchCards, leafCards, islandCards, vineLeaf, tufts, ferns, reeds, shrubs];
   function adaptQuality() {
     if (window.__edtHQ) return;   // solo per le prove: grafica piena fissa
@@ -3151,12 +3151,13 @@ export function createWorld(canvas) {
     // v109.7 · se va molto lento si scende di gradino in fretta
     if (frames > (frameAvg > 40 ? 20 : 90) && frameAvg > (bigScreen() ? 21 : 27) && quality < maxQ()) { frames = 0; goodFrames = 0; quality++; stepQuality(quality); saveQ(quality); }
     // v109.2 · fluidità automatica: al massimo dei gradini e ancora lento per 3 secondi → grafica leggera da sola (una volta, e lo dico)
-    else if (frames > 180 && !lite && !liteManual && frameAvg > (bigScreen() ? 22 : 28) && quality >= maxQ()) { frames = 0; setLite(true, true); onAutoLite?.(); }
+    else if (frames > (frameAvg > 40 ? 90 : 180) && !lite && !liteManual && frameAvg > (bigScreen() ? 22 : 28) && quality >= maxQ()) { frames = 0; setLite(true, true); onAutoLite?.(); }
     if (quality > 0 && frameAvg < (bigScreen() ? 18 : 21)) { if (++goodFrames === 600) saveQ(quality - 1); } else goodFrames = 0;   // va liscio da un pezzo: la prossima volta si riparte un gradino più su
   }
   // v108 · "grafica leggera" scelta a mano dalla pausa, e numeri per il contatore di fluidità
   const LITE_KEY = 'edt-lite', PR0 = pixelRatio, perf = { n: 0, acc: 0, worst: 0, hitches: 0 };
-  let lite = false; try { const v = localStorage.getItem(LITE_KEY); lite = v === null ? bigScreen() : v === '1'; } catch {}   // v108.2 · su tablet (iPad) si parte già con la grafica leggera: si può togliere dalla pausa
+  const weakDevice = () => (navigator.deviceMemory > 0 && navigator.deviceMemory <= 3) || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 4);   // v149 · telefoni economici: si parte già leggeri
+  let lite = false; try { const v = localStorage.getItem(LITE_KEY); lite = v === null ? bigScreen() || weakDevice() : v === '1'; } catch {}   // v108.2 · su tablet (iPad) si parte già con la grafica leggera: si può togliere dalla pausa
   const liteQ = () => bigScreen() ? 5 : 4;
   let liteManual = false, onAutoLite = null; try { liteManual = localStorage.getItem('edt-lite-manual') === '1'; } catch {}
   function setLite(on, auto = false) {

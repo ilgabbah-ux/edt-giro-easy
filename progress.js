@@ -648,3 +648,12 @@ export function recordRun(run) {
   const trophiesNew = checkTrophies();
   return { weeklyDone, completed, isRecord, previousBest, scoreXp, missionsXp, before, after, unlocked, position, beersEarned, weeklyX2, prize, wallet: data.beers, trophiesNew };
 }
+
+// v149 · progressi nel cloud: cosa si salva (tutto tranne la classifica del bar, che resta del telefono) e come si rimette
+export function cloudSnapshot() { const o = { ...data }; delete o.board; return { v: 1, data: o }; }
+export function cloudApply(snap) {
+  if (!snap || snap.v !== 1 || !snap.data || typeof snap.data !== 'object') return false;
+  const keep = data.board || {};
+  try { localStorage.setItem(KEY, JSON.stringify({ ...snap.data, board: keep })); return true; } catch { return false; }
+}
+export const progressScore = (o = data) => Math.round((o.xp || 0) + (o.beers || 0) / 10 + Object.values(o.upgrades || {}).reduce((a, b) => a + b, 0) * 50);

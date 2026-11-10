@@ -195,6 +195,8 @@ function report_(p) {
 }
 function doPost(e) {
   let p = {}; try { p = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (err) {}
+  if (p.action === 'gesave') { let r; try { r = geSave_(p); } catch (err) { r = { ok: true, ge: true, err: 'busy' }; } return reply_(r); }   // v149
+  if (p.action === 'problema') { try { problem_(p); } catch (err) {} return reply_({ ok: true }); }   // v149
   if (p.action !== 'foto') return reply_({ ok: false });
   const name = clean_(p.name, 16), key = name.toLowerCase(), img = String(p.img || '');
   const k = /^[a-z0-9]{4,12}$/.test(p.k || '') ? p.k : '';
@@ -288,6 +290,7 @@ function doGet(e) {
   if (p.action === 'hit') { try { hit_(p, day); } catch (err) {} return reply_({ ok: true }, p.callback); }
   if (p.action === 'stats') { let st = {}; try { st = stats_(); } catch (err) { st = { err: String(err) }; } return reply_({ ok: true, stats: st }, p.callback); }
   if (p.action === 'segnala') { try { report_(p); } catch (err) {} return reply_({ ok: true }, p.callback); }   // v146
+  if (p.action === 'geload') { let r; try { r = geLoad_(p); } catch (err) { r = { ok: true, ge: true, err: 'busy' }; } return reply_(r, p.callback); }   // v149 · progressi di Giro Easy
   if (p.action === 'foto') { const n = String(p.n || '').toLowerCase().split(',').map(x => clean_(x, 16)).filter(Boolean).slice(0, 40); let f = {}; try { f = photoGet_(n); } catch (err) {} return reply_({ ok: true, f: f }, p.callback); }
   let saved = false, taken = false, edtName = false;
   if (p.action === 'add') {
@@ -322,4 +325,70 @@ function doGet(e) {
   let players = 0; try { players = players_(); } catch (err) {}
   let fv = {}; try { fv = photoVers_(); } catch (err) {}
   return reply_({ ok: true, iceDesc: true, players: players, fv: fv, grp: grp, edtName: edtName, saved: saved, taken: taken, day: day, minv: minv, boards: b.out, times: b.times, week: b.week }, p.callback);
+}
+
+// v149 · PROGRESSI DI GIRO EASY NEL CLOUD: livello, birre, officina, moto, maglie… legati al nome e al codice pilota.
+// Su un telefono nuovo: nome + codice → si ricaricano. Foglio "Progressi Giro Easy" (separato dai Salvataggi di EDT Kingdom).
+// POST {action:'gesave', name, k, data, lv, beers}   → { ge: true, saved }  (taken: il nome è di un altro codice)
+// GET  ?action=geload&name=..&k=..                   → { ge: true, owner, edtName, data, at, lv, beers }
+//      owner = il codice è quello giusto per il nome (e se il nome è di un pilota EDT, il gioco entra nella classifica EDT)
+function geSaves_() {
+  const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
+  let s = ss.getSheetByName('Progressi Giro Easy');
+  if (!s) { s = ss.insertSheet('Progressi Giro Easy'); s.getRange(1, 1, 1, 6).setValues([['Nome', 'Impronta codice', 'Dati', 'Aggiornato', 'Livello', 'Birre']]).setFontWeight('bold'); s.setFrozenRows(1); }
+  return s;
+}
+function geOwner_(key, k) {
+  const s = names_(), last = s.getLastRow();
+  if (last < 2) return 'none';
+  const rows = s.getRange(2, 1, last - 1, 2).getValues(), i = rows.findIndex(r => String(r[0]) === key);
+  if (i < 0) return 'none';
+  const h = hash_(k), v = String(rows[i][1]);
+  if (v === h) return 'yes';
+  if (String(s.getRange(i + 2, 2).getFormula() || '').replace(/^=/, '') === h) return 'yes';
+  return 'no';
+}
+function geLoad_(p) {
+  const name = clean_(p.name, 16), key = name.toLowerCase();
+  const k = /^[a-z0-9]{4,12}$/.test(p.k || '') ? p.k : '';
+  if (!name || !k) return { ok: true, ge: true, err: 'args' };
+  const c = CacheService.getScriptCache(), fk = 'gf|' + key, fails = Number(c.get(fk) || 0);
+  if (fails >= 20) return { ok: true, ge: true, err: 'locked' };   // troppi codici sbagliati: riprova domani
+  const own = geOwner_(key, k);
+  if (own === 'no') { c.put(fk, String(fails + 1), 21600); return { ok: true, ge: true, wrong: true }; }
+  if (own === 'none') return { ok: true, ge: true, none: true };
+  const out = { ok: true, ge: true, owner: true, edtName: edtName_(name) };
+  const s = geSaves_(), last = s.getLastRow();
+  const rows = last > 1 ? s.getRange(2, 1, last - 1, 1).getValues() : [];
+  const i = rows.findIndex(r => String(r[0]) === key);
+  if (i >= 0) { const v = s.getRange(i + 2, 3, 1, 4).getValues()[0]; out.data = String(v[0]); out.at = v[1] instanceof Date ? v[1].toISOString() : ''; out.lv = Number(v[2]) || 0; out.beers = Number(v[3]) || 0; }
+  return out;
+}
+function geSave_(p) {
+  const name = clean_(p.name, 16), key = name.toLowerCase();
+  const k = /^[a-z0-9]{4,12}$/.test(p.k || '') ? p.k : '';
+  const data = /^[zj][\w-]{20,48000}$/.test(p.data || '') ? p.data : '';
+  if (!name || !k || !data) return { ok: true, ge: true, err: 'args' };
+  const lv = Math.max(0, Math.min(999, Math.round(Number(p.lv) || 0))), beers = Math.max(0, Math.min(9999999, Math.round(Number(p.beers) || 0)));
+  const lock = LockService.getScriptLock(); lock.waitLock(8000);
+  try {
+    if (!claim_(name, k)) return { ok: true, ge: true, taken: true };
+    const s = geSaves_(), last = s.getLastRow();
+    const rows = last > 1 ? s.getRange(2, 1, last - 1, 1).getValues() : [];
+    const i = rows.findIndex(r => String(r[0]) === key);
+    if (i >= 0) s.getRange(i + 2, 2, 1, 5).setValues([["'" + hash_(k), data, new Date(), lv, beers]]);
+    else s.appendRow([key, "'" + hash_(k), data, new Date(), lv, beers]);
+  } finally { lock.releaseLock(); }
+  return { ok: true, ge: true, saved: true };
+}
+// v149 · SEGNALA UN PROBLEMA: messaggio dal gioco con telefono, versione e fluidità. Foglio "Problemi".
+function problem_(p) {
+  const txt = String(p.text || '').replace(/[<>]/g, '').trim().slice(0, 1000); if (txt.length < 3) return;
+  const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
+  let s = ss.getSheetByName('Problemi');
+  if (!s) { s = ss.insertSheet('Problemi'); s.getRange(1, 1, 1, 8).setValues([['Data', 'Nome', 'Messaggio', 'Telefono', 'Versione', 'Schermo', 'Fluidità', 'App/Browser']]).setFontWeight('bold'); s.setFrozenRows(1); }
+  const c = CacheService.getScriptCache(), dk = 'pb|' + String(p.dev || '').slice(0, 16);
+  const n = Number(c.get(dk) || 0); if (n >= 10) return;   // al massimo 10 messaggi l'ora per telefono
+  c.put(dk, String(n + 1), 3600);
+  s.appendRow([new Date(), clean_(p.name, 16), txt, String(p.ua || '').slice(0, 300), clean_(p.v, 12), clean_(p.scr, 20), clean_(p.perf, 60), clean_(p.app, 12)]);
 }

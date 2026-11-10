@@ -24,7 +24,7 @@ try { world = createWorld(canvas); window.__world = world; } catch (e) { worldEr
 { const fixNode = n => { if (n.nodeType === 3) { if (hasEmoji(n.nodeValue) && n.parentElement && !n.parentElement.closest('svg, textarea, input, script, style')) iconizeEl(n.parentElement); } else if (n.nodeType === 1 && !n.closest('svg, script, style') && hasEmoji(n.textContent || '')) iconizeEl(n); };
   new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') fixNode(m.target); else for (const n of m.addedNodes) fixNode(n); } }).observe(document.body, { childList: true, subtree: true, characterData: true });
   iconizeEl(document.body); }
-if (world) world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLA PAUSA', 'green'), 0);
+if (world) world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLE IMPOSTAZIONI', 'green'), 0);
 // v52 · moto in anteprima nel garage (gira da sola, si può trascinare per girarla)
 let preview = null;
 try { preview = world?.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
@@ -708,6 +708,77 @@ function go() {
 }
 
 // v98 · finestre in primo piano (video, podio, sorpasso): dentro il gioco, che sul telefono e a schermo intero copre il resto della pagina
+// v149 · PROGRESSI NEL CLOUD: dopo ogni giro (e quando chiudi l'app) livello, birre, officina e garage vanno online col tuo nome.
+// Su un telefono nuovo: nome + codice pilota → il gioco li trova e ti chiede se rimetterli. Prima di aver controllato
+// che online non ci sia qualcosa di meglio, questo telefono non sovrascrive niente (edt-cloud-ok = nome già controllato).
+const CLOUD_OK = 'edt-cloud-ok';
+const cloudOkFor = () => { try { return localStorage.getItem(CLOUD_OK) || ''; } catch { return ''; } };
+function cloudOk(key) { try { localStorage.setItem(CLOUD_OK, key); } catch {} cloudSig = ''; setTimeout(() => cloudBackup(true), 1500); }
+let cloudLast = 0, cloudSig = '', cloudBusy = false;
+async function cloudBackup(force = false) {
+  const n = C.getNick(); if (!C.enabled() || !n || cloudOkFor() !== n.toLowerCase() || cloudBusy) return;
+  const snap = P.cloudSnapshot(); snap.dev = C.deviceId(); snap.at = Date.now();
+  const d = snap.data, sig = JSON.stringify([d.xp, d.beers, d.upgrades, d.owned, d.parts, d.bike, d.livery, d.totals?.runs, d.stars, d.trophies, d.missionsDone]);
+  if (sig === cloudSig) return;
+  if (!force && Date.now() - cloudLast < 60000) { clearTimeout(cloudBackup.t); cloudBackup.t = setTimeout(() => cloudBackup(true), 60000); return; }
+  cloudLast = Date.now(); cloudBusy = true;
+  try { const r = await C.cloudSave(await C.packData(snap), P.levelInfo().level, d.beers); if (r.saved || r.sent) { cloudSig = sig; try { localStorage.setItem('edt-cloud-at', String(Date.now())); } catch {} } } catch {} finally { cloudBusy = false; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') cloudBackup(true); });
+async function cloudCheck(n, fromForm = false) {
+  n = C.cleanNick(n); if (!n || !C.enabled()) return;
+  const key = n.toLowerCase();
+  let r; try { r = await C.cloudLoad(n); } catch { return; }
+  if (!r || r.unsupported || r.err) return;
+  if (r.wrong) { if (fromForm) toast('🔒 CODICE NON GIUSTO PER ' + n.toUpperCase() + ': CONTROLLALO SULL’ALTRO TELEFONO', 'red'); return; }
+  if (r.joinedEdt) { setTimeout(() => toast('👑 PILOTA EDT RICONOSCIUTO: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), fromForm ? 1800 : 0); syncShare?.(); C.load(true).then(() => renderSide()).catch(() => {}); }
+  if (r.none || !r.data) { cloudOk(key); return; }
+  let snap = null; try { snap = await C.unpackData(r.data); } catch {}
+  if (!snap?.data || snap.dev === C.deviceId() || P.progressScore(snap.data) <= P.progressScore()) { cloudOk(key); return; }
+  if (state !== 'ready' && state !== 'ended') return;   // in gara non si disturba: si richiede alla prossima apertura
+  showRestore(snap, r, key);
+}
+function showRestore(snap, r, key) {
+  $('cloudpop')?.remove();
+  const d = snap.data, lvC = P.levelInfo(d.xp || 0).level, lvH = P.levelInfo().level, when = r.at ? new Date(r.at) : null;
+  const el = document.createElement('div'); el.className = 'podium chestpop cloudpop'; el.id = 'cloudpop';
+  el.innerHTML = `<div class="podbox chestbox"><small>PROGRESSI ONLINE</small><b class="podtitle">BENTORNATO!</b>
+    <div class="cloudcmp"><div><small>ONLINE${when ? ' · ' + String(when.getDate()).padStart(2, '0') + '/' + String(when.getMonth() + 1).padStart(2, '0') : ''}</small><b>LIV ${lvC}</b><span>${d.beers || 0} 🍺 · ${d.totals?.runs || 0} giri</span></div>
+    <div><small>SU QUESTO TELEFONO</small><b>LIV ${lvH}</b><span>${P.profile.beers || 0} 🍺 · ${P.profile.totals?.runs || 0} giri</span></div></div>
+    <p>Online c’è il tuo pilota con più progressi: livello, birre, officina, moto e maglie. Li rimetto su questo telefono?</p>
+    <button class="primary" type="button" id="cloudyes"><span>RIMETTI I MIEI PROGRESSI</span></button>
+    <button class="secondary" type="button" id="cloudno">TENGO QUELLI DI QUESTO TELEFONO</button>
+    <p class="note">Se tieni questi, il salvataggio online verrà sostituito da quelli di questo telefono.</p></div>`;
+  topLayer().appendChild(el); iconizeEl(el); requestAnimationFrame(() => el.classList.add('open'));
+  $('cloudyes').onclick = () => { A.sfx.click(); if (P.cloudApply(snap)) { try { localStorage.setItem(CLOUD_OK, key); } catch {} toast('☁ PROGRESSI RIMESSI: RIPARTO…', 'green'); setTimeout(() => location.reload(), 900); } else toast('NON SONO RIUSCITO A RIMETTERLI, RIPROVA', 'red'); };
+  $('cloudno').onclick = () => { A.sfx.click(); el.remove(); cloudOk(key); toast('OK: TENGO I PROGRESSI DI QUESTO TELEFONO', 'gold'); };
+}
+function showCloudInfo() {
+  const n = C.getNick(); let at = 0; try { at = Number(localStorage.getItem('edt-cloud-at')) || 0; } catch {}
+  const ok = n && cloudOkFor() === n.toLowerCase();
+  const when = at ? new Date(at) : null, ws = when ? `${String(when.getDate()).padStart(2, '0')}/${String(when.getMonth() + 1).padStart(2, '0')} alle ${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}` : '';
+  toast(!n ? '☁ SCEGLI UN NOME IN CLASSIFICA: DA LÌ I PROGRESSI SI SALVANO ONLINE' : ok ? `☁ PROGRESSI DI ${n.toUpperCase()} SALVATI ONLINE${ws ? ' IL ' + ws : ': AL PROSSIMO GIRO'} · SU UN ALTRO TELEFONO: NOME + CODICE ${C.getCode().toUpperCase()}` : '☁ CONTROLLO I PROGRESSI ONLINE…', 'green');
+  if (n && !ok) cloudCheck(n, true); else if (ok) cloudBackup(true);
+}
+// v149 · SEGNALA UN PROBLEMA: due righe e arriva nel foglio, con telefono, versione e fluidità
+function showProblem() {
+  $('bugpop')?.remove();
+  const el = document.createElement('div'); el.className = 'podium chestpop bugpop'; el.id = 'bugpop';
+  el.innerHTML = `<div class="podbox chestbox"><small>AIUTACI A MIGLIORARE</small><b class="podtitle">SEGNALA UN PROBLEMA</b>
+    <p>Cosa non va? Scrivi cosa stavi facendo (percorso, menu…). Il modello del telefono e la versione del gioco li mando io.</p>
+    <textarea id="bugtext" maxlength="1000" rows="4" placeholder="es. su MotoFogna va a scatti dopo il ponte"></textarea>
+    <button class="primary" type="button" id="bugsend"><span>INVIA</span></button><button class="secondary" type="button" id="bugclose">ANNULLA</button></div>`;
+  topLayer().appendChild(el); iconizeEl(el); requestAnimationFrame(() => el.classList.add('open'));
+  el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+  $('bugclose').onclick = () => { A.sfx.click(); el.remove(); };
+  $('bugsend').onclick = async () => {
+    const txt = $('bugtext').value.trim(); if (txt.length < 3) { toast('SCRIVI DUE PAROLE SUL PROBLEMA', 'red'); return; }
+    A.sfx.click(); $('bugsend').disabled = true;
+    const q = world?.perfInfo ? world.perfInfo() : {};
+    const ok = await C.sendProblem(txt, { v: String(GAME_VERSION), scr: `${innerWidth}x${innerHeight}@${devicePixelRatio}`, perf: `${q.fps || '?'}fps Q${q.q ?? '?'}${q.lite ? ' leggera' : ''} x${q.pr ?? '?'}`, app: document.referrer.startsWith('android-app://') ? 'playstore' : standalone ? 'installata' : 'browser' });
+    el.remove(); toast(ok ? '🐞 GRAZIE! SEGNALAZIONE ARRIVATA AL GABBAH' : 'NIENTE RETE: RIPROVA TRA POCO', ok ? 'green' : 'red');
+  };
+}
 function topLayer() { return document.fullscreenElement || document.webkitFullscreenElement || $('game') || document.body; }
 function finish(win, reason = '') {
   if (state === 'playing') C.hit('run', String(GAME_VERSION));   // v108.6 · contatore: giro finito
@@ -763,6 +834,7 @@ function finish(win, reason = '') {
   hud();
   $('banner').classList.remove('show');
   renderResult(win, res, reason, timeBonus);
+  if (!tut) setTimeout(() => cloudBackup(), 5000);   // v149 · progressi nel cloud dopo ogni giro
   if (!tut) { const chest = P.claimDaily() || pendingChest; pendingChest = null; if (chest) setTimeout(() => { if (state === 'ended' && !$('chestpop')) showChest(chest); else pendingChest = chest; }, win ? 2200 : 1100); }
   if (gev) A.sfx.whistle();
   if (win) buzz([60, 70, 60, 70, 160]);
@@ -3412,7 +3484,7 @@ function renderReady() {
     ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
     </details>
     <details class="menufoot setbox"><summary>${icon('gear')} IMPOSTAZIONI</summary>
-      <button class="mini" id="schoolmenu" type="button">${icon('book')} GIRO DI PROVA</button><button class="mini" id="rulesmenu" type="button">📖 REGOLE</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
+      <button class="mini" id="schoolmenu" type="button">${icon('book')} GIRO DI PROVA</button><button class="mini" id="rulesmenu" type="button">📖 REGOLE</button><button class="mini ${world?.isLite?.() ? 'on' : ''}" id="litemenu" type="button">⚙ GRAFICA LEGGERA: ${world?.isLite?.() ? 'SÌ' : 'NO'}</button><button class="mini" id="cloudmenu" type="button">☁ PROGRESSI ONLINE</button><button class="mini" id="bugmenu" type="button">🐞 SEGNALA UN PROBLEMA</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}<a class="mini" href="privacy.html" target="_blank" rel="noopener">🔒 PRIVACY</a>
     </details>
     ${(P.profile.totals?.runs || 0) < 3 ? `<p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → sterzo · SPAZIO salta · V (o W) gas · B turbo · S impenna</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>` : ''}`;
@@ -3423,6 +3495,9 @@ function renderReady() {
   $('start').onclick = () => { if (duel) duel.racing = false; start(); };
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
   $('extrabox')?.addEventListener('toggle', e => { try { localStorage.setItem('edt-extra', e.target.open ? '1' : '0'); } catch {} });
+  $('litemenu')?.addEventListener('click', () => { A.sfx.click(); const on = world?.setLite?.(!world.isLite()); const b = $('litemenu'); b.classList.toggle('on', !!on); b.innerHTML = iconize('⚙ GRAFICA LEGGERA: ' + (on ? 'SÌ' : 'NO')); toast(on ? '⚙ GRAFICA LEGGERA: MENO OMBRE E DETTAGLI, PIÙ FLUIDO' : '✨ GRAFICA PIENA', 'green'); });   // v149 · anche dal menu, non solo dalla pausa
+  $('bugmenu')?.addEventListener('click', () => { A.sfx.click(); showProblem(); });   // v149
+  $('cloudmenu')?.addEventListener('click', () => { A.sfx.click(); showCloudInfo(); });   // v149
   $('rulesmenu')?.addEventListener('click', () => { A.sfx.click(); showHub('regole'); document.querySelector('[data-hub="regole"].panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   $('champchip').onclick = () => { A.sfx.click(); renderChamp(); };   // v130
   $('starchip').onclick = () => { A.sfx.click(); renderStars(); };
@@ -4022,7 +4097,7 @@ function wirePilotBox(redraw) {
     C.setNick(n); A.sfx.click();
     if (C.heldCount()) { const r = await C.flushHeld(); toast(r.sent ? '🔒 CODICE OK: ' + r.sent + (r.sent === 1 ? ' GIRO INVIATO' : ' GIRI INVIATI') : '🔒 CODICE NON GIUSTO PER ' + n.toUpperCase(), r.sent ? 'green' : 'red'); }
     else toast('🔒 FATTO: ORA SEI ' + n.toUpperCase() + ' ANCHE QUI', 'green');
-    renderSide(); redraw();
+    renderSide(); redraw(); cloudCheck(n, true);   // v149 · progressi salvati e classifica EDT
   });
 }
 // v108 · tocchi un amico in classifica e corri contro il suo fantasma su quel percorso
@@ -4150,7 +4225,7 @@ function renderWelcome() {
     if (!n) { toast('SCRIVI IL TUO NOME IN CLASSIFICA', 'red'); return; }
     if (C.setCode(c).length < 4) { toast('🔒 SCRIVI IL CODICE DELL’ALTRO TELEFONO', 'red'); return; }
     A.unlock(); A.sfx.click(); C.setNick(n); P.profile.schoolDone = 1; P.profile.tutorialDone = true; P.save();
-    toast('🔒 FATTO: SEI ' + n.toUpperCase() + ' ANCHE QUI', 'green'); C.load(true).catch(() => {}); renderSide(); renderReady();
+    toast('🔒 FATTO: SEI ' + n.toUpperCase() + ' ANCHE QUI', 'green'); C.load(true).catch(() => {}); renderSide(); renderReady(); cloudCheck(n, true);   // v149
   });
   $('wskip').onclick = () => { A.unlock(); A.sfx.click(); P.profile.schoolDone = 1; P.save(); mode = 0; renderReady(); start(); };   // v140
   $('wplay').onclick = () => { A.unlock(); A.sfx.click(); if (!P.profile.schoolDone && !(P.profile.totals?.runs > 0)) { mode = 22; renderReady(); start(); return; }   // v140 · prima la scuola di enduro
@@ -4669,3 +4744,5 @@ window.__edt = { get state() { return state; }, snap() { return drawState(); }, 
 // v96 · i comandi di prova (__edt) esistono solo in locale o con ?dev=1: dal sito pubblico non si possono usare per truccare i giri
 { const DEV = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);   // v112 · niente più ?dev=1 dal sito pubblico
   if (!DEV) { try { delete window.__edt; delete window.__world; } catch {} } }
+// v149 · all'apertura: se questo nome non è ancora stato controllato online, si guarda se ci sono progressi migliori (e se è un pilota EDT)
+setTimeout(() => { const n = C.getNick(); if (n && cloudOkFor() !== n.toLowerCase()) cloudCheck(n); }, 7000);

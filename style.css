@@ -2175,3 +2175,13 @@ a.mini { text-decoration: none; display: inline-flex; align-items: center; }
   .podbox .pstep .avatar { width: 40px !important; height: 40px !important; }
   .podbox p { margin-bottom: 8px; }
 }
+/* v149 · progressi online e segnalazioni */
+.cloudpop .cloudcmp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.cloudpop .cloudcmp div{background:#ffffff10;border:1px solid #ffffff22;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:2px;text-align:center}
+.cloudpop .cloudcmp div:first-child{border-color:#ffcf16aa;background:#ffcf1618}
+.cloudpop .cloudcmp small{font-size:11px;letter-spacing:.08em;color:#ddd4c2}
+.cloudpop .cloudcmp b{font-size:24px;color:#ffcf16}
+.cloudpop .cloudcmp span{font-size:13px;color:#ddd4c2}
+.cloudpop .secondary,.bugpop .secondary{margin-top:8px;width:100%}
+.cloudpop .note{font-size:12px;color:#cfc6b3;margin-top:8px}
+.bugpop textarea{width:100%;box-sizing:border-box;margin:10px 0;padding:10px;border-radius:10px;border:1px solid #ffffff33;background:#0e0d0b;color:#fff;font:inherit;font-size:16px;resize:vertical}

@@ -234,3 +234,34 @@ export function uploadPhoto(name, img) {
   const body = JSON.stringify({ action: 'foto', name: cleanNick(name), k: getCode(), img: img || '' });
   return fetch(API, { method: 'POST', mode: 'no-cors', body }).then(() => { const k = cleanNick(name).toLowerCase(); if (img) { phRead()[k] = { v: -1, d: img }; } else delete phRead()[k]; phWrite(); cache = null; return true; }).catch(() => false);
 }
+
+// v149 · PROGRESSI NEL CLOUD: livello, birre, officina e garage legati a nome + codice pilota (foglio "Progressi Giro Easy").
+// Su un telefono nuovo bastano nome e codice per riaverli. Se il server è vecchio non risponde "ge": il gioco non mostra niente.
+const b64u = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode(...u8.subarray(i, i + 8192)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+export async function packData(obj) {
+  const txt = new TextEncoder().encode(JSON.stringify(obj));
+  if (window.CompressionStream) { const cs = new Blob([txt]).stream().pipeThrough(new CompressionStream('deflate-raw')); return 'z' + b64u(new Uint8Array(await new Response(cs).arrayBuffer())); }
+  return 'j' + b64u(txt);
+}
+export async function unpackData(s) {
+  const raw = unb64u(String(s).slice(1));
+  if (s[0] === 'z') { const ds = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw')); return JSON.parse(await new Response(ds).text()); }
+  return JSON.parse(new TextDecoder().decode(raw));
+}
+export async function cloudSave(data, lv, beers) {
+  const name = getNick(); if (!enabled() || !name || !data || data.length > 48000) return { skip: true };
+  const body = JSON.stringify({ action: 'gesave', name, k: getCode(), data, lv: String(lv || 0), beers: String(beers || 0) });
+  try { const r = await fetch(API, { method: 'POST', body, redirect: 'follow' }); const d = await r.json(); return d && d.ge ? d : { unsupported: true }; }
+  catch { try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); return { sent: true }; } catch { return { err: true }; } }
+}
+export async function cloudLoad(name, code) {
+  const d = await call({ action: 'geload', name: cleanNick(name), k: String(code || getCode()).trim().toLowerCase() }, false);
+  return d && d.ge ? d : { unsupported: true };
+}
+// v149 · SEGNALA UN PROBLEMA: arriva nel foglio "Problemi" con modello del telefono, versione e fluidità
+export function sendProblem(text, extra = {}) {
+  const body = JSON.stringify({ action: 'problema', text: String(text || '').slice(0, 1000), name: getNick(), dev: devId(), ua: navigator.userAgent, ...extra });
+  return fetch(API, { method: 'POST', mode: 'no-cors', body }).then(() => true).catch(() => false);
+}
+export const deviceId = () => devId();
