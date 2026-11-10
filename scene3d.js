@@ -3051,6 +3051,7 @@ export function createWorld(canvas) {
       const rYaw = iceMode ? rHead + rBend * .35 - (r.lean || 0) * .12 : curShape ? -Math.atan((center(z - .6, t) - center(z + .6, t)) / 1.2) - (r.lean || 0) * .05 : -(r.lean || 0) * .05;   // v102.1 · al Gusta Ranch i compagni seguono i tornanti
       m.g.rotation.set(0, rYaw, curShape ? Math.max(-.5, Math.min(.5, curShape.bend(t + r.gap) * .32)) : iceMode ? Math.max(-.6, Math.min(.6, rBend * .45)) : Math.max(-.4, Math.min(.4, -(r.lean || 0) * .12)));   // v94 · anche i compagni piegati in derapata
       m.pitch.rotation.x = Math.atan(slope(z, t)) + Math.sin(now / 160 + m.phase) * .015;
+      if (r.down > 0) { const k = Math.min(1, (1 - r.down) * 6, r.down * 3.5); m.g.rotation.z += (r.downSide || 1) * 1.3 * k; m.g.position.y -= .12 * k; }   // v149 · compagno caduto: moto sdraiata, poi si rialza
       m.pitch.position.y = 0;
       for (const w of m.wheels) w.rotation.x = -(t + r.gap) / .475 * (m.proc ? 1 : 1.23);
       if (m.piv) { const ph = now / 1000 + m.phase, bump = Math.abs(Math.sin(now / 85 + m.phase * 3)) * .025;   // v106.1 · compagni vivi: busto avanti e indietro, piega nelle curve, ammortizza
@@ -3357,6 +3358,7 @@ export function createWorld(canvas) {
     dyn.iceLean = (dyn.iceLean || 0) + (iceLeanT - (dyn.iceLean || 0)) * Math.min(1, fdt * 7);
     bike.rotation.z = lean + dyn.iceLean;
     bike.rotation.y = dyn.yaw + whip * .55;
+    if (s.trick > 0 && s.jump > 0) bike.rotation.z += (s.trickSide || 1) * Math.sin(Math.min(1, s.trick) * Math.PI) * 1.05;   // v149 · trucco in volo: moto sdraiata di lato (whip / tabletop)
     front.rotation.y = s.ice ? Math.max(-.55, Math.min(.55, (s.drift || 0) * .7)) : dyn.steer + (s.jump > 0 ? whip * -.3 : 0);
     const blink = Math.floor(s.invincible * 12) % 2 === 0;
     bike.visible = s.invincible <= 0 || crash > 0 || blink || (s.fall || 0) > 0;   // v119 · durante la caduta la moto non lampeggia
@@ -3671,5 +3673,17 @@ export function createWorld(canvas) {
   }
 
   resize();
-  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, isUltra: () => bigScreen() || quality >= 4, perfInfo, resetPerf, dbg: DBG, set onAutoLite(f) { onAutoLite = f; } };
+  // v149 · FANGO CHE RESTA ADDOSSO: moto e pilota si sporcano durante il giro (colori verso il marrone del fango), puliti al giro dopo
+  const MUD_COL = new T.Color('#4b3826'); let dirtNow = 0;
+  function setDirt(k) {
+    k = Math.max(0, Math.min(.62, k || 0)); if (Math.abs(k - dirtNow) < .008) return;
+    const was = dirtNow; dirtNow = k;
+    bike.traverse(o => { if (!o.isMesh || o.name === 'fx') return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+      if (!m || !m.color || m.isMeshBasicMaterial || m.transparent) continue;
+      if (was === 0 || !m.userData.c0) m.userData.c0 = m.color.clone();
+      m.color.copy(m.userData.c0).lerp(MUD_COL, k);
+      if (k === 0) delete m.userData.c0;
+    } });
+  }
+  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, setDirt, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, isUltra: () => bigScreen() || quality >= 4, perfInfo, resetPerf, dbg: DBG, set onAutoLite(f) { onAutoLite = f; } };
 }

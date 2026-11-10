@@ -289,10 +289,14 @@ function tiltAngle(e) {
   return e.gamma;                       // verticale
 }
 let tiltSeen = 0, tiltOriSeen = 0;
+// v149 · sensibilità dello sterzo inclinando: bassa (serve inclinare di più), media, alta (basta poco)
+let tiltSens = 'm'; try { tiltSens = localStorage.getItem('edt-tilt-sens') || 'm'; } catch {}
+const sensLabel = () => '🎚 STERZO: ' + ({ s: 'MORBIDO', m: 'MEDIO', h: 'RAPIDO' }[tiltSens] || 'MEDIO');
+function cycleSens() { tiltSens = { s: 'm', m: 'h', h: 's' }[tiltSens] || 'm'; try { localStorage.setItem('edt-tilt-sens', tiltSens); } catch {} return sensLabel(); }
 function tiltApply(raw) {
   tiltRaw = raw;
   if (tiltZero === null) tiltZero = tiltRaw;
-  const d = tiltRaw - tiltZero, dead = 3, full = 16;   // 3° di zona morta, sterzata piena a 16°
+  const d = tiltRaw - tiltZero, dead = tiltSens === 'h' ? 2.5 : 3, full = { s: 22, m: 16, h: 11 }[tiltSens] || 16;   // v149 · sensibilità regolabile   // 3° di zona morta, sterzata piena a 16°
   // v106.2 · curva più dolce al centro (correzioni fini precise) e filtro sul tremolio del sensore
   const lin = Math.abs(d) < dead ? 0 : Math.max(-1, Math.min(1, (d - Math.sign(d) * dead) / (full - dead)));
   const tgt = Math.sign(lin) * Math.pow(Math.abs(lin), 1.35);
@@ -395,6 +399,10 @@ let ice = false, drift = 0, driftT = 0, driftSum = 0, driftPend = 0, driftChain 
 let draftT = 0, draftR = null, draftSaid = -9, lastDraftAt = -9, catchT = 0;   // v107 · scia dietro ai compagni e rimonta
 let peloAt = -99, volata = 0, champRun = false, icyWarn = 0, ristoroDone = 0, sweatAt = 6, ristLane = 0, ristAt = 0, ristShown = false;   // v130 · v132
 let rivals = [], lastSuka = -99, shortcutsDone = 0, nextShortcut = 0, shownPos = '';
+let dirtK = 0, dirtShown = 0;   // v149 · fango addosso
+let trickT = 0, trickDone = false, trickName = '', trickSide = 1, trickN = 0;   // v149 · trucchi in volo
+const TRICK_DUR = .4;
+const TRICKS = ['WHIP', 'SUPERMAN', 'NAC-NAC', 'TABLETOP', 'HEEL CLICKER', 'CAN-CAN'];
 let weather = { rain: 0, fog: 0, dusk: 0, night: 0, flash: 0 }, nextFlash = 5, weatherPlan = [], weatherSaid = '', lastRainMud = 0;
 const curLift = () => jumpHeight(jump, jumpDur, jumpH);
 // Potenziamenti dell'officina (letti a inizio giro) e premi del rifugio.
@@ -646,6 +654,7 @@ function resetRun() {
   if (duel?.racing) { rivals = [duel.entry]; gGhost = null; duel.opp.c = 0; duel.opp.end = null; duel.me = null; duel.ahead = false; Object.assign(duel.entry, { gap: 0, lx: 1, lift: 0 }); }
 }
 function start() {
+  trickT = 0; trickDone = false; trickN = 0; dirtK = dirtShown = 0; world?.setDirt?.(0);   // v149
   quietMenu = false;
   A.voicesSoon?.();
   { const md = P.MODES[mode]; world?.preloadObstacles?.(['log', 'bigLog', ...Object.values(md.obs || {}).flat(), ...SECTION_OBS.flat(), ...(md.ranch ? ['cow', 'trincia', 'hen', 'hay'] : [])]); }   // v146 · solo gli ostacoli di questo percorso
@@ -879,19 +888,21 @@ function pause() {
       <p>Nessuno resta indietro.</p>
       <button class="primary" id="resume"><span>RIPARTIAMO</span>${icon('chevrons')}</button>
       <div class="pausegrid"><button class="secondary" id="musictoggle" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>
-      ${touchDevice ? `<button class="secondary" id="tiltpause" type="button">📱 INCLINA: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}
+      ${touchDevice ? `<button class="secondary" id="tiltpause" type="button">📱 INCLINA: ${tiltOn ? 'SÌ' : 'NO'}</button><button class="secondary" id="senspause" type="button">${sensLabel()}</button>` : ''}
       <button class="secondary" id="litepause" type="button">${liteLabel()}</button>
       ${touchDevice ? `<button class="secondary" id="leftypause" type="button">${leftyLabel()}</button><button class="secondary" id="sizepause" type="button">${sizeLabel()}</button>` : ''}
       <button class="secondary" id="advpause" type="button">AVANZATE ›</button>
       <div class="pauseadv" id="pauseadv" hidden><button class="secondary" id="perfpause" type="button">${perfLabel()}</button>
       <button class="secondary" id="diagpause" type="button">TEST FLUIDITÀ (25 s)</button></div>
-      <button class="secondary" id="quit">ABBANDONA IL GIRO</button><button class="secondary" id="exitgame" type="button">ESCI DAL GIOCO</button></div>`;
+      <button class="secondary" id="restartpause" type="button">↻ RIPARTI DA CAPO</button><button class="secondary" id="quit">ABBANDONA IL GIRO</button><button class="secondary" id="exitgame" type="button">ESCI DAL GIOCO</button></div>`;
     if ($('sizepause')) $('sizepause').onclick = () => { btnSize = { s: 'm', m: 'l', l: 's' }[btnSize] || 'm'; try { localStorage.setItem('edt-btnsize', btnSize); } catch {} $('sizepause').innerHTML = iconize(sizeLabel()); hud(); };
     if ($('leftypause')) $('leftypause').onclick = () => { lefty = !lefty; try { localStorage.setItem('edt-lefty', lefty ? '1' : '0'); } catch {} $('leftypause').innerHTML = iconize(leftyLabel()); hud(); };
     $('advpause').onclick = () => { const a = $('pauseadv'); a.hidden = !a.hidden; $('advpause').textContent = a.hidden ? 'AVANZATE ›' : 'AVANZATE ‹'; };   // v112 · strumenti tecnici nascosti
     $('resume').onclick = pause;
     $('musictoggle').onclick = () => { A.setMusic(!A.isMusicOn()); $('musictoggle').innerHTML = iconize(A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'); };
     if ($('tiltpause')) $('tiltpause').onclick = async () => { const on = await setTilt(!tiltOn); $('tiltpause').innerHTML = iconize('📱 INCLINA: ' + (on ? 'SÌ' : 'NO')); if (on) toast('📱 INCLINA IL DISPOSITIVO A DESTRA E SINISTRA PER STERZARE', 'green'); };   // v107.6 · il giroscopio si accende anche dalla pausa
+    if ($('senspause')) $('senspause').onclick = () => { $('senspause').innerHTML = iconize(cycleSens()); };   // v149
+    $('restartpause').onclick = () => { state = 'ready'; $('game').classList.remove('paused'); setDisabled(false); renderReady(); start(); };   // v149 · ripartenza veloce, senza passare dal menu
     $('quit').onclick = () => { state = 'ready'; $('game').classList.remove('paused'); setDisabled(false); renderReady(); };
     $('exitgame').onclick = exitGame;
     $('diagpause').onclick = () => { state = 'ready'; setDisabled(false); renderReady(); setTimeout(runDiag, 300); };   // v109.9 · il test gira con la pista che scorre dietro al menu
@@ -972,10 +983,23 @@ function steerStep(dt, route) {
   }
   edgeT = Math.max(0, edgeT - dt);
 }
+// v149 · TRUCCHI IN VOLO: in aria ritocchi SALTA → whip / superman / nac-nac. Se lo chiudi prima di toccare terra: punti e turbo.
+// Se atterri mentre lo stai ancora facendo: atterraggio storto, perdi la combo e rallenti.
+function startTrick() { trickT = TRICK_DUR; trickName = TRICKS[Math.floor(rng() * TRICKS.length)]; trickSide = rng() < .5 ? -1 : 1; A.sfx.scrub?.(); buzz(12); }
+function trickStep(dt) {
+  if (trickT <= 0) return;
+  trickT -= dt;
+  if (trickT <= 0) { trickT = 0; trickDone = true; trickN++; run.tricks = (run.tricks || 0) + 1; try { localStorage.setItem('edt-trick-tip', '9'); } catch {} reward(260 + Math.min(trickN, 5) * 60, trickName + '!', 'trick'); fxKind = 'trick'; fxSerial++; }
+}
+function trickLand() {
+  if (trickT > 0) { trickT = 0; breakCombo(); stun = Math.max(stun, .45); shake = Math.max(shake, .5); pop('TRUCCO A METÀ: ATTERRAGGIO STORTO!', 'small'); buzz([30, 40, 60]); }
+  trickDone = false;
+}
 function takeoff() {
   const sup = grappa > 0;
   jumpDur = (sup ? SUPER_JUMP.duration : JUMP_DURATION) * (1 + up.susp * .03); jumpH = (sup ? SUPER_JUMP.height : JUMP_HEIGHT) * (1 + up.susp * .05) * (has('spring') ? 1.15 : 1) * (1 + (bs.jump || 0)); if (has('spring')) jumpDur *= 1.1;
   jump = jumpDur; scrubbed = 0; A.sfx.jump(); buzz(18);
+  try { const k = +(localStorage.getItem('edt-trick-tip') || 0); if (k < 4 && !ice && state === 'playing') { localStorage.setItem('edt-trick-tip', String(k + 1)); setTimeout(() => { if (jump > .35 && trickT <= 0) pop('IN VOLO RITOCCA SALTA: TRUCCO!', 'small'); }, 120); } } catch {}   // v149 · i primi salti spiegano il trucco
   if (wheelie) endWheelie(false);
 }
 // v78 · PARTENZA A RAZZO: tocca SALTA proprio al VIA (da mezzo secondo prima a mezzo secondo dopo) = turbo e +150
@@ -1021,7 +1045,8 @@ function hop() {
   lastHopAt = elapsed;
   if (leap && leapState === 2) return;   // v59 · in volo dal trampolino non si risalta
   if (jump <= 0) takeoff();
-  else if (jump < .24) jumpBuffer = .26;   // v107 · buffer più largo // premuto un attimo prima di atterrare: salta appena tocca terra
+  else if (jump < .24) jumpBuffer = .26;
+  else if (trickT <= 0 && !trickDone && jump > .42 && !ice) startTrick();   // v149 · in volo ritocchi SALTA: trucco   // v107 · buffer più largo // premuto un attimo prima di atterrare: salta appena tocca terra
 }
 
 // Impennata: tieni premuto IMPENNA (o S / freccia giù). Più dura, più punti; oltre 3 secondi la ruota torna giù.
@@ -2006,6 +2031,16 @@ function rivalSay(r) {
   const key = RIDER_VOICE[r.name];
   A.sayRival(key ? key + '_suka' : 'suka');
 }
+// v149 · cadute dei compagni: battuta col nome, come in gruppo
+const RIVAL_FALL_LINES = {
+  Mirco: ['MIRCO A TERRA: «CAMPA GIÙ!»', 'MIRCO CADE: DOMANI È IN MUTUA', 'MIRCO STESO: «IO LO DICEVO DI CAMPARE GIÙ»'],
+  Purcello: ['PURCELLO A TERRA: STAVOLTA NESSUNO LO INGROPPA', 'PURCELLO NEL FANGO: CHI LO AIUTA?'],
+  Costa: ['COSTA SCIVOLA COME UN PESCE', 'COSTA A TERRA: HA VISTO UNA TROTA'],
+  Angelo: ['ANGELO HA TROVATO UN ALTRO PIETRONE'],
+  Svetlana: ['SVETLANA A TERRA: TUTTI A SOCCORRERLA'],
+};
+const FALL_ANY = ['{n} È A TERRA!', '{n} STESO NEL FANGO!', '{n}: «TRANQUILLI, È UN GIRO EASY»', '{n} BACIA LO STERRATO!', '{n} GIÙ! VAI CHE LO PASSI'];
+function rivalFall(r) { const L = RIVAL_FALL_LINES[r.name]; pop((L && rng() < .7 ? rpick(L) : rpick(FALL_ANY).replace('{n}', r.name.toUpperCase())), 'white'); }
 function updateRivals(dt, travelStep, route, diff) {
   const base = (1 + diff * .35 + elapsed / 100) * 19.5;
   for (const r of rivals) {
@@ -2018,6 +2053,12 @@ function updateRivals(dt, travelStep, route, diff) {
     r.turboT = (r.turboT ?? 6 + rng() * 10) - dt;
     if (r.turboT < 0) { pace *= 1.3; if (r.turboT < -2.5) r.turboT = 8 + rng() * 10; }
     if (elapsed < 2.5) pace *= .9 + elapsed * .04;
+    // v149 · avversari più vivi: ogni tanto cadono (di più su sassi e fango), si rialzano e ripartono
+    if (r.down > 0) { r.down = Math.max(0, r.down - dt / 1.9); pace *= r.down > .3 ? 0 : .55; }
+    else if (!ice && !leap && !tut && state === 'playing' && elapsed > 6 && r.gap > -30 && r.gap < 50 && (r.fallCD = (r.fallCD ?? 12 + rng() * 22) - dt) < 0) {
+      r.fallCD = 20 + rng() * 32;
+      if (rng() < .3 + rr.rough * .35 + (rr.wet || 0) * .25) { r.down = 1; r.downSide = rng() < .5 ? -1 : 1; if (r.gap > -14 && r.gap < 40) rivalFall(r); }
+    }
     const prev = r.gap;
     if (tut && tut.r !== r) { r.gap += 0; continue; }   // v107.2 · durante il giro guidato i compagni ti aspettano
     r.gap += (dt * base * pace) - travelStep;
@@ -2025,6 +2066,8 @@ function updateRivals(dt, travelStep, route, diff) {
     r.laneT -= dt;
     if (r.laneT <= 0) { r.laneT = 2.5 + rng() * 4; r.lane = Math.floor(rng() * 3); }
     if (Math.abs(r.gap) < 4 && r.lane === lane) r.lane = lane === 1 ? (rng() < .5 ? 0 : 2) : 1;
+    // v149 · se gli stai dietro, ogni tanto ti chiude la traiettoria (ma tu puoi sfruttare la scia)
+    if (!ice && !r.down && !r.blocked && r.gap > 4.5 && r.gap < 10 && Math.abs(r.lx - px) > .6 && jump <= 0 && state === 'playing' && rng() < dt * .4) { r.lane = Math.max(0, Math.min(2, Math.round(px))); r.laneT = 2.4; r.blocked = 1; pop(r.name.toUpperCase() + ' TI CHIUDE LA TRAIETTORIA!', 'small'); }
     const before = r.lx; r.lx += (r.lane - r.lx) * Math.min(1, dt * 2.6); r.lean = (r.lx - before) / Math.max(dt, .001);
     if (ice) {
       // punti derapata dei compagni: più nelle curve, ogni tanto ne buttano via una
@@ -2502,7 +2545,10 @@ function update(dt) {
   { const nl = Math.max(0, Math.min(2, Math.round(px))); if (nl !== lane) { lane = nl; A.sfx.lane(lane); } }
   const wasAirborne = jump > 0;
   jump = Math.max(0, jump - dt);
+  if (jump > 0) trickStep(dt);
+  dirtStep(dt, route);
   if (wasAirborne && jump === 0) {
+    trickLand();
     const hk = Math.min(1.8, .7 + jumpDur * .6);   // v109.2 · atterraggio: suono e vibrazione in base a quanto eri in aria
     springVelocity = 95; A.sfx.land(hk); shake = Math.max(shake, .25); if (touchDevice && navigator.vibrate) try { buzz(Math.round(10 + hk * 22)); } catch {}
     if (jumpBuffer > 0) { jumpBuffer = 0; takeoff(); }
@@ -2761,7 +2807,13 @@ function erika() {
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   clearTimeout(erikaTimer); erikaTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
-function mud(intensity = 1) { mudFx.splash(intensity * (weather.night > .5 ? .4 : 1)); }   // v91 · di notte meno fango sullo schermo: si deve vedere la pista
+function mud(intensity = 1) { mudFx.splash(intensity * (weather.night > .5 ? .4 : 1)); dirtK += intensity * .09; }
+// v149 · fango addosso: cresce con pozze, pioggia e fango, si vede sulla moto e sul pilota fino al giro dopo
+function dirtStep(dt, route) {
+  if (ice || leap) return;
+  dirtK += dt * ((route.wet || 0) * .008 + weather.rain * .005 + (P.MODES[mode].ranch ? .003 : 0));
+  if (Math.abs(dirtK - dirtShown) > .015) { dirtShown = dirtK; world?.setDirt?.(dirtK); }
+}   // v91 · di notte meno fango sullo schermo: si deve vedere la pista
 function mudOld() {
   const layer = $('mud');
   layer.innerHTML = '';
@@ -2784,7 +2836,7 @@ function drawState() {
     livery: raceLivery(), look: P.MODES[mode].look || '', preset: P.MODES[mode].sky, bikeLook: P.currentBike().look, bikeId: P.currentBike().id, parts: P.currentParts(), sight: (bs.sight || 0) + up.eyes * .06, eyes: up.eyes,
     leapPitch: leap && leapState === 2 ? leapPitch : undefined, leapCam: leap && leapState === 2, canyon: leap && canyonX0 !== null ? { x0: canyonX0, len: canyonLen, land: canyonLand } : null,
     gev: gev ? { L: 1 + gevSide * GEV_OFF, z: gevZ, arm: gevArm, t: elapsed } : null,
-    ice, drift, driftOn: driftT > 0, snowHit: snowT, studs: P.currentParts().studs, variant: variantOf(mode),
+    ice, drift, driftOn: driftT > 0, snowHit: snowT, trick: trickT > 0 ? 1 - trickT / TRICK_DUR : 0, trickSide, studs: P.currentParts().studs, variant: variantOf(mode),
     rivals: (state === 'playing' || state === 'paused' || state === 'countdown' || state === 'ended' || state === 'continue') ? (gGhost && state !== 'ended' ? [...rivals, gGhost.entry] : rivals) : [], weather,
   });
 }
@@ -3419,6 +3471,7 @@ function xmasChipHTML() {
   return `<button type="button" class="xmaschip" id="xmaschip">${icon('gift')}<span><small>EVENTO DI NATALE</small><b>CHRISTMAS MADNESS</b><em>${sub}</em></span>${icon('chevrons')}</button>`;
 }
 function renderReady() {
+  if (dirtShown) { dirtK = dirtShown = 0; world?.setDirt?.(0); }   // v149 · in menu la moto torna pulita
   champRun = false;   // v130
   try { P.starterAuto().forEach(starterTick); } catch {}   // v129
   try { window.__edtCheckUpdate?.(); } catch {}   // v125.3 · a ogni ritorno al menu controlla se c'è una versione nuova
@@ -3485,7 +3538,7 @@ function renderReady() {
     ${C.enabled() ? `<p class="playercount" id="playercount">${playerCountHTML(C.cached())}</p>` : ''}
     </details>
     <details class="menufoot setbox"><summary>${icon('gear')} IMPOSTAZIONI</summary>
-      <button class="mini" id="schoolmenu" type="button">${icon('book')} GIRO DI PROVA</button><button class="mini" id="rulesmenu" type="button">📖 REGOLE</button><button class="mini ${world?.isLite?.() ? 'on' : ''}" id="litemenu" type="button">⚙ GRAFICA LEGGERA: ${world?.isLite?.() ? 'SÌ' : 'NO'}</button><button class="mini" id="cloudmenu" type="button">☁ PROGRESSI ONLINE</button><button class="mini" id="bugmenu" type="button">🐞 SEGNALA UN PROBLEMA</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
+      <button class="mini" id="schoolmenu" type="button">${icon('book')} GIRO DI PROVA</button><button class="mini" id="rulesmenu" type="button">📖 REGOLE</button><button class="mini ${world?.isLite?.() ? 'on' : ''}" id="litemenu" type="button">⚙ GRAFICA LEGGERA: ${world?.isLite?.() ? 'SÌ' : 'NO'}</button><button class="mini" id="cloudmenu" type="button">☁ PROGRESSI ONLINE</button><button class="mini" id="bugmenu" type="button">🐞 SEGNALA UN PROBLEMA</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button><button class="mini" id="sensmenu" type="button">${sensLabel()}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
       ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}<a class="mini" href="privacy.html" target="_blank" rel="noopener">🔒 PRIVACY</a>
     </details>
     ${(P.profile.totals?.runs || 0) < 3 ? `<p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → sterzo · SPAZIO salta · V (o W) gas · B turbo · S impenna</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>` : ''}`;
@@ -3496,6 +3549,7 @@ function renderReady() {
   $('start').onclick = () => { if (duel) duel.racing = false; start(); };
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
   $('extrabox')?.addEventListener('toggle', e => { try { localStorage.setItem('edt-extra', e.target.open ? '1' : '0'); } catch {} });
+  $('sensmenu')?.addEventListener('click', () => { A.sfx.click(); $('sensmenu').innerHTML = iconize(cycleSens()); toast({ s: '🎚 STERZO MORBIDO: INCLINA DI PIÙ, PIÙ PRECISO', m: '🎚 STERZO MEDIO', h: '🎚 STERZO RAPIDO: BASTA INCLINARE POCO' }[tiltSens], 'green'); });   // v149
   $('litemenu')?.addEventListener('click', () => { A.sfx.click(); const on = world?.setLite?.(!world.isLite()); const b = $('litemenu'); b.classList.toggle('on', !!on); b.innerHTML = iconize('⚙ GRAFICA LEGGERA: ' + (on ? 'SÌ' : 'NO')); toast(on ? '⚙ GRAFICA LEGGERA: MENO OMBRE E DETTAGLI, PIÙ FLUIDO' : '✨ GRAFICA PIENA', 'green'); });   // v149 · anche dal menu, non solo dalla pausa
   $('bugmenu')?.addEventListener('click', () => { A.sfx.click(); showProblem(); });   // v149
   $('cloudmenu')?.addEventListener('click', () => { A.sfx.click(); showCloudInfo(); });   // v149
