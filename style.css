@@ -2185,3 +2185,4 @@ a.mini { text-decoration: none; display: inline-flex; align-items: center; }
 .cloudpop .secondary,.bugpop .secondary{margin-top:8px;width:100%}
 .cloudpop .note{font-size:12px;color:#cfc6b3;margin-top:8px}
 .bugpop textarea{width:100%;box-sizing:border-box;margin:10px 0;padding:10px;border-radius:10px;border:1px solid #ffffff33;background:#0e0d0b;color:#fff;font:inherit;font-size:16px;resize:vertical}
+.bstats .bideal { grid-column: 1 / -1; font: 700 11px var(--ui); color: #ddd4c2; margin-top: 2px; }

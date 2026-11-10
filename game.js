@@ -749,7 +749,7 @@ function showRestore(snap, r, key) {
     <button class="primary" type="button" id="cloudyes"><span>RIMETTI I MIEI PROGRESSI</span></button>
     <button class="secondary" type="button" id="cloudno">TENGO QUELLI DI QUESTO TELEFONO</button>
     <p class="note">Se tieni questi, il salvataggio online verrà sostituito da quelli di questo telefono.</p></div>`;
-  topLayer().appendChild(el); iconizeEl(el); requestAnimationFrame(() => el.classList.add('open'));
+  (document.fullscreenElement || document.webkitFullscreenElement || document.body).appendChild(el); iconizeEl(el); requestAnimationFrame(() => el.classList.add('open'));   // v149 · sopra a tutta la pagina (anche al pannello piloti)
   $('cloudyes').onclick = () => { A.sfx.click(); if (P.cloudApply(snap)) { try { localStorage.setItem(CLOUD_OK, key); } catch {} toast('☁ PROGRESSI RIMESSI: RIPARTO…', 'green'); setTimeout(() => location.reload(), 900); } else toast('NON SONO RIUSCITO A RIMETTERLI, RIPROVA', 'red'); };
   $('cloudno').onclick = () => { A.sfx.click(); el.remove(); cloudOk(key); toast('OK: TENGO I PROGRESSI DI QUESTO TELEFONO', 'gold'); };
 }
@@ -768,7 +768,7 @@ function showProblem() {
     <p>Cosa non va? Scrivi cosa stavi facendo (percorso, menu…). Il modello del telefono e la versione del gioco li mando io.</p>
     <textarea id="bugtext" maxlength="1000" rows="4" placeholder="es. su MotoFogna va a scatti dopo il ponte"></textarea>
     <button class="primary" type="button" id="bugsend"><span>INVIA</span></button><button class="secondary" type="button" id="bugclose">ANNULLA</button></div>`;
-  topLayer().appendChild(el); iconizeEl(el); requestAnimationFrame(() => el.classList.add('open'));
+  (document.fullscreenElement || document.webkitFullscreenElement || document.body).appendChild(el); iconizeEl(el); requestAnimationFrame(() => el.classList.add('open'));   // v149 · sopra a tutta la pagina (anche al pannello piloti)
   el.addEventListener('click', e => { if (e.target === el) el.remove(); });
   $('bugclose').onclick = () => { A.sfx.click(); el.remove(); };
   $('bugsend').onclick = async () => {
@@ -3089,9 +3089,10 @@ function setMenu(on) { $('game').classList.toggle('menu', on); if (on) $('coach'
 
 // ---------- Officina: si spendono le birre per potenziare moto e pilota ----------
 let shopTab = 'upg';
-function statBars(st) {
-  const rows = [['VELOCITÀ', st.speed || 0, .08], ['SALTO', st.jump || 0, .18], ['STERZO', st.steer || 0, .2], ['TURBO', st.turbo || 0, .25]];
-  return `<div class="bstats">${rows.map(([n, v, max]) => `<span class="bs"><small>${n}</small><span class="bar"><span class="fill ${v > 0 ? 'up' : v < 0 ? 'down' : ''}" style="width:${Math.max(8, Math.min(100, Math.round(50 + v / max * 50)))}%"></span></span></span>`).join('')}${st.wheelie ? '<span class="bnote">+' + String(st.wheelie).replace('.', ',') + ' s impennata</span>' : ''}${st.climb ? '<span class="bnote">forte in salita</span>' : ''}</div>`;
+function statBars(st, ideal = '') {   // v149 · sei barre (anche salita e impennata) e il percorso dove la moto rende di più
+  const rows = [['VELOCITÀ', st.speed || 0, .18], ['STERZO', st.steer || 0, .3], ['SALTO', st.jump || 0, .2], ['TURBO', st.turbo || 0, .5], ['SALITA', st.climb || 0, .6], ['IMPENNATA', (st.wheelie || 0) / 4, .62]];
+  const notes = [st.protect ? 'regge le botte' : '', st.combo ? 'combo più lunghe' : '', st.beers ? '+' + Math.round(st.beers * 100) + '% birre' : '', st.points ? '+' + Math.round(st.points * 100) + '% punti' : ''].filter(Boolean);
+  return `<div class="bstats">${rows.map(([n, v, max]) => `<span class="bs"><small>${n}</small><span class="bar"><span class="fill ${v > 0 ? 'up' : v < 0 ? 'down' : ''}" style="width:${Math.max(8, Math.min(100, Math.round(50 + v / max * 50)))}%"></span></span></span>`).join('')}${notes.map(x => `<span class="bnote">${x}</span>`).join('')}${ideal ? `<span class="bideal">🎯 Ideale: ${ideal}</span>` : ''}</div>`;
 }
 function renderShop(back, tab = shopTab) {
   if (tab === shopTab && $('card').querySelector('.shoptabs')) keepCardScroll = true;
@@ -3112,7 +3113,7 @@ function renderShop(back, tab = shopTab) {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
     return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?t=1" alt="${b.name}" loading="lazy"></span>
-      <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats)}</span>
+      <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats, b.ideal)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
   const parts = P.currentParts();
@@ -4173,7 +4174,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 144;
+const GAME_VERSION = 149;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
