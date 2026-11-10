@@ -1,6 +1,6 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
-import { createWorld } from './scene3d.js?v=835de542';
+import { createWorld } from './scene3d.js?v=8a5ca599';
 import * as A from './audio.js?v=698e13bb';
 import * as P from './progress.js?v=d90f0e86';
 import { createMud } from './mudfx.js?v=ae45cf9e';
