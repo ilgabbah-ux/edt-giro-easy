@@ -99,7 +99,7 @@ function iso_(d) { return d.toISOString().slice(0, 10); }
 
 function valid_(r, m, minv, grp) {
   if (Number(r[3]) !== m) return false;
-  if ((String(r[11] || '') === 'pub') !== (grp === 'pub')) return false;   // v108.3 · solo i giri del proprio gruppo
+  if (grp !== 'pub' && String(r[11] || '') === 'pub') return false;   // v149 · EDT = solo gli amici; TUTTI = tutti i giri, EDT compresi
   if ((Number(r[8]) || 0) < minv) return false;   // v79 · solo la stagione richiesta
   if (String(r[1]).indexOf('TEST_CLAUDE') === 0) return false;   // v57 · righe di prova ignorate
   if (m === 2 && (Number(r[8]) || 0) < 59) return false;   // v59 · Taglio di Angelo ora è una gara di salto: contano solo i salti
@@ -311,7 +311,7 @@ function doGet(e) {
         if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Moto').setFontWeight('bold');
         if (sh.getRange(1, 12).getValue() === '') sh.getRange(1, 12).setValue('Gruppo').setFontWeight('bold');
         sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0))), p.grp === 'pub' && !edtName ? 'pub' : '']);
-        saved = true; bump_(p.grp === 'pub' && !edtName ? 'pub' : 'edt');
+        saved = true; bump_('pub'); if (!(p.grp === 'pub' && !edtName)) bump_('edt');   // v149 · i giri EDT entrano anche in TUTTI
       } catch (err) { if (!taken) throw err; } finally { lock.releaseLock(); }
     }
   }
