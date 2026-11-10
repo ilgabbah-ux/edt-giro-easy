@@ -83,7 +83,7 @@ export function xmasOn(d = new Date()) {
   const m = d.getMonth(), g = d.getDate(); return m === 11 || (m === 0 && g <= 6);
 }
 export const xmasDouble = (d = new Date()) => d.getMonth() === 11 && d.getDate() === 21;   // la notte della Christmas Madness vera
-export const xmasTeaser = (d = new Date()) => !xmasOn(d) && d.getMonth() === 10 && d.getDate() >= 15;   // v127 · dal 15 novembre si vede col lucchetto
+export const xmasTeaser = (d = new Date()) => !xmasOn(d) && d.getMonth() === 10;   // v149 · tutto novembre si vede col lucchetto (prima dal 15)
 export const eventOn = ev => ev === 'xmas' ? xmasOn() || xmasTeaser() : true;
 export const lockText = m => m.event === 'xmas' && !xmasOn() ? 'ARRIVA IL 1° DICEMBRE' : 'LIV ' + (m.unlock || 1);
 export const SHOWN = () => MODES.filter(m => !m.hidden && (!m.event || eventOn(m.event)));
