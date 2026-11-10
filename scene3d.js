@@ -3150,19 +3150,19 @@ export function createWorld(canvas) {
     if (dt > 200) return;
     frameAvg += (dt - frameAvg) * .05; frames++;
     // v109.7 · se va molto lento si scende di gradino in fretta
-    if (frames > (frameAvg > 40 ? 20 : 90) && frameAvg > (bigScreen() ? 21 : 27) && quality < maxQ()) { frames = 0; goodFrames = 0; quality++; stepQuality(quality); saveQ(quality); }
+    if (frames > (frameAvg > 40 ? 20 : 120) && frameAvg > (bigScreen() ? 24 : 33) && quality < maxQ()) { frames = 0; goodFrames = 0; quality++; stepQuality(quality); saveQ(quality); }
     // v109.2 · fluidità automatica: al massimo dei gradini e ancora lento per 3 secondi → grafica leggera da sola (una volta, e lo dico)
-    else if (frames > (frameAvg > 40 ? 90 : 180) && !lite && !liteManual && frameAvg > (bigScreen() ? 22 : 28) && quality >= maxQ()) { frames = 0; setLite(true, true); onAutoLite?.(); }
-    if (quality > 0 && frameAvg < (bigScreen() ? 18 : 21)) { if (++goodFrames === 600) saveQ(quality - 1); } else goodFrames = 0;   // va liscio da un pezzo: la prossima volta si riparte un gradino più su
+    else if (frames > (frameAvg > 40 ? 90 : 240) && !lite && !liteManual && frameAvg > (bigScreen() ? 26 : 34) && quality >= maxQ()) { frames = 0; setLite(true, true); onAutoLite?.(); }
+    if (quality > 0 && frameAvg < (bigScreen() ? 18 : 21)) { if (++goodFrames === 600) { saveQ(quality - 1); if (lite && liteAuto && !liteManual) { try { localStorage.setItem(LITE_KEY, '0'); localStorage.removeItem('edt-lite-auto'); } catch {} } } } else goodFrames = 0;   // v149.1 · anche la grafica leggera messa da sola si toglie da sola, la volta dopo, se il telefono va liscio   // va liscio da un pezzo: la prossima volta si riparte un gradino più su
   }
   // v108 · "grafica leggera" scelta a mano dalla pausa, e numeri per il contatore di fluidità
   const LITE_KEY = 'edt-lite', PR0 = pixelRatio, perf = { n: 0, acc: 0, worst: 0, hitches: 0 };
   const weakDevice = () => (navigator.deviceMemory > 0 && navigator.deviceMemory <= 3) || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 4);   // v149 · telefoni economici: si parte già leggeri
   let lite = false; try { const v = localStorage.getItem(LITE_KEY); lite = v === null ? bigScreen() || weakDevice() : v === '1'; } catch {}   // v108.2 · su tablet (iPad) si parte già con la grafica leggera: si può togliere dalla pausa
   const liteQ = () => bigScreen() ? 5 : 4;
-  let liteManual = false, onAutoLite = null; try { liteManual = localStorage.getItem('edt-lite-manual') === '1'; } catch {}
+  let liteManual = false, liteAuto = false, onAutoLite = null; try { liteManual = localStorage.getItem('edt-lite-manual') === '1'; liteAuto = localStorage.getItem('edt-lite-auto') === '1'; } catch {}
   function setLite(on, auto = false) {
-    lite = !!on; try { localStorage.setItem(LITE_KEY, lite ? '1' : '0'); if (!auto && !lite) { liteManual = true; localStorage.setItem('edt-lite-manual', '1'); } } catch {}
+    lite = !!on; liteAuto = lite && auto; try { localStorage.setItem(LITE_KEY, lite ? '1' : '0'); if (liteAuto) localStorage.setItem('edt-lite-auto', '1'); else localStorage.removeItem('edt-lite-auto'); if (!auto && !lite) { liteManual = true; localStorage.setItem('edt-lite-manual', '1'); } } catch {}
     if (lite) { while (quality < liteQ()) stepQuality(++quality); }
     else {
       for (const m of [...FOLIAGE, flowers]) if (m.userData.n0 != null) m.count = m.userData.n0;   // v109.7 · torna tutta la vegetazione
