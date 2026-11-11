@@ -4,7 +4,7 @@ const FILES = ['./', './index.html', './style.css', './game.js', './physics.js',
   './three.module.min.js', './three.core.min.js', './RoundedBoxGeometry.js', './anton.woff2', './barlow-condensed-latin-600-normal.woff2', './barlow-condensed-latin-700-normal.woff2',
   './barlow-condensed-latin-800-italic.woff2', './edt-logo-small.jpg', './edt-logo.png', './img/edt-shield.webp', './img/ice-scrofy.webp', './img/angelo-suuuka.webp', './img/san-miti.webp', './img/i-want-you.webp', './img/san-braulio.webp', './img/anti-gev.webp', './img/gusta-ranch.webp', './img/track-0.webp', './img/track-1.webp', './img/track-3.webp', './img/track-4.webp', './img/track-5.webp', './img/track-6.webp', './img/track-7.webp', './img/track-8.webp', './img/track-10.webp', './img/track-11.webp', './img/track-12.webp', './icon-v121-192.png', './icon-v121-512.png', './manifest.webmanifest'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && !k.startsWith('edt-nav')).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 // Rete prima (così gli aggiornamenti arrivano subito), cache se offline.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return; // la classifica online non passa dalla cache
