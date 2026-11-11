@@ -107,7 +107,36 @@ h3{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.12e
 .me .cone{position:absolute;left:50%;top:-14px;width:0;height:0;margin-left:-8px;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:16px solid var(--yellow);transform-origin:8px 27px;display:none}
 .me.dir .cone{display:block}
 .pin{font-family:var(--display);font-weight:800;font-size:12px;background:#111;color:var(--yellow);border:2px solid var(--yellow);border-radius:6px;padding:1px 5px;white-space:nowrap}
-@media (prefers-reduced-motion:reduce){#sheet,#arrow{transition:none}}
+/* gruppo */
+#alerts{display:flex;flex-direction:column;gap:6px;margin-top:6px;pointer-events:auto}
+.alert{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border-radius:10px;padding:8px 10px;
+  background:#4a3a00;border:2px solid var(--yellow);font-weight:700;font-size:15px}
+.alert.sos{background:#5a0d08;border-color:var(--red);animation:blink 1s infinite}
+.alert button{min-height:44px;padding:0 12px;border-radius:9px;background:var(--bg);border:1px solid var(--line);font-weight:700}
+@keyframes blink{50%{border-color:#fff}}
+.fab.left{right:auto;left:max(12px,env(safe-area-inset-left,0px))}
+#shareBtn{bottom:calc(env(safe-area-inset-bottom,0px) + 100px)}
+#shareBtn.on{border-color:var(--green);color:var(--green)}
+#shareBtn b{position:absolute;top:-6px;right:-6px;min-width:22px;height:22px;border-radius:11px;background:var(--green);color:#111;font-size:12px;display:none;place-items:center;padding:0 5px}
+#shareBtn.on b{display:grid}
+#sosBtn{bottom:calc(env(safe-area-inset-bottom,0px) + 162px);width:auto;padding:0 12px;display:none;border-color:var(--red);color:#fff;background:var(--red);font-family:var(--display);font-weight:800;font-size:15px;line-height:1}
+#sosBtn.on{display:grid}
+#sosBtn.active{background:#fff;color:var(--red);animation:blink 1s infinite}
+.rider{display:flex;align-items:center;gap:4px;transform:translate(-15px,-15px)}
+.rider .no{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#2fb8ff;color:#08131b;border:3px solid #111;
+  font-family:var(--display);font-weight:800;font-size:14px;box-shadow:0 0 0 2px #2fb8ff}
+.rider .lbl{font-family:var(--display);font-weight:800;font-size:13px;background:rgba(0,0,0,.75);color:#fff;border-radius:5px;padding:1px 5px;white-space:nowrap}
+.rider.stale .no{background:#8a877e;box-shadow:0 0 0 2px #8a877e}
+.rider.sos .no{background:var(--red);color:#fff;box-shadow:0 0 0 2px var(--red);animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 10px rgba(227,38,27,.35)}}
+.form{display:grid;grid-template-columns:1fr 84px;gap:8px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.form input,.form select{font:inherit;font-size:17px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;min-height:48px;padding:0 10px;width:100%}
+.form .wide{grid-column:1/-1}
+.share{width:100%;min-height:56px;margin-top:10px;border-radius:14px;font-family:var(--display);font-weight:800;font-size:18px;text-transform:uppercase;background:var(--green);color:#111}
+.share.on{background:var(--panel2);color:var(--fg);border:2px solid var(--line)}
+.hint{font-size:13px;color:var(--muted);margin:6px 2px 0}
+@media (prefers-reduced-motion:reduce){#sheet,#arrow{transition:none}.alert.sos,.rider.sos .no,#sosBtn.active{animation:none}}
 </style>
 </head>
 <body>
@@ -125,7 +154,13 @@ h3{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.12e
     <div id="navtxt">– <span>Carica una traccia GPX</span></div>
     <div id="navpct" style="font-family:var(--display);font-weight:800;font-size:18px;color:var(--muted)"></div>
   </div>
+  <div id="alerts"></div>
 </div>
+
+<button class="fab left" id="shareBtn" aria-label="Gruppo e posizione condivisa">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 6 2 6 5.5"/></svg><b id="crewCount">0</b>
+</button>
+<button class="fab left" id="sosBtn">SONO<br>FERMO</button>
 
 <button class="fab" id="layerBtn" aria-label="Cambia mappa">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>
@@ -147,6 +182,16 @@ h3{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.12e
     Carica GPX
   </button>
   <input type="file" id="fileIn" accept=".gpx,application/gpx+xml,application/xml,text/xml" multiple hidden>
+  <h3>Gruppo del giro</h3>
+  <div class="form">
+    <label>Nome<input id="fName" maxlength="20" placeholder="Ilgabbah" autocomplete="nickname"></label>
+    <label>Numero<input id="fNo" maxlength="4" inputmode="numeric" placeholder="69"></label>
+    <label>Codice gruppo<input id="fGroup" maxlength="30" placeholder="EDT"></label>
+    <label>Avvisa se indietro di<select id="fGap"><option value="500">500 m</option><option value="1000">1 km</option><option value="2000">2 km</option><option value="5000">5 km</option></select></label>
+  </div>
+  <button class="share" id="shareToggle">Condividi la mia posizione</button>
+  <p class="hint" id="shareHint">Solo chi usa lo stesso codice gruppo ti vede. Si spegne quando premi di nuovo.</p>
+  <div class="list" id="crewList" style="margin-top:8px"></div>
   <h3>Da seguire</h3>
   <div class="list" id="gpxList"></div>
   <h3>I tuoi giri registrati</h3>
@@ -371,9 +416,130 @@ function renderLists(){
     rl.appendChild(d);
   });
 }
-function openSheet(){renderLists();$('sheet').classList.add('open');$('scrim').classList.add('open')}
+function openSheet(){renderLists();if(typeof renderCrew==='function')renderCrew();$('sheet').classList.add('open');$('scrim').classList.add('open')}
 function closeSheet(){$('sheet').classList.remove('open');$('scrim').classList.remove('open')}
 $('tracksBtn').onclick=openSheet;$('closeSheet').onclick=closeSheet;$('scrim').onclick=closeSheet;
+
+/* ---------- gruppo: amici in tempo reale ---------- */
+const SERVER='https://script.google.com/macros/s/AKfycbw1aFw-TNfK9Mvw0yMtMcV9vzcmpgvjvzPbPHqwVyySgCWcK8icwWUi1LO4ASF1Sg384Q/exec';
+const crew=Object.assign({id:'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),name:'',no:'',group:'EDT',gap:1000},store.get('edt_crew',{}));
+store.set('edt_crew',crew);
+let sharing=store.get('edt_share',false),sos=store.get('edt_sos',false),pinging=false,lastPing=0,netFail=0;
+const riders={};      // id -> {d, mk}
+const behindSent={},silentSent={},sosSeen={};
+$('fName').value=crew.name;$('fNo').value=crew.no;$('fGroup').value=crew.group;$('fGap').value=String(crew.gap);
+['fName','fNo','fGroup','fGap'].forEach(id=>$(id).addEventListener('change',()=>{
+  const oldG=crew.group;
+  crew.name=$('fName').value.trim();crew.no=$('fNo').value.trim();crew.group=$('fGroup').value.trim()||'EDT';crew.gap=+$('fGap').value;
+  store.set('edt_crew',crew);
+  if(oldG!==crew.group){clearRiders();if(sharing)ping(true)}
+}));
+const ago=s=>s<60?'adesso':s<3600?Math.round(s/60)+' min fa':Math.round(s/3600)+' h fa';
+function clearRiders(){for(const id in riders){riders[id].mk.remove();delete riders[id]}renderCrew()}
+function shareUI(){
+  $('shareBtn').classList.toggle('on',sharing);$('sosBtn').classList.toggle('on',sharing);$('sosBtn').classList.toggle('active',sos);
+  $('sosBtn').innerHTML=sos?'TUTTO<br>OK':'SONO<br>FERMO';
+  $('shareToggle').classList.toggle('on',sharing);$('shareToggle').textContent=sharing?'Smetti di condividere':'Condividi la mia posizione';
+}
+function setSharing(v){
+  if(v&&!crew.name){toast('Scrivi il tuo nome prima di condividere');$('fName').focus();return}
+  if(v&&!SERVER.startsWith('http')){toast('Servizio gruppo non ancora collegato');return}
+  sharing=v;store.set('edt_share',v);
+  if(v){startGPS();ping(true);toast('Il gruppo '+crew.group+' ora ti vede')}
+  else{sos=false;store.set('edt_sos',false);if(SERVER.startsWith('http'))fetch(SERVER+'?a=bye&id='+encodeURIComponent(crew.id)+'&g='+encodeURIComponent(crew.group)).catch(()=>{});clearRiders();setAlerts();toast('Posizione non più condivisa')}
+  shareUI();
+}
+$('shareToggle').onclick=()=>setSharing(!sharing);
+$('shareBtn').onclick=()=>{if(!sharing){openSheet();$('fName').scrollIntoView({block:'center'})}else openSheet()};
+let sosArmed=false;
+$('sosBtn').onclick=()=>{
+  if(!sos&&!sosArmed){sosArmed=true;$('sosBtn').innerHTML='TOCCA<br>ANCORA';setTimeout(()=>{sosArmed=false;shareUI()},3000);return}
+  sosArmed=false;sos=!sos;store.set('edt_sos',sos);shareUI();ping(true);
+  toast(sos?'Avviso mandato: il gruppo vede che sei fermo':'Avviso tolto: tutto ok');
+};
+
+async function ping(force){
+  if(!sharing||pinging||!SERVER.startsWith('http'))return;
+  if(!force&&Date.now()-lastPing<14000)return;
+  pinging=true;lastPing=Date.now();
+  const q=new URLSearchParams({a:'ping',id:crew.id,g:crew.group,n:crew.name,no:crew.no,sos:sos?'1':'0'});
+  if(me){q.set('lat',me[0].toFixed(6));q.set('lon',me[1].toFixed(6));if(heading!=null)q.set('h',Math.round(heading));q.set('s',$('sSpeed').textContent)}
+  try{
+    const r=await fetch(SERVER+'?'+q,{redirect:'follow',cache:'no-store'});
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error);
+    netFail=0;updateRiders(j.riders||[]);
+  }catch(e){if(++netFail===3)toast('Niente rete: riprovo da solo',2500)}
+  finally{pinging=false}
+}
+function riderIcon(d){
+  const cls=d.sos?'sos':d.ago>180?'stale':'';
+  return L.divIcon({className:'',iconSize:null,html:`<div class="rider ${cls}"><div class="no">${esc(d.no||d.n.slice(0,2).toUpperCase())}</div><div class="lbl">${esc(d.n)}${d.ago>180?' · '+ago(d.ago):''}</div></div>`});
+}
+function updateRiders(list){
+  const seen=new Set();
+  list.forEach(d=>{
+    if(d.lat==null)return;seen.add(d.id);
+    if(!riders[d.id])riders[d.id]={mk:L.marker([d.lat,d.lon],{zIndexOffset:900}).addTo(map)};
+    riders[d.id].d=d;riders[d.id].mk.setLatLng([d.lat,d.lon]).setIcon(riderIcon(d));
+    riders[d.id].mk.off('click').on('click',()=>toast(d.n+' · '+ago(d.ago)+(me?' · '+km(hav(me,[d.lat,d.lon])):'')));
+  });
+  for(const id in riders)if(!seen.has(id)){riders[id].mk.remove();delete riders[id]}
+  checkAlerts();renderCrew();
+}
+// quanto è indietro: lungo la traccia attiva se c'è, altrimenti in linea d'aria
+function gapOf(d){
+  const t=gpx.find(x=>x.id===active&&x.vis&&x.pts.length>1);
+  if(t){const a=nearest(t,me),b=nearest(t,[d.lat,d.lon]);if(a.d<300&&b.d<300)return {m:a.along-b.along,track:true}}
+  return {m:hav(me,[d.lat,d.lon]),track:false};
+}
+function buzz(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+let alertList=[];
+function checkAlerts(){
+  const out=[];
+  for(const id in riders){
+    const d=riders[id].d;
+    if(d.sos){out.push({sos:true,id,txt:`${d.n} è FERMO${me?' · '+km(hav(me,[d.lat,d.lon])):''}`});if(!sosSeen[id]){sosSeen[id]=1;buzz([400,150,400,150,400])}continue}
+    delete sosSeen[id];
+    if(!me)continue;
+    if(d.ago>300){if(!silentSent[id]){silentSent[id]=1;buzz([200,100,200])}out.push({id,txt:`${d.n}: nessun segnale da ${ago(d.ago).replace(' fa','')}`});continue}
+    delete silentSent[id];
+    const g=gapOf(d);
+    if(g.m>crew.gap){
+      if(!behindSent[id]){behindSent[id]=1;buzz([300,120,300])}
+      out.push({id,txt:`${d.n} è rimasto indietro · ${km(g.m)}${g.track?'':' in linea d\'aria'}`});
+    }else if(g.m<crew.gap*.6)delete behindSent[id];
+  }
+  alertList=out;setAlerts();
+}
+const dismissed={};
+function setAlerts(){
+  const box=$('alerts');box.innerHTML='';
+  alertList.filter(a=>a.sos||!dismissed[a.id+a.txt.split('·')[0]]).slice(0,3).forEach(a=>{
+    const el=document.createElement('div');el.className='alert'+(a.sos?' sos':'');
+    el.innerHTML=`<div>${esc(a.txt)}</div><div style="display:flex;gap:6px"><button data-a="go">Vedi</button>${a.sos?'':'<button data-a="x">OK</button>'}</div>`;
+    el.onclick=e=>{const b=e.target.closest('button');if(!b)return;
+      if(b.dataset.a==='go'&&riders[a.id]){const d=riders[a.id].d;setFollow(false);const ll=[[d.lat,d.lon]];if(me)ll.push(me);map.fitBounds(L.latLngBounds(ll),{paddingTopLeft:[40,200],paddingBottomRight:[40,140],maxZoom:16})}
+      if(b.dataset.a==='x'){dismissed[a.id+a.txt.split('·')[0]]=1;setAlerts()}};
+    box.appendChild(el);
+  });
+}
+function renderCrew(){
+  const n=Object.keys(riders).length;$('crewCount').textContent=n;
+  const cl=$('crewList');
+  if(!sharing){cl.innerHTML='';return}
+  cl.innerHTML=n?'':`<div class="empty">Nessun altro nel gruppo "${esc(crew.group)}" per ora. Gli amici devono usare lo stesso codice.</div>`;
+  Object.values(riders).sort((a,b)=>a.d.n.localeCompare(b.d.n)).forEach(({d})=>{
+    const el=document.createElement('div');el.className='item';
+    const dist=me?km(hav(me,[d.lat,d.lon])):'–';
+    el.innerHTML=`<div class="sw" style="background:${d.sos?'var(--red)':d.ago>180?'#8a877e':'#2fb8ff'}"></div><div style="min-width:0"><div class="name">${esc((d.no?d.no+' · ':'')+d.n)}</div><div class="meta">${dist} · ${ago(d.ago)}${d.sos?' · FERMO':''}</div></div><div class="acts"><button class="mini" data-a="go">Vedi</button></div>`;
+    el.onclick=()=>{setFollow(false);map.setView([d.lat,d.lon],16);closeSheet()};
+    cl.appendChild(el);
+  });
+}
+setInterval(()=>{ping(false);for(const id in riders){riders[id].d.ago+=5}},5000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')ping(true)});
+shareUI();if(sharing)ping(true);
 
 /* ---------- schermo acceso ---------- */
 let lock=null;
