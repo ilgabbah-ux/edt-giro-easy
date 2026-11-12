@@ -2,11 +2,11 @@
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
 import { createWorld } from './scene3d.js?v=8a5ca599';
 import * as A from './audio.js?v=698e13bb';
-import * as P from './progress.js?v=d90f0e86';
+import * as P from './progress.js?v=e01910cc';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
-import * as C from './classifica.js?v=92747cc3';
+import * as C from './classifica.js?v=206dc184';
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
