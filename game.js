@@ -818,6 +818,7 @@ function finish(win, reason = '') {
   if (win && run.position === 1 && !leap) score += 500;
   if (mode === 17 && P.xmasDouble() && !leap) { score *= 2; run.xmasDouble = 1; }
   if (mode === 20 && P.festDouble() && !leap) { score *= 2; run.festDouble = 1; }   // v132 · 1° marzo: il compleanno vero vale doppio   // v127 · 21 dicembre: la notte della Christmas Madness vale doppio
+  run.fitBonus = 0; if (win && !leap && !tut && !P.MODES[mode].school && P.bikeFits(P.currentBike().id, mode)) { run.fitBonus = Math.round(score * P.FIT_BONUS); score += run.fitBonus; }   // v150 · moto giusta per il percorso: +10%
   score = Math.floor(score);
   run.score = score;
   const finished = win ? 1 : 0;
@@ -831,6 +832,7 @@ function finish(win, reason = '') {
   });
   run.km = Math.round(roadTime * 19.5) / 1000;   // v96 · per le statistiche
   const res = P.recordRun(run);
+  if (win && !tut && !P.MODES[mode].school) { const sg = P.claimSeasonGift(); if (sg) { res.seasonGift = sg; res.wallet = P.profile.beers; } }   // v150 · regalo di stagione 11
   if (P.MODES[mode].school && win && !P.profile.schoolPrize) { P.profile.schoolPrize = 1; P.profile.beers = (P.profile.beers || 0) + 300; res.schoolPrize = 300; }   // v145 · 300 birre a chi finisce il giro di prova
   if (P.MODES[mode].school && win) { res.school = !P.profile.schoolDone; P.profile.schoolDone = 1; P.profile.tutorialDone = true; P.save(); }   // v140 · diploma: si apre la carriera
   A.musicRush(false); volata = 0; volataShow(null);
@@ -3334,6 +3336,60 @@ function renderChamp() {
     renderReady(); champRun = true; start();
   };
 }
+// v150 · NOVITÀ: alla prima apertura dopo un aggiornamento, cosa è cambiato (anche le versioni saltate)
+const NEWS = {
+  149: [['🏍', 'Ogni moto ha il suo carattere', 'sei barre vere (velocità, sterzo, salto, turbo, salita, impennata) e il percorso dove rende di più'],
+    ['🤸', 'Trucchi in volo', 'premi SALTA quando sei in aria: punti extra, ma se atterri a metà cadi'],
+    ['😵', 'Compagni più vivi', 'cadono, ti chiudono la traiettoria e ti sfottono'],
+    ['💩', 'Fango addosso', 'nei percorsi bagnati moto e pilota si sporcano sempre di più'],
+    ['☁', 'Progressi online', 'cambi telefono? metti nome e codice pilota e ritrovi tutto'],
+    ['🎚', 'Sterzo regolabile e Riparti da capo', 'nelle impostazioni e in pausa']],
+  150: [['🎯', 'Moto giusta = +10% punti', 'ogni moto ha i suoi percorsi: guarda il 🎯 sul percorso e nel garage'],
+    ['🎁', 'Regalo della stagione 11', 'arriva al rifugio entro il {gift}: maglia «Stagione 11» + birre'],
+    ['🏍', 'La moto in classifica', 'accanto al nome vedi con che moto ti hanno battuto'],
+    ['🎄', 'Christmas Madness', 'si apre il 1° dicembre']],
+};
+const NEWS_KEY = 'edt-news-seen';
+let newsTried = false;
+function maybeNews() {
+  if (newsTried) return; newsTried = true;
+  let seen = 0; try { seen = Number(localStorage.getItem(NEWS_KEY)) || 0; } catch {}
+  const mark = () => { try { localStorage.setItem(NEWS_KEY, String(GAME_VERSION)); } catch {} };
+  if (seen >= GAME_VERSION) return;
+  if (!(P.profile.totals?.runs > 0)) { mark(); return; }   // chi gioca per la prima volta non ha niente di «nuovo»
+  const vs = Object.keys(NEWS).map(Number).filter(v => v > (seen || 148) && v <= GAME_VERSION).sort((a, b) => b - a);
+  const items = vs.flatMap(v => NEWS[v]).slice(0, 8);
+  if (!items.length) { mark(); return; }
+  setTimeout(() => {
+    if (state !== 'ready' || document.querySelector('.podium.open, .chestpop, #restorepop')) { newsTried = false; return; }
+    mark(); showNews(items);
+  }, 1400);
+}
+function showNews(items) {
+  $('newspop')?.remove();
+  const el = document.createElement('div'); el.className = 'podium chestpop newspop'; el.id = 'newspop';
+  el.innerHTML = `<div class="podbox chestbox"><small>VERSIONE ${GAME_VERSION}</small><b class="podtitle">NOVITÀ NEL GIOCO</b>
+    <ul class="newslist">${items.map(([ic, t, d]) => `<li><i>${ic}</i><span><b>${t}</b>${d.replace('{gift}', giftDay())}</span></li>`).join('')}</ul>
+    <button class="primary" type="button" id="newsgo"><span>PROVALE SUBITO</span></button><button class="secondary" type="button" id="newsclose">DOPO</button></div>`;
+  (document.fullscreenElement || document.webkitFullscreenElement || document.body).appendChild(el); iconizeEl(el); requestAnimationFrame(() => el.classList.add('open'));
+  const close = () => { el.remove(); A.sfx.click(); };
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+  $('newsclose').onclick = close;
+  $('newsgo').onclick = () => { close(); $('start')?.click(); };
+}
+// v150 · MOTO GIUSTA: nel riquadro del percorso dice se la moto in sella prende il +10%, o quale moto lo prende
+function fitHTML(md) {
+  if (md.school || md.leap || md.random === 'run') return '';
+  const fits = P.fitBikes(md.id); if (!fits.length) return '';
+  const cur = P.currentBike();
+  if (fits.some(b => b.id === cur.id)) return `<span class="thfit on">🎯 MOTO GIUSTA: <b>+10% PUNTI</b> all’arrivo</span>`;
+  const own = fits.find(b => P.ownsBike(b.id));
+  if (own) return `<button type="button" class="thfit" id="thfit" data-bike="${own.id}">🎯 Con la <b>${own.name}</b> qui fai +10% punti · <u>PRENDILA</u></button>`;
+  return `<span class="thfit off">🎯 Moto giusta qui: <b>${fits.map(b => b.name).join(' o ')}</b> (+10% punti)</span>`;
+}
+// v150 · REGALO DI STAGIONE 11 (fino a SEASON_GIFT.until)
+const giftDay = () => String(P.SEASON_GIFT.until % 100).padStart(2, '0') + '/' + String(Math.floor(P.SEASON_GIFT.until / 100) % 100).padStart(2, '0');
+const giftChipHTML = () => P.seasonGiftOpen() ? `<div class="goalchip giftchip"><span class="chi">🎁</span><span class="cht"><small>REGALO DELLA STAGIONE 11</small><b>Arriva al rifugio su un percorso qualsiasi entro il ${giftDay()}</b><em>maglia «Stagione 11» + ${P.SEASON_GIFT.beers} 🍺</em></span></div>` : '';
 // v146 · risultati più corti: al massimo 2 avvisi in vista, gli altri chiusi in «ALTRE NOVITÀ»
 function resNudges(list) {
   const l = list.filter(h => h && h.trim());
@@ -3508,6 +3564,7 @@ function renderReady() {
       ${P.STAR_MODES.includes(md.id) ? `<span class="thstars" title="${starGoal(md.id)}">${starsHTML(P.starsFor(md.id))}</span>` : ''}<span class="thchips"><span title="Difficoltà">🔥 ${'★'.repeat((md.difficulty || 0) + 1)}<i class="stoff">${'★'.repeat(2 - (md.difficulty || 0))}</i></span>${md.id === P.weeklyTrack() ? '<span class="wkchip">🔥 PERCORSO DELLA SETTIMANA · BIRRE ×2</span>' : ''}${variantOf(md.id) ? `<span class="var">🔄 VARIANTE ${VARIANT_NAMES[variantOf(md.id)]} DELLA SETTIMANA</span>` : ''}${!md.leap ? `<span class="gold" title="Boccali d’oro nascosti questa settimana">🏆 ${P.goldFound(md.id).filter(Boolean).length}/3 BOCCALI D’ORO</span>` : ''}${TRACK_INFO[md.id]?.tipo ? `<span class="tipo">${TRACK_INFO[md.id].tipo.split(' (')[0]}</span>` : ''}</span>
       ${md.random === 'run' ? '<span class="strip rnd"><i></i></span>' : stripHTML(layoutFor(md.id))}
       <span class="record">${icon('trophy')} ${best ? `RECORD${md.id === 3 ? ' DI OGGI' : ''}: <b>${best.toLocaleString('it-IT')}</b>` : 'NESSUN RECORD: È IL MOMENTO'}</span>
+      ${fitHTML(md)}
       ${C.enabled() ? `<span class="thlead" id="thlead">${heroLead(C.cached())}</span>` : ''}</div>
       ${heroList.length > 1 ? `<button class="thnav prev" id="thprev" type="button" aria-label="Percorso precedente">‹</button><button class="thnav next" id="thnext" type="button" aria-label="Percorso successivo">›</button>
 ` : ''}
@@ -3519,7 +3576,7 @@ function renderReady() {
         ${ta ? `<img class="modeart" loading="lazy" decoding="async" src="${ta}" alt="" onerror="if(!this.dataset.r){this.dataset.r=1;setTimeout(()=>this.src=this.src+'&r='+Date.now(),1500)}">` : ''}<span class="ps">PS${psOf(m)}</span><b>${m.id === 3 ? 'SFIDA ' + P.todayLabel() : m.short}</b><small>${open ? '⏱ ' + m.limit + ' s' : '🔒 ' + P.lockText(m)}</small>${open && P.STAR_MODES.includes(m.id) ? starsHTML(P.starsFor(m.id), 'mini') : ''}${m.id === P.weeklyTrack() ? '<i class="wktrack">🔥 BIRRE ×2</i>' : ''}</button>`; }).join('')}
     </div>
     <div class="hsec">${icon('calendar')} OGGI</div>
-    <div class="oggibox">${dailyChipHTML()}${goalChipHTML()}${P.MODES[mode].leap ? '' : derbyChipHTML()}</div>
+    <div class="oggibox">${giftChipHTML()}${dailyChipHTML()}${goalChipHTML()}${P.MODES[mode].leap ? '' : derbyChipHTML()}</div>
     ${C.enabled() ? '<button class="cupbar" id="cupbar" type="button" hidden><span class="cupi">🏆</span><span class="cupt"><small>COPPA DELLA SETTIMANA</small><b id="cuplead">…</b><em id="cupme"></em></span><span class="cupx" id="cupprev"></span></button>' : ''}
     ${xmasChipHTML()}
     ${starterHTML()}
@@ -3547,6 +3604,8 @@ function renderReady() {
   requestAnimationFrame(() => { const act = document.querySelector('.modes .mode.active'); if (act) act.parentElement.scrollLeft = act.offsetLeft - act.parentElement.clientWidth / 2 + act.offsetWidth / 2; });
   iconizeEl($('card'));
   $('start').onclick = () => { if (duel) duel.racing = false; start(); };
+  maybeNews();   // v150
+  $('thfit')?.addEventListener('click', e => { e.stopPropagation(); const id = $('thfit').dataset.bike; if (P.ownsBike(id)) { P.buyBike(id); A.sfx.click(); toast('🎯 IN SELLA: ' + P.currentBike().name.toUpperCase() + ' · +10% PUNTI QUI', 'green'); renderReady(); renderSide(); } });   // v150
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
   $('extrabox')?.addEventListener('toggle', e => { try { localStorage.setItem('edt-extra', e.target.open ? '1' : '0'); } catch {} });
   $('sensmenu')?.addEventListener('click', () => { A.sfx.click(); $('sensmenu').innerHTML = iconize(cycleSens()); toast({ s: '🎚 STERZO MORBIDO: INCLINA DI PIÙ, PIÙ PRECISO', m: '🎚 STERZO MEDIO', h: '🎚 STERZO RAPIDO: BASTA INCLINARE POCO' }[tiltSens], 'green'); });   // v149
@@ -3676,6 +3735,8 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${res.weeklyDone?.length ? `<div class="donelist weeklydone">${res.weeklyDone.map(c => `<div><span>🗓 MISSIONE DELLA SETTIMANA: ${c.text}</span><b>+${c.beers} 🍺</b></div>`).join('')}</div>` : ''}
     ${res.completed.length ? `<div class="donelist">${res.completed.map(c => `<div><span>✔ ${c.text}</span><b>+${c.xp} XP</b></div>`).join('')}</div>` : ''}
     <div class="loot">
+      ${run.fitBonus ? `<div class="derbywin fitwin">🎯 <span>MOTO GIUSTA PER QUESTO PERCORSO: ${P.currentBike().name}</span><b>+${run.fitBonus.toLocaleString('it-IT')} punti</b></div>` : ''}
+      ${res.seasonGift ? `<div class="derbywin s11win">🎁 <span>REGALO DELLA STAGIONE 11: MAGLIA «STAGIONE 11» (la trovi nel garage)</span><b>+${res.seasonGift.beers} 🍺</b></div>` : ''}
       ${res.derby ? `<div class="derbywin">⚔ <span>DERBY DEL GIORNO VINTO: ${res.derby.text}</span><b>+${res.derby.beers} 🍺</b></div>` : ''}
       <div class="beerline">🍺 <b>+${res.beersEarned}</b> birre portate al rifugio${res.weeklyX2 ? ' <em class="wkx2">🔥 ×2 PERCORSO DELLA SETTIMANA</em>' : ''} <small>in cassa: ${res.wallet} 🍺</small></div>
       ${res.prize ? `<div class="prize"><span class="pi">${res.prize.icon}</span><span><small>PREMIO DEL RIFUGIO</small><b>${res.prize.name}${res.prize.amount ? ' +' + res.prize.amount + ' 🍺' : ''}</b>${res.prize.amount ? '' : '<em>' + res.prize.desc + ' (prossimo giro)</em>'}</span></div>` : `<div class="noprize">Arriva al rifugio per vincere un premio.</div>`}
@@ -3736,7 +3797,7 @@ function groupListHTML(list, me = '', m = -1) {
   if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
   const mine = C.cleanNick(me).toLowerCase();
   const gh = ghostable(m);
-  return list.map((e, i) => { const canG = gh && e.g && e.g.length > 8 && !(mine && e.n.toLowerCase() === mine); return `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}${canG ? ' ghostable' : ''}"${canG ? ` data-ghostn="${e.n}" data-ghostm="${m}" title="Corri contro il suo fantasma"` : ''}><span class="pos">${i + 1}</span>${entryAv(e, 'tiny')}<span class="who">${e.n}${crownOf(e.n)}${canG ? '<em class="gsfida">👻 SFIDA</em>' : ''}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.b != null ? `<small class="bikelv" title="livello moto${e.b >= 75 ? ' · livelli Leggenda' : ''}">${e.b >= 120 ? '👑' : e.b >= 100 ? '💎' : e.b >= 76 ? '🏅' : '🔧'}${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`; }).join('');
+  return list.map((e, i) => { const canG = gh && e.g && e.g.length > 8 && !(mine && e.n.toLowerCase() === mine); return `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}${canG ? ' ghostable' : ''}"${canG ? ` data-ghostn="${e.n}" data-ghostm="${m}" title="Corri contro il suo fantasma"` : ''}><span class="pos">${i + 1}</span>${entryAv(e, 'tiny')}<span class="who">${e.n}${crownOf(e.n)}${canG ? '<em class="gsfida">👻 SFIDA</em>' : ''}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.m && P.BIKES.some(x => x.id === e.m) ? `<img class="bkm" src="img/bike-${e.m}.webp?t=1" alt="" title="${P.BIKES.find(x => x.id === e.m).name}" loading="lazy">` : ''}${e.b != null ? `<small class="bikelv" title="livello moto${e.b >= 75 ? ' · livelli Leggenda' : ''}">${e.b >= 120 ? '👑' : e.b >= 100 ? '💎' : e.b >= 76 ? '🏅' : '🔧'}${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`; }).join('');
 }
 // v122 · classifica delle cadute
 // v123 · contatore pubblico in home: telefoni che hanno aperto il gioco (dallo script); se lo script è vecchio, i piloti in classifica
@@ -4049,7 +4110,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
   const { sent, sentAs, ...payload } = runInfo;
   const beforeList = (C.cached()?.boards?.[runInfo.mode] || []).map(e => e.n);
   try { syncMyPhoto(); } catch {}   // v126 · foto profilo non ancora sul server (es. nome cambiato)
-  C.submit({ ...payload, name: nick, v: String(GAME_VERSION), b: P.UPGRADES.reduce((a, u) => a + P.upgradeLevel(u.id), 0) }).then(d => {
+  C.submit({ ...payload, name: nick, v: String(GAME_VERSION), b: P.UPGRADES.reduce((a, u) => a + P.upgradeLevel(u.id), 0), bk: P.currentBike().id }).then(d => {
     if (d.taken) {   // v89 · nome già prenotato da un altro telefono
       if (!$('groupres')) return;
       $('groupres').innerHTML = `<div class="ghead">🔒 NOME GIÀ USATO</div><p><b>${nick}</b> è già il nome di un altro giocatore. Se sei tu, scrivi il tuo <b>codice pilota</b> (lo trovi in classifica sul telefono dove giochi di solito); altrimenti cambia nome.</p><p class="note">Il giro non è perso: resta da parte${C.heldCount() > 1 ? ' insieme ad altri ' + (C.heldCount() - 1) : ''} e parte da solo appena metti il codice giusto (o un nome tuo).</p>
@@ -4228,7 +4289,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 149;
+const GAME_VERSION = 150;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -4375,9 +4436,9 @@ function renderSide() {
   $('shopside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady)); };
   $('bikeside').onclick = () => { if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes')); };
   $('liveries').innerHTML = P.LIVERIES.filter(l => (!l.xmas || P.liveryOpen(l) || P.xmasOn()) && (!l.starter || P.liveryOpen(l) || P.profile.starter)).map(l => {
-    const locked = !P.liveryOpen(l, info.level), why = l.starter ? 'Si vince finendo le missioni del pilota nuovo' : l.xmas ? 'Si vince finendo la Christmas Madness' : l.lev ? 'Si vince arrivando primo al Leventino' : l.fest ? 'Si vince arrivando primo alla Mirco e Gabbah Fest' : l.stars ? `Si sblocca con ${l.stars} stelle` : l.streak ? `Si sblocca tornando ${l.streak} giorni di fila (forziere del giorno)` : 'Si sblocca al livello ' + l.level;
+    const locked = !P.liveryOpen(l, info.level), why = l.starter ? 'Si vince finendo le missioni del pilota nuovo' : l.s11 ? (P.seasonGiftOpen() ? 'Regalo della stagione 11: arriva al rifugio entro il ' + giftDay() : 'Era il regalo della prima settimana della stagione 11') : l.xmas ? 'Si vince finendo la Christmas Madness' : l.lev ? 'Si vince arrivando primo al Leventino' : l.fest ? 'Si vince arrivando primo alla Mirco e Gabbah Fest' : l.stars ? `Si sblocca con ${l.stars} stelle` : l.streak ? `Si sblocca tornando ${l.streak} giorni di fila (forziere del giorno)` : 'Si sblocca al livello ' + l.level;
     return `<button type="button" class="livery ${l.id === current.id ? 'active' : ''} ${l.shirt ? 'shirt' : ''}" data-livery="${l.id}" ${locked ? 'aria-disabled="true"' : ''} title="${locked ? why : l.name}">
-      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}">${l.shirt ? `<img class="lvshirt" src="img/maglia-${l.shirt}.webp" alt="" loading="lazy">` : `<b class="lvicon">${l.icon || ''}</b>`}</i><span>${locked ? (l.starter ? '🔒 MISSIONI' : l.xmas ? '🔒 CHRISTMAS MADNESS' : l.lev ? '🔒 LEVENTINO' : l.fest ? '🔒 FEST' : l.stars ? '🔒 ' + l.stars + ' STELLE' : l.streak ? '🔒 ' + l.streak + ' GIORNI DI FILA' : '🔒 LIV ' + l.level) : l.name}</span></button>`;
+      <i style="--a:${l.plastic};--b:${l.accent};--c:${l.jersey}">${l.shirt ? `<img class="lvshirt" src="img/maglia-${l.shirt}.webp" alt="" loading="lazy">` : `<b class="lvicon">${l.icon || ''}</b>`}</i><span>${locked ? (l.starter ? '🔒 MISSIONI' : l.s11 ? '🔒 STAGIONE 11' : l.xmas ? '🔒 CHRISTMAS MADNESS' : l.lev ? '🔒 LEVENTINO' : l.fest ? '🔒 FEST' : l.stars ? '🔒 ' + l.stars + ' STELLE' : l.streak ? '🔒 ' + l.streak + ' GIORNI DI FILA' : '🔒 LIV ' + l.level) : l.name}</span></button>`;
   }).join('');
   document.querySelectorAll('[data-livery]').forEach(b => b.onclick = () => {
     if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -4410,7 +4471,8 @@ function renderSide() {
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}"><img src="img/bike-${b.id}.webp?t=1" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      const fit = P.bikeFits(b.id, mode);   // v150 · 🎯 la moto giusta per il percorso scelto
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}">${fit ? '<em class="bkfit">🎯 +10%</em>' : ''}<img src="img/bike-${b.id}.webp?t=1" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;

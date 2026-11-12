@@ -114,6 +114,7 @@ export const LIVERIES = [
   { id: 'levgirl', name: 'Leventino Girl', icon: '💖', level: 1, lev: true, plastic: '#ff3fb4', accent: '#3fd0ff', jersey: '#ff3fb4', pants: '#1d1d1b', helmet: '#ff3fb4', wig: '#ff4fc0' },   // v132 · primo al Leventino
   { id: 'supergabbah', name: 'Super Gabbah', icon: '👑', level: 1, fest: true, plastic: '#141414', accent: '#d9ad2b', jersey: '#141414', pants: '#141414', helmet: '#d9ad2b' },   // v132 · si vince arrivando primo alla Mirco e Gabbah Fest
   { id: 'supermirco', name: 'Super Mirco', icon: '⚡', level: 1, fest: true, plastic: '#2160d6', accent: '#e32020', jersey: '#2160d6', pants: '#1d2440', helmet: '#e32020' },
+  { id: 'stagione11', name: 'Stagione 11', icon: '🔟', level: 1, s11: true, plastic: '#101418', accent: '#19d3c5', jersey: '#101418', pants: '#19d3c5', helmet: '#19d3c5', pattern: 'righe', ink: '#19d3c5' },   // v150 · regalo a chi finisce un giro nella prima settimana dell'aggiornamento
   { id: 'babbo', name: 'Babbo Natale', icon: '🎅', level: 1, xmas: true, plastic: '#d8262f', accent: '#ffffff', jersey: '#d8262f', pants: '#1d1d1b', helmet: '#ffffff' },   // v127 · si vince finendo la Christmas Madness
 ];
 
@@ -445,7 +446,7 @@ export function levelInfo(xp = data.xp) {
   return { level, grade, into: xp - floor, need, pct: (xp - floor) / need };
 }
 
-export const liveryOpen = (l, level = levelInfo().level) => l.stars ? totalStars() >= l.stars : l.starter ? !!data.starter?.claimed : l.xmas ? !!data.xmasWin : l.lev ? !!data.levWin : l.fest ? !!data.festWin : l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
+export const liveryOpen = (l, level = levelInfo().level) => l.stars ? totalStars() >= l.stars : l.starter ? !!data.starter?.claimed : l.s11 ? !!data.s11Gift : l.xmas ? !!data.xmasWin : l.lev ? !!data.levWin : l.fest ? !!data.festWin : l.streak ? (data.daily?.best || 0) >= l.streak : l.level <= level;
 export function unlockedLiveries(level = levelInfo().level) {
   return LIVERIES.filter(l => liveryOpen(l, level));
 }
@@ -657,3 +658,19 @@ export function cloudApply(snap) {
   try { localStorage.setItem(KEY, JSON.stringify({ ...snap.data, board: keep })); return true; } catch { return false; }
 }
 export const progressScore = (o = data) => Math.round((o.xp || 0) + (o.beers || 0) / 10 + Object.values(o.upgrades || {}).reduce((a, b) => a + b, 0) * 50);
+// v150 · MOTO GIUSTA: il percorso dove la moto rende di più (la riga «🎯 Ideale») vale +10% punti all'arrivo
+export const FIT_BONUS = .1;
+export function bikeFits(bikeId, modeId) {
+  const b = BIKES.find(x => x.id === bikeId), m = MODES[modeId];
+  if (!b || !m || !b.ideal || /tutti/i.test(b.ideal)) return false;
+  return b.ideal.split(',').map(t => t.trim().toLowerCase()).filter(Boolean).some(t => m.name.toLowerCase().startsWith(t));
+}
+export const fitBikes = modeId => BIKES.filter(b => bikeFits(b.id, modeId));
+// v150 · REGALO DI STAGIONE 11: finisci un giro entro SEASON_GIFT.until → maglia «Stagione 11» + birre
+export const SEASON_GIFT = { n: 11, until: 20261122, beers: 250 };
+export const seasonGiftOpen = (d = new Date()) => !data.s11Gift && todayKey(d) <= SEASON_GIFT.until;
+export function claimSeasonGift() {
+  if (!seasonGiftOpen()) return null;
+  data.s11Gift = todayKey(); data.beers = (data.beers || 0) + SEASON_GIFT.beers; save();
+  return { beers: SEASON_GIFT.beers };
+}

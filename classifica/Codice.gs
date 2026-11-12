@@ -129,7 +129,7 @@ function cup_(rows, from, to, minv, act, grp) {
 function boards_(day, minv, act, grp) {
   const s = sheet_();
   const last = s.getLastRow();
-  const rows = last > 1 ? s.getRange(2, 1, last - 1, 12).getValues() : [];
+  const rows = last > 1 ? s.getRange(2, 1, last - 1, Math.min(13, s.getMaxColumns())).getValues() : [];
   const out = {}, times = {};
   for (let m = 0; m < MODES; m++) {
     const best = {}, bestT = {};
@@ -141,7 +141,7 @@ function boards_(day, minv, act, grp) {
       const tt = Number(r[6]) || 0, won = r[7] === true || r[7] === 'TRUE' || r[7] === 'sì';
       if (m === ICE && tt > 0 && (!bestT[k] || tt > bestT[k].t)) bestT[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: tt, w: true, d: ymd_(r[0]) };   // v92 · Ice Scrofy: metri di derapata, vince il più alto
       else if (m !== ICE && won && tt > 0 && (!bestT[k] || tt < bestT[k].t)) bestT[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: tt, w: true, d: ymd_(r[0]) };
-      if (!best[k] || sc > best[k].s) best[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: Number(r[6]) || 0, w: r[7] === true || r[7] === 'TRUE' || r[7] === 'sì', d: ymd_(r[0]), g: String(r[9] || ''), b: r[10] === '' || r[10] == null ? null : Number(r[10]) };
+      if (!best[k] || sc > best[k].s) best[k] = { n: String(r[1]), r: String(r[2]), s: sc, t: Number(r[6]) || 0, w: r[7] === true || r[7] === 'TRUE' || r[7] === 'sì', d: ymd_(r[0]), g: String(r[9] || ''), b: r[10] === '' || r[10] == null ? null : Number(r[10]), m: String(r[12] || '') };
     });
     Object.keys(best).forEach(k => { if (bestT[k]) best[k].bt = bestT[k].t; });
     out[m] = Object.values(best).sort((a, b) => b.s - a.s).slice(0, 10);
@@ -313,7 +313,7 @@ function doGet(e) {
         if (sh.getRange(1, 10).getValue() === '') sh.getRange(1, 10).setValue('Fantasma').setFontWeight('bold');
         if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Moto').setFontWeight('bold');
         if (sh.getRange(1, 12).getValue() === '') sh.getRange(1, 12).setValue('Gruppo').setFontWeight('bold');
-        sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0))), p.grp === 'pub' && !edtName ? 'pub' : '']);
+        sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0))), p.grp === 'pub' && !edtName ? 'pub' : '', /^[a-z0-9]{2,12}$/.test(p.bk || '') ? p.bk : '']);   // v150 · M = moto usata
         saved = true; bump_('pub'); if (!(p.grp === 'pub' && !edtName)) bump_('edt');   // v149 · i giri EDT entrano anche in TUTTI
       } catch (err) { if (!taken) throw err; } finally { lock.releaseLock(); }
     }
