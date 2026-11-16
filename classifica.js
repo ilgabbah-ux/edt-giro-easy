@@ -112,13 +112,13 @@ const SRC_OK = /^[a-z]{2,6}$/;
 let srcNow = '';
 try { const q = (new URLSearchParams(location.search).get('da') || '').toLowerCase(); if (SRC_OK.test(q)) { srcNow = q; if (!localStorage.getItem('edt-src')) localStorage.setItem('edt-src', q); } } catch {}
 export function source() { if (srcNow) return srcNow; try { const s = localStorage.getItem('edt-src') || ''; return SRC_OK.test(s) ? s : ''; } catch { return ''; } }
-export function hit(kind, v = '') {
+export function hit(kind, v = '', ms = 0) {   // v151 · ms = quanti millisecondi ci ha messo la home a comparire (solo per 'home')
   if (!enabled()) return;
   try {
     if (kind !== 'run') { const k = 'edt-hit-' + kind, day = dayISO(); if (localStorage.getItem(k) === day) return; localStorage.setItem(k, day); }
     const id = devId(); if (!id) return;
     const src = source(); if (src) v = String(v).slice(0, 4) + '-' + src;   // v116 · da quale canale arriva (nella colonna Versione, es. 115-ig)
-    fetch(API + '?' + new URLSearchParams({ action: 'hit', kind, id, grp: myGrp(), v, day: dayISO() }).toString(), { mode: 'no-cors', keepalive: true }).catch(() => {});
+    fetch(API + '?' + new URLSearchParams({ action: 'hit', kind, id, grp: myGrp(), v, day: dayISO(), ...(ms ? { ms: String(ms) } : {}) }).toString(), { mode: 'no-cors', keepalive: true }).catch(() => {});
   } catch {}
 }
 export function submit({ name, score, mode, rider, time, win, v, g, b, bk }) {

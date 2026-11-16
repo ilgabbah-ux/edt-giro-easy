@@ -2203,3 +2203,7 @@ button.thfit u { text-decoration: none; background: var(--y); color: #111; paddi
 .newspop .newslist li b { color: #fff; display: block; font-size: 14px; }
 .newspop .secondary { margin-top: 8px; width: 100%; }
 .groupboard .bkm, li .bkm { width: 26px; height: 16px; object-fit: contain; vertical-align: middle; margin-left: 4px; }
+/* v151 · tasto in attesa del 3D: pulsa finché la pista è pronta */
+#start.waitpista { animation: waitpista 1s ease-in-out infinite alternate; cursor: progress; }
+@keyframes waitpista { from { filter: brightness(.8); } to { filter: brightness(1.1); } }
+.welcome .wcustom2 { display: flex; align-items: center; justify-content: center; gap: .4em; width: 100%; margin: -.6em auto .4em; }

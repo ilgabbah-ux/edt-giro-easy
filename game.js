@@ -1,12 +1,11 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
-import { createWorld } from './scene3d.js?v=8a5ca599';
 import * as A from './audio.js?v=698e13bb';
 import * as P from './progress.js?v=e01910cc';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
-import * as C from './classifica.js?v=206dc184';
+import * as C from './classifica.js?v=8c177385';
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -18,16 +17,23 @@ import('./piloti.js?v=8bcd4edd').then(m => {
   FOTO = m.FOTO; world?.setGustaFace?.(FOTO.gusta);
   document.querySelectorAll('.avatar.initials[aria-label]').forEach(el => { const n = el.getAttribute('aria-label'), u = photoURL(n); if (u) { el.classList.remove('initials'); el.innerHTML = `<img src="${u}" alt="Foto di ${n}">`; } });
 }).catch(() => {});
-try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); }
+// v151 · il 3D si carica DOPO che la home è a schermo: chi apre il link vede subito il tasto per partire
+let worldP = null;
+function bootWorld() {
+  return worldP || (worldP = import('./scene3d.js?v=8a5ca599').then(({ createWorld }) => {
+    try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); return; }
+    world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLE IMPOSTAZIONI', 'green'), 0);
+    try { preview = world.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
+    if (FOTO.gusta) world.setGustaFace?.(FOTO.gusta);
+  }).catch(e => { worldError = e; console.error('3D non disponibile', e); }));
+}
 // v109.2 · se scatta, la grafica leggera si accende da sola: lo dico una volta, si toglie dalla pausa
 // v112 · nessuna emoji vera accanto alle icone: qualsiasi testo scritto nella pagina (anche dopo, anche con textContent) viene convertito
 { const fixNode = n => { if (n.nodeType === 3) { if (hasEmoji(n.nodeValue) && n.parentElement && !n.parentElement.closest('svg, textarea, input, script, style')) iconizeEl(n.parentElement); } else if (n.nodeType === 1 && !n.closest('svg, script, style') && hasEmoji(n.textContent || '')) iconizeEl(n); };
   new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') fixNode(m.target); else for (const n of m.addedNodes) fixNode(n); } }).observe(document.body, { childList: true, subtree: true, characterData: true });
   iconizeEl(document.body); }
-if (world) world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLE IMPOSTAZIONI', 'green'), 0);
 // v52 · moto in anteprima nel garage (gira da sola, si può trascinare per girarla)
 let preview = null;
-try { preview = world?.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
 { const pv = document.getElementById('bikepreview'); let px0 = null;
   if (pv) { pv.addEventListener('pointerdown', e => { px0 = e.clientX; try { pv.setPointerCapture(e.pointerId); } catch {} });
     pv.addEventListener('pointermove', e => { if (px0 === null) return; preview?.spin((e.clientX - px0) * .012); px0 = e.clientX; });
@@ -653,7 +659,14 @@ function resetRun() {
   if (rule('rush')) timeLimit -= 4;
   if (duel?.racing) { rivals = [duel.entry]; gGhost = null; duel.opp.c = 0; duel.opp.end = null; duel.me = null; duel.ahead = false; Object.assign(duel.entry, { gap: 0, lx: 1, lift: 0 }); }
 }
+let startWait = false;
+function markWait() { const sb = $('start'); if (!startWait || !sb) return false; sb.disabled = true; sb.classList.add('waitpista'); sb.innerHTML = '<span class="st"><span>CARICO LA PISTA…</span><small>un attimo e si parte</small></span>'; return true; }   // v151
 function start() {
+  if (!world && !worldError) {   // v151 · tocco prima che la pista sia pronta: parte appena è caricata
+    if (touchDevice) goFull();
+    if (!startWait) { startWait = true; if (!markWait()) toast('🏍 CARICO LA PISTA…', 'gold'); bootWorld().then(() => { startWait = false; if (world && (state === 'ready' || state === 'ended')) start(); }); }
+    return;
+  }
   trickT = 0; trickDone = false; trickN = 0; dirtK = dirtShown = 0; world?.setDirt?.(0);   // v149
   quietMenu = false;
   A.voicesSoon?.();
@@ -672,7 +685,8 @@ function start() {
   state = 'countdown'; countdown = 3.2; countStep = 4; holePre = holeDone = false;
   { const tc = $('tipcard'), nb = (P.profile.totals?.runs || 0) < 3 && !C.isEdt();   // v108.8 · nei primi giri di chi arriva da fuori: i comandi a colpo d'occhio mentre parte il via
     if (tc) { tc.innerHTML = nb ? `<small>COME SI GUIDA</small>${touchDevice ? (tiltOn ? '<b>Inclina il telefono</b> a sinistra/destra per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare' : 'Dito a <b>sinistra/destra</b> per sterzare · <b>SALTA</b> sui tronchi · scorri giù per impennare') : '<b>← →</b> per sterzare · <b>SPAZIO</b> per saltare i tronchi · <b>↓</b> impenna · <b>B</b> turbo'}<br>Prendi le birre e arriva al rifugio prima del tempo!` : ''; tc.classList.toggle('show', nb); } }
-  easyRun = !C.isEdt() && (P.profile.totals?.runs || 0) < 3; tutRunNow = !P.profile.tutorialDone;   // v125.4 · ostacoli più radi nei primi 3 giri (prima solo il primo)
+  easyRun = (P.profile.totals?.runs || 0) < 3;   // v151 · anche per chi entra dal gruppo EDT
+  tutRunNow = !P.profile.tutorialDone;   // v125.4 · ostacoli più radi nei primi 3 giri (prima solo il primo)
   // v125.4 · rodaggio: sull'Easy, nei primi 5 giri di chi arriva da fuori, 8 s in più (il bonus tempo resta calcolato sul tempo normale, la classifica non cambia)
   { const md0 = P.MODES[mode], n0 = P.profile.totals?.runs || 0; rookieT = rookieNow() && !duel?.racing && !md0.leap && !md0.ice ? (n0 < 2 ? 15 : 10) : 0; }   // v138 · finché non arrivi la prima volta al rifugio: +15 s (+10 dal 3° giro)
   if (rookieT) { timeLimit += rookieT; setTimeout(() => { if (state === 'countdown' || state === 'playing') toast('⏱ RODAGGIO: +' + rookieT + ' s PER I PRIMI GIRI', 'green'); }, 1400); }
@@ -2301,7 +2315,7 @@ function offerContinue() {
   clearInterval(continueTimer);
   continueTimer = setInterval(() => { left--; if (state !== 'continue') { clearInterval(continueTimer); return; } if (left <= 0) { clearInterval(continueTimer); finish(false); } else draw(); }, 1000);
 }
-const rookieNow = () => !C.isEdt() && !(P.profile.totals?.wins > 0) && (P.profile.totals?.runs || 0) < 6;   // v138 · nuovo giocatore che non è ancora arrivato al rifugio
+const rookieNow = () => (P.profile.totals?.wins || 0) < 3 && (P.profile.totals?.runs || 0) < 12;   // v151 · per tutti (anche EDT) finché non arrivi 3 volte al rifugio: i nuovi perdevano il primo giro e non tornavano   // v138 · nuovo giocatore che non è ancora arrivato al rifugio
 function freeRevive() {   // v138 · nei primi giri San Miti ti rimette in sella gratis, una volta
   run.continued = true; lives = 1; invincible = 3; crash = 0; stun = 0; shownLives = -1;
   objects = objects.filter(o => o.z > .95 || o.z < .5);
@@ -2787,7 +2801,8 @@ function update(dt) {
   hud();
   if (course >= GAME_LENGTH && !leap) finish(true);
   else if (leap && course >= GAME_LENGTH && leapState < 2) finish(false, 'time');
-  else if (elapsed >= timeLimit && rookieT && !run.timeSaved && course > GAME_LENGTH * .6) { run.timeSaved = 1; timeLimit += 10; bigCall('+10 SECONDI!'); toast('⏱ RODAGGIO: 10 SECONDI IN REGALO, ARRIVA AL RIFUGIO!', 'green'); }   // v138
+  else if (elapsed >= timeLimit && rookieT && !run.timeSaved && course > GAME_LENGTH * .4) { run.timeSaved = 1; timeLimit += 15; bigCall('+15 SECONDI!');   // v151 · salvataggio dal 40% del percorso, 15 s
+    toast('⏱ RODAGGIO: 15 SECONDI IN REGALO, ARRIVA AL RIFUGIO!', 'green'); }   // v138
   else if (elapsed >= timeLimit) finish(false, 'time');
 }
 
@@ -3671,6 +3686,7 @@ function renderReady() {
   }
   setDisabled(false);
   hud();
+  markWait();   // v151 · se si sta aspettando il 3D, il tasto resta «CARICO LA PISTA…»
 }
 
 // Classifica derapate di Ice Scrofy (tu + i tre compagni).
@@ -4289,7 +4305,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 150;
+const GAME_VERSION = 151;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -4326,7 +4342,7 @@ function renderWelcome() {
 
     <button class="primary big wgo" id="wplay" type="button"><span class="st"><span>TOCCA E PARTI</span><small>un giro da 1 minuto, gratis</small></span>${icon('chevrons')}</button>
     <button class="linkbtn wskip" id="wskip" type="button">Sono già un manico: salta la scuola ›</button>
-    <button class="secondary" id="wcustom" type="button">${icon('helmet')} PRIMA CREA IL TUO PILOTA</button>
+    <button class="linkbtn wcustom2" id="wcustom" type="button">${icon('helmet')} Oppure crea prima il tuo pilota ›</button>
     <ul class="wfacts"><li>${icon('pad')} Gratis, dal telefono o dal computer: niente da installare</li><li>${icon('helmet')} Corri coi piloti veri dell'Enduro Drinking Team… o crea il tuo</li><li>${icon('trophy')} Classifica online con chiunque giochi</li></ul>
     <button class="linkbtn wvideo" id="wvideo" type="button">▶ GUARDA COME SI GIOCA · 30 s</button>
     ${C.enabled() ? `<details class="wback"><summary>🔒 Giocavi già su un altro telefono o tablet? <b>Riprendi il tuo nome</b></summary>
@@ -4833,11 +4849,14 @@ try { if (!localStorage.getItem('edt-dev')) C.hit('new', String(GAME_VERSION)); 
 C.hit('open', String(GAME_VERSION));   // v108.6 · contatore giocatori
 let firstVisit = false; try { firstVisit = !C.isEdt() && !localStorage.getItem('edt-welcome') && !(P.profile.totals?.runs > 0); } catch {}
 if (firstVisit) renderWelcome(); else renderReady();
-if (worldError) {
-  $('card').innerHTML = '<div class="eyebrow">GRAFICA 3D NON DISPONIBILE</div><h1>APRI NEL<br><em>BROWSER.</em></h1><p>Apri il gioco in Chrome o Safari con la grafica WebGL attiva, poi ricarica la pagina.</p>';
-} else {
-  requestAnimationFrame(frame);
-}
+// v151 · prima la home a schermo (e la misura di quanto ci ha messo), poi il 3D
+requestAnimationFrame(() => setTimeout(() => {
+  C.hit('home', String(GAME_VERSION), Math.round(performance.now()));
+  bootWorld().then(() => {
+    if (worldError) $('card').innerHTML = '<div class="eyebrow">GRAFICA 3D NON DISPONIBILE</div><h1>APRI NEL<br><em>BROWSER.</em></h1><p>Apri il gioco in Chrome o Safari con la grafica WebGL attiva, poi ricarica la pagina.</p>';
+    else { world.resize?.(); requestAnimationFrame(frame); }
+  });
+}, 0));
 window.addEventListener('resize', () => world?.resize());
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); if (state === 'playing') pause(); toast('Grafica interrotta: ricarica la pagina.'); });
 canvas.addEventListener('webglcontextrestored', () => { toast('GRAFICA RIPRISTINATA: RICARICO IL GIOCO…', 'gold'); setTimeout(() => location.reload(), 900); });   // v118 · dopo che Safari ha buttato la grafica le texture tornerebbero nere: si ricarica pulito

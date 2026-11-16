@@ -221,7 +221,7 @@ function reply_(obj, cb) {
 // v108.6 · CONTATORE GIOCATORI: il gioco manda action=hit con kind = open (prima apertura del giorno), play (primo giro
 //       del giorno), new (primissima apertura su quel telefono), run (ogni giro finito). Una riga per evento nel foglio "Visite";
 //       il foglio "Riepilogo" fa i conti per giorno (dispositivi unici che aprono / giocano, nuovi, giri).
-const HIT_KINDS = ['open', 'play', 'new', 'run', 'win'];   // v129 · win = giro arrivato al rifugio
+const HIT_KINDS = ['open', 'play', 'new', 'run', 'win', 'home'];   // v151 · home = la schermata col tasto per partire è comparsa (colonna G: millisecondi)   // v129 · win = giro arrivato al rifugio
 function visits_() {
   const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
   let s = ss.getSheetByName('Visite');
@@ -239,7 +239,8 @@ function hit_(p, day) {
   const each = kind === 'run' || kind === 'win';
   if (!each && c.get(k)) return;   // un evento a testa al giorno (tranne i giri)
   if (!each) c.put(k, '1', 21600);
-  visits_().appendRow([new Date(), day, kind, id, p.grp === 'pub' ? 'pub' : 'edt', clean_(p.v, 8)]);
+  const ms = kind === 'home' ? Math.min(120000, Math.max(0, Math.round(Number(p.ms) || 0))) : '';
+  visits_().appendRow([new Date(), day, kind, id, p.grp === 'pub' ? 'pub' : 'edt', clean_(p.v, 8), ms]);
 }
 // v108.6 · SOTTO CARICO: le classifiche si rifanno al massimo ogni 20 s per gruppo (cache), e si ricalcolano subito dopo un giro salvato.
 function boardsCached_(day, minv, act, grp) {
