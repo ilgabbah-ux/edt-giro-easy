@@ -3181,6 +3181,35 @@ export function createWorld(canvas) {
 
   let leapFollow = 0, camLift = 0, camX = 0, lastRender = performance.now(), wasAir = false, shakeX = 0, shakeY = 0;
 
+  // v152 · strisce di vento ai bordi dello schermo: escono dal centro della strada e sfrecciano via, più fitte più vai forte
+  const sl = document.createElement('canvas'); sl.className = 'windlines'; sl.setAttribute('aria-hidden', 'true');
+  canvas.after(sl);
+  const slx = sl.getContext('2d'); let slOn = false, slI = 0;
+  const calmMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const streaks = Array.from({ length: 34 }, () => ({ a: 0, r: 0, l: 0, w: 0 }));
+  const respawn = (k, far) => { let a; do { a = Math.random() * Math.PI * 2; } while (Math.abs(a - Math.PI / 2) < .62); k.a = a; k.r = far ? .3 + Math.random() * .8 : .3 + Math.random() * .3; k.l = .08 + Math.random() * .14; k.w = .6 + Math.random() * .9; };
+  streaks.forEach(k => respawn(k, true));
+  function speedLines(target, fdt) {
+    if (calmMotion) target = 0;   // chi ha chiesto meno animazioni al telefono non le vede
+    slI += (target - slI) * Math.min(1, fdt * 4);
+    if (slI < .03) { if (slOn) { slx.clearRect(0, 0, sl.width, sl.height); slOn = false; } return; }
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1), W = Math.round(canvas.clientWidth * dpr), H = Math.round(canvas.clientHeight * dpr);
+    if (!W || !H) return;
+    if (sl.width !== W || sl.height !== H) { sl.width = W; sl.height = H; }
+    slOn = true; slx.clearRect(0, 0, W, H);
+    const cx = W * .5 - camTurn * W * .004, cy = H * (camera.aspect < .8 ? .36 : .42), RX = W * .62, RY = H * .7;   // ellisse: r = 1 ≈ bordo dello schermo
+    slx.lineCap = 'round';
+    for (const k of streaks) {
+      k.r += fdt * (.5 + slI * 2.2) * (.4 + k.r);
+      if (k.r > 1.25) respawn(k, false);
+      const ca = Math.cos(k.a) * RX, sa = Math.sin(k.a) * RY, r0 = k.r, r1 = k.r + k.l * (.8 + slI * 1.6);
+      const fade = Math.min(1, (k.r - .3) * 4) * Math.min(1, (1.25 - k.r) * 4);
+      slx.strokeStyle = `rgba(255,252,240,${(slI * .62 * fade).toFixed(3)})`;
+      slx.lineWidth = k.w * dpr * (1.2 + slI * 1.6);
+      slx.beginPath(); slx.moveTo(cx + ca * r0, cy + sa * r0); slx.lineTo(cx + ca * r1, cy + sa * r1); slx.stroke();
+    }
+  }
+
   function resize() {
     const r = canvas.getBoundingClientRect();
     if (!r.width || !r.height) return;
@@ -3640,8 +3669,14 @@ export function createWorld(canvas) {
     const baseFov = portrait ? 68 : 53;
     // v105.4 · sensazione di velocità: più vai forte più la vista si allarga e la moto vibra sullo sterrato
     const spd = playing ? Math.max(0, Math.min(1.6, s.speed || 1)) : 0;
-    dyn.spdF = (dyn.spdF || 0) + (spd - (dyn.spdF || 0)) * Math.min(1, fdt * 2);
-    const targetFov = baseFov + trail.climb * 10 + (boostAmount > 0 ? 9 : 0) + trail.down * 6 + Math.max(0, dyn.spdF - .6) * 7;
+    const prevSpdF = dyn.spdF || 0;
+    dyn.spdF = prevSpdF + (spd - prevSpdF) * Math.min(1, fdt * 2);
+    // v152 · velocità che si sente: la vista si allarga molto di più andando forte e col turbo (prima al massimo +3°)
+    const targetFov = Math.min(baseFov + 24, baseFov + trail.climb * 10 + (boostAmount > 0 ? 12 : 0) + trail.down * 6 + Math.max(0, Math.min(1, dyn.spdF - .5)) * 13);
+    // v152 · quando dai gas la moto si allontana un attimo dalla telecamera, quando freni la camera la raggiunge
+    const accel = fdt > 0 ? (dyn.spdF - prevSpdF) / fdt : 0;
+    dyn.accLag = (dyn.accLag || 0) + (Math.max(-.6, Math.min(1, accel * 1.6)) - (dyn.accLag || 0)) * Math.min(1, fdt * 2.5);
+    speedLines(playing ? Math.min(1, Math.max(0, Math.min(1, (dyn.spdF - .6) / .5)) * .75 + (boostAmount > 0 ? .5 : 0)) : 0, fdt);
     if (playing && s.jump <= 0) { const vib = (.006 + trail.rough * .02 + (s.wet > 0 ? .006 : 0)) * dyn.spdF; shakeY += Math.sin(now * .09) * vib + (Math.random() - .5) * vib; shakeX += (Math.random() - .5) * vib * .6; }
     if (Math.abs(camera.fov - targetFov) > .01) { camera.fov += (targetFov - camera.fov) * .07; camera.updateProjectionMatrix(); }
     camX += (bike.position.x * (portrait ? .55 : .30) - camX) * .06;
@@ -3655,6 +3690,7 @@ export function createWorld(canvas) {
     // v105.2 · in curva la camera guarda dove va la pista (come seguire la moto da dietro) e si sposta un filo verso l'esterno
     camTurn += ((curShape && s.state !== 'menu' ? center(-12, t) * .8 : 0) - camTurn) * Math.min(1, fdt * 3);
     camera.position.x -= camTurn * .18;
+    camera.position.z += dyn.accLag * (portrait ? 1.1 : .8);   // v152
     camera.lookAt(bike.position.x * (portrait ? .4 : .16) + camTurn, lookY + leapFollow * .55 + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : short ? 1.5 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : short ? .45 : .1), lookZ);
     camera.rotateZ(bike.rotation.z * .06);
     camRoll += ((curShape && s.state === 'playing' ? Math.max(-.06, Math.min(.06, curShape.bend(t + 18) * .035)) : 0) - camRoll) * .04; camera.rotateZ(camRoll);   // v104 · nelle curve dei tracciati veri la camera si inclina con la pista

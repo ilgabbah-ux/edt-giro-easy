@@ -406,8 +406,12 @@ export function engineStart() {
     tg = ctx.createGain(); tg.gain.value = 0; tz.connect(tf); tf.connect(tg); tg.connect(duckBus);
     sub.start(); tz.start();
   }
-  src.start(); nz.start();
-  engine = { src, drive, shaper, body, bark, g, nf, ng, nz, sub, sg, tz, tf, tg, real, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
+  // v152 · vento in faccia: fruscio che cresce quando vai forte e col turbo (si sente la velocità)
+  const wz = ctx.createBufferSource(); wz.buffer = noiseBuffer; wz.loop = true; wz.playbackRate.value = .7;
+  const wf = ctx.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 700; wf.Q.value = .55;
+  const wg = ctx.createGain(); wg.gain.value = 0; wz.connect(wf); wf.connect(wg); wg.connect(duckBus);
+  src.start(); nz.start(); wz.start();
+  engine = { src, drive, shaper, body, bark, g, nf, ng, nz, sub, sg, tz, tf, tg, wz, wf, wg, real, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
   engineUpdate(.2, false, false, false);
 }
 const SURF = { dirt: [520, .7, .05], mud: [260, 1.1, .085], rock: [1500, .9, .06], sand: [2400, .5, .07], ice: [5200, 1.6, .045], snow: [3400, .7, .05] };   // frequenza, Q, volume
@@ -442,6 +446,9 @@ export function engineUpdate(speed, gas, turbo, airborne, surface = 'dirt') {
     e.tf.frequency.setTargetAtTime(sf[0] * (.8 + sp * .25), t, .15); e.tf.Q.setTargetAtTime(sf[1], t, .15);
     e.tg.gain.setTargetAtTime(airborne || speed < .05 ? 0 : sf[2] * sp, t, airborne ? .03 : .12);
   }
+  { const fast = Math.max(0, Math.min(1, (speed - .6) / .8));
+    e.wg.gain.setTargetAtTime(speed < .05 ? 0 : fast * fast * .085 + (turbo ? .05 : 0) + (airborne ? .02 : 0), t, .25);
+    e.wf.frequency.setTargetAtTime(500 + fast * 900 + (turbo ? 500 : 0), t, .3); }
   // rilascio del gas a giri alti: scoppiettii allo scarico
   e.popT -= 1 / 60;
   if (e.lastGas && !gas && e.rpm > 1.4 && e.popT <= 0) { e.popT = .8; for (let i = 0; i < 3; i++) noise(.035, 400 + Math.random() * 300, 2, .16, 'bandpass', .05 + i * (.06 + Math.random() * .05)); }
@@ -454,8 +461,8 @@ export function engineStop() {
   e.src.playbackRate.setTargetAtTime(.35, t, .25);
   e.g.gain.cancelScheduledValues(t);
   e.g.gain.setTargetAtTime(0.0001, t + .1, .18);
-  e.tg?.gain.setTargetAtTime(0, t, .1); e.sg?.gain.setTargetAtTime(0, t, .1);
-  setTimeout(() => { try { e.src.stop(); e.nz.stop(); e.sub?.stop(); e.tz?.stop(); } catch {} }, 1200);
+  e.tg?.gain.setTargetAtTime(0, t, .1); e.sg?.gain.setTargetAtTime(0, t, .1); e.wg.gain.setTargetAtTime(0, t, .1);
+  setTimeout(() => { try { e.src.stop(); e.nz.stop(); e.wz.stop(); e.sub?.stop(); e.tz?.stop(); } catch {} }, 1200);
 }
 
 // ---------- Musica (v38) ----------
