@@ -3682,7 +3682,8 @@ export function createWorld(canvas) {
     camX += (bike.position.x * (portrait ? .55 : .30) - camX) * .06;
     // Schermi bassi (telefono in orizzontale): moto più in alto, sopra i comandi.
     const short = !portrait && canvas.clientHeight < 520;
-    const camY = portrait ? 5.9 : short ? 5.0 : 4.6, camZ = portrait ? 10.2 : 7.9, lookY = portrait ? -.6 : short ? -1.5 : .3, lookZ = portrait ? -9 : -10;
+    const camY = portrait ? 5.35 : short ? 4.7 : 4.25, camZ = portrait ? 9.3 : 7.3,   // v153 · camera un po' più bassa e vicina: il terreno passa più in fretta
+      lookY = portrait ? -.6 : short ? -1.5 : .3, lookZ = portrait ? -9 : -10;
     // v51 · in salita sul telefono in orizzontale la camera resta bassa e guarda più su: si vede la strada che arriva
     camera.position.set(camX + .55 * trail.rough + shakeX, camY + airborne * .3 + trail.climb * (portrait ? .2 : short ? .25 : 1.2) + shakeY, camZ + trail.climb * (short ? .6 : 1.3) - boostAmount * .15);
     camLift += (Math.max(0, lift - 1.1) * .8 - camLift) * .12;

@@ -20,7 +20,7 @@ import('./piloti.js?v=8bcd4edd').then(m => {
 // v151 · il 3D si carica DOPO che la home è a schermo: chi apre il link vede subito il tasto per partire
 let worldP = null;
 function bootWorld() {
-  return worldP || (worldP = import('./scene3d.js?v=d149eb68').then(({ createWorld }) => {
+  return worldP || (worldP = import('./scene3d.js?v=fd3e7207').then(({ createWorld }) => {
     try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); return; }
     world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLE IMPOSTAZIONI', 'green'), 0);
     try { preview = world.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
@@ -804,6 +804,7 @@ function showProblem() {
 }
 function topLayer() { return document.fullscreenElement || document.webkitFullscreenElement || $('game') || document.body; }
 function finish(win, reason = '') {
+  $('trackintro').className = 'trackintro'; $('countdown').className = 'countdown';   // v153 · niente cartolina del via sotto i risultati
   if (state === 'playing') C.hit('run', String(GAME_VERSION));   // v108.6 · contatore: giro finito
   if (state === 'playing' && win) C.hit('win', String(GAME_VERSION));   // v129 · contatore: arrivato al rifugio (per la pagina dei numeri)
   if (win && state === 'playing') { course = GAME_LENGTH; checkFlash(); }   // v97 · la sfida lampo 'seconda metà pulita' si chiude all'arrivo
@@ -3738,6 +3739,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
     ${gev && !win ? gevVerbale() : ''}<p class="resulttext">${gev && win ? '<b>Niente verbali, più boccali!</b> ' : ''}${whoRan()} ${gev && !win ? `è stato fermato dalle GEV al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso.` : win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : fresh ? 'ci ha provato fino all’ultimo: al prossimo giro va meglio, gli ostacoli ormai li conosci.' : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
       ${ice ? iceTable(win) : ''}${run.position && !ice ? `<br>🏁 <b>${run.position}° su ${rivals.length + 1}</b> nel gruppo${run.position === 1 && win ? ' · primo al rifugio +500' : ''}${run.shortcuts ? ' · ' + run.shortcuts + (fresh ? (run.shortcuts > 1 ? ' scorciatoie' : ' scorciatoia') : (run.shortcuts > 1 ? ' tagli' : ' taglio') + ' di Angelo') : ''}` : ''}      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${!leap && !ice ? (run.hits ? `<br>💥 <b>${run.hits} ${run.hits > 1 ? 'cadute' : 'caduta'}</b>${run.fallLine ? ' · «' + run.fallLine + '»' : ''}` : win ? '<br>💥 <b>Zero cadute</b>: giro pulito, roba rara.' : '') : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1).replace('.', ',') + ' s — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
+    ${ghostChallengeHTML(score, true)}
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
       ${ice ? `<div><b>${driftCount}</b><small>DERAPATE</small></div><div><b>${driftBest.toLocaleString('it-IT')}</b><small>LA PIÙ BELLA</small></div><div><b>${Math.round(driftM)} m</b><small>DI TRAVERSO</small></div>` : `<div><b>${run.jumps}</b><small>SALTI</small></div>`}
@@ -3768,7 +3770,6 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     <div class="sharerow"><button class="secondary" id="shareScore" type="button">📲 CARTOLINA</button><button class="secondary" id="sharestory" type="button">📸 STORIA</button></div>
     <div class="actions">
       <button class="primary big" id="again"><span>${P.MODES[mode].school && win ? 'VIA ALLA CARRIERA: GIRO EASY' : champRun && P.champ() ? 'AVANTI: GARA ' + (P.champ().i + 1) + ' DI 5' : champRun ? 'UN ALTRO GIRO' : 'UN ALTRO GIRO'}</span>${icon('chevrons')}</button>
-      ${ghostChallengeHTML(score)}
       ${replayReady() ? '<button class="secondary replaybtn" id="replaybtn" type="button">🎬 RIVEDI GLI ULTIMI 10 s</button><button class="secondary replaybtn hot" id="replayvid" type="button">🎥 CLIP DEL GIRO (VIDEO PER LE STORIE)</button>' : ''}
       <button class="secondary shopsec" id="shopres">🔧 OFFICINA</button>
     </div>`;
@@ -3908,12 +3909,12 @@ function celebrate(kind) {
   g.appendChild(box); setTimeout(() => box.remove(), 5200);
 }
 // v106.5 · "batti il mio fantasma": link per WhatsApp; chi lo apre corre contro il tuo fantasma su quel percorso
-function ghostChallengeHTML(sc) {
+function ghostChallengeHTML(sc, top) {   // v153 · subito sotto il punteggio: i link degli amici sono quelli che portano più giocatori
   const md = P.MODES[mode], nick = C.getNick();
   if (!C.enabled() || !nick || sc <= 0 || duel?.racing || md.ice || md.leap || md.random) return '';
-  const url = publicGameURL + '?fantasma=' + encodeURIComponent(nick) + '&p=' + mode;
+  const url = publicGameURL + '?fantasma=' + encodeURIComponent(nick) + '&p=' + mode + '&da=amici';
   const text = `👻 ${nick} ti sfida su ${trackName(mode)} a Giro Easy: il suo record è in classifica. Batti il suo fantasma 👉 ${url}`;
-  return `<a class="secondary wabtn ghostbtn" target="_blank" rel="noopener" href="${waLink(text)}">👻 SFIDA UN AMICO A BATTERE IL TUO FANTASMA</a>`;
+  return `<a class="secondary wabtn ghostbtn${top ? ' ghosttop' : ''}" target="_blank" rel="noopener" href="${waLink(text)}">👻 SFIDA UN AMICO A BATTERE IL TUO FANTASMA<small>gli mandi il link su WhatsApp: corre contro di te</small></a>`;
 }
 // v107.3 · Forziere del giorno: al primo giro di ogni giorno birre gratis, di più se torni tutti i giorni di fila
 const dotsHTML = (n, now = 0) => `<span class="chdots">${P.CHEST.map((b, i) => `<i class="${i < n ? 'on' : ''} ${i === now - 1 ? 'now' : ''}" title="giorno ${i + 1}: +${b}"><u>${i + 1}</u></i>`).join('')}</span>`;
@@ -4305,7 +4306,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 152;
+const GAME_VERSION = 153;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

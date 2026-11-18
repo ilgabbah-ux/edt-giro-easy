@@ -2209,3 +2209,6 @@ button.thfit u { text-decoration: none; background: var(--y); color: #111; paddi
 .welcome .wcustom2 { display: flex; align-items: center; justify-content: center; gap: .4em; width: 100%; margin: -.6em auto .4em; }
 /* v152 · strisce di vento sopra la pista, sotto i comandi */
 .windlines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+/* v153 · sfida un amico subito sotto il punteggio */
+.wabtn.ghosttop { display: flex; flex-direction: column; align-items: center; gap: .15em; margin: .7em 0 .9em; padding: .85em 1em; font-size: 1.02em; background: #1f9e4e; color: #fff; border-color: #2fd06a; box-shadow: 0 6px 18px rgba(31,158,78,.35); text-decoration: none; }
+.wabtn.ghosttop small { font-size: .72em; opacity: .85; letter-spacing: .02em; text-transform: none; font-weight: 500; }
