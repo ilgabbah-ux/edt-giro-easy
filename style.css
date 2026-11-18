@@ -2212,3 +2212,6 @@ button.thfit u { text-decoration: none; background: var(--y); color: #111; paddi
 /* v153 · sfida un amico subito sotto il punteggio */
 .wabtn.ghosttop { display: flex; flex-direction: column; align-items: center; gap: .15em; margin: .7em 0 .9em; padding: .85em 1em; font-size: 1.02em; background: #1f9e4e; color: #fff; border-color: #2fd06a; box-shadow: 0 6px 18px rgba(31,158,78,.35); text-decoration: none; }
 .wabtn.ghosttop small { font-size: .72em; opacity: .85; letter-spacing: .02em; text-transform: none; font-weight: 500; }
+/* v154 · avvisami se qualcuno mi supera */
+.pushask { display: flex; flex-direction: column; align-items: center; gap: .15em; width: 100%; margin: -.3em 0 .9em; padding: .7em 1em; }
+.pushask small { font-size: .72em; opacity: .8; text-transform: none; font-weight: 500; letter-spacing: .02em; }

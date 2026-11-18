@@ -288,12 +288,15 @@ function stats_() {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   const day = /^\d{4}-\d{2}-\d{2}$/.test(p.day || '') ? p.day : Utilities.formatDate(new Date(), 'Europe/Rome', 'yyyy-MM-dd');
+  if (p.action === 'pushreg') { let ok = false; try { ok = pushReg_(p); } catch (err) {} return reply_({ ok: ok }, p.callback); }   // v154
+  if (p.action === 'pushoff') { try { pushOff_(p); } catch (err) {} return reply_({ ok: true }, p.callback); }
   if (p.action === 'hit') { try { hit_(p, day); } catch (err) {} return reply_({ ok: true }, p.callback); }
   if (p.action === 'stats') { let st = {}; try { st = stats_(); } catch (err) { st = { err: String(err) }; } return reply_({ ok: true, stats: st }, p.callback); }
   if (p.action === 'segnala') { try { report_(p); } catch (err) {} return reply_({ ok: true }, p.callback); }   // v146
   if (p.action === 'geload') { let r; try { r = geLoad_(p); } catch (err) { r = { ok: true, ge: true, err: 'busy' }; } return reply_(r, p.callback); }   // v149 · progressi di Giro Easy
   if (p.action === 'foto') { const n = String(p.n || '').toLowerCase().split(',').map(x => clean_(x, 16)).filter(Boolean).slice(0, 40); let f = {}; try { f = photoGet_(n); } catch (err) {} return reply_({ ok: true, f: f }, p.callback); }
   let saved = false, taken = false, edtName = false;
+  let pushBefore = null;
   if (p.action === 'add') {
     const name = clean_(p.name, 16);
     const score = Math.round(Number(p.score));
@@ -310,6 +313,8 @@ function doGet(e) {
         if (!claim_(name, k)) { taken = true; throw new Error('taken'); }
         edtName = edtName_(name);   // v108.5 · nome EDT: il giro va nella classifica EDT anche da un telefono nuovo
         const g = /^[0-9a-z]{2,320}$/.test(p.g || '') ? p.g : '';
+        { const pg = p.grp === 'pub' && !edtName ? 'pub' : 'edt', pmv = Math.max(0, Math.round(Number(p.minv) || 0)), pa = String(p.act || '').split(',').map(Number).filter(m => m >= 0 && m < MODES && String(p.act).length);   // v154 · classifica prima del giro, per sapere chi viene superato
+          try { pushBefore = { g: pg, mv: pmv, act: pa.length ? pa : ACTIVE, list: (boardsCached_(day, pmv, pa.length ? pa : ACTIVE, pg).out[mode] || []).slice() }; } catch (err) {} }
         const sh = sheet_();
         if (sh.getRange(1, 10).getValue() === '') sh.getRange(1, 10).setValue('Fantasma').setFontWeight('bold');
         if (sh.getRange(1, 11).getValue() === '') sh.getRange(1, 11).setValue('Moto').setFontWeight('bold');
@@ -317,6 +322,7 @@ function doGet(e) {
         sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0))), p.grp === 'pub' && !edtName ? 'pub' : '', /^[a-z0-9]{2,12}$/.test(p.bk || '') ? p.bk : '']);   // v150 · M = moto usata
         saved = true; bump_('pub'); if (!(p.grp === 'pub' && !edtName)) bump_('edt');   // v149 · i giri EDT entrano anche in TUTTI
       } catch (err) { if (!taken) throw err; } finally { lock.releaseLock(); }
+      if (saved && pushBefore) try { pushPassed_(name, mode, clean_(p.pn, 30), day, pushBefore); } catch (err) {}   // v154
     }
   }
   const minv = Math.max(0, Math.round(Number(p.minv) || 0));
@@ -393,3 +399,76 @@ function problem_(p) {
   c.put(dk, String(n + 1), 3600);
   s.appendRow([new Date(), clean_(p.name, 16), txt, String(p.ua || '').slice(0, 300), clean_(p.v, 12), clean_(p.scr, 20), clean_(p.perf, 60), clean_(p.app, 12)]);
 }
+
+// ---------- v154 · Notifiche push (Firebase Cloud Messaging, progetto giro-easy) ----------
+// Il token d'accesso è quello del proprietario dello script (ScriptApp.getOAuthToken, ambito firebase.messaging): nessuna chiave salvata da nessuna parte.
+const FCM_PROJECT = 'giro-easy';
+function pushSheet_() {
+  const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
+  let s = ss.getSheetByName('Notifiche');
+  if (!s) { s = ss.insertSheet('Notifiche'); s.getRange(1, 1, 1, 4).setValues([['Nome', 'Token', 'Gruppo', 'Data']]).setFontWeight('bold'); s.setFrozenRows(1); }
+  return s;
+}
+// nome (minuscolo) → token dei suoi telefoni, in cache 10 minuti
+function pushTokens_() {
+  const c = CacheService.getScriptCache(), hit = c.get('ptok'); if (hit) return JSON.parse(hit);
+  const s = pushSheet_(), last = s.getLastRow(), out = {};
+  if (last > 1) s.getRange(2, 1, last - 1, 2).getValues().forEach(r => { const k = String(r[0]).toLowerCase(); if (k && r[1]) (out[k] = out[k] || []).push(String(r[1])); });
+  try { c.put('ptok', JSON.stringify(out), 600); } catch (err) {}
+  return out;
+}
+function pushReg_(p) {
+  const name = clean_(p.name, 16), tok = String(p.tok || '');
+  if (!name || !/^[A-Za-z0-9_:\-]{40,500}$/.test(tok)) return false;
+  const lock = LockService.getScriptLock(); lock.waitLock(8000);
+  try {
+    const s = pushSheet_(), last = s.getLastRow(), rows = last > 1 ? s.getRange(2, 1, last - 1, 4).getValues() : [];
+    const i = rows.findIndex(r => String(r[1]) === tok), row = [name, tok, p.grp === 'pub' ? 'pub' : 'edt', new Date()];
+    if (i >= 0) s.getRange(i + 2, 1, 1, 4).setValues([row]); else s.appendRow(row);
+    // al massimo 3 telefoni per nome: si tengono i più recenti
+    const mine = s.getRange(2, 1, s.getLastRow() - 1, 4).getValues().map((r, j) => ({ j: j + 2, n: String(r[0]).toLowerCase(), d: r[3] instanceof Date ? r[3].getTime() : 0 })).filter(r => r.n === name.toLowerCase()).sort((a, b) => b.d - a.d);
+    mine.slice(3).map(r => r.j).sort((a, b) => b - a).forEach(j => s.deleteRow(j));
+    CacheService.getScriptCache().remove('ptok');
+  } finally { lock.releaseLock(); }
+  if (String(p.hello) === '1') fcm_(tok, '🔔 Notifiche attive!', 'Ti avviso quando qualcuno ti supera in classifica. Tranquilli, è un giro easy.', 'hello');
+  return true;
+}
+function pushOff_(p) {
+  const tok = String(p.tok || ''); if (!tok) return;
+  const s = pushSheet_(), last = s.getLastRow(); if (last < 2) return;
+  const rows = s.getRange(2, 2, last - 1, 1).getValues();
+  for (let i = rows.length - 1; i >= 0; i--) if (String(rows[i][0]) === tok) s.deleteRow(i + 2);
+  CacheService.getScriptCache().remove('ptok');
+}
+function fcm_(tok, title, body, tag) {
+  const r = UrlFetchApp.fetch('https://fcm.googleapis.com/v1/projects/' + FCM_PROJECT + '/messages:send', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken(), 'x-goog-user-project': FCM_PROJECT },
+    payload: JSON.stringify({ message: { token: tok, data: { title: title, body: body, url: './', tag: tag || 'giro-easy' }, webpush: { headers: { Urgency: 'high', TTL: '86400' } } } })
+  });
+  const code = r.getResponseCode();
+  if (code === 404 || (code === 400 && /UNREGISTERED|registration-token-not-registered/i.test(r.getContentText()))) pushOff_({ tok: tok });   // telefono che non c'è più
+  if (code >= 300) console.warn('FCM ' + code + ' ' + r.getContentText().slice(0, 300));
+  return code;
+}
+// chi era davanti e adesso è dietro → "X ti ha superato" (al massimo 4 persone, una volta ogni 3 ore per percorso)
+function pushPassed_(name, mode, pn, day, before) {
+  const me = name.toLowerCase(), key = e => String(e.n).toLowerCase();
+  const after = boardsCached_(day, before.mv, before.act, before.g).out[mode] || [];
+  const oldPos = before.list.findIndex(e => key(e) === me), newPos = after.findIndex(e => key(e) === me);
+  if (newPos < 0) return;
+  const limit = oldPos < 0 ? before.list.length : oldPos;
+  if (newPos >= limit) return;
+  const passed = before.list.slice(newPos, limit).filter(e => key(e) !== me);
+  if (!passed.length) return;
+  const toks = pushTokens_(), c = CacheService.getScriptCache();
+  passed.slice(0, 4).forEach(e => {
+    const k = key(e), list = toks[k]; if (!list || !list.length) return;
+    const ck = 'pn|' + k + '|' + mode; if (c.get(ck)) return; c.put(ck, '1', 3 * 3600);
+    const pos = after.findIndex(x => key(x) === k);
+    const body = (pn ? 'Su ' + pn + ' ' : '') + (pos >= 0 ? 'adesso sei ' + (pos + 1) + '°' : 'sei uscito dai primi 10') + '. Vai a riprenderti il posto 🏍';
+    list.forEach(t => fcm_(t, '😱 ' + name + ' ti ha superato!', body, 'sup' + mode));
+  });
+}
+// prova manuale dall'editor: manda una notifica a tutti i telefoni di un nome
+function provaNotifica() { const t = pushTokens_()['il gabbah'] || pushTokens_()['ilgabbah'] || []; t.forEach(x => console.log(fcm_(x, '🔔 Prova', 'Notifica di prova da Giro Easy', 'prova'))); }

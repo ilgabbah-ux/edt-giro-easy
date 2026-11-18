@@ -5,7 +5,8 @@ import * as P from './progress.js?v=e01910cc';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
-import * as C from './classifica.js?v=8c177385';
+import * as C from './classifica.js?v=1a09bb69';
+import * as N from './push.js?v=fd25e9a4';   // v154 · notifiche "ti hanno superato"
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -3612,7 +3613,7 @@ function renderReady() {
     </details>
     <details class="menufoot setbox"><summary>${icon('gear')} IMPOSTAZIONI</summary>
       <button class="mini" id="schoolmenu" type="button">${icon('book')} GIRO DI PROVA</button><button class="mini" id="rulesmenu" type="button">📖 REGOLE</button><button class="mini ${world?.isLite?.() ? 'on' : ''}" id="litemenu" type="button">⚙ GRAFICA LEGGERA: ${world?.isLite?.() ? 'SÌ' : 'NO'}</button><button class="mini" id="cloudmenu" type="button">☁ PROGRESSI ONLINE</button><button class="mini" id="bugmenu" type="button">🐞 SEGNALA UN PROBLEMA</button><button class="mini" id="testvoci" type="button">🔊 PROVA VOCI</button><button class="mini" id="musicmenu" type="button">${A.isMusicOn() ? '🎵 MUSICA: SÌ' : '🔇 MUSICA: NO'}</button>${touchDevice ? `<button class="mini ${tiltOn ? 'on' : ''}" id="tiltmenu" type="button">📱 STERZO INCLINANDO: ${tiltOn ? 'SÌ' : 'NO'}</button><button class="mini" id="sensmenu" type="button">${sensLabel()}</button>` : ''}${touchDevice && navigator.vibrate ? `<button class="mini ${hapticOn ? 'on' : ''}" id="vibramenu" type="button">📳 VIBRAZIONE: ${hapticOn ? 'SÌ' : 'NO'}</button>` : ''}
-      ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}<a class="mini" href="privacy.html" target="_blank" rel="noopener">🔒 PRIVACY</a>
+      ${inFull() ? '<button class="mini" id="homebtn" type="button">🏠 ESCI DA SCHERMO INTERO</button>' : ''}${N.state() !== 'no' && C.enabled() ? `<button class="mini ${N.state() === 'on' ? 'on' : ''}" id="pushmenu" type="button">${N.state() === 'on' ? '🔔 NOTIFICHE: SÌ' : '🔕 NOTIFICHE: NO'}</button>` : ''}<a class="mini" href="privacy.html" target="_blank" rel="noopener">🔒 PRIVACY</a>
     </details>
     ${(P.profile.totals?.runs || 0) < 3 ? `<p class="tip"><span class="desktophint">🖱 Mouse: muovi per sterzare · clic salta · destro gas · rotellina turbo — oppure ← → sterzo · SPAZIO salta · V (o W) gas · B turbo · S impenna</span><span class="mobilehint">${tiltOn ? '📱 Inclina il telefono per sterzare · tocca SALTA sui tronchi' : '👆 Tieni il dito a sinistra/destra o trascinalo per sterzare · tocca al centro per saltare'}</span></p>` : ''}`;
   if ($('openstats')) $('openstats').onclick = () => { A.sfx.click(); showStats(); };
@@ -3621,6 +3622,7 @@ function renderReady() {
   iconizeEl($('card'));
   $('start').onclick = () => { if (duel) duel.racing = false; start(); };
   maybeNews();   // v150
+  $('pushmenu')?.addEventListener('click', async () => { A.sfx.click(); if (!C.getNick()) { toast('🏁 PRIMA FAI UN GIRO IN CLASSIFICA CON IL TUO NOME', 'gold'); return; } await pushToggle(); renderReady(); });   // v154
   $('thfit')?.addEventListener('click', e => { e.stopPropagation(); const id = $('thfit').dataset.bike; if (P.ownsBike(id)) { P.buyBike(id); A.sfx.click(); toast('🎯 IN SELLA: ' + P.currentBike().name.toUpperCase() + ' · +10% PUNTI QUI', 'green'); renderReady(); renderSide(); } });   // v150
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
   $('extrabox')?.addEventListener('toggle', e => { try { localStorage.setItem('edt-extra', e.target.open ? '1' : '0'); } catch {} });
@@ -3740,6 +3742,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${gev && !win ? gevVerbale() : ''}<p class="resulttext">${gev && win ? '<b>Niente verbali, più boccali!</b> ' : ''}${whoRan()} ${gev && !win ? `è stato fermato dalle GEV al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso.` : win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : fresh ? 'ci ha provato fino all’ultimo: al prossimo giro va meglio, gli ostacoli ormai li conosci.' : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
       ${ice ? iceTable(win) : ''}${run.position && !ice ? `<br>🏁 <b>${run.position}° su ${rivals.length + 1}</b> nel gruppo${run.position === 1 && win ? ' · primo al rifugio +500' : ''}${run.shortcuts ? ' · ' + run.shortcuts + (fresh ? (run.shortcuts > 1 ? ' scorciatoie' : ' scorciatoia') : (run.shortcuts > 1 ? ' tagli' : ' taglio') + ' di Angelo') : ''}` : ''}      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${!leap && !ice ? (run.hits ? `<br>💥 <b>${run.hits} ${run.hits > 1 ? 'cadute' : 'caduta'}</b>${run.fallLine ? ' · «' + run.fallLine + '»' : ''}` : win ? '<br>💥 <b>Zero cadute</b>: giro pulito, roba rara.' : '') : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1).replace('.', ',') + ' s — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
     ${ghostChallengeHTML(score, true)}
+    ${pushAskHTML(win, score)}
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
       ${ice ? `<div><b>${driftCount}</b><small>DERAPATE</small></div><div><b>${driftBest.toLocaleString('it-IT')}</b><small>LA PIÙ BELLA</small></div><div><b>${Math.round(driftM)} m</b><small>DI TRAVERSO</small></div>` : `<div><b>${run.jumps}</b><small>SALTI</small></div>`}
@@ -3784,6 +3787,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     document.querySelector('.edtnudge')?.remove(); renderSide();
   });
   $('again').onclick = againGo; $('nexttrack')?.addEventListener('click', nextTrackGo);
+  $('pushask')?.addEventListener('click', async e => { const b = e.currentTarget; A.sfx.click(); if (await pushToggle(b)) b.remove(); });   // v154
   drawDuelResult();
   if ($('menu')) $('menu').onclick = renderReady;
   $('shopres').onclick = () => renderShop(renderReady);
@@ -3907,6 +3911,20 @@ function celebrate(kind) {
     box.appendChild(e);
   }
   g.appendChild(box); setTimeout(() => box.remove(), 5200);
+}
+// v154 · notifiche: dopo un bel giro proponiamo "avvisami se qualcuno mi supera" (mai il popup del browser senza un tocco)
+function pushAskHTML(win, sc) {
+  if (!win || sc <= 0 || !C.enabled() || !C.getNick() || N.state() !== 'off' || duel?.racing) return '';
+  return `<button class="secondary pushask" id="pushask" type="button">🔔 AVVISAMI SE QUALCUNO MI SUPERA<small>una notifica quando ti rubano il posto in classifica</small></button>`;
+}
+async function pushToggle(btn) {
+  if (N.state() === 'on') { await N.disable(C.pushOff); toast('🔕 NOTIFICHE SPENTE', 'gold'); return false; }
+  if (N.state() === 'denied') { toast('🔕 LE NOTIFICHE SONO BLOCCATE: ATTIVALE DALLE IMPOSTAZIONI DEL BROWSER PER QUESTO SITO', 'red'); return false; }
+  if (N.state() === 'no') { toast(/iPhone|iPad/.test(navigator.userAgent) ? '📱 SU IPHONE: CONDIVIDI → AGGIUNGI ALLA HOME, POI APRI IL GIOCO DA LÌ' : '📵 QUESTO BROWSER NON SUPPORTA LE NOTIFICHE', 'red'); return false; }
+  if (btn) btn.disabled = true;
+  try { const r = await N.enable(C.pushReg); if (r.ok) { toast('🔔 FATTO! TI AVVISO QUANDO QUALCUNO TI SUPERA', 'green'); return true; } if (r.why === 'denied') toast('🔕 NOTIFICHE NON PERMESSE', 'red'); }
+  catch (e) { console.warn('notifiche', e); toast('⚠ NOTIFICHE NON DISPONIBILI ORA, RIPROVA PIÙ TARDI', 'red'); }
+  if (btn) btn.disabled = false; return false;
 }
 // v106.5 · "batti il mio fantasma": link per WhatsApp; chi lo apre corre contro il tuo fantasma su quel percorso
 function ghostChallengeHTML(sc, top) {   // v153 · subito sotto il punteggio: i link degli amici sono quelli che portano più giocatori
@@ -4127,7 +4145,7 @@ ${(() => { const me = cupMine(d.week, nick); return me ? `<p class="gpos">🏆 C
   const { sent, sentAs, ...payload } = runInfo;
   const beforeList = (C.cached()?.boards?.[runInfo.mode] || []).map(e => e.n);
   try { syncMyPhoto(); } catch {}   // v126 · foto profilo non ancora sul server (es. nome cambiato)
-  C.submit({ ...payload, name: nick, v: String(GAME_VERSION), b: P.UPGRADES.reduce((a, u) => a + P.upgradeLevel(u.id), 0), bk: P.currentBike().id }).then(d => {
+  C.submit({ ...payload, name: nick, v: String(GAME_VERSION), b: P.UPGRADES.reduce((a, u) => a + P.upgradeLevel(u.id), 0), bk: P.currentBike().id, pn: trackName(payload.mode ?? mode) }).then(d => {
     if (d.taken) {   // v89 · nome già prenotato da un altro telefono
       if (!$('groupres')) return;
       $('groupres').innerHTML = `<div class="ghead">🔒 NOME GIÀ USATO</div><p><b>${nick}</b> è già il nome di un altro giocatore. Se sei tu, scrivi il tuo <b>codice pilota</b> (lo trovi in classifica sul telefono dove giochi di solito); altrimenti cambia nome.</p><p class="note">Il giro non è perso: resta da parte${C.heldCount() > 1 ? ' insieme ad altri ' + (C.heldCount() - 1) : ''} e parte da solo appena metti il codice giusto (o un nome tuo).</p>
@@ -4306,7 +4324,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 153;
+const GAME_VERSION = 154;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -4853,6 +4871,7 @@ if (firstVisit) renderWelcome(); else renderReady();
 // v151 · prima la home a schermo (e la misura di quanto ci ha messo), poi il 3D
 requestAnimationFrame(() => setTimeout(() => {
   C.hit('home', String(GAME_VERSION), Math.round(performance.now()));
+  setTimeout(() => N.refresh(C.pushReg), 8000);   // v154 · il token delle notifiche può cambiare: lo rinnoviamo una volta al giorno
   bootWorld().then(() => {
     if (worldError) $('card').innerHTML = '<div class="eyebrow">GRAFICA 3D NON DISPONIBILE</div><h1>APRI NEL<br><em>BROWSER.</em></h1><p>Apri il gioco in Chrome o Safari con la grafica WebGL attiva, poi ricarica la pagina.</p>';
     else { world.resize?.(); requestAnimationFrame(frame); }

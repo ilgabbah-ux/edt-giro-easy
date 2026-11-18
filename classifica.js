@@ -121,8 +121,8 @@ export function hit(kind, v = '', ms = 0) {   // v151 · ms = quanti millisecond
     fetch(API + '?' + new URLSearchParams({ action: 'hit', kind, id, grp: myGrp(), v, day: dayISO(), ...(ms ? { ms: String(ms) } : {}) }).toString(), { mode: 'no-cors', keepalive: true }).catch(() => {});
   } catch {}
 }
-export function submit({ name, score, mode, rider, time, win, v, g, b, bk }) {
-  const p = { action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round((time || 0) * 10) / 10, win: win ? 1 : 0, v: v || '', g: g || '', b: b ?? '', bk: bk || '', k: getCode() };   // v150 · bk = la moto usata (in classifica accanto al nome)
+export function submit({ name, score, mode, rider, time, win, v, g, b, bk, pn }) {
+  const p = { action: 'add', day: dayISO(), name: cleanNick(name), score: Math.round(score), mode, rider, time: Math.round((time || 0) * 10) / 10, win: win ? 1 : 0, v: v || '', g: g || '', b: b ?? '', bk: bk || '', pn: pn || '', k: getCode() };   // v154 · pn = nome del percorso (per la notifica "ti ha superato")   // v150 · bk = la moto usata (in classifica accanto al nome)
   return call(p).then(d => { if (d.taken) { hold(p); return d; } unhold(p); flushPending(); if (heldCount()) flushHeld(); return d; }).catch(e => { queue(p); throw e; });
 }
 // v108 · giri rifiutati perché il nome è di un altro telefono: restano da parte e partono appena metti il codice pilota (o cambi nome)
@@ -265,3 +265,7 @@ export function sendProblem(text, extra = {}) {
   return fetch(API, { method: 'POST', mode: 'no-cors', body }).then(() => true).catch(() => false);
 }
 export const deviceId = () => devId();
+
+// v154 · notifiche: registra / toglie il token di questo telefono (collegato al nome in classifica)
+export function pushReg(tok, hello) { const name = cleanNick(getNick() || ''); if (!name || !enabled()) return Promise.resolve(); return call({ action: 'pushreg', name, tok, hello: hello ? 1 : 0, k: getCode() }, false); }
+export function pushOff(tok) { if (!enabled()) return Promise.resolve(); return call({ action: 'pushoff', tok }, false); }

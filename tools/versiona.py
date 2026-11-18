@@ -14,7 +14,7 @@ import hashlib, os, re, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCES = ['index.html', 'game.js', 'scene3d.js', 'audio.js', 'progress.js', 'classifica.js', 'duel.js',
            'icons.js', 'mudfx.js', 'percorsi.js', 'physics.js', 'pilota3d.js', 'piloti.js', 'voci.js',
-           'voci-piloti.js', 'style.css', 'sw.js']
+           'voci-piloti.js', 'push.js', 'style.css', 'sw.js']
 REF = re.compile(r"""((?:\./)?([A-Za-z0-9_-]+\.(?:js|css)))\?v=([A-Za-z0-9.]+)""")
 
 
