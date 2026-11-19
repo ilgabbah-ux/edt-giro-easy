@@ -3629,7 +3629,7 @@ function renderReady() {
   iconizeEl($('card'));
   $('start').onclick = () => { if (duel) duel.racing = false; start(); };
   maybeNews();   // v150
-  $('pushmenu')?.addEventListener('click', async () => { A.sfx.click(); if (!C.getNick()) { toast('🏁 PRIMA FAI UN GIRO IN CLASSIFICA CON IL TUO NOME', 'gold'); return; } await pushToggle(); renderReady(); });   // v154
+  $('pushmenu')?.addEventListener('click', async e => { A.sfx.click(); if (!C.getNick()) { notice('🏁 PRIMA FAI UN GIRO IN CLASSIFICA CON IL TUO NOME', 'gold'); return; } await pushToggle(e.currentTarget); renderReady(); });   // v154
   $('thfit')?.addEventListener('click', e => { e.stopPropagation(); const id = $('thfit').dataset.bike; if (P.ownsBike(id)) { P.buyBike(id); A.sfx.click(); toast('🎯 IN SELLA: ' + P.currentBike().name.toUpperCase() + ' · +10% PUNTI QUI', 'green'); renderReady(); renderSide(); } });   // v150
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
   $('extrabox')?.addEventListener('toggle', e => { try { localStorage.setItem('edt-extra', e.target.open ? '1' : '0'); } catch {} });
@@ -3924,20 +3924,26 @@ function pushAskHTML(win, sc) {
   if (!win || sc <= 0 || !C.enabled() || !C.getNick() || N.state() !== 'off' || duel?.racing) return '';
   return `<button class="secondary pushask" id="pushask" type="button">🔔 AVVISAMI SE QUALCUNO MI SUPERA<small>una notifica quando ti rubano il posto in classifica</small></button>`;
 }
+// v162 · i messaggi delle notifiche si vedono SEMPRE: prima finivano nella striscia della gara, che a fine giro e nel menu sta sotto il riquadro
+function notice(t, kind = '') {
+  document.querySelector('.ovnote')?.remove();
+  const el = document.createElement('div'); el.className = 'ovnote ' + kind; el.innerHTML = iconize(t);
+  (document.fullscreenElement || document.body).appendChild(el); setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 6000);
+}
 async function pushToggle(btn) {
-  if (N.state() === 'on') { await N.disable(C.pushOff); toast('🔕 NOTIFICHE SPENTE', 'gold'); return false; }
-  if (N.state() === 'denied') { toast('🔕 LE NOTIFICHE SONO BLOCCATE: ATTIVALE DALLE IMPOSTAZIONI DEL BROWSER PER QUESTO SITO', 'red'); return false; }
-  if (N.state() === 'no') { toast(/iPhone|iPad/.test(navigator.userAgent) ? '📱 SU IPHONE: CONDIVIDI → AGGIUNGI ALLA HOME, POI APRI IL GIOCO DA LÌ' : '📵 QUESTO BROWSER NON SUPPORTA LE NOTIFICHE', 'red'); return false; }
+  if (N.state() === 'on') { await N.disable(C.pushOff); notice('🔕 NOTIFICHE SPENTE', 'gold'); return false; }
+  if (N.state() === 'denied') { notice(N.inApp() ? '📲 NELL’APP LE NOTIFICHE ARRIVANO COL PROSSIMO AGGIORNAMENTO: PER ORA APRI IL GIOCO DA CHROME E ATTIVALE LÌ' : '🔕 LE NOTIFICHE SONO BLOCCATE PER QUESTO SITO: TOCCA L’ICONA ACCANTO ALL’INDIRIZZO → AUTORIZZAZIONI → NOTIFICHE → CONSENTI', 'red'); return false; }
+  if (N.state() === 'no') { notice(/iPhone|iPad/.test(navigator.userAgent) ? '📱 SU IPHONE: CONDIVIDI → AGGIUNGI ALLA HOME, POI APRI IL GIOCO DA LÌ' : '📵 QUESTO BROWSER NON SUPPORTA LE NOTIFICHE', 'red'); return false; }
   // v161 · il tasto risponde subito e ogni esito ha il suo messaggio (prima, senza risposta al permesso, non succedeva niente)
   const html = btn?.innerHTML; if (btn) { btn.disabled = true; btn.innerHTML = '🔔 ATTIVO LE NOTIFICHE…<small>se il telefono te lo chiede, tocca CONSENTI</small>'; }
   try {
     const r = await N.enable(C.pushReg);
-    if (r.ok) { toast('🔔 FATTO! TI AVVISO QUANDO QUALCUNO TI SUPERA', 'green'); return true; }
-    if (r.why === 'denied') toast(N.inApp() ? '🔕 NOTIFICHE SPENTE PER L’APP: ACCENDILE DA IMPOSTAZIONI DEL TELEFONO → APP → GIRO EASY → NOTIFICHE' : '🔕 LE NOTIFICHE SONO BLOCCATE: ATTIVALE DALLE IMPOSTAZIONI DEL BROWSER PER QUESTO SITO', 'red');
-    else if (r.why === 'default') toast(N.inApp() ? '📲 NELL’APP LE NOTIFICHE ARRIVANO COL PROSSIMO AGGIORNAMENTO: PER ORA APRI IL GIOCO DA CHROME E ATTIVALE LÌ' : '🔔 PERMESSO NON DATO: RITOCCA IL TASTO E SCEGLI «CONSENTI». SE NON COMPARE NIENTE, TOCCA L’ICONA ACCANTO ALL’INDIRIZZO DEL SITO', 'gold');
-    else toast('⚠ NOTIFICHE NON DISPONIBILI ORA, RIPROVA PIÙ TARDI', 'red');
+    if (r.ok) { notice('🔔 FATTO! TI AVVISO QUANDO QUALCUNO TI SUPERA', 'green'); return true; }
+    if (r.why === 'denied') notice(N.inApp() ? '📲 NELL’APP LE NOTIFICHE ARRIVANO COL PROSSIMO AGGIORNAMENTO: PER ORA APRI IL GIOCO DA CHROME E ATTIVALE LÌ' : '🔕 LE NOTIFICHE SONO BLOCCATE: ATTIVALE DALLE IMPOSTAZIONI DEL BROWSER PER QUESTO SITO', 'red');
+    else if (r.why === 'default') notice(N.inApp() ? '📲 NELL’APP LE NOTIFICHE ARRIVANO COL PROSSIMO AGGIORNAMENTO: PER ORA APRI IL GIOCO DA CHROME E ATTIVALE LÌ' : '🔔 PERMESSO NON DATO: RITOCCA IL TASTO E SCEGLI «CONSENTI». SE NON COMPARE NIENTE, TOCCA L’ICONA ACCANTO ALL’INDIRIZZO DEL SITO', 'gold');
+    else notice('⚠ NOTIFICHE NON DISPONIBILI ORA, RIPROVA PIÙ TARDI', 'red');
   }
-  catch (e) { console.warn('notifiche', e); toast('⚠ NOTIFICHE NON DISPONIBILI ORA, RIPROVA PIÙ TARDI', 'red'); }
+  catch (e) { console.warn('notifiche', e); notice('⚠ NOTIFICHE NON DISPONIBILI ORA, RIPROVA PIÙ TARDI', 'red'); }
   if (btn) { btn.disabled = false; btn.innerHTML = html; } return false;
 }
 // v106.5 · "batti il mio fantasma": link per WhatsApp; chi lo apre corre contro il tuo fantasma su quel percorso
