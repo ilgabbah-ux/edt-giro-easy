@@ -21,7 +21,7 @@ import('./piloti.js?v=8bcd4edd').then(m => {
 // v151 · il 3D si carica DOPO che la home è a schermo: chi apre il link vede subito il tasto per partire
 let worldP = null;
 function bootWorld() {
-  return worldP || (worldP = import('./scene3d.js?v=6f027d82').then(({ createWorld }) => {
+  return worldP || (worldP = import('./scene3d.js?v=3d5b9208').then(({ createWorld }) => {
     try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); return; }
     world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLE IMPOSTAZIONI', 'green'), 0);
     try { preview = world.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
@@ -3356,6 +3356,9 @@ function renderChamp() {
 }
 // v150 · NOVITÀ: alla prima apertura dopo un aggiornamento, cosa è cambiato (anche le versioni saltate)
 const NEWS = {
+  163: [['🏍️', 'Pilota più vero', 'sposta il peso in frenata e in discesa, guarda dentro la curva, mette giù il piede nelle curve strette'],
+    ['💥', 'Cadute nuove', 'niente più manichino: in volo braccia e gambe si agitano'],
+    ['✨', 'Moto più viva', 'sospensioni che lavorano in frenata e nei salti, fango che si accumula durante il giro']],
   162: [['🤧', 'Coppa Piagnina', 'tocca TROVA UNA SCUSA quando perdi: la scusa va nel gruppo e sali nella classifica dei piagnoni'],
     ['👑', 'Sfottò sempre diversi', 'frasi nuove per sfottere il campione, e il campione può rispondere ai piagnoni'],
     ['😤', 'I compagni ti accusano', 'superali e ti diranno che hai le patch']],
@@ -4395,7 +4398,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 162;
+const GAME_VERSION = 163;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }

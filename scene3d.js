@@ -1503,17 +1503,23 @@ export function createWorld(canvas) {
   const riderJerseyTint = { value: new T.Color('#ffffff') }, riderPantsTint = { value: new T.Color('#ffffff') };
   let riderGlb = null, riderBaseMat = null;
   // materiale del pilota con maglia e pantaloni colorati (uniform proprie: una per il giocatore, una per ogni compagno)
+  // v163 · fango che si accumula durante il giro: un solo valore (0..1) letto dagli shader di moto e pilota
+  const mudU = { value: 0 };
+  const MUD_GLSL = `float mudHash(vec3 p){ return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719))) * 43758.5453); }`;
   function riderMat(uJ, uP) {
     const m = riderBaseMat.clone();
     m.onBeforeCompile = sh => {
-      sh.uniforms.uJ = uJ; sh.uniforms.uP = uP;
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vH;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvH = position.y;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uJ; uniform vec3 uP; varying float vH;')
+      sh.uniforms.uJ = uJ; sh.uniforms.uP = uP; sh.uniforms.uMud = mudU;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vH; varying vec3 vMudP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvH = position.y; vMudP = position;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uJ; uniform vec3 uP; uniform float uMud; varying float vH; varying vec3 vMudP;\n' + MUD_GLSL)
         .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
 { float lo = min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b)), hi = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
   float pm = smoothstep(.25, .45, lo) * (1.0 - smoothstep(.05, .12, (hi - lo) / max(hi, .01) * .5));
   vec3 tint = mix(uP, uJ, smoothstep(.06, .12, vH));
-  diffuseColor.rgb = mix(diffuseColor.rgb, tint * (.3 + .8 * lo), pm); }`);
+  diffuseColor.rgb = mix(diffuseColor.rgb, tint * (.3 + .8 * lo), pm);
+  // v163 · schizzi di fango: prima stivali e gambe, poi su fino alla schiena
+  float mh = 1.0 - smoothstep(-.85, .55, vH), mn = mudHash(vMudP * 46.0) * .55 + mudHash(vMudP * 17.0) * .45;
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.21, .155, .1) * (.75 + .5 * mn), uMud * smoothstep(1.02 - uMud * mh * 1.25, 1.0, mn * .5 + mh * .62)); }`);
     };
     m.customProgramCacheKey = () => 'riderPose';
     return m;
@@ -1633,13 +1639,14 @@ export function createWorld(canvas) {
     const k = ts.x / hs.x * 1.05, hc = hb.getCenter(new T.Vector3()), tc = tb.getCenter(new T.Vector3());
     geo.translate(-hc.x, -hc.y, -hc.z); geo.scale(k, k, k); geo.translate(tc.x, tc.y, tc.z - .01);
     const m = src.material.clone(); tintable(m, helmTint);
+    if (m.isMeshStandardMaterial) { m.roughness = Math.min(m.roughness ?? 1, .3); if (envTex) { m.envMap = envTex; m.envMapIntensity = 1.15; } }   // v163 · calotta lucida con i riflessi del cielo
     const mesh = new T.Mesh(geo, m); mesh.castShadow = true; mesh.userData.helmGlb = true; mesh.userData.keep = true;
     for (const o of old) o.visible = false;
     helmGroup.add(mesh); helmGlb = mesh; customKey = '';
   }, undefined, e => console.warn('helmet glb', e));
   const _neck = new T.Vector3();
   let standK = 0;
-  function syncRiderModel(standing, leanX = 0, leanZ = 0, dab = 0) {
+  function syncRiderModel(standing, leanX = 0, leanZ = 0, dab = 0, fx = null) {
     if (!riderGlb || !rRig) return;
     standK = Math.max(0, Math.min(1, standing));
     const hideTree = o => { for (const c of o.children) { if (c === head || c === riderPivot || c.name === 'fx') continue; if (c.isMesh) c.visible = false; hideTree(c); } };
@@ -1654,9 +1661,12 @@ export function createWorld(canvas) {
       // mani: sulla manopola (il modello è stato messo in posa sulla moto enduro: teniamo la stessa distanza mano-manopola)
       const j = joints.find(jj => jj.side === sd);
       _gl.copy(RV('wrist' + n)).add(HIP); _gl.y += ryE; _gl.x -= sd * fitE[0]; _gl.y -= fitE[1]; _gl.z -= fitE[2];
-      _tg.copy(j.grip.position).add(_gl); front.localToWorld(_tg);
-      _pw.copy(RV('elbow' + n)).add(_gl.set(sd * .5, .06 + .18 * standK, .1)); rRig.mesh.localToWorld(_pw);   // v107.3 gomiti in fuori ma spalle basse · gomiti alti e in fuori, come i piloti veri
+      _tg.copy(j.grip.position).add(_gl);
+      const vib = fx ? fx.vib * Math.sin(fx.clk * 53 + sd * 1.7) : 0, outer = fx ? Math.max(0, sd * fx.lean) : 0;   // v163 · sullo sconnesso le braccia lavorano; in piega il gomito esterno sale
+      front.localToWorld(_tg);
+      _pw.copy(RV('elbow' + n)).add(_gl.set(sd * (.5 + outer * .25), .06 + .18 * standK + outer * .34 + vib * 6, .1)); rRig.mesh.localToWorld(_pw);   // v107.3 gomiti in fuori ma spalle basse · gomiti alti e in fuori, come i piloti veri
       ik2(B['uarm' + n], B['farm' + n], R['hand' + n], _tg, _pw);
+      B['hand' + n].rotation.set(fx ? (sd > 0 ? fx.gas * .42 : 0) - fx.brake * .22 : 0, 0, 0);   // v163 · polso destro che ruota col gas, mani che tirano le leve in frenata
       // piedi: sulla pedana (ferma rispetto al telaio); in derapata il piede interno esce in avanti
       _tg.copy(RV('ankle' + n)).add(HIP).add(rider.position);
       const out = (sd > 0 ? Math.max(0, -dab) : Math.max(0, dab));
@@ -1855,12 +1865,16 @@ export function createWorld(canvas) {
   function tintable(m, u = bikeTint) {
     tintU.set(m, u);
     m.onBeforeCompile = sh => {
-      sh.uniforms.uTint = u;
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uTint;')
+      sh.uniforms.uTint = u; sh.uniforms.uMud = mudU;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMudP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMudP = position;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uTint; uniform float uMud; varying vec3 vMudP;\n' + MUD_GLSL)
         .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
 { float lo = min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b)), hi = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
   float pm = smoothstep(.3, .5, lo) * (1.0 - smoothstep(.05, .12, (hi - lo) / max(hi, .01) * .5));
-  diffuseColor.rgb = mix(diffuseColor.rgb, uTint * (.35 + .75 * lo), pm); }`);
+  diffuseColor.rgb = mix(diffuseColor.rgb, uTint * (.35 + .75 * lo), pm);
+  // v163 · fango: parte dal basso (ruote, motore, forcellone) e sale col passare del giro
+  float mh = 1.0 - smoothstep(.1, 1.15, vMudP.y), mn = mudHash(vMudP * 38.0) * .55 + mudHash(vMudP * 13.0) * .45;
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.21, .155, .1) * (.75 + .5 * mn), uMud * smoothstep(1.02 - uMud * mh * 1.2, 1.0, mn * .5 + mh * .6)); }`);
     };
     m.customProgramCacheKey = () => 'bikeTint';
     m.needsUpdate = true;
@@ -1886,7 +1900,9 @@ export function createWorld(canvas) {
     glbCache[key] = 'loading'; glbWait[key] = [cb];
     gltf.load(`img/models/bike_${key}.glb?t=1`, g => {
       const get = n => g.scene.getObjectByName(n);
-      g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (!o.material.userData.tint) { o.material.userData.tint = true; tintable(o.material); } } });
+      g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (!o.material.userData.tint) { o.material.userData.tint = true; tintable(o.material);
+        // v163 · riflessi dell'ambiente su metallo e plastiche, gomma opaca
+        const mm = o.material; if (mm.isMeshStandardMaterial && envTex) { mm.envMap = envTex; mm.envMapIntensity = .14; } } } });
       const wrM = get('wheel_r'), wfM = get('wheel_f'), body = get('bike_body');
       roundWheel(wrM); roundWheel(wfM);   // v128 · gomme rotonde: niente tasselli sporgenti, ruota centrata sul mozzo
       const rAxle = wrM.position.clone(), fAxle = wfM.position.clone();
@@ -3421,12 +3437,20 @@ export function createWorld(canvas) {
     const justLanded = playing && dyn.lastJump > 0 && s.jump <= 0;
     dyn.lastJump = s.jump;
     const grade = Math.atan(trail.grade);
+    // v163 · quanto sta accelerando o frenando la moto (serve a sospensioni, peso del pilota, terra dalla ruota)
+    const fwRaw = fdt > 0 && dyn.lastT !== undefined ? Math.max(0, Math.min(200, (t - dyn.lastT) / fdt)) : (dyn.spd ?? 20);
+    const spd0 = dyn.spd ?? fwRaw; dyn.spd = spd0 + (fwRaw - spd0) * Math.min(1, fdt * 6);
+    dyn.acc = (dyn.acc || 0) + ((fdt > 0 ? (dyn.spd - spd0) / fdt : 0) - (dyn.acc || 0)) * Math.min(1, fdt * 5);
+    dyn.spdRef = Math.max(12, (dyn.spdRef || 20) * (1 - fdt * .02), dyn.spd);
+    const accK = playing && s.jump <= 0 && crash <= 0 && !(s.fall > 0) ? Math.max(-1, Math.min(1, dyn.acc / (dyn.spdRef * .9))) : 0;
+    const brakeK = Math.max(0, -accK), driveK = Math.max(0, accK), spdK = Math.max(.4, Math.min(1.2, .4 + .75 * dyn.spd / dyn.spdRef));
+    if (s.jump > 0) dyn.airPeak = Math.max(dyn.airPeak || 0, airborne);
     const bumpAmp = playing ? .012 + trail.rough * .05 + (s.wet > 0 ? .025 : 0) : .004;
     const bumpAt = d => bumpAmp * (Math.sin(d * 1.9) + .6 * Math.sin(d * 3.7 + 1) + .3 * Math.sin(d * 7.3));
-    const transfer = boostAmount > 0 ? .035 : s.gas ? .015 : 0;
-    const tf = s.jump > 0 ? -.075 : bumpAt(t + .86) - transfer;
-    const tr = s.jump > 0 ? -.075 : bumpAt(t - .82) + transfer;
-    if (justLanded) { dyn.vf += 1.7; dyn.vr += 2.1; dyn.brake = 1; }
+    const transfer = (boostAmount > 0 ? .035 : s.gas ? .015 : 0) + driveK * .035, dive = brakeK * .075;   // v163 · la forcella affonda in frenata, il posteriore si siede in accelerazione
+    const tf = s.jump > 0 ? -.075 : bumpAt(t + .86) - transfer + dive;
+    const tr = s.jump > 0 ? -.075 : bumpAt(t - .82) + transfer - dive * .55;
+    if (justLanded) { const lk = .55 + .75 * Math.min(1.3, dyn.airPeak || .6); dyn.vf += 1.7 * lk; dyn.vr += 2.1 * lk; dyn.brake = 1; dyn.landAmp = lk; dyn.airPeak = 0; }   // v163 · più alto il salto, più affondano le sospensioni
     if (crash > .95) { dyn.vf += 2.4; dyn.vr += 1.2; dyn.brake = 1; }
     for (let k = 0; k < 2; k++) {
       const h = fdt / 2;
@@ -3441,7 +3465,7 @@ export function createWorld(canvas) {
 
     // Beccheggio: muso su allo stacco, giù all'atterraggio; impennata quando parte il turbo.
     let air = s.jump > 0 ? .3 * Math.cos(phase * Math.PI) : 0;
-    if (air < 0) air *= .4;
+    if (air < 0) air *= .62;   // v163 · il muso scende di più prima di toccare terra
     const wheelieTarget = playing && s.jump <= 0 ? (s.wheelie ? .58 : boostAmount > 2.0 ? .42 : boostAmount > 0 ? .08 : s.gas && trail.climb > .3 ? .05 : 0) : 0;
     dyn.wheelie += (wheelieTarget - dyn.wheelie) * Math.min(1, fdt * (wheelieTarget > dyn.wheelie ? 12 : 4));
     const crashPitch = crash > 0 ? Math.sin(crash * 18) * crash * .25 : 0;
@@ -3460,7 +3484,7 @@ export function createWorld(canvas) {
     dyn.lastT = t;
     const latV = vx * spacing(), latA = fdt > 0 ? (latV - (dyn.lastLatV ?? latV)) / fdt : 0; dyn.lastLatV = latV;
     dyn.latA += (latA - dyn.latA) * Math.min(1, fdt * 9);
-    const leanT = Math.max(-.5, Math.min(.5, -(latV * .06 + dyn.latA * .012)));
+    const leanT = Math.max(-.55, Math.min(.55, -(latV * .06 + dyn.latA * .012) * spdK));   // v163 · la piega dipende dalla velocità: piano quasi dritta, forte più giù
     dyn.leanV += ((leanT - dyn.leanR) * 70 - dyn.leanV * 11) * fdt; dyn.leanR += dyn.leanV * fdt;
     const lean = Math.max(-.55, Math.min(.55, dyn.leanR)) + whip * .35 + (crash > 0 ? Math.sin(crash * 25) * crash * .4 : 0);
     const velYaw = -Math.atan2(latV, dyn.fwd) * .85;
@@ -3492,6 +3516,8 @@ export function createWorld(canvas) {
           rider.updateMatrixWorld(true); dyn.fallH0 = rider.localToWorld(new T.Vector3(0, 1.15, .2)).sub(bike.position);
           dyn.fallBody = body.rotation.clone(); dyn.fallHead = [head.position.clone(), head.rotation.clone()];
           scene.attach(rider); dyn.fallSc = rider.scale.x; dyn.fallHip = new T.Vector3(0, 1.15, .2).multiplyScalar(rider.scale.x);
+          dyn.fallPose = null; if (rRig) { dyn.fallPose = {}; for (const k in rRig.bones) dyn.fallPose[k] = rRig.bones[k].quaternion.clone(); }   // v163 · posa in sella, per tornarci alla fine
+          dyn.fallEu = new T.Euler(); dyn.fallQ2 = new T.Quaternion();
           dyn.fallW = new T.Vector3(); dyn.fallQ = new T.Quaternion(); dyn.fallE = new T.Euler(0, 0, 0, 'YXZ'); dyn.fv = [new T.Vector3(), new T.Vector3(), new T.Vector3(), new T.Vector3()];
         }
         const sd = dyn.fallSide, H0 = dyn.fallH0, sm = k => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
@@ -3519,6 +3545,18 @@ export function createWorld(canvas) {
             ik2(B['uarm' + n], B['farm' + n], R['hand' + n], tg, pw);
           }
         }
+        if (!legs && rRig && dyn.fallPose) {   // v163 · in volo braccia e gambe si agitano, a terra resta steso a braccia larghe (non più rigido come un manichino)
+          const B = rRig.bones, P0 = dyn.fallPose, loose = f < 1.2 ? Math.min(1, f / .12) : f < 1.5 ? 1 - sm((f - 1.2) / .14) : 0, airK = f < .55 ? 1 : Math.max(0, 1 - (f - .55) / .3), w = f * 17;
+          const setB = (name, x, y, z) => { dyn.fallQ2.setFromEuler(dyn.fallEu.set(x, y, z)); B[name].quaternion.copy(P0[name]).slerp(dyn.fallQ2, loose); };
+          for (const [n, si] of [['R', 1], ['L', -1]]) {
+            const ph = si > 0 ? 0 : 2.1;
+            setB('uarm' + n, .25 + airK * .8 * Math.sin(w + ph), -si * (.85 + airK * .3 * Math.sin(w * .7 + ph)), 0);
+            setB('farm' + n, -.25 + airK * .5 * Math.sin(w * 1.3 + ph + 1), 0, 0);
+            setB('thigh' + n, -.7 + airK * .5 * Math.sin(w * .9 + ph + .6), -si * (.28 + airK * .2 * Math.sin(w * .6 + ph)), 0);
+            setB('shin' + n, .5 + airK * .4 * Math.sin(w * 1.1 + ph + 2), 0, 0);
+          }
+          setB('spine', airK * .25 * Math.sin(w * .5), airK * .3 * Math.sin(w * .8), 0);
+        } else if (legs && rRig && dyn.fallPose) rRig.bones.spine.quaternion.copy(dyn.fallPose.spine);
       } else if (dyn.fallOn) {
         dyn.fallOn = 0; chassis.add(rider); rider.position.copy(dyn.fallLocal[0]); rider.quaternion.copy(dyn.fallLocal[1]); rider.scale.copy(dyn.fallLocal[2]);
       }
@@ -3538,15 +3576,32 @@ export function createWorld(canvas) {
     const tuck = s.jump > 0 ? Math.sin(phase * Math.PI) : 0;
     if ((dyn.prevJump || 0) > 0 && s.jump <= 0) dyn.land = 1;
     dyn.prevJump = s.jump; dyn.land = Math.max(0, (dyn.land || 0) - fdt * 3);
-    const landK = dyn.land > 0 ? Math.sin((1 - dyn.land) * Math.PI) : 0;
+    const landK = dyn.land > 0 ? Math.sin((1 - dyn.land) * Math.PI) * (dyn.landAmp || 1) : 0;   // v163 · le gambe ammortizzano in proporzione al salto
     const bounce = crash > 0 ? Math.sin((1 - crash) * Math.PI) * .32 : 0;
     upper.position.set(lean * -.08, dyn.stand * (rRig ? .3 : .17) - Math.max(0, comp) * .9 + bounce + bob - tuck * .07 - landK * .13,
       rRig ? dyn.stand * .09 + tuck * .03 - boostAmount * .02 + (s.wheelie ? .05 : 0) : -dyn.stand * .07 - boostAmount * .015);
+    // v163 · peso del corpo: sedere indietro in frenata e in discesa, avanti quando la moto spinge
+    const downK = Math.max(0, Math.min(.5, -grade)), backK = brakeK * .9 + downK * 1.1;
+    upper.position.z += backK * .11 - driveK * .045; upper.position.y -= backK * .03;
     body.rotation.x = -.08 - .3 * dyn.stand - grade * .2 - boostAmount * .05 - (s.gas ? .06 : 0) - dyn.pitch * .45 + crash * .5 + (s.wheelie ? .32 : 0);
-    const attackX = -(.3 + dyn.stand * .38) - climbK * .14 - Math.max(0, -grade) * -.25 - boostAmount * .07 + (s.wheelie ? .5 : 0) - dyn.pitch * .35 + tuck * .12 - landK * .14 + crash * .5 + bob * 1.5;
-    if (!dyn.fallOn) syncRiderModel(dyn.stand, Math.max(-.95, Math.min(.35, attackX)), Math.max(-.32, Math.min(.32, lean * .45 - dyn.iceLean * .4 + sway)), s.jump <= 0 && (s.ice ? s.driftOn : curShape) ? Math.max(-1, Math.min(1, dyn.iceLean * 2.2)) : 0);
+    const attackX = -(.3 + dyn.stand * .38) - climbK * .14 - Math.max(0, -grade) * -.25 - boostAmount * .07 + (s.wheelie ? .5 : 0) - dyn.pitch * .35 + tuck * .12 - landK * .14 + crash * .5 + bob * 1.5 + backK * .24 - driveK * .12;
+    // v163 · curva stretta: il piede interno esce anche fuori dalle derapate; gomito esterno alto; polso sul gas; braccia che vibrano sullo sconnesso
+    { const tight = alive && !s.ice ? Math.sign(dyn.leanR) * Math.max(0, Math.min(1, (Math.abs(dyn.leanR) - .34) / .14)) : 0; dyn.dab = (dyn.dab || 0) + (tight - (dyn.dab || 0)) * Math.min(1, fdt * 4.5); }
+    dyn.gasK = (dyn.gasK || 0) + ((playing && s.gas ? 1 : 0) - (dyn.gasK || 0)) * Math.min(1, fdt * 9);
+    const riderFx = dyn.riderFx || (dyn.riderFx = { gas: 0, brake: 0, vib: 0, lean: 0, clk: 0 });
+    riderFx.gas = dyn.gasK; riderFx.brake = brakeK; riderFx.vib = alive ? .0025 + roughK * .0065 : 0; riderFx.lean = Math.max(-1, Math.min(1, (lean + dyn.iceLean) * 2)); riderFx.clk = dyn.clk;
+    if (!dyn.fallOn) syncRiderModel(dyn.stand, Math.max(-.95, Math.min(.42, attackX)), Math.max(-.32, Math.min(.32, lean * .45 - dyn.iceLean * .4 + sway)), Math.max(-1, Math.min(1, (s.jump <= 0 && (s.ice ? s.driftOn : curShape) ? dyn.iceLean * 2.2 : 0) + dyn.dab * .85)), riderFx);
     body.rotation.z = lean * .35 - dyn.iceLean * .45 - whip * .3 + (crash > 0 ? Math.sin(crash * 20) * crash * .3 : 0);
-    head.rotation.y = dyn.steer * .9 + dyn.iceLean * .9;   // lo sguardo va verso l'uscita della curva
+    // v163 · la testa guarda dove va la pista (16 m avanti) e l'ostacolo in arrivo, non solo lo sterzo
+    { let look = 0;
+      if (alive) {
+        const bx = bike.position.x; look = -Math.atan2(center(-16, t) - center(0, t), 16) * .9;
+        let oz = -1e9, ox = 0; for (const o of s.objects || []) { if (OBSTACLE_HEIGHT[o.type] === undefined) continue; const z = (o.z - .91) * 55; if (z < -4 && z > -26 && z > oz) { oz = z; ox = (o.l - 1) * spacing(); } }
+        if (oz > -1e9) look = look * .55 + -Math.atan2(ox - bx, -oz) * .5;
+        look -= dyn.yaw * .6;
+      }
+      dyn.headYaw = (dyn.headYaw || 0) + (Math.max(-.7, Math.min(.7, look)) - (dyn.headYaw || 0)) * Math.min(1, fdt * 5);
+      head.rotation.y = dyn.steer * .55 + dyn.iceLean * .9 + dyn.headYaw; }
     { const inner = dyn.iceLean > 0 ? -1 : 1, deep = Math.min(1, Math.max(0, (Math.abs(dyn.iceLean) - .12) / .3));
       for (const j of limbs) {
         const tgt = s.ice && s.driftOn && s.jump <= 0 && j.side === inner ? deep : 0;
@@ -3622,6 +3677,10 @@ export function createWorld(canvas) {
     // Terra dalla ruota posteriore: più gas, più terra.
     const onGround = s.state === 'playing' && s.jump <= 0;
     const muddy = trail.wet > .3 || s.wet > 0;
+    // v163 · il fango si accumula su moto e pilota durante il giro (di più sul bagnato e sullo sconnesso) e si pulisce alla partenza
+    if (s.state === 'playing') { if ((s.elapsed || 0) < .6) dyn.mud = 0; else if (s.jump <= 0 && !iceMode) dyn.mud = Math.min(1, (dyn.mud || 0) + fdt * (.009 + (trail.rough || 0) * .02 + (muddy ? .06 : 0)) * (s.speed || 1)); }
+    else if (s.state !== 'ended' && s.state !== 'paused' && s.state !== 'continue') dyn.mud = 0;
+    mudU.value += ((dyn.mud || 0) - mudU.value) * Math.min(1, fdt * 3);
     partMat.color.set(iceMode ? '#a9c4d8' : muddy ? '#5b4630' : trail.rough > .5 ? '#8f8f88' : '#9b7f56');
     updatePuffs(fdt);
     if (onGround && iceMode && s.driftOn && Math.abs(s.drift || 0) > .25) {
@@ -3636,11 +3695,11 @@ export function createWorld(canvas) {
     }
     if (s.snowHit > .6) for (let i = 0; i < 6; i++) emit(bike.position.x + (Math.random() - .5), .4, (Math.random() - .5), (Math.random() - .5) * 7, 3 + Math.random() * 4, (Math.random() - .3) * 4, 1.5);
     if (onGround) {
-      emitAcc += fdt * (30 + (s.gas ? 34 : 0) + boostAmount * 14) * (s.speed || 1) * (muddy ? 1.3 : 1);
+      emitAcc += fdt * (30 + (s.gas ? 34 : 0) + boostAmount * 14) * (s.speed || 1) * (muddy ? 1.3 : 1) * (1 + driveK * 1.4);   // v163 · quando apri il gas la ruota dietro butta più terra
       while (emitAcc > 1) {
         emitAcc--;
         const side = (Math.random() - .5) * .3;
-        const roost = s.gas || boostAmount > 0 ? 1.35 : 1;
+        const roost = (s.gas || boostAmount > 0 ? 1.35 : 1) + driveK * .7;
         emit(bike.position.x + side, .25, 1.15, side * 4 + (Math.random() - .5) * 1.6, (2.4 + Math.random() * 2.8) * roost, (5 + Math.random() * 4) * roost, (.7 + Math.random() * .9) * (muddy ? 1.25 : 1));
       }
     }
@@ -3812,5 +3871,5 @@ export function createWorld(canvas) {
       if (k === 0) delete m.userData.c0;
     } });
   }
-  return { resize, render, renderer, scene, camera, bike, presets: PRESETS, setDirt, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, isUltra: () => bigScreen() || quality >= 4, perfInfo, resetPerf, dbg: DBG, set onAutoLite(f) { onAutoLite = f; } };
+  return { setMud: v => { dyn.mud = v; mudU.value = v; }, resize, render, renderer, scene, camera, bike, presets: PRESETS, setDirt, makePreview, setGustaFace, preloadObstacles, warmUp, setLite, isLite: () => lite, isUltra: () => bigScreen() || quality >= 4, perfInfo, resetPerf, dbg: DBG, set onAutoLite(f) { onAutoLite = f; } };
 }
