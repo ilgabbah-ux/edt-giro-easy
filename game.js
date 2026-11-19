@@ -21,7 +21,7 @@ import('./piloti.js?v=8bcd4edd').then(m => {
 // v151 · il 3D si carica DOPO che la home è a schermo: chi apre il link vede subito il tasto per partire
 let worldP = null;
 function bootWorld() {
-  return worldP || (worldP = import('./scene3d.js?v=fd3e7207').then(({ createWorld }) => {
+  return worldP || (worldP = import('./scene3d.js?v=7d5b701b').then(({ createWorld }) => {
     try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); return; }
     world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLE IMPOSTAZIONI', 'green'), 0);
     try { preview = world.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
@@ -4324,7 +4324,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 154;
+const GAME_VERSION = 155;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
