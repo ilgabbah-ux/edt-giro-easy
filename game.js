@@ -4067,7 +4067,8 @@ const crownOf = n => { const p = C.cached()?.week?.prev; return (p && n && p.n.t
 // v127 · Re del Natale: finito l'evento (dopo l'Epifania) il primo della Christmas Madness ha il Babbo Natale accanto al nome fino al Natale dopo
 function xmasKing() { const d = new Date(); if (P.xmasOn() || P.xmasTeaser()) return ''; const e = C.cached()?.boards?.[17]?.[0]; return e ? String(e.n).toLowerCase() : ''; }
 // v97 · WhatsApp: messaggio pronto quando superi qualcuno, e avviso nel menu quando qualcuno supera te
-const waLink = text => 'https://wa.me/?text=' + encodeURIComponent(text);
+// v162 · api.whatsapp.com al posto di wa.me: il rimando di wa.me su alcuni telefoni rompe le emoji (arrivavano come «�»)
+const waLink = text => 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text);
 const trackName = m => m === 3 ? 'la Sfida del giorno' : P.MODES[m].name;
 function waBrag(d, runInfo, nick, beforeList) {
   const list = (d.boards?.[runInfo.mode] || []).map(e => e.n), me = nick.toLowerCase();
@@ -4331,7 +4332,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 161;
+const GAME_VERSION = 162;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
