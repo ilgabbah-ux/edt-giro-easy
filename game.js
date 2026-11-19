@@ -1,11 +1,11 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
 import * as A from './audio.js?v=3afc3a91';
-import * as P from './progress.js?v=e01910cc';
+import * as P from './progress.js?v=e3cdd55e';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
-import * as C from './classifica.js?v=1a09bb69';
+import * as C from './classifica.js?v=05f95d02';
 import * as N from './push.js?v=13d13cf1';   // v154 · notifiche "ti hanno superato"
 import * as D from './duel.js?v=db2f059d';
 
@@ -2103,6 +2103,7 @@ function updateRivals(dt, travelStep, route, diff) {
       pop(r.name.toUpperCase() + (r.name === 'Maggie' ? ': CHE CAPRA!' : ': SUUUKA!'), 'white'); rivalSay(r); if (r.name !== 'Maggie') suuka();
       if (r.champ && !r.champSaid1) { r.champSaid1 = 1; setTimeout(() => toast('👑 ' + rpick(CHAMP_PASS_ME).replace('{n}', r.name.toUpperCase()), 'gold'), 900); }
     } else if (prev > 0 && r.gap <= 0) { // lo passi tu
+      if (!r.champ && !r.patchSaid && r.name !== 'Maggie' && Math.random() < .45) { r.patchSaid = 1; setTimeout(() => { if (state === 'playing') toast('🤧 ' + rpick(PATCH_LINES).replace('{n}', r.name.toUpperCase()), 'white'); }, 900); }   // v162 · il compagno superato ti accusa
       if (r.champ && !r.champSaid2) { r.champSaid2 = 1; run.champPass = 1; setTimeout(() => toast('👑 ' + rpick(CHAMP_PASSED).replace('{n}', r.name.toUpperCase()), 'green'), 700); }
       if (volata && state === 'playing') { score += 300; run.volataPass = (run.volataPass || 0) + 1; setTimeout(() => { if (state === 'playing') bigCall('SORPASSO IN VOLATA!'); }, 250); }   // v130
       const sc = elapsed - lastDraftAt < 1.2, scv = has('slip') ? 600 : 400; score += sc ? scv : 250; run.passes = (run.passes || 0) + 1; if (sc) run.draftPasses = (run.draftPasses || 0) + 1; pop(sc ? '⚡ SORPASSO IN SCIA SU ' + r.name.toUpperCase() + ' +' + scv : 'SORPASSO SU ' + r.name.toUpperCase() + ' +250', 'gold'); markHighlight(sc ? 'SORPASSO IN SCIA SU ' + r.name.toUpperCase() : 'SORPASSO SU ' + r.name.toUpperCase(), sc ? 1300 : 800); A.sfx.near(); if (sc) buzz([10, 30, 10]);
@@ -3355,6 +3356,9 @@ function renderChamp() {
 }
 // v150 · NOVITÀ: alla prima apertura dopo un aggiornamento, cosa è cambiato (anche le versioni saltate)
 const NEWS = {
+  162: [['🤧', 'Coppa Piagnina', 'tocca TROVA UNA SCUSA quando perdi: la scusa va nel gruppo e sali nella classifica dei piagnoni'],
+    ['👑', 'Sfottò sempre diversi', 'frasi nuove per sfottere il campione, e il campione può rispondere ai piagnoni'],
+    ['😤', 'I compagni ti accusano', 'superali e ti diranno che hai le patch']],
   149: [['🏍', 'Ogni moto ha il suo carattere', 'sei barre vere (velocità, sterzo, salto, turbo, salita, impennata) e il percorso dove rende di più'],
     ['🤸', 'Trucchi in volo', 'premi SALTA quando sei in aria: punti extra, ma se atterri a metà cadi'],
     ['😵', 'Compagni più vivi', 'cadono, ti chiudono la traiettoria e ti sfottono'],
@@ -3768,7 +3772,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${(res.trophiesNew || []).map(t => `<div class="unlock trophy"><i class="ic-holder">${t.icon}</i><span>NUOVO TROFEO: <b>${t.name}</b> · ${t.desc}</span></div>`).join('')}
     ${res.unlocked.map(l => `<div class="unlock"><i style="--a:${l.plastic};--b:${l.accent}"></i><span>NUOVA LIVREA SBLOCCATA: <b>${l.name}</b> · sceglila nel garage</span></div>`).join('')}
     ${duel?.racing ? '<div class="duelres" id="duelres"></div>' : ''}
-    ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}
+    ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}${C.enabled() && !win && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}
     <button class="cardprev" id="cardprev" type="button"><img alt="Cartolina del risultato" src="${cardURL || 'data:,'}"><span><b>📸 LA TUA CARTOLINA</b><small>${C.isEdt() ? 'Toccala e mandala nel gruppo WhatsApp: risultato, posizione e link per giocare.' : 'Toccala e mandala su WhatsApp: risultato e link per sfidarti.'}</small></span></button>
     <div class="sharerow"><button class="secondary" id="shareScore" type="button">📲 CARTOLINA</button><button class="secondary" id="sharestory" type="button">📸 STORIA</button></div>
     <div class="actions">
@@ -4029,6 +4033,63 @@ function rivalBar(d) {
 }
 // v107.3 · Pilota della settimana con sfottò: scheda nel menu, casco d'oro anche al suo pilota quando è tra i compagni
 const rpick = a => a[Math.floor(Math.random() * a.length)];
+// v162 · sfottò e scuse: nati nel gruppo («hai le patch per avere tutti gli aiuti», «tutto chiaro e trasparente», la coppa piagnina)
+const PATCH_LINES = ['{n}: SEEE SEEE, HAI LE PATCH!', '{n}: TU HAI GLI AIUTI, SI VEDE!', '{n}: LA MIA MOTO TIRAVA A DESTRA!', '{n}: AVEVO IL SOLE NEGLI OCCHI!', '{n}: TUTTO CHIARO E TRASPARENTE, EH?', '{n}: QUESTA LA SEGNALO AL GABBAH!', '{n}: ERA SOLO IL GIRO DI RISCALDAMENTO!'];
+const WA_JAB = [
+  '{n}, goditi il casco d’oro finché dura: questa settimana la coppa di Giro Easy te la porto via io.',
+  '{n}, dicono che hai le patch per avere tutti gli aiuti: io ti batto lo stesso.',
+  '{n}, il casco d’oro ti sta largo: questa settimana te lo sfilo in salita.',
+  '{n}, lucida bene la coppa di Giro Easy: da lunedì sta a casa mia.',
+  '{n}, hai vinto perché noi eravamo al bar. Adesso siamo tornati.',
+  '{n}, tutto chiaro e trasparente? Allora fatti vedere in classifica questa settimana.',
+  '{n}, campione della settimana scorsa. Appunto: scorsa.',
+  '{n}, tieni pronto il fazzoletto: quando ti supero la Coppa Piagnina è tua.',
+  '{n}, il casco d’oro pesa tre etti in più: ci vediamo sul salitone.',
+  '{n}, questa settimana a Giro Easy il giro di birre lo paghi tu.',
+];
+const WA_ME = [
+  'Questa settimana il pilota della settimana di Giro Easy sono io ({p} punti coppa). Casco d’oro in testa: chi mi batte?',
+  'Casco d’oro di Giro Easy in testa ({p} punti coppa). Vi aspetto al rifugio, con calma.',
+  '{p} punti coppa e casco d’oro a Giro Easy. Qualcuno ha intenzione di fare qualcosa?',
+  'Pilota della settimana a Giro Easy: io. Le lamentele si accettano solo dal rifugio.',
+];
+const WA_REPLY = [
+  'Tutto chiaro e trasparente: nessuna patch, solo manico. Per la Coppa Piagnina invece vedo già dei favoriti 🤧',
+  'Dite che ho gli aiuti? L’unico aiuto è la birra. Classifica alla mano, parlate dopo.',
+  'Piagnoni del gruppo: meno messaggi, più gas. Il casco d’oro è ancora qui.',
+  'Casco d’oro in testa e orecchie tappate: le scuse le ascolto solo da chi mi sta davanti. Cioè nessuno.',
+  'Le patch non esistono. Esiste il gas. Provate ad aprirlo.',
+];
+const WA_PASSED = [
+  '{w} mi ha superato su {t} a Giro Easy… goditela finché dura, me lo riprendo!',
+  '{w} mi ha superato su {t} a Giro Easy. Tutto regolare, eh? Controllo le patch e torno.',
+  '{w}, bel giro su {t}. Peccato che duri poco: sto accendendo la moto.',
+  '{w} davanti a me su {t} a Giro Easy: dev’essere un errore della classifica. Lo sistemo io.',
+  '{w} mi ha superato su {t} a Giro Easy. Mi hai svegliato: adesso sono affari tuoi.',
+];
+const EXCUSES = ['la moto tirava a destra', 'avevo il sole negli occhi', 'il Gabbah ha le patch per avere tutti gli aiuti', 'mi è entrata una mosca nel casco', 'avevo su le gomme da asfalto', 'il telefono andava a scatti, lo giuro', 'stavo rispondendo nel gruppo', 'c’era un sasso che prima non c’era', 'avevo ancora il cavalletto giù', 'era solo il giro di riscaldamento', 'la birra era calda e mi ha distratto', 'il cinghiale ce l’aveva con me', 'mi hanno chiuso la traiettoria apposta', 'ho il pollice infortunato', 'la classifica è sbagliata, si vede'];
+// v162 · tasto «TROVA UNA SCUSA»: manda la scusa su WhatsApp e vale un punto nella Coppa Piagnina della settimana
+const excuseText = who => { const n = C.getNick() || 'un pilota EDT', e = rpick(EXCUSES); return who ? `🤧 ${who} mi ha superato a Giro Easy, ma solo perché ${e}. (Scusa ufficiale di ${n}, vale per la Coppa Piagnina) 👉 ${publicGameURL}` : `🤧 Scusa ufficiale di ${n} a Giro Easy: «${e}». Vale per la Coppa Piagnina 👉 ${publicGameURL}`; };
+const excuseBtn = (who = '', cls = '') => `<a class="wabtn excusebtn ${cls}" data-excuse="${String(who).replace(/[&<>"]/g, '')}" target="_blank" rel="noopener" href="${waLink(excuseText(String(who).replace(/[&<>"]/g, '')))}">🤧 TROVA UNA SCUSA<small>la mandi nel gruppo: vale per la Coppa Piagnina</small></a>`;
+let whineAt = 0;
+document.addEventListener('click', e => {
+  const a = e.target.closest?.('[data-excuse]'); if (!a) return;
+  setTimeout(() => { a.href = waLink(excuseText(a.dataset.excuse)); }, 400);   // la prossima volta una scusa diversa
+  const now = Date.now(); if (now - whineAt < 20000) return; whineAt = now;   // un punto ogni 20 secondi al massimo
+  const n = P.addWhine(), wk = P.fallsWeek(), nick = C.getNick();
+  toast(`🤧 SCUSA N° ${n} DELLA SETTIMANA · COPPA PIAGNINA`, 'gold');
+  if (nick && wk > 0 && C.enabled()) C.submit({ name: nick, score: wk * 1000 + n, mode: C.WHINE_MODE, rider: riderTag(), time: 0, win: 0, v: String(GAME_VERSION), b: '' }).catch(() => {});
+});
+// chi è in testa alla Coppa Piagnina della settimana ha il fazzoletto accanto al nome
+const whineRows = list => { const wk = P.fallsWeek(); return (list || []).filter(e => Math.floor(e.s / 1000) === wk).map(e => ({ ...e, s: e.s % 1000 })).filter(e => e.s > 0); };
+const whineKing = () => { try { const e = whineRows(C.cached()?.boards?.[C.WHINE_MODE])[0]; return e ? String(e.n).toLowerCase() : ''; } catch { return ''; } };
+function whineListHTML(list, me = '') {
+  list = whineRows(list);
+  if (!list.length) return '<li class="empty">Questa settimana non si è ancora lamentato nessuno. Strano.</li>';
+  const mine = C.cleanNick(me).toLowerCase();
+  return list.map((e, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}"><span class="pos">${i + 1}</span>${entryAv(e, 'tiny')}<span class="who">${e.n}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}</span><span class="when"></span><b>🤧 ${e.s.toLocaleString('it-IT')}</b></li>`).join('');
+}
+const whineSummary = list => '🤧 Coppa Piagnina di Giro Easy, classifica delle scuse della settimana: ' + whineRows(list).slice(0, 5).map((e, i) => `${i + 1}° ${e.n} (${e.s})`).join(' · ') + `. Chi si lamenta di più? 👉 ${publicGameURL}`;
 const dayPick = a => a[P.todayKey() % a.length];
 const champRival = () => { const p = C.cached()?.week?.prev; return p && !isChamp() && p.r !== profile.rider ? p.r : ''; };
 const CHAMP_PASS_ME = ['{n} COL CASCO D’ORO TI SALUTA DA DAVANTI', '{n}: “IL CASCO D’ORO NON SI PRESTA”', 'TI HA PASSATO IL CAMPIONE: ORA SAI PERCHÉ HA VINTO', '{n} TI HA LASCIATO IL FANGO DEL CAMPIONE'];
@@ -4052,18 +4113,18 @@ function potwCard(w) {
   const el = $('potw'); if (!el) return;
   const c = w?.prev; if (!c) { el.hidden = true; return; }
   const me = isChamp(), line = (me ? dayPick(POTW_ME) : dayPick(POTW_JAB)).replace(/\{n\}/g, c.n);
-  const wa = me ? `👑 Questa settimana il pilota della settimana di Giro Easy sono io (${c.p} punti coppa). Casco d’oro in testa: chi mi batte? 👉 ${publicGameURL}`
-    : `👑 ${c.n}, goditi il casco d’oro finché dura: questa settimana la coppa di Giro Easy te la porto via io. 👉 ${publicGameURL}`;
+  const wa = '👑 ' + (me ? rpick(WA_ME).replace('{p}', c.p) : rpick(WA_JAB).replace('{n}', c.n)) + ` 👉 ${publicGameURL}`;   // v162 · ogni volta una frase diversa
   el.hidden = false; el.classList.toggle('mine', me);
   el.innerHTML = `<span class="potwav">${entryAv(c)}<i class="potwcrown">👑</i></span>
     <span class="potwt"><small>PILOTA DELLA SETTIMANA${me ? ' · SEI TU' : ''}</small><b>${c.n}</b><em>${c.p} pt coppa${c.w ? ' · ' + c.w + ' ' + (c.w === 1 ? 'percorso vinto' : 'percorsi vinti') : ''} · casco d’oro fino a domenica</em><q>${line}</q></span>
-    <a class="potwwa" target="_blank" rel="noopener" href="${waLink(wa)}">${me ? 'VANTATI NEL GRUPPO' : 'SFOTTILO NEL GRUPPO'}</a>`;
+    <span class="potwbtns"><a class="potwwa" target="_blank" rel="noopener" href="${waLink(wa)}">${me ? 'VANTATI NEL GRUPPO' : 'SFOTTILO NEL GRUPPO'}</a>${me ? `<a class="potwwa potwreply" target="_blank" rel="noopener" href="${waLink('👑 ' + rpick(WA_REPLY) + ` 👉 ${publicGameURL}`)}">RISPONDI AI PIAGNONI</a>` : ''}</span>`;
   iconizeEl(el);
 }
 // v106.5 · chi ha vinto la coppa della settimana scorsa corre col casco d'oro per tutta la settimana
-const isChamp = () => { try { return !!crownOf(C.getNick()); } catch { return false; } };
+const isChamp = () => { try { return !!crownBase(C.getNick()); } catch { return false; } };   // v162 · il fazzoletto della Coppa Piagnina non conta come corona
 function raceLivery() { const l = P.currentLivery(), c = P.currentParts().casco; return isChamp() ? { ...l, id: l.id + '-oro', helmet: '#e3b021' } : c?.color ? { ...l, id: l.id + '-' + c.id, helmet: c.color } : l; }
-const crownOf = n => { const p = C.cached()?.week?.prev; return (p && n && p.n.toLowerCase() === String(n).toLowerCase() ? ' 👑' : '') + (xmasKing() && n && xmasKing() === String(n).toLowerCase() ? ' <span class="xking" title="Re del Natale: primo alla Christmas Madness">🎅</span>' : ''); };
+const crownBase = n => { const p = C.cached()?.week?.prev; return (p && n && p.n.toLowerCase() === String(n).toLowerCase() ? ' 👑' : '') + (xmasKing() && n && xmasKing() === String(n).toLowerCase() ? ' <span class="xking" title="Re del Natale: primo alla Christmas Madness">🎅</span>' : ''); };
+const crownOf = n => crownBase(n) + (n && whineKing() === String(n).toLowerCase() ? ' <span class="xking" title="In testa alla Coppa Piagnina della settimana">🤧</span>' : '');
 // v127 · Re del Natale: finito l'evento (dopo l'Epifania) il primo della Christmas Madness ha il Babbo Natale accanto al nome fino al Natale dopo
 function xmasKing() { const d = new Date(); if (P.xmasOn() || P.xmasTeaser()) return ''; const e = C.cached()?.boards?.[17]?.[0]; return e ? String(e.n).toLowerCase() : ''; }
 // v97 · WhatsApp: messaggio pronto quando superi qualcuno, e avviso nel menu quando qualcuno supera te
@@ -4108,13 +4169,13 @@ function checkOvertakes(d) {
   myPositions(d, true);
   if (!hit || !P.MODES[hit.m]) return;
   const nick = C.getNick();
-  const text = hit.who ? `😤 ${hit.who} mi ha superato su ${trackName(hit.m)} a Giro Easy… goditela finché dura, me lo riprendo! 👉 ${publicGameURL}` : `😤 Mi hanno buttato fuori dai primi 10 su ${trackName(hit.m)} a Giro Easy. Non finisce qui! 👉 ${publicGameURL}`;
+  const text = hit.who ? '😤 ' + rpick(WA_PASSED).replace('{w}', hit.who).replace('{t}', trackName(hit.m)) + ` 👉 ${publicGameURL}` : `😤 Mi hanno buttato fuori dai primi 10 su ${trackName(hit.m)} a Giro Easy. Non finisce qui! 👉 ${publicGameURL}`;   // v162 · frasi a rotazione
   const el = document.createElement('div'); el.className = 'overtake'; el.id = 'overtake';
   const edt = C.isEdt();   // v109.3 · per chi gioca nella classifica di tutti: niente "gruppo"
   el.innerHTML = iconize(`<button class="ox" type="button" id="otx" aria-label="Chiudi">✕</button>
     <p>😱 ${hit.who ? `<b>${String(hit.who).replace(/[&<>"]/g, '')}</b> ti ha superato` : 'Sei uscito dai primi 10'} su <b>${trackName(hit.m)}</b></p>
     <small>${hit.pos ? `Ora sei ${hit.pos}° nella ${edt ? 'classifica del gruppo' : 'classifica di tutti'}.` : 'Torna in classifica!'}</small>
-    <div class="orow"><a class="wabtn" href="${waLink(text)}" target="_blank" rel="noopener">📲 ${edt ? 'RISPONDI NEL GRUPPO' : 'DILLO AGLI AMICI'}</a><button class="primary" type="button" id="otgo"><span>▶ RIPRENDITELO</span></button></div>`);
+    <div class="orow"><a class="wabtn" href="${waLink(text)}" target="_blank" rel="noopener">📲 ${edt ? 'RISPONDI NEL GRUPPO' : 'DILLO AGLI AMICI'}</a><button class="primary" type="button" id="otgo"><span>▶ RIPRENDITELO</span></button></div>${excuseBtn(hit.who || '')}`);
   topLayer().appendChild(el);
   $('otx').onclick = () => el.remove();
   $('otgo').onclick = () => { el.remove(); if (P.isUnlocked(P.MODES[hit.m])) { mode = hit.m; profile.mode = mode; P.save(); renderReady(); } };
@@ -4277,15 +4338,17 @@ function renderGroup(back, m = mode) {
   const draw = (d0, err) => {
     const mine = groupView === C.myGrp(); if (!mine) groupArch = false;
     const d = groupArch ? C.cachedArchive() : mine ? d0 : C.cachedGroup(groupView);
-    if (groupArch && (m === 'cup' || m === 'falls')) m = mode;
+    if (groupArch && (m === 'cup' || m === 'falls' || m === 'whine')) m = mode;
     $('card').innerHTML = `<div class="eyebrow">${groupView === 'edt' ? 'ENDURO DRINKING TEAM · SOLO GLI AMICI' : 'CHIUNQUE GIOCHI A GIRO EASY'}</div>
       <h1 class="shoptitle">CLASSIFICA<br><em>${groupView === 'edt' ? 'EDT.' : 'DI TUTTI.'}</em></h1>
       <div class="grptabs"><button type="button" class="${groupView === 'edt' ? 'active' : ''}" data-grp="edt">${icon('crown')} EDT</button><button type="button" class="${groupView === 'pub' ? 'active' : ''}" data-grp="pub">TUTTI</button></div>
       ${mine ? '' : `<p class="note">${groupView === 'edt' ? 'Questa è la classifica degli amici dell’EDT: la guardi, ma i tuoi giri vanno nella classifica di tutti.' : 'Questa è la classifica di tutti i giocatori, EDT compresi: i tuoi giri sono anche qui.'}</p>`}
       <div class="seasontabs" ${mine ? '' : 'hidden'}><button type="button" class="${groupArch ? '' : 'active'}" data-season="now">CLASSIFICA ATTUALE</button><button type="button" class="${groupArch ? 'active' : ''}" data-season="arch">📜 ARCHIVIO</button></div>
       <p class="note seasonnote">${groupArch ? 'Archivio: giri di tutte le versioni, anche con regole diverse (velocità, punti e tempi massimi cambiati). Solo per ricordo: <b>non si confrontano</b>.' : 'Contano solo i giri fatti con le regole di adesso, così tempi e punti si confrontano con lo stesso metro.'}</p>
-      <div class="boardtabs gtabs">${groupArch ? '' : `<button type="button" class="cuptab ${m === 'cup' ? 'active' : ''}" data-gmode="cup">🏆 COPPA</button>`}${groupArch ? '' : `<button type="button" class="cuptab ${m === 'falls' ? 'active' : ''}" data-gmode="falls">💥 CADUTE</button>`}${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
-      ${m === 'falls' ? `<p class="gsub">RE DELLE CADUTE DELLA SETTIMANA · si azzera ogni lunedì</p>
+      <div class="boardtabs gtabs">${groupArch ? '' : `<button type="button" class="cuptab ${m === 'cup' ? 'active' : ''}" data-gmode="cup">🏆 COPPA</button>`}${groupArch ? '' : `<button type="button" class="cuptab ${m === 'falls' ? 'active' : ''}" data-gmode="falls">💥 CADUTE</button><button type="button" class="cuptab ${m === 'whine' ? 'active' : ''}" data-gmode="whine">🤧 PIAGNINA</button>`}${P.SHOWN().map(x => `<button type="button" class="${x.id === m ? 'active' : ''}" data-gmode="${x.id}">${x.id === 3 ? 'OGGI' : x.short}</button>`).join('')}</div>
+      ${m === 'whine' ? `<p class="gsub">COPPA PIAGNINA · chi trova più scuse nella settimana · si azzera ogni lunedì</p>
+      <p class="note cupnote">Ogni volta che tocchi <b>TROVA UNA SCUSA</b> (quando non arrivi al rifugio o qualcuno ti supera) la scusa va nel gruppo e qui sale il tuo totale. Chi è in testa gira col fazzoletto 🤧 accanto al nome fino a domenica.</p>
+      ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : !d ? '<p class="gwait">Carico la classifica…</p>' : !d.boards?.[C.WHINE_MODE] ? '<p class="gwait">La Coppa Piagnina si accende appena è aggiornato lo script della classifica.</p>' : `<ol class="board gboard">${whineListHTML(d.boards[C.WHINE_MODE], nick)}</ol>${whineRows(d.boards[C.WHINE_MODE]).length ? `<a class="secondary wasum" href="${waLink(whineSummary(d.boards[C.WHINE_MODE]))}" target="_blank" rel="noopener">🤧 MANDA I PIAGNONI NEL GRUPPO</a>` : ''}`}` : m === 'falls' ? `<p class="gsub">RE DELLE CADUTE DELLA SETTIMANA · si azzera ogni lunedì</p>
       <p class="note cupnote">Ogni volta che cadi e mandi un giro in classifica, qui sale il tuo totale di cadute della settimana. Non c'è premio: c'è solo la gloria (e lo sfottò).</p>
       ${err ? '<p class="gwait">Classifica non raggiungibile: controlla la rete.</p>' : d ? `<ol class="board gboard">${fallsListHTML(d.boards?.[C.FALLS_MODE], nick)}</ol>` : '<p class="gwait">Carico la classifica…</p>'}` : m === 'cup' ? (() => { const w = d?.week, me = cupMine(w, nick); return `<p class="gsub">COPPA DELLA SETTIMANA${w ? ` · dal ${w.from.slice(8)}/${w.from.slice(5, 7)} al ${w.to.slice(8)}/${w.to.slice(5, 7)}` : ''} · si azzera ogni lunedì</p>
       <p class="note cupnote">In ogni percorso i primi 8 della settimana prendono <b>10-8-6-5-4-3-2-1</b> punti coppa: vince chi ne somma di più. Più percorsi fai, più punti puoi prendere.${w?.prev ? `<br>👑 Vincitore della settimana scorsa: <b>${w.prev.n}</b> (${w.prev.p} pt)` : ''}${me ? `<br>Tu sei <b>${me.pos}°</b> con <b>${me.p} pt</b>.` : ''}</p>
@@ -4295,7 +4358,7 @@ function renderGroup(back, m = mode) {
       ${pilotBoxHTML(nick)}
       <div class="actions"><button class="secondary" id="gback"><span>INDIETRO</span></button><button class="secondary" id="greload">AGGIORNA</button></div>`;
     iconizeEl($('card'));
-    document.querySelectorAll('[data-gmode]').forEach(b => b.onclick = () => { const g = b.dataset.gmode; m = g === 'cup' || g === 'falls' ? g : Number(g); draw(C.cached()); });
+    document.querySelectorAll('[data-gmode]').forEach(b => b.onclick = () => { const g = b.dataset.gmode; m = g === 'cup' || g === 'falls' || g === 'whine' ? g : Number(g); draw(C.cached()); });
     document.querySelectorAll('[data-gkind]').forEach(b => b.onclick = () => { groupKind = b.dataset.gkind; draw(C.cached()); });
     document.querySelectorAll('[data-season]').forEach(b => b.onclick = () => {
       groupArch = b.dataset.season === 'arch'; A.sfx.click();

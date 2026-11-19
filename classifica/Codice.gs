@@ -25,7 +25,8 @@
 //       'pub' per i giri pubblici, vuota per l'EDT (così tutte le righe vecchie restano dell'EDT). Classifiche, tempi e coppa
 //       si fanno separati per gruppo; i nomi protetti restano unici per tutti.
 const SHEET = 'Punteggi';
-const MODES = 22;           // v132 · percorsi 0..21 (18 Leventino, 20 Mirco e Gabbah Fest) · prima: percorsi 0..19 (9 Ice Scrophy, 10 MotoFogna, 11 Valle Argentera, 12 MontaFiga, 13 Anti-GEV · v57; spazio per quelli futuri)
+const WHINE = 23;           // v162 · Coppa Piagnina (percorso 23): punteggio = settimana×1000 + scuse mandate nella settimana, fuori dalla coppa e senza notifiche
+const MODES = 24;           // v162 · percorsi 0..23 (22 giro di prova, 23 Coppa Piagnina) · v132 · percorsi 0..21 (18 Leventino, 20 Mirco e Gabbah Fest) · prima: percorsi 0..19 (9 Ice Scrophy, 10 MotoFogna, 11 Valle Argentera, 12 MontaFiga, 13 Anti-GEV · v57; spazio per quelli futuri)
 const DAILY = 3;
 const ICE = 9;
 const CAP = { 0: 200000, 1: 150000, 2: 60000, 3: 160000, 9: 120000, 10: 210000, 11: 150000, 12: 160000, 13: 230000, 14: 160000, 15: 160000, 16: 160000 };   // v102 · rifatti col bot a potenziamenti tutti al massimo (moto, pilota, speciali, pezzi Factory): circa il doppio del suo punteggio migliore   // v96 · punteggio massimo credibile per percorso
@@ -322,7 +323,7 @@ function doGet(e) {
         sh.appendRow([new Date(), name, clean_(p.rider, 20), mode, day, score, Math.round((Number(p.time) || 0) * 10) / 10, p.win === '1', clean_(p.v, 8), g, Math.max(0, Math.min(99, Math.round(Number(p.b) || 0))), p.grp === 'pub' && !edtName ? 'pub' : '', /^[a-z0-9]{2,12}$/.test(p.bk || '') ? p.bk : '']);   // v150 · M = moto usata
         saved = true; bump_('pub'); if (!(p.grp === 'pub' && !edtName)) bump_('edt');   // v149 · i giri EDT entrano anche in TUTTI
       } catch (err) { if (!taken) throw err; } finally { lock.releaseLock(); }
-      if (saved && pushBefore) try { pushPassed_(name, mode, clean_(p.pn, 30), day, pushBefore); } catch (err) {}   // v154
+      if (saved && pushBefore && mode !== WHINE) try { pushPassed_(name, mode, clean_(p.pn, 30), day, pushBefore); } catch (err) {}   // v154
     }
   }
   const minv = Math.max(0, Math.round(Number(p.minv) || 0));

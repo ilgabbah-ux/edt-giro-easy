@@ -41,6 +41,7 @@ export const cachedGroup = g => g === myGrp() ? cache : other[g]?.d || null;
 export const SEASON = { n: 11, from: 149 };   // v149 · martedì 11/11: moto con ruoli diversi (punti forti e deboli veri), stagione 11     // v107 · lunedì 19/10: scia, salto tollerante, botte meno punitive, gas in salita: stagione 10   // v97 · moto e accessori nuovi più forti: stagione nuova   // v96 · lunedì 12/10: potenziamenti speciali dell'officina, stagione nuova
 export const ACTIVE = '0,1,2,3,9,10,11,12,13,14,15,16,17,18,20,21';   // v132 · 18 Leventino, 20 Mirco e Gabbah Fest   // v127 · 17 = Christmas Madness (solo a Natale)
 export const FALLS_MODE = 19;   // v122 · classifica delle cadute: riga col totale di cadute del pilota nel campo punti (lo script la tratta come un percorso in più, fuori dalla coppa)
+export const WHINE_MODE = 23;   // v162 · Coppa Piagnina: come le cadute, nel campo punti settimana×1000 + scuse mandate (serve lo script con MODES = 24)
 
 export function dayISO(d = new Date()) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');

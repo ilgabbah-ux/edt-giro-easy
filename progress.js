@@ -582,6 +582,9 @@ export function checkTrophies() {
 // v123 · numero della settimana per la classifica cadute: 1 = settimana di lunedì 2/11/2026, poi +1 ogni lunedì
 export function fallsWeek(d = new Date()) { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return Math.round((x - new Date(2026, 10, 2, 12)) / 6048e5) + 1; }
 export function weekFalls() { const st = stats(), w = st.wkHits; return w && w.w === fallsWeek() ? w.n : 0; }
+// v162 · Coppa Piagnina: scuse mandate nella settimana (riparte ogni lunedì come le cadute)
+export function weekWhine() { const w = stats().wkWhine; return w && w.w === fallsWeek() ? w.n : 0; }
+export function addWhine() { const st = stats(), wk = fallsWeek(); if (!st.wkWhine || st.wkWhine.w !== wk) st.wkWhine = { w: wk, n: 0 }; st.wkWhine.n = Math.min(999, st.wkWhine.n + 1); save(); return st.wkWhine.n; }
 // v96 · statistiche di sempre del pilota
 export function stats() { return data.stats || (data.stats = {}); }
 export function recordRun(run) {
