@@ -142,7 +142,7 @@ export function createWorld(canvas) {
   }
   for (let i = 0; i < 60; i++) { gx.fillStyle = 'rgba(70,58,38,.25)'; gx.beginPath(); gx.arc(rand() * 256, rand() * 256, 2 + rand() * 6, 0, Math.PI * 2); gx.fill(); }
   const grassTex = new T.CanvasTexture(gc);
-  grassTex.wrapS = grassTex.wrapT = T.RepeatWrapping; grassTex.colorSpace = T.SRGBColorSpace; grassTex.repeat.set(14, 34); grassTex.anisotropy = 4;
+  grassTex.wrapS = grassTex.wrapT = T.RepeatWrapping; grassTex.colorSpace = T.SRGBColorSpace; grassTex.repeat.set(30, 34); grassTex.anisotropy = 4;
   grass.map = grassTex;
 
   function glowTexture() {
@@ -277,7 +277,7 @@ export function createWorld(canvas) {
     // v106.2 · se la foto arriva sul ghiaccio: si mette da parte per dopo (prima si risalvava il prato già spento = prato piatto per sempre)
     if ((iceMode || desertLook) && groundMaps) { groundMaps.d = map; groundMaps.dn = normalMap; dirt.map = iceMode ? iceTex : sandTex; dirt.normalMap = null; dirt.needsUpdate = true; }
   });
-  photoTex('meadow', 10, 30, true, ({ map, normalMap }) => {
+  photoTex('meadow', 22, 30, true, ({ map, normalMap }) => {
     grass.map = map; grass.normalMap = normalMap; grass.normalScale.set(.8, .8); grass.needsUpdate = true;
     verge.map = map; verge.normalMap = normalMap; verge.needsUpdate = true;
     grassMaps.length = 0; grassMaps.push(map, normalMap);
@@ -339,15 +339,16 @@ export function createWorld(canvas) {
       else if (m.userData?.from) o.material = m.userData.from; });
   }   // v109.9 · test di fluidità: si può fermare il terreno o lo scenario per capire cosa pesa
   let iceSheet = false; const ICE_SHEET = new T.Color('#d4ecf8');   // v133
+  const SIDE = 150;   // v156 · prati laterali più larghi: con lo schermo largo (orizzontale) si vedeva il bordo del terreno contro il panorama
   function terrain(t) {
     terrainN++;
     const doNorm = !terrainLite || terrainN % 3 === 0, doCol = !terrainLite || terrainN % 4 === 0;
-    for (const [o, from, to] of [[road, -4.65, 4.65], [left, -70, -5.15], [right, 5.15, 70], [edges[0], -5.15, -4.65], [edges[1], 4.65, 5.15]]) {
+    for (const [o, from, to] of [[road, -4.65, 4.65], [left, -SIDE, -5.15], [right, 5.15, SIDE], [edges[0], -5.15, -4.65], [edges[1], 4.65, 5.15]]) {
       const a = o.geometry.attributes.position, col = o.geometry.attributes.color;
       for (let i = 0; i <= segments; i++) {
         const z = 14 - i, c = center(z, t), h = height(z, t);
         for (let j = 0; j <= lanes; j++) {
-          const wf = from === -70 ? from : from * trail.width, wt = to === 70 ? to : to * trail.width;
+          const wf = from === -SIDE ? from : from * trail.width, wt = to === SIDE ? to : to * trail.width;
           const w = wf + (wt - wf) * j / lanes, k = i * (lanes + 1) + j;
           const hill = bank(w, z);
           const rut = o === road ? trail.rough * (Math.cos(w * 5.8) * .025 + Math.sin((t - z) * 1.2 + w) * .022) : 0;
