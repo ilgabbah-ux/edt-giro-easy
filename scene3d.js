@@ -780,9 +780,9 @@ export function createWorld(canvas) {
   { const c = new T.Color(); pebData.forEach((d, i) => { const k = .72 + rand() * .45; pebbles.setColorAt(i, c.setRGB(k * (.98 + rand() * .08), k * .95, k * (.86 + rand() * .1))); }); }
   scene.add(pebbles);
   const ROOTS = 26;
-  const roots = new T.InstancedMesh(new T.CylinderGeometry(.075, .11, 1, 7, 1), mat('#7a5b3e', .92), ROOTS);
+  const roots = new T.InstancedMesh(new T.CylinderGeometry(.06, .1, 1, 7, 1), mat('#5e4430', .95), ROOTS);
   roots.castShadow = false; roots.receiveShadow = true;
-  const rootData = Array.from({ length: ROOTS }, () => ({ z: rand() * 180, a: (rand() - .5) * .7, u: (rand() - .5) * .5, len: .45 + rand() * .5, h: rand() * .9, bump: rand() * .4 }));
+  const rootData = Array.from({ length: ROOTS }, () => ({ z: rand() * 180, a: (rand() - .5) * 1.1, u: (rand() - .5) * 1.1, len: .14 + rand() * .22, h: rand() * .9, bump: rand() * .4 }));   // v160 · radici corte e storte, mezze interrate (prima sembravano assi dritte)
   scene.add(roots);
   // raggi di luce nel sottobosco: lame chiare inclinate verso il sole, sommate alla scena (non scuriscono niente)
   const shaftTex = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 256; const x = c.getContext('2d');
@@ -811,8 +811,8 @@ export function createWorld(canvas) {
       pebbles.instanceMatrix.needsUpdate = true;
       rootData.forEach((d, i) => {
         const z = wrapZ(d.z, t), v = vis(z, [1, 0, .15, 0], d.h), w = d.u * hr, len = hr * 2 * d.len;
-        dummy.position.set(center(z, t) + w, ground(z, t, w) + .02, z);
-        dummy.rotation.set(0, d.a, Math.PI / 2 + d.bump * .15); dummy.scale.set(v, len * v, v * (.8 + d.bump)); put(roots, i);
+        dummy.position.set(center(z, t) + w, ground(z, t, w) - .035, z);
+        dummy.rotation.set(d.bump * .3, d.a, Math.PI / 2 + (d.bump - .2) * .35); dummy.scale.set(v, len * v, v * (.8 + d.bump)); put(roots, i);
       });
       roots.instanceMatrix.needsUpdate = true;
     }
@@ -1112,6 +1112,7 @@ export function createWorld(canvas) {
     const show = t => { if (panoMode !== mode) return; panoMat.map = t; panoMat.needsUpdate = true; pano.visible = !!t; panoMat.opacity = 1; ridges[0].visible = !t; };
     if (panoTex[mode] !== undefined) { show(panoTex[mode]); return; }
     panoTex[mode] = null; show(null);
+    if (![0, 1, 2, 3, 9, 10, 11, 12, 13, 14, 16].includes(mode)) return;   // v160 · solo i percorsi che hanno un panorama fotografato (gli altri: montagne disegnate, senza richieste a vuoto)
     new T.TextureLoader().load('img/pano-' + mode + '.webp?t=1', t => {
       t.colorSpace = T.SRGBColorSpace; t.wrapS = T.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 4;
       panoTex[mode] = t; show(t);
