@@ -4324,7 +4324,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 157;
+const GAME_VERSION = 158;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -4875,6 +4875,8 @@ requestAnimationFrame(() => setTimeout(() => {
   // questa volta si parte senza gli effetti grafici nuovi
   window.__edtVer = GAME_VERSION;
   try { if (localStorage.getItem('edt-boot') === 'pending:' + GAME_VERSION) localStorage.setItem('edt-safefx', String(GAME_VERSION)); localStorage.setItem('edt-boot', 'pending:' + GAME_VERSION); } catch {}
+  // v158 · un ricaricamento voluto (aggiornamento automatico, ripristino grafica) non è un avvio bloccato: niente modalità sicura per sbaglio
+  addEventListener('beforeunload', () => { try { if ((localStorage.getItem('edt-boot') || '').startsWith('pending')) localStorage.setItem('edt-boot', 'ok'); } catch {} });
   setTimeout(() => N.refresh(C.pushReg), 8000);   // v154 · il token delle notifiche può cambiare: lo rinnoviamo una volta al giorno
   bootWorld().then(() => {
     if (worldError) $('card').innerHTML = '<div class="eyebrow">GRAFICA 3D NON DISPONIBILE</div><h1>APRI NEL<br><em>BROWSER.</em></h1><p>Apri il gioco in Chrome o Safari con la grafica WebGL attiva, poi ricarica la pagina.</p>';
