@@ -9,13 +9,13 @@ import { RIDER_PARTS } from './pilota3d.js?v=842708b6';
 // Atmosfere: una per percorso. "sky" = colori del cielo, "light" = luce della scena.
 const PRESETS = [
   { name: 'Mattina limpida', top: '#2b78bd', horizon: '#cfe4e6', sunDir: [-.55, .5, -.67], sunColor: '#fff3d2', clouds: .42, cloud: '#ffffff',
-    light: '#ffe6bf', lightI: 3.95, hemiSky: '#cfe8ff', hemiGround: '#5d4a30', hemiI: 1.45, fog: '#c9dcd9', fogNear: 92, fogFar: 225, exposure: 1.07, ridge: '#7d9798' },
+    light: '#ffe9c8', lightI: 3.55, hemiSky: '#cfe8ff', hemiGround: '#5d4a30', hemiI: 1.75, fog: '#c9dcd9', fogNear: 75, fogFar: 205, exposure: 1.05, ridge: '#7d9798' },
   { name: 'Pomeriggio dorato', top: '#3b6fab', horizon: '#f6d7a5', sunDir: [-.72, .26, -.64], sunColor: '#ffd08a', clouds: .55, cloud: '#ffeacc',
-    light: '#ffc47e', lightI: 3.95, hemiSky: '#ffe3ba', hemiGround: '#5b4128', hemiI: 1.32, fog: '#e9d1a8', fogNear: 82, fogFar: 215, exposure: 1.08, ridge: '#9b8f84' },
+    light: '#ffcc8a', lightI: 3.6, hemiSky: '#ffe3ba', hemiGround: '#5b4128', hemiI: 1.55, fog: '#e9d1a8', fogNear: 70, fogFar: 200, exposure: 1.06, ridge: '#9b8f84' },
   { name: 'Tramonto di Angelo', top: '#272c63', horizon: '#ff8b4f', sunDir: [-.32, .09, -.94], sunColor: '#ff7436', clouds: .62, cloud: '#ff9d7c',
     light: '#ffa066', lightI: 3.0, hemiSky: '#ffb391', hemiGround: '#3a2934', hemiI: 1.35, fog: '#d58a68', fogNear: 60, fogFar: 190, exposure: 1.08, ridge: '#6c5a6e' },
   { name: 'Cielo d’autunno', top: '#58809e', horizon: '#e2e6dc', sunDir: [.5, .42, -.75], sunColor: '#fff8e6', clouds: .82, cloud: '#f4f4f0',
-    light: '#fff1d8', lightI: 3.3, hemiSky: '#e4eef2', hemiGround: '#5a4b37', hemiI: 1.6, fog: '#d5ddd6', fogNear: 75, fogFar: 205, exposure: 1.05, ridge: '#7e8d90' },
+    light: '#fff6e4', lightI: 3.0, hemiSky: '#e4eef2', hemiGround: '#5a4b37', hemiI: 1.85, fog: '#d5ddd6', fogNear: 65, fogFar: 195, exposure: 1.04, ridge: '#7e8d90' },
   // v46 · Ice Scrophy: cielo d'inverno terso, luce fredda e bassa, foschia azzurra
   { name: 'Gelo di Scrophy', top: '#3f7fc4', horizon: '#e4f1f8', sunDir: [-.6, .22, -.77], sunColor: '#fff4e0', clouds: .3, cloud: '#ffffff',
     light: '#f4f8ff', lightI: 3.3, hemiSky: '#e2f0ff', hemiGround: '#a8bccb', hemiI: 2.0, fog: '#dbe8f0', fogNear: 70, fogFar: 200, exposure: 1.0, ridge: '#9fb3c2', snowLine: -99, ice: true },
@@ -767,90 +767,6 @@ export function createWorld(canvas) {
   const shrineNiche = new T.InstancedMesh(new T.BoxGeometry(.5, .6, .05), mat('#3d63a8', .6), SHRINES);
   shrineBody.castShadow = shrineRoof.castShadow = true; scene.add(shrineBody, shrineRoof, shrineNiche);
 
-  // ---------- v155 · dettagli del sentiero: sassolini veri, radici nel bosco, raggi di luce, erba che si piega ----------
-  const rich = () => quality === 0 && !liteMats;   // effetti in più solo sui telefoni che ce la fanno
-  const halfRoad = () => 3.55 * (trail.width * .5 + .5);
-  const PEBBLES = 260;
-  const pebbleMat = new T.MeshStandardMaterial({ color: '#8a8173', roughness: .95, flatShading: true });
-  const pebbles = new T.InstancedMesh(new T.DodecahedronGeometry(.07, 0), pebbleMat, PEBBLES);
-  pebbles.castShadow = false; pebbles.receiveShadow = true;
-  const pebData = Array.from({ length: PEBBLES }, () => ({ u: (rand() * 2 - 1) * .92, z: rand() * 180, s: .45 + Math.pow(rand(), 2.2) * 1.6, r: rand() * 6, f: .55 + rand() * .45 }));
-  { const c = new T.Color(); pebData.forEach((d, i) => { const k = .72 + rand() * .45; pebbles.setColorAt(i, c.setRGB(k * (.98 + rand() * .08), k * .95, k * (.86 + rand() * .1))); }); }
-  scene.add(pebbles);
-  const ROOTS = 26;
-  const roots = new T.InstancedMesh(new T.CylinderGeometry(.075, .11, 1, 7, 1), mat('#7a5b3e', .92), ROOTS);
-  roots.castShadow = false; roots.receiveShadow = true;
-  const rootData = Array.from({ length: ROOTS }, () => ({ z: rand() * 180, a: (rand() - .5) * .7, u: (rand() - .5) * .5, len: .45 + rand() * .5, h: rand() * .9, bump: rand() * .4 }));
-  scene.add(roots);
-  // raggi di luce nel sottobosco: lame chiare inclinate verso il sole, sommate alla scena (non scuriscono niente)
-  const shaftTex = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 256; const x = c.getContext('2d');
-    const gx = x.createLinearGradient(0, 0, 64, 0); gx.addColorStop(0, 'rgba(255,255,255,0)'); gx.addColorStop(.5, 'rgba(255,255,255,1)'); gx.addColorStop(1, 'rgba(255,255,255,0)');
-    x.fillStyle = gx; x.fillRect(0, 0, 64, 256); x.globalCompositeOperation = 'destination-in';
-    const gy = x.createLinearGradient(0, 0, 0, 256); gy.addColorStop(0, 'rgba(0,0,0,0)'); gy.addColorStop(.25, 'rgba(0,0,0,1)'); gy.addColorStop(.8, 'rgba(0,0,0,.7)'); gy.addColorStop(1, 'rgba(0,0,0,0)');
-    x.fillStyle = gy; x.fillRect(0, 0, 64, 256); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t; })();
-  const SHAFTS = 14;
-  const shafts = new T.InstancedMesh(new T.PlaneGeometry(1.6, 13), new T.MeshBasicMaterial({ map: shaftTex, color: '#ffe7b0', transparent: true, opacity: .27, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide, fog: true }), SHAFTS);
-  shafts.renderOrder = 5; shafts.frustumCulled = false;
-  const shaftData = Array.from({ length: SHAFTS }, (_, i) => ({ side: i % 2 ? 1 : -1, off: .2 + rand() * 1.5, z: rand() * 180, s: .7 + rand() * .9, h: rand() * .8, r: rand() * .6 }));
-  scene.add(shafts);
-  // bagliore del sole in cielo (si vede solo quando il sole è nell'inquadratura)
-  const sunGlare = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: '#fff2d0', transparent: true, opacity: .55, blending: T.AdditiveBlending, depthWrite: false, fog: false }));
-  sunGlare.scale.setScalar(150); scene.add(sunGlare);
-  const _sd = new T.Vector3();
-  function trailDetails(t, s) {
-    const on = !iceMode && !desertLook && !ranchLook, hr = halfRoad(), r = rich();
-    pebbles.visible = on; roots.visible = on; shafts.visible = on && r;
-    if (on) {
-      pebData.forEach((d, i) => {
-        const z = wrapZ(d.z, t), w = d.u * hr, sc = d.s * (1 - trail.rough * .3);
-        dummy.position.set(center(z, t) + w, ground(z, t, w) + .015 * sc, z);
-        dummy.rotation.set(d.r, d.r * 1.7, 0); dummy.scale.set(sc, sc * d.f, sc * 1.1); put(pebbles, i);
-      });
-      pebbles.instanceMatrix.needsUpdate = true;
-      rootData.forEach((d, i) => {
-        const z = wrapZ(d.z, t), v = vis(z, [1, 0, .15, 0], d.h), w = d.u * hr, len = hr * 2 * d.len;
-        dummy.position.set(center(z, t) + w, ground(z, t, w) + .02, z);
-        dummy.rotation.set(0, d.a, Math.PI / 2 + d.bump * .15); dummy.scale.set(v, len * v, v * (.8 + d.bump)); put(roots, i);
-      });
-      roots.instanceMatrix.needsUpdate = true;
-    }
-    if (on && r) {
-      const night = (s?.weather?.night || 0) + (s?.weather?.rain || 0);
-      shafts.material.opacity = .27 * Math.max(0, 1 - night * 1.5);
-      shaftData.forEach((d, i) => {
-        const z = wrapZ(d.z, t), v = vis(z, [1, 0, 0, 0], d.h), w = d.side * (hr * d.off + 1);
-        dummy.position.set(center(z, t) + w, ground(z, t, w) + 5.2 * d.s, z);
-        dummy.rotation.set(0, Math.atan2(camera.position.x - dummy.position.x, camera.position.z - dummy.position.z), .38 + d.r * .3);
-        dummy.scale.set(d.s * v, d.s * v, d.s * v); put(shafts, i);
-      });
-      shafts.instanceMatrix.needsUpdate = true;
-    }
-    // erba ai bordi: si apre al passaggio delle moto (vento dello spostamento d'aria)
-    const spd = Math.min(1.5, s?.speed || 0);
-    if (spd > .1) tuftData.forEach((d, i) => {
-      const z = wrapZ(d.z, t); if (z < -2.5 || z > 4) return;
-      const k = Math.max(0, 1 - Math.abs(z - .6) / 3) * spd;
-      const w = d.side * (d.off * (trail.width * .5 + .5));
-      dummy.position.set(center(z, t) + w, ground(z, t, w) - .02, z);
-      dummy.rotation.set(-k * .35, d.r, d.side * k * .55); dummy.scale.set(d.s, d.s * (1 - trail.rough * .75), d.s); put(tufts, i);
-    });
-    if (spd > .1) tufts.instanceMatrix.needsUpdate = true;
-    // sole: bagliore lungo la direzione del sole
-    _sd.copy(skyUniforms.uSunDir.value).normalize();
-    sunGlare.position.copy(camera.position).addScaledVector(_sd, 300);
-    sunGlare.visible = r && sun.intensity > 1.6 && !(s?.weather?.night);
-  }
-  // l'erba ondeggia al vento (solo nel vertex shader, costo zero)
-  const swayTime = { value: 0 };
-  for (const m of [tufts.material, ferns.material, reeds.material]) m.onBeforeCompile = sh => {
-    sh.uniforms.uSway = swayTime;
-    sh.vertexShader = 'uniform float uSway;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-      #ifdef USE_INSTANCING
-        float ph = instanceMatrix[3].x * .7 + instanceMatrix[3].z * .45;
-        float bend = max(position.y, 0.) * .11;
-        transformed.x += sin(uSway * 1.6 + ph) * bend; transformed.z += cos(uSway * 1.1 + ph * 1.3) * bend * .6;
-      #endif`);
-  };
   function vergeDetails(t) {
     const keep = 1 - trail.rough * .75;
     tuftData.forEach((d, i) => {
@@ -3268,7 +3184,6 @@ export function createWorld(canvas) {
   // v152 · strisce di vento ai bordi dello schermo: escono dal centro della strada e sfrecciano via, più fitte più vai forte
   const sl = document.createElement('canvas'); sl.className = 'windlines'; sl.setAttribute('aria-hidden', 'true');
   canvas.after(sl);
-  { const vg = document.createElement('div'); vg.className = 'vignette'; vg.setAttribute('aria-hidden', 'true'); sl.after(vg); }   // v155 · bordi più scuri: occhio sulla pista
   const slx = sl.getContext('2d'); let slOn = false, slI = 0;
   const calmMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const streaks = Array.from({ length: 34 }, () => ({ a: 0, r: 0, l: 0, w: 0 }));
@@ -3394,7 +3309,7 @@ export function createWorld(canvas) {
     paintDecal(s.riderName || 'EDT', s.riderNumber || 1, s.livery?.jersey || '#fcd326');
     paintBack(s.riderName || 'EDT', s.riderNumber || 1, s.livery?.jersey || '#fcd326');
     setShirt(s.livery?.shirt || '');
-    skyUniforms.uTime.value = now / 1000; swayTime.value = now / 1000;   // v155
+    skyUniforms.uTime.value = now / 1000;
 
     canyon = s.canyon || null;
     placeCanyon(s.roadTime * 19.5);
@@ -3402,7 +3317,7 @@ export function createWorld(canvas) {
     const live = s.state === 'playing' || s.state === 'paused' || s.state === 'countdown';
     const boostAmount = live ? (s.turbo || 0) : 0;
     trail = routeAt(s.elapsed || 0, t);
-    ranchLook = !!s.ranch; curShape = ranchLook ? RANCH_SHAPE : s.ice ? null : trackShape(s.mode, s.variant || 0, GAME_LENGTH / (s.courseScale || .04)); forkF = s.fork || null; if (!DBG.noTerrain) terrain(t); if (!DBG.noScenery) { instances(t); muleScenery(t); vergeDetails(t); trailDetails(t, s); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook); biellese(t, s.look === 'lev', now); risaie(t, s.look === 'viet'); }
+    ranchLook = !!s.ranch; curShape = ranchLook ? RANCH_SHAPE : s.ice ? null : trackShape(s.mode, s.variant || 0, GAME_LENGTH / (s.courseScale || .04)); forkF = s.fork || null; if (!DBG.noTerrain) terrain(t); if (!DBG.noScenery) { instances(t); muleScenery(t); vergeDetails(t); vineyard(t, !!s.vigne || ranchLook); astigiano(t, ranchLook); biellese(t, s.look === 'lev', now); risaie(t, s.look === 'viet'); }
     weatherNow = s.weather || weatherNow;
     applyWeather(s.weather, s.sight || 0);
     ambient(fdt, t, trail.w, live);
