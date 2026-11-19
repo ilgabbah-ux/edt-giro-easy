@@ -940,6 +940,8 @@ export function createWorld(canvas) {
   function muleScenery(t) {
     paving.visible = wall.visible = cliff.visible = trail.rough > .01;
     if (!paving.visible) return;
+    // v159 · all'ingresso della mulattiera i sassi del muretto e della parete crescono interi (prima venivano schiacciati in lastre piatte che sembravano assi)
+    const kr = Math.min(1, trail.rough * 1.7), sink = (1 - kr);
     for (let i = 0; i < 180; i++) {
       const z = wrapZ(i * 1.02, t), w = Math.sin(i * 83.3) * 2.12;
       dummy.position.set(center(z, t) + w, height(z, t) - .02, z);
@@ -949,14 +951,14 @@ export function createWorld(canvas) {
     }
     for (let i = 0; i < 120; i++) {
       const z = wrapZ(Math.floor(i / 3) * 4.5, t), level = i % 3;
-      dummy.position.set(center(z, t) - 4.65 * trail.width - .45, height(z, t) + .22 + level * .49, z);
-      dummy.rotation.set(0, i * .37, 0); dummy.scale.set(.58, .34 * trail.rough, 1.18); dummy.updateMatrix(); wall.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(center(z, t) - 4.65 * trail.width - .45, height(z, t) + (.22 + level * .49) * kr - sink * .4, z);
+      dummy.rotation.set(0, i * .37, 0); dummy.scale.set(.58 * kr, .34 * kr, 1.18 * kr); dummy.updateMatrix(); wall.setMatrixAt(i, dummy.matrix);
     }
     for (let i = 0; i < 54; i++) {
       const z = wrapZ(Math.floor(i / 3) * 10, t), layer = i % 3, w = -4.65 * trail.width - 1.5 - layer * 2.0;
-      dummy.position.set(center(z, t) + w, height(z, t) + bank(w, z) + .15, z);
+      dummy.position.set(center(z, t) + w, height(z, t) + bank(w, z) + .15 - sink * 1.2, z);
       dummy.rotation.set(.15 * Math.sin(i), i * .67, .24);
-      dummy.scale.set(1.2 + layer * .4, (.8 + layer * .55) * trail.rough, 2.1 + (i % 4) * .25);
+      dummy.scale.set((1.2 + layer * .4) * kr, (.8 + layer * .55) * kr, (2.1 + (i % 4) * .25) * kr);
       dummy.updateMatrix(); cliff.setMatrixAt(i, dummy.matrix);
     }
     paving.instanceMatrix.needsUpdate = wall.instanceMatrix.needsUpdate = cliff.instanceMatrix.needsUpdate = true;
