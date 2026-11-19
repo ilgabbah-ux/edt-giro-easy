@@ -6,7 +6,7 @@ import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
 import * as C from './classifica.js?v=1a09bb69';
-import * as N from './push.js?v=fd25e9a4';   // v154 · notifiche "ti hanno superato"
+import * as N from './push.js?v=13d13cf1';   // v154 · notifiche "ti hanno superato"
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -3489,7 +3489,7 @@ function tomorrowHTML() {   // v138 · motivi per tornare domani
 }
 function installNudgeHTML(win) {   // v138 · dopo il primo arrivo al rifugio: mettilo nella schermata Home
   if (!win || standalone || window.EDT_PUBLIC_URL || (P.profile.totals?.wins || 0) > 2) return '';
-  return `<button class="installnudge" id="installnudge" type="button">${icon('phone')}<span><b>METTI IL GIOCO NELLA HOME</b><small>la prossima volta parte con un tocco, come un'app</small></span>${icon('chevrons')}</button>`;
+  return `<button class="installnudge" id="installnudge" type="button">${icon('phone')}<span><b>${playStore() ? 'SCARICA L’APP DAL PLAY STORE' : 'METTI IL GIOCO NELLA HOME'}</b><small>la prossima volta parte con un tocco${playStore() ? ' e ti arrivano le notifiche' : ", come un'app"}</small></span>${icon('chevrons')}</button>`;
 }
 function champResHTML(ch) {
   if (!ch) return '';
@@ -3921,10 +3921,17 @@ async function pushToggle(btn) {
   if (N.state() === 'on') { await N.disable(C.pushOff); toast('🔕 NOTIFICHE SPENTE', 'gold'); return false; }
   if (N.state() === 'denied') { toast('🔕 LE NOTIFICHE SONO BLOCCATE: ATTIVALE DALLE IMPOSTAZIONI DEL BROWSER PER QUESTO SITO', 'red'); return false; }
   if (N.state() === 'no') { toast(/iPhone|iPad/.test(navigator.userAgent) ? '📱 SU IPHONE: CONDIVIDI → AGGIUNGI ALLA HOME, POI APRI IL GIOCO DA LÌ' : '📵 QUESTO BROWSER NON SUPPORTA LE NOTIFICHE', 'red'); return false; }
-  if (btn) btn.disabled = true;
-  try { const r = await N.enable(C.pushReg); if (r.ok) { toast('🔔 FATTO! TI AVVISO QUANDO QUALCUNO TI SUPERA', 'green'); return true; } if (r.why === 'denied') toast('🔕 NOTIFICHE NON PERMESSE', 'red'); }
+  // v161 · il tasto risponde subito e ogni esito ha il suo messaggio (prima, senza risposta al permesso, non succedeva niente)
+  const html = btn?.innerHTML; if (btn) { btn.disabled = true; btn.innerHTML = '🔔 ATTIVO LE NOTIFICHE…<small>se il telefono te lo chiede, tocca CONSENTI</small>'; }
+  try {
+    const r = await N.enable(C.pushReg);
+    if (r.ok) { toast('🔔 FATTO! TI AVVISO QUANDO QUALCUNO TI SUPERA', 'green'); return true; }
+    if (r.why === 'denied') toast(N.inApp() ? '🔕 NOTIFICHE SPENTE PER L’APP: ACCENDILE DA IMPOSTAZIONI DEL TELEFONO → APP → GIRO EASY → NOTIFICHE' : '🔕 LE NOTIFICHE SONO BLOCCATE: ATTIVALE DALLE IMPOSTAZIONI DEL BROWSER PER QUESTO SITO', 'red');
+    else if (r.why === 'default') toast(N.inApp() ? '📲 NELL’APP LE NOTIFICHE ARRIVANO COL PROSSIMO AGGIORNAMENTO: PER ORA APRI IL GIOCO DA CHROME E ATTIVALE LÌ' : '🔔 PERMESSO NON DATO: RITOCCA IL TASTO E SCEGLI «CONSENTI». SE NON COMPARE NIENTE, TOCCA L’ICONA ACCANTO ALL’INDIRIZZO DEL SITO', 'gold');
+    else toast('⚠ NOTIFICHE NON DISPONIBILI ORA, RIPROVA PIÙ TARDI', 'red');
+  }
   catch (e) { console.warn('notifiche', e); toast('⚠ NOTIFICHE NON DISPONIBILI ORA, RIPROVA PIÙ TARDI', 'red'); }
-  if (btn) btn.disabled = false; return false;
+  if (btn) { btn.disabled = false; btn.innerHTML = html; } return false;
 }
 // v106.5 · "batti il mio fantasma": link per WhatsApp; chi lo apre corre contro il tuo fantasma su quel percorso
 function ghostChallengeHTML(sc, top) {   // v153 · subito sotto il punteggio: i link degli amici sono quelli che portano più giocatori
@@ -4324,7 +4331,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 160;
+const GAME_VERSION = 161;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -4854,7 +4861,11 @@ function installHelp() {
   el.onclick = e => { if (e.target === el) closeInstallHelp(); };
   $('ihclose').onclick = closeInstallHelp;
 }
+// v161 · quando l'app sarà pubblica sul Play Store basta scrivere qui il suo indirizzo: su Android INSTALLA porta lì
+const PLAY_URL = '';   // es. 'https://play.google.com/store/apps/details?id=it.endurodrinkingteam.giroeasy'
+const playStore = () => !!PLAY_URL && /Android/i.test(navigator.userAgent) && !standalone && !N.inApp();
 $('installapp').onclick = async () => {
+  if (playStore()) { location.href = PLAY_URL + '&referrer=utm_source%3Dgioco'; return; }
   if (installEvt) {
     try { installEvt.prompt(); const r = await installEvt.userChoice; installEvt = null; if (r?.outcome === 'accepted') { $('installapp').hidden = true; return; } }
     catch { installEvt = null; }
