@@ -3284,6 +3284,8 @@ export function createWorld(canvas) {
   const resetPerf = () => { perf.hitches = 0; };
   queueMicrotask(() => { let q = null; try { const v = localStorage.getItem(QKEY); if (v !== null) q = Math.min(maxQ(), +v || 0); } catch {} if (q === null) q = bigScreen() ? 2 : 0; if (lite) q = Math.max(q, liteQ()); while (quality < q) stepQuality(++quality); });   // v107.6 · tablet al primo avvio: si parte già senza ombre
 
+  const CHASE = window.__chase = { yaw: .7, roll: .22, depth: 1 };   // intensità (regolabili in prova da console)
+  let camYaw = 0, camLean = 0, camDepth = 0;   // v165 · camera da inseguimento
   let leapFollow = 0, camLift = 0, camX = 0, lastRender = performance.now(), wasAir = false, shakeX = 0, shakeY = 0;
 
   // v152 · strisce di vento ai bordi dello schermo: escono dal centro della strada e sfrecciano via, più fitte più vai forte
@@ -3487,7 +3489,7 @@ export function createWorld(canvas) {
     const leanT = Math.max(-.55, Math.min(.55, -(latV * .06 + dyn.latA * .012) * spdK));   // v163 · la piega dipende dalla velocità: piano quasi dritta, forte più giù
     dyn.leanV += ((leanT - dyn.leanR) * 70 - dyn.leanV * 11) * fdt; dyn.leanR += dyn.leanV * fdt;
     const lean = Math.max(-.55, Math.min(.55, dyn.leanR)) + whip * .35 + (crash > 0 ? Math.sin(crash * 25) * crash * .4 : 0);
-    const velYaw = -Math.atan2(latV, dyn.fwd) * .85;
+    const velYaw = -Math.atan2(latV, dyn.fwd) * .85; dyn.velYaw = velYaw;
     dyn.steer += (Math.max(-.32, Math.min(.32, (velYaw - (dyn.prevVelYaw ?? velYaw)) / Math.max(fdt, .001) * .1 + velYaw * .25)) - dyn.steer) * Math.min(1, fdt * 12); dyn.prevVelYaw = velYaw;
     bike.position.set((s.px - 1) * spacing(), lift + .06 * Math.abs(trail.grade) + noseDown, 0);
     { const gy = height(0, t), air = Math.max(0, bike.position.y - gy); blob.visible = !s.leap || air < 6; blob.position.set(bike.position.x, gy + .035, .02); const k = 1 + air * .35; blob.scale.set(k, 1, k); blobMat.opacity = .5 / (1 + air * .9); }
@@ -3828,7 +3830,7 @@ export function createWorld(canvas) {
     speedLines(playing ? Math.min(1, Math.max(0, Math.min(1, (dyn.spdF - .6) / .5)) * .75 + (boostAmount > 0 ? .5 : 0)) : 0, fdt);
     if (playing && s.jump <= 0) { const vib = (.006 + trail.rough * .02 + (s.wet > 0 ? .006 : 0)) * dyn.spdF; shakeY += Math.sin(now * .09) * vib + (Math.random() - .5) * vib; shakeX += (Math.random() - .5) * vib * .6; }
     if (Math.abs(camera.fov - targetFov) > .01) { camera.fov += (targetFov - camera.fov) * .07; camera.updateProjectionMatrix(); }
-    camX += (bike.position.x * (portrait ? .55 : .30) - camX) * .06;
+    camX += (bike.position.x * (portrait ? .44 : .25) - camX) * .06;   // v165 · la camera insegue meno di lato: è la moto che attraversa lo schermo
     // Schermi bassi (telefono in orizzontale): moto più in alto, sopra i comandi.
     const short = !portrait && canvas.clientHeight < 520;
     const camY = portrait ? 5.35 : short ? 4.7 : 4.25, camZ = portrait ? 9.3 : 7.3,   // v153 · camera un po' più bassa e vicina: il terreno passa più in fretta
@@ -3840,9 +3842,16 @@ export function createWorld(canvas) {
     // v105.2 · in curva la camera guarda dove va la pista (come seguire la moto da dietro) e si sposta un filo verso l'esterno
     camTurn += ((curShape && s.state !== 'menu' ? center(-12, t) * .8 : 0) - camTurn) * Math.min(1, fdt * 3);
     camera.position.x -= camTurn * .18;
-    camera.position.z += dyn.accLag * (portrait ? 1.1 : .8);   // v152
-    camera.lookAt(bike.position.x * (portrait ? .4 : .16) + camTurn, lookY + leapFollow * .55 + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : short ? 1.5 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : short ? .45 : .1), lookZ);
-    camera.rotateZ(bike.rotation.z * .06);
+    camera.position.z += dyn.accLag * (portrait ? 1.9 : 1.4);   // v152 · v165: più marcato
+    // v165 · camera da inseguimento (niente più «tapis roulant»): quando sterzi la camera resta dietro alla moto e gira con lei,
+    // così è il paesaggio che ruota e non la moto che scivola di lato; andando forte la moto scappa in avanti, dopo una botta la camera la riprende
+    { const chaseT = playing && !s.ice && !s.leap && crash <= 0 ? Math.max(-.2, Math.min(.2, (dyn.velYaw || 0) * CHASE.yaw)) : 0;
+      camYaw += (chaseT - camYaw) * Math.min(1, fdt * 3.5);
+      camDepth += ((playing && !s.leap ? (dyn.spdF - 1) * (portrait ? 2.2 : 1.6) * CHASE.depth : 0) - camDepth) * Math.min(1, fdt * 1.8);
+      camera.position.x += Math.sin(camYaw) * camZ * .9; camera.position.z += camDepth; }
+    camera.lookAt(bike.position.x * (portrait ? .4 : .16) + camTurn - Math.sin(camYaw) * 7, lookY + leapFollow * .55 + camLift + Math.max(0, trail.grade) * (portrait ? 1.3 : short ? 1.5 : .6) + Math.min(0, trail.grade) * 2.0 + trail.climb * (portrait ? .7 : short ? .45 : .1), lookZ);
+    camLean += ((playing && !s.ice ? Math.max(-.09, Math.min(.09, (dyn.leanR || 0) * CHASE.roll)) : 0) - camLean) * Math.min(1, fdt * 5);   // v165 · l'orizzonte si inclina un po' con la piega
+    camera.rotateZ(bike.rotation.z * .06 + camLean);
     camRoll += ((curShape && s.state === 'playing' ? Math.max(-.06, Math.min(.06, curShape.bend(t + 18) * .035)) : 0) - camRoll) * .04; camera.rotateZ(camRoll);   // v104 · nelle curve dei tracciati veri la camera si inclina con la pista
     if (s.ice) camera.rotateZ(-(s.drift || 0) * .045);   // v49 · la camera segue un filo la derapata
     sky.position.copy(camera.position);

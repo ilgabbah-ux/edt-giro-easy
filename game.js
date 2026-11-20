@@ -21,7 +21,7 @@ import('./piloti.js?v=8bcd4edd').then(m => {
 // v151 · il 3D si carica DOPO che la home è a schermo: chi apre il link vede subito il tasto per partire
 let worldP = null;
 function bootWorld() {
-  return worldP || (worldP = import('./scene3d.js?v=3d5b9208').then(({ createWorld }) => {
+  return worldP || (worldP = import('./scene3d.js?v=ab019625').then(({ createWorld }) => {
     try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); return; }
     world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLE IMPOSTAZIONI', 'green'), 0);
     try { preview = world.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
