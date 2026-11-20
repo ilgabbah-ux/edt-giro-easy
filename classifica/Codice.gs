@@ -222,7 +222,7 @@ function reply_(obj, cb) {
 // v108.6 · CONTATORE GIOCATORI: il gioco manda action=hit con kind = open (prima apertura del giorno), play (primo giro
 //       del giorno), new (primissima apertura su quel telefono), run (ogni giro finito). Una riga per evento nel foglio "Visite";
 //       il foglio "Riepilogo" fa i conti per giorno (dispositivi unici che aprono / giocano, nuovi, giri).
-const HIT_KINDS = ['open', 'play', 'new', 'run', 'win', 'home'];   // v151 · home = la schermata col tasto per partire è comparsa (colonna G: millisecondi)   // v129 · win = giro arrivato al rifugio
+const HIT_KINDS = ['open', 'play', 'new', 'run', 'win', 'home', 'sch', 'sch9'];   // v164 · sch = scuola iniziata, sch9 = arrivato a metà scuola   // v151 · home = la schermata col tasto per partire è comparsa (colonna G: millisecondi)   // v129 · win = giro arrivato al rifugio
 function visits_() {
   const ss = SpreadsheetApp.openById('1AVbuMrd3tPI9DCSv0b3XZo9q64egWY3yq1yan2OEHQg');
   let s = ss.getSheetByName('Visite');

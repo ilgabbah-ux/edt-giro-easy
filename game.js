@@ -243,6 +243,7 @@ let slalomN = 0, lastFord = -9, lastAnimal = -9, turboReadyT = 0;
 // v84 · Dopo migliora: la salita si fa dosando il gas (trazione); se ti pianti si spinge la moto
 let grip = .5, stallT = 0, stalled = false, pushP = 0, spinMsgAt = -9, tractOn = false;
 let desert = false, sandT = 0, sandStuck = false, flat = false, fixP = 0;
+let firstRun = false, retryGift = false;   // v164 · firstRun = primo giro in assoluto (non si può perdere) · retryGift = +10 s chiesti col tasto RIPROVA
 let tutDoneAt = -99, easyRun = false, tutRunNow = false, rookieT = 0, xgAt = [];   // xgAt · v127 quando escono i pacchi d'oro   // rookieT · v125.4 secondi in più nei primi giri sull'Easy di chi arriva da fuori
    // easyRun · v109.4 primo giro di chi arriva da fuori: ostacoli più radi nella prima parte   // v109.4 · quando è finito il giro guidato (per non coprirne l'ultimo messaggio)   // v106.7 · Desertone: sabbia sulle dune e gomma bucata
 let wasTract = false, lastWaveFlash = -9, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
@@ -673,7 +674,7 @@ function start() {
   A.voicesSoon?.();
   { const md = P.MODES[mode]; world?.preloadObstacles?.(['log', 'bigLog', ...Object.values(md.obs || {}).flat(), ...SECTION_OBS.flat(), ...(md.ranch ? ['cow', 'trincia', 'hen', 'hay'] : [])]); }   // v146 · solo gli ostacoli di questo percorso
   try { world?.warmUp?.(); } catch {}
-  C.hit('play', String(GAME_VERSION));
+  C.hit('play', String(GAME_VERSION)); if (P.MODES[mode].school) C.hit('sch', String(GAME_VERSION));   // v164 · sch = scuola iniziata
   world?.resetPerf?.();   // v108 · shader e texture pronti prima del via: niente scatti alla prima apparizione
   if (!world) return;
   if (touchDevice) goFull();
@@ -690,6 +691,10 @@ function start() {
   tutRunNow = !P.profile.tutorialDone;   // v125.4 · ostacoli più radi nei primi 3 giri (prima solo il primo)
   // v125.4 · rodaggio: sull'Easy, nei primi 5 giri di chi arriva da fuori, 8 s in più (il bonus tempo resta calcolato sul tempo normale, la classifica non cambia)
   { const md0 = P.MODES[mode], n0 = P.profile.totals?.runs || 0; rookieT = rookieNow() && !duel?.racing && !md0.leap && !md0.ice ? (n0 < 2 ? 15 : 10) : 0; }   // v138 · finché non arrivi la prima volta al rifugio: +15 s (+10 dal 3° giro)
+  { const md0 = P.MODES[mode]; const plain = !md0.school && !md0.leap && !md0.ice && !duel?.racing && !champRun;   // v164
+    firstRun = plain && (P.profile.totals?.runs || 0) === 0;   // il primo giro in assoluto arriva sempre al rifugio
+    if (retryGift && plain) rookieT += 10;   // RIPROVA CON +10 SECONDI: come il rodaggio, non danno punti
+    retryGift = false; }
   if (rookieT) { timeLimit += rookieT; setTimeout(() => { if (state === 'countdown' || state === 'playing') toast('⏱ RODAGGIO: +' + rookieT + ' s PER I PRIMI GIRI', 'green'); }, 1400); }
   const plainStart = !P.profile.tutorialDone && !P.MODES[mode].ice;   // v109.4 · primo giro guidato: al via solo "come si guida", niente varianti, sfide lampo e consigli
   if (!plainStart) setTimeout(() => { if (state === 'countdown') toast('🚀 TOCCA SALTA AL VIA = PARTENZA A RAZZO', 'gold'); }, 600);
@@ -1698,6 +1703,7 @@ function schoolSnap() { const o = {}; for (const k of SCHOOL_KEYS) o[k] = run[k]
 function schoolBegin(i) {
   schoolStep = i; const st = SCHOOL[i];
   if (!st) { sch = null; $('lesson')?.classList.remove('show'); A.saySchool('diploma'); course = GAME_LENGTH; return; }
+  if (i === 9 && !(sch && sch.st === st)) C.hit('sch9', String(GAME_VERSION));   // v164 · sch9 = arrivato a metà scuola
   sch = { st, t: 0, tries: sch && sch.st === st ? sch.tries : 0, phase: 'talk', snap: schoolSnap(), objs: [] };
   schoolCard(st); tutPulse(st.pulse || null);
   A.saySchool(st.k);
@@ -2766,7 +2772,7 @@ function update(dt) {
         if (elapsed - lastRiderHit > 5) { lastRiderHit = elapsed; riderLine('hit'); }
         if (ice) endDrift(false);
         markHighlight('BOTTA!', 650);
-        lives--; if (P.MODES[mode].school) { lives = Math.max(lives, 1); toast('NIENTE PAURA: A SCUOLA LE CADUTE NON CONTANO', 'green'); } run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0) + (bs.protect || 0); breakCombo(); charge = Math.max(0, charge - 10); mistake();
+        lives--; if (P.MODES[mode].school) { lives = Math.max(lives, 1); toast('NIENTE PAURA: A SCUOLA LE CADUTE NON CONTANO', 'green'); } else if (firstRun && lives < 1) { lives = 1; if (!run.firstLife) { run.firstLife = 1; toast('⛑ PRIMO GIRO: I CASCHI NON FINISCONO, PUNTA AL RIFUGIO', 'green'); } }   // v164 run.hits++; invincible = 1.5 + up.helmet * .25 + (has('veteran') ? 1 : 0) + (bs.protect || 0); breakCombo(); charge = Math.max(0, charge - 10); mistake();
         fxKind = 'hit'; fxSerial++; shake = 1; A.sfx.hit(); flash('hit');
         // v58 · dopo una botta la fila subito dopo si apre: niente botte a catena mentre la moto riparte
         for (const q of objects) if (q !== o && !q.hit && q.z > .66 && q.z < .91 && OBSTACLE_HEIGHT[q.type] !== undefined && q.type !== 'water') q.collected = true;
@@ -2806,6 +2812,8 @@ function update(dt) {
   else if (leap && course >= GAME_LENGTH && leapState < 2) finish(false, 'time');
   else if (elapsed >= timeLimit && rookieT && !run.timeSaved && course > GAME_LENGTH * .4) { run.timeSaved = 1; timeLimit += 15; bigCall('+15 SECONDI!');   // v151 · salvataggio dal 40% del percorso, 15 s
     toast('⏱ RODAGGIO: 15 SECONDI IN REGALO, ARRIVA AL RIFUGIO!', 'green'); }   // v138
+  else if (elapsed >= timeLimit && firstRun) { timeLimit += 10; rookieT += 10;   // v164 · primo giro in assoluto: il tempo non scade (i secondi in più non danno punti)
+    if (!run.firstTime) { run.firstTime = 1; bigCall('TRANQUILLO!'); toast('⏱ PRIMO GIRO: IL TEMPO NON SCADE, ARRIVA AL RIFUGIO', 'green'); } }
   else if (elapsed >= timeLimit) finish(false, 'time');
 }
 
@@ -3356,6 +3364,8 @@ function renderChamp() {
 }
 // v150 · NOVITÀ: alla prima apertura dopo un aggiornamento, cosa è cambiato (anche le versioni saltate)
 const NEWS = {
+  164: [['🏁', 'Primo giro più facile', 'chi comincia parte subito con un Giro easy vero; la scuola di enduro resta in Home per chi la vuole'],
+    ['⏱', 'Riprova con +10 secondi', 'finché non sei arrivato tre volte al rifugio, dopo un giro perso il tasto grande ti regala 10 secondi']],
   163: [['🏍️', 'Pilota più vero', 'sposta il peso in frenata e in discesa, guarda dentro la curva, mette giù il piede nelle curve strette'],
     ['💥', 'Cadute nuove', 'niente più manichino: in volo braccia e gambe si agitano'],
     ['✨', 'Moto più viva', 'sospensioni che lavorano in frenata e nei salti, fango che si accumula durante il giro']],
@@ -3433,6 +3443,8 @@ function nextTrackHTML(win) {
   return `<button class="nexttrack" id="nexttrack" type="button"><img src="${trackArtOf(n)}" alt=""><span><small>PROSSIMO PERCORSO</small><b>${n.name}</b><em>${n.limit} s · ${TRACK_INFO[n.id]?.tipo || ''}${P.bestFor(n.id) ? '' : ' · mai fatto'}</em></span>${icon('chevrons')}</button>`;
 }
 function nextTrackGo() { const n = nextTrack(); if (!n) return; A.sfx.click(); mode = n.id; profile.mode = mode; P.save(); renderReady(); start(); }
+// v164 · finché non sei arrivato 3 volte al rifugio, dopo un giro perso il tasto grande regala 10 secondi
+const retryOk = () => { const md = P.MODES[mode]; return (P.profile.totals?.wins || 0) < 3 && !md.school && !md.leap && !md.ice && !duel?.racing && !champRun; };
 function againGo() {
   if (P.MODES[mode].school && P.profile.schoolDone) { mode = 0; profile.mode = 0; P.save(); renderReady(); start(); return; }   // v140 · dopo il diploma si parte col Giro Easy
   if (champRun && P.champ()) { renderChamp(); return; }
@@ -3724,7 +3736,7 @@ document.addEventListener('click', e => {
     return;
   }
   if (e.target.closest('#resmenu')) { A.sfx.click(); renderReady(); }
-  else if (e.target.closest('#resagain')) $('again')?.click();
+  else if (e.target.closest('#resagain')) { retryGift = !!e.target.closest('#resagain').dataset.gift; $('again')?.click(); }   // v164
 });
 // v109.4 · chi arriva da fuori, nei primi giri: niente battute EDT che non può capire
 const freshPlayer = () => !C.isEdt() && (P.profile.totals?.runs || 0) <= 3;
@@ -3741,7 +3753,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   $('overlay').classList.remove('hidden');
   setMenu(true);
   $('card').innerHTML = `
-    ${perfBox}<div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button>${win && !champRun ? '<button class="resagain" id="resagain" type="button">RIFALLO</button>' : ''}</div>${!win && !champRun ? `<button class="primary big retrybig" id="resagain" type="button"><span>RIPROVA SUBITO</span>${icon('chevrons')}</button>` : ''}${C.isEdt() || !win || champRun ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
+    ${perfBox}<div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button>${win && !champRun ? '<button class="resagain" id="resagain" type="button">RIFALLO</button>' : ''}</div>${!win && !champRun ? `<button class="primary big retrybig" id="resagain" type="button"${retryOk() ? ' data-gift="1"' : ''}><span>${retryOk() ? 'RIPROVA CON +10 SECONDI' : 'RIPROVA SUBITO'}</span>${icon('chevrons')}</button>` : ''}${C.isEdt() || !win || champRun ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
     ${!C.isEdt() && !isCustom() ? `<button class="secondary rescustom" id="rescustom" type="button">${icon('helmet')} CREA IL TUO PILOTA <small>casco, nome e numero: in classifica ci vai tu</small></button>` : ''}
     <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
     <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${leap ? (win ? `${leapBest.toFixed(1).replace('.', ',')} METRI<br><em>IN PIEDI!</em>` : 'SALTO<br><em>NULLO.</em>') : gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : fresh ? 'PER UN<br><em>PELO!</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
@@ -4404,7 +4416,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 163;
+const GAME_VERSION = 164;
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -4440,7 +4452,7 @@ function renderWelcome() {
     <p class="wlead">Tronchi, pietraie, fango e salitoni: <b>arriva al rifugio prima del tempo</b>, prendi le birre al volo e scala la classifica.</p>
 
     <button class="primary big wgo" id="wplay" type="button"><span class="st"><span>TOCCA E PARTI</span><small>un giro da 1 minuto, gratis</small></span>${icon('chevrons')}</button>
-    <button class="linkbtn wskip" id="wskip" type="button">Sono già un manico: salta la scuola ›</button>
+    <button class="linkbtn wskip" id="wskip" type="button">${icon('book')} Prima la scuola di enduro col Gabbah (3 minuti) ›</button>
     <button class="linkbtn wcustom2" id="wcustom" type="button">${icon('helmet')} Oppure crea prima il tuo pilota ›</button>
     <ul class="wfacts"><li>${icon('pad')} Gratis, dal telefono o dal computer: niente da installare</li><li>${icon('helmet')} Corri coi piloti veri dell'Enduro Drinking Team… o crea il tuo</li><li>${icon('trophy')} Classifica online con chiunque giochi</li></ul>
     <button class="linkbtn wvideo" id="wvideo" type="button">▶ GUARDA COME SI GIOCA · 30 s</button>
@@ -4458,8 +4470,8 @@ function renderWelcome() {
     A.unlock(); A.sfx.click(); C.setNick(n); P.profile.schoolDone = 1; P.profile.tutorialDone = true; P.save();
     toast('🔒 FATTO: SEI ' + n.toUpperCase() + ' ANCHE QUI', 'green'); C.load(true).catch(() => {}); renderSide(); renderReady(); cloudCheck(n, true);   // v149
   });
-  $('wskip').onclick = () => { A.unlock(); A.sfx.click(); P.profile.schoolDone = 1; P.save(); mode = 0; renderReady(); start(); };   // v140
-  $('wplay').onclick = () => { A.unlock(); A.sfx.click(); if (!P.profile.schoolDone && !(P.profile.totals?.runs > 0)) { mode = 22; renderReady(); start(); return; }   // v140 · prima la scuola di enduro
+  $('wskip').onclick = () => { A.unlock(); A.sfx.click(); mode = 22; renderReady(); start(); };   // v164 · la scuola è una scelta, non più il primo passo obbligato
+  $('wplay').onclick = () => { A.unlock(); A.sfx.click(); if (P.MODES[mode]?.school) mode = 0;   // v164 · TOCCA E PARTI = subito un Giro easy vero da un minuto (la scuola da 18 tappe faceva scappare metà dei nuovi)
     if (profile.rider === RIDERS[0] && !(profile.xp > 0)) { profile.rider = RIDERS[1 + Math.floor(Math.random() * (RIDERS.length - 1))]; P.save(); renderSide(); } renderReady(); start(); };   // v125.3 · non tutti col Gabbah   // parte subito: il primo giro è quello guidato
 }
 function renderCustom(back) {
