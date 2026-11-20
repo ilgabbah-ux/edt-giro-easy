@@ -3284,7 +3284,9 @@ export function createWorld(canvas) {
   const resetPerf = () => { perf.hitches = 0; };
   queueMicrotask(() => { let q = null; try { const v = localStorage.getItem(QKEY); if (v !== null) q = Math.min(maxQ(), +v || 0); } catch {} if (q === null) q = bigScreen() ? 2 : 0; if (lite) q = Math.max(q, liteQ()); while (quality < q) stepQuality(++quality); });   // v107.6 · tablet al primo avvio: si parte già senza ombre
 
-  const CHASE = window.__chase = { yaw: .7, roll: .22, depth: 1 };   // intensità (regolabili in prova da console)
+  // v165 · in prova: si accende solo dal link ?cam=1 (resta acceso su quel telefono), si spegne con ?cam=0. Per tutti gli altri la camera è quella di prima.
+  const chaseOn = (() => { try { const q = new URLSearchParams(location.search).get('cam'); if (q === '1') localStorage.setItem('edt-cam', '1'); else if (q === '0') localStorage.removeItem('edt-cam'); return localStorage.getItem('edt-cam') === '1'; } catch (e) { return false; } })();
+  const CHASE = window.__chase = chaseOn ? { on: 1, yaw: .7, roll: .22, depth: 1 } : { on: 0, yaw: 0, roll: 0, depth: 0 };
   let camYaw = 0, camLean = 0, camDepth = 0;   // v165 · camera da inseguimento
   let leapFollow = 0, camLift = 0, camX = 0, lastRender = performance.now(), wasAir = false, shakeX = 0, shakeY = 0;
 
@@ -3830,7 +3832,7 @@ export function createWorld(canvas) {
     speedLines(playing ? Math.min(1, Math.max(0, Math.min(1, (dyn.spdF - .6) / .5)) * .75 + (boostAmount > 0 ? .5 : 0)) : 0, fdt);
     if (playing && s.jump <= 0) { const vib = (.006 + trail.rough * .02 + (s.wet > 0 ? .006 : 0)) * dyn.spdF; shakeY += Math.sin(now * .09) * vib + (Math.random() - .5) * vib; shakeX += (Math.random() - .5) * vib * .6; }
     if (Math.abs(camera.fov - targetFov) > .01) { camera.fov += (targetFov - camera.fov) * .07; camera.updateProjectionMatrix(); }
-    camX += (bike.position.x * (portrait ? .44 : .25) - camX) * .06;   // v165 · la camera insegue meno di lato: è la moto che attraversa lo schermo
+    camX += (bike.position.x * (CHASE.on ? (portrait ? .44 : .25) : (portrait ? .55 : .30)) - camX) * .06;   // v165 · la camera insegue meno di lato: è la moto che attraversa lo schermo
     // Schermi bassi (telefono in orizzontale): moto più in alto, sopra i comandi.
     const short = !portrait && canvas.clientHeight < 520;
     const camY = portrait ? 5.35 : short ? 4.7 : 4.25, camZ = portrait ? 9.3 : 7.3,   // v153 · camera un po' più bassa e vicina: il terreno passa più in fretta
@@ -3842,7 +3844,7 @@ export function createWorld(canvas) {
     // v105.2 · in curva la camera guarda dove va la pista (come seguire la moto da dietro) e si sposta un filo verso l'esterno
     camTurn += ((curShape && s.state !== 'menu' ? center(-12, t) * .8 : 0) - camTurn) * Math.min(1, fdt * 3);
     camera.position.x -= camTurn * .18;
-    camera.position.z += dyn.accLag * (portrait ? 1.9 : 1.4);   // v152 · v165: più marcato
+    camera.position.z += dyn.accLag * (CHASE.on ? (portrait ? 1.9 : 1.4) : (portrait ? 1.1 : .8));   // v152 · v165: più marcato
     // v165 · camera da inseguimento (niente più «tapis roulant»): quando sterzi la camera resta dietro alla moto e gira con lei,
     // così è il paesaggio che ruota e non la moto che scivola di lato; andando forte la moto scappa in avanti, dopo una botta la camera la riprende
     { const chaseT = playing && !s.ice && !s.leap && crash <= 0 ? Math.max(-.2, Math.min(.2, (dyn.velYaw || 0) * CHASE.yaw)) : 0;
