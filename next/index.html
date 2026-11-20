@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>Giro Easy · pista 3D (prova)</title>
+<style>
+@font-face { font-family: Anton; src: url(../anton.woff2) format('woff2'); font-display: swap; }
+@font-face { font-family: Barlow; font-weight: 700; src: url(../barlow-condensed-latin-700-normal.woff2) format('woff2'); font-display: swap; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; touch-action: none; }
+html, body { margin: 0; height: 100%; background: #101410; overflow: hidden; font-family: Barlow, 'Arial Narrow', sans-serif; color: #fff; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.hud { position: fixed; z-index: 2; pointer-events: none; text-shadow: 0 2px 0 #000a; }
+#spd { left: 14px; top: calc(12px + env(safe-area-inset-top)); font: 44px/1 Anton, Impact, sans-serif; color: #ffd400; } #spd small { font: 700 15px Barlow; color: #fff; margin-left: 4px; }
+#tim { right: 14px; top: calc(12px + env(safe-area-inset-top)); font: 34px/1 Anton, Impact, sans-serif; text-align: right; } #tim small { display: block; font: 700 14px Barlow; color: #ffd400; margin-top: 3px; }
+#bar { left: 14px; right: 14px; top: calc(66px + env(safe-area-inset-top)); height: 6px; background: #0008; border-radius: 3px; } #bar i { display: block; height: 100%; width: 0; background: #ffd400; border-radius: 3px; }
+#msg { left: 0; right: 0; top: 30%; text-align: center; font: 64px/1 Anton, Impact, sans-serif; color: #ffd400; -webkit-text-stroke: 2px #111; }
+#tag { left: 0; right: 0; top: calc(82px + env(safe-area-inset-top)); text-align: center; font: 700 13px Barlow; letter-spacing: .08em; opacity: .75; }
+.btn { position: fixed; z-index: 3; pointer-events: auto; border: 0; font: 700 18px Barlow, sans-serif; letter-spacing: .04em; color: #111; background: #ffd400; padding: 0 18px; height: 54px; transform: skewX(-8deg); box-shadow: 0 4px 0 #0009; }
+.btn.dark { background: #1c1f1cdd; color: #fff; border: 2px solid #ffffff44; }
+#brake { left: 14px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 132px; height: 92px; font-size: 24px; background: #d6332bdd; color: #fff; }
+#gasb { right: 14px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 132px; height: 92px; font-size: 24px; }
+#again { right: 14px; top: calc(96px + env(safe-area-inset-top)); height: 40px; font-size: 15px; }
+#opts { left: 14px; top: calc(96px + env(safe-area-inset-top)); height: 40px; font-size: 15px; }
+#panel { position: fixed; z-index: 5; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #0b0e0bd9; padding: 24px; text-align: center; }
+#panel h1 { font: 40px/1.02 Anton, Impact, sans-serif; margin: 0; color: #ffd400; } #panel p { margin: 0; max-width: 360px; font-size: 17px; line-height: 1.3; opacity: .92; }
+#panel .btn { position: static; min-width: 240px; } #panel .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+#panel.hide, .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud" id="spd">0<small>KM/H</small></div>
+<div class="hud" id="tim">0.0<small id="best"></small></div>
+<div class="hud" id="bar"><i></i></div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1</div>
+<div class="hud" id="msg"></div>
+<button class="btn" id="brake" type="button">FRENO</button>
+<button class="btn" id="gasb" type="button">GAS</button>
+<button class="btn dark" id="again" type="button">↺ RIPARTI</button>
+<button class="btn dark" id="opts" type="button">☰ OPZIONI</button>
+<div id="panel">
+  <h1>GIRO EASY<br>PISTA VERA 3D</h1>
+  <p id="ptxt">Prova di guida: niente ostacoli, niente punti. Inclina il telefono come un manubrio per piegare la moto. Il gas è automatico, il freno è il tasto rosso.</p>
+  <button class="btn" id="go" type="button">ACCENDI LA MOTO</button>
+  <div class="row">
+    <button class="btn dark" id="oAuto" type="button"></button>
+    <button class="btn dark" id="oGas" type="button"></button>
+    <button class="btn dark" id="oSens" type="button"></button>
+    <button class="btn dark" id="oInv" type="button"></button>
+    <button class="btn dark" id="oCam" type="button"></button>
+  </div>
+  <p id="pres" style="color:#ffd400;font-size:20px"></p>
+</div>
+<script type="module" src="gioco.js?v=1"></script>
+</body>
+</html>
