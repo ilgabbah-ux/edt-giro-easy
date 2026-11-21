@@ -3,8 +3,8 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { W, DS, SIDE, buildTrack, groundY, at, project, roughAt } from './pista.js?v=3';
-import { startSound, soundUpdate, thud, setSound } from './suono.js?v=5';
+import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=6';
+import { startSound, soundUpdate, thud, setSound } from './suono.js?v=6';
 import { makeRider } from './pilota.js?v=4';
 
 const $ = id => document.getElementById(id);
@@ -34,58 +34,82 @@ const tex = (src, rx, ry) => { const t = tl.load(src); t.colorSpace = T.SRGBColo
 // ---------- pista ----------
 const tr = buildTrack();
 const P = {};
-{ // sentiero
-  const RS = .5, n = Math.floor(tr.len / RS) + 1, cols = 7, pos = [], uv = [], idx = [];   // una fila ogni mezzo metro: dossi e radici si vedono
-  for (let i = 0; i < n; i++) for (let c = 0; c < cols; c++) { const d = -W / 2 + W * c / (cols - 1); at(tr, i * RS, d, P); pos.push(P.x, P.y + .02, P.z); uv.push(c / (cols - 1), i * RS / 7); }
-  for (let i = 0; i < n - 1; i++) for (let c = 0; c < cols - 1; c++) { const a = i * cols + c, b = a + cols; idx.push(a, a + 1, b, a + 1, b + 1, b); }
-  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-  scene.add(new T.Mesh(g, new T.MeshLambertMaterial({ map: tex('../img/tex/trail_d.webp') })));
+const TEXF = { trail: 'trail_d', rock: 'mossrock_d', mud: 'mudtrack_d', cobble: 'rockwall_d', forest: 'forestfloor_d' }, TEXN = Object.keys(TEXF);
+{ // sentiero: una fila ogni mezzo metro, largo quanto il tratto; ogni tipo di fondo ha la sua foto
+  const RS = .5, n = Math.floor(tr.len / RS) + 1, cols = 7, pos = [], uv = [], idx = [];
+  for (let i = 0; i < n; i++) { const s = i * RS, w = widthAt(tr, s); for (let c = 0; c < cols; c++) { const d = -w / 2 + w * c / (cols - 1); at(tr, s, d, P); pos.push(P.x, P.y + .02, P.z); uv.push(d / 7, s / 7); } }
+  const g = new T.BufferGeometry(); let cur = null, start = 0;
+  for (let i = 0; i < n - 1; i++) { const tx = TEXN.indexOf(kindAt(tr, (i + .5) * RS).tex); if (tx !== cur) { if (cur !== null) g.addGroup(start, idx.length - start, cur); cur = tx; start = idx.length; }
+    for (let c = 0; c < cols - 1; c++) { const a = i * cols + c, b = a + cols; idx.push(a, a + 1, b, a + 1, b + 1, b); } }
+  g.addGroup(start, idx.length - start, cur);
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  scene.add(new T.Mesh(g, TEXN.map(k => new T.MeshLambertMaterial({ map: tex(`../img/tex/${TEXF[k]}.webp`), color: k === 'mud' ? 0xb9a58c : k === 'cobble' ? 0xd8d2c8 : 0xffffff }))));
 }
 // quanto ci si può allontanare di lato senza che il terreno si accavalli all'interno delle curve
-const sideLimit = (s, sign) => { const k = tr.k[Math.min(tr.n - 1, Math.round(s / DS))]; return k * sign > .002 ? Math.min(SIDE, .8 / Math.abs(k)) : SIDE; };
-for (const sign of [-1, 1]) { // prati ai lati
-  const VS = 1, n = Math.floor(tr.len / VS) + 1, cols = 8, pos = [], uv = [], idx = [];
-  for (let i = 0; i < n; i++) { const lim = sideLimit(i * VS, sign); for (let c = 0; c < cols; c++) { const u = c / (cols - 1), d = sign * (W / 2 - .3 + (lim - W / 2 + .3) * u * u); at(tr, i * VS, d, P); pos.push(P.x, P.y - (c ? 0 : .04), P.z); uv.push(d / 9, i * VS / 9); } }
-  for (let i = 0; i < n - 1; i++) for (let c = 0; c < cols - 1; c++) { const a = i * cols + c, b = a + cols; if (sign > 0) idx.push(a, a + 1, b, a + 1, b + 1, b); else idx.push(a, b, a + 1, a + 1, b, b + 1); }
-  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-  scene.add(new T.Mesh(g, new T.MeshLambertMaterial({ map: tex('../img/tex/meadow_d.webp') })));
+const sideLimit = (s, sign) => { const k = tr.k[Math.min(tr.n - 1, Math.round(s / DS))], sd = sideAt(tr, s); return k * sign > .002 ? Math.min(sd, .8 / Math.abs(k)) : sd; };
+for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single track e sulla mulattiera
+  const VS = 1, n = Math.floor(tr.len / VS) + 1, cols = 8, pos = [], uv = [], idx = [], g = new T.BufferGeometry(); let cur = null, start = 0;
+  for (let i = 0; i < n; i++) { const s = i * VS, hw = widthAt(tr, s) / 2, lim = Math.max(hw + 1, sideLimit(s, sign)); for (let c = 0; c < cols; c++) { const u = c / (cols - 1), d = sign * (hw - .3 + (lim - hw + .3) * u * u); at(tr, s, d, P); pos.push(P.x, P.y - (c ? 0 : .04), P.z); uv.push(d / 9, s / 9); } }
+  for (let i = 0; i < n - 1; i++) { const kd = tr.kind[Math.min(tr.n - 1, Math.round((i + .5) * VS / DS))], mt = kd === 't' || kd === 'm' ? 1 : 0; if (mt !== cur) { if (cur !== null) g.addGroup(start, idx.length - start, cur); cur = mt; start = idx.length; }
+    for (let c = 0; c < cols - 1; c++) { const a = i * cols + c, b = a + cols; if (sign > 0) idx.push(a, a + 1, b, a + 1, b + 1, b); else idx.push(a, b, a + 1, a + 1, b, b + 1); } }
+  g.addGroup(start, idx.length - start, cur);
+  g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  scene.add(new T.Mesh(g, [new T.MeshLambertMaterial({ map: tex('../img/tex/meadow_d.webp') }), new T.MeshLambertMaterial({ map: tex('../img/tex/forest_d.webp') })]));
 }
 { // fondovalle lontano e montagne all'orizzonte
-  const base = new T.Mesh(new T.PlaneGeometry(4000, 4000), new T.MeshLambertMaterial({ color: 0x5c7a3c })); base.rotation.x = -Math.PI / 2; base.position.set(300, -9, -280); scene.add(base);
+  const base = new T.Mesh(new T.PlaneGeometry(5000, 5000), new T.MeshLambertMaterial({ color: 0x5c7a3c })); base.rotation.x = -Math.PI / 2; base.position.set(0, -12, -500); scene.add(base);
   const pano = tl.load('../img/pano-0.webp'); pano.colorSpace = T.SRGBColorSpace; pano.wrapS = T.MirroredRepeatWrapping; pano.repeat.x = 2;
   const cyl = new T.Mesh(new T.CylinderGeometry(1100, 1100, 1470, 48, 1, true), new T.MeshBasicMaterial({ map: pano, side: T.BackSide, fog: false, depthWrite: false }));
   cyl.position.y = 240; cyl.renderOrder = -1; scene.add(cyl); P.sky = cyl;
 }
-{ // paletti e fettuccia ai bordi
-  const n = Math.floor(tr.len / 8), post = new T.InstancedMesh(new T.CylinderGeometry(.045, .045, 1.1, 5), new T.MeshLambertMaterial({ color: 0xf2f2f2 }), n * 2), m = new T.Matrix4();
-  let q = 0; for (let i = 0; i < n; i++) for (const sg of [-1, 1]) { at(tr, i * 8, sg * (W / 2 + .35), P); m.makeTranslation(P.x, P.y + .55, P.z); post.setMatrixAt(q++, m); }
-  scene.add(post);
-  for (const sg of [-1, 1]) { const pos = [], uv = [], idx = []; for (let i = 0; i < tr.n; i++) { at(tr, i * DS, sg * (W / 2 + .35), P); pos.push(P.x, P.y + .92, P.z, P.x, P.y + 1.02, P.z); uv.push(i * DS / .8, 0, i * DS / .8, 1); if (i) { const a = (i - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
-    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
-    const cv = document.createElement('canvas'); cv.width = 16; cv.height = 4; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 16, 4); x.fillStyle = '#d6332b'; x.fillRect(0, 0, 8, 4);
-    const t = new T.CanvasTexture(cv); t.wrapS = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.magFilter = T.NearestFilter;
-    scene.add(new T.Mesh(g, new T.MeshBasicMaterial({ map: t, side: T.DoubleSide }))); }
+{ // acqua: il guado (tutta la larghezza) e le pozze nel fango
+  const mat = new T.MeshBasicMaterial({ color: 0x6f8f8c, transparent: true, opacity: .72, depthWrite: false });
+  for (const wt of tr.water) { const pos = [], idx = []; let r = 0;
+    for (let s = wt.s0; s <= wt.s1 + .01; s += .5) { const hw = wt.half || widthAt(tr, s) / 2 + 2.5, e = wt.half ? Math.sqrt(Math.max(.05, Math.sin(Math.PI * (s - wt.s0) / (wt.s1 - wt.s0)))) : 1, c = wt.off || 0;
+      at(tr, s, c - hw * e, P); pos.push(P.x, wt.y, P.z); at(tr, s, c + hw * e, P); pos.push(P.x, wt.y, P.z); if (r) { const a = (r - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } r++; }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); const m = new T.Mesh(g, mat); m.renderOrder = 2; scene.add(m); }
 }
-{ // alberi: due piani incrociati con la foto dell'abete
+{ // paletti e fettuccia: solo nei tratti da gara (veloce, salita, discesa, fango)
+  const m = new T.Matrix4(), pts = []; for (let s = 0; s < tr.len; s += 8) if (kindAt(tr, s).tape) for (const sg of [-1, 1]) { at(tr, s, sg * (widthAt(tr, s) / 2 + .35), P); pts.push([P.x, P.y + .55, P.z]); }
+  const post = new T.InstancedMesh(new T.CylinderGeometry(.045, .045, 1.1, 5), new T.MeshLambertMaterial({ color: 0xf2f2f2 }), pts.length); pts.forEach((p, i) => { m.makeTranslation(p[0], p[1], p[2]); post.setMatrixAt(i, m); }); scene.add(post);
+  const cv = document.createElement('canvas'); cv.width = 16; cv.height = 4; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 16, 4); x.fillStyle = '#d6332b'; x.fillRect(0, 0, 8, 4);
+  const tt = new T.CanvasTexture(cv); tt.wrapS = T.RepeatWrapping; tt.colorSpace = T.SRGBColorSpace; tt.magFilter = T.NearestFilter; const tmat = new T.MeshBasicMaterial({ map: tt, side: T.DoubleSide });
+  for (const sg of [-1, 1]) { const pos = [], uv = [], idx = []; let prev = false, r = 0; for (let i = 0; i < tr.n; i++) { const s = i * DS, on = !!kindAt(tr, s).tape; if (on) { at(tr, s, sg * (widthAt(tr, s) / 2 + .35), P); pos.push(P.x, P.y + .92, P.z, P.x, P.y + 1.02, P.z); uv.push(s / .8, 0, s / .8, 1); if (prev) { const a = (r - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } r++; } prev = on; }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); scene.add(new T.Mesh(g, tmat)); }
+}
+{ // sassi: tanti nella pietraia (anche sul sentiero, piccoli), muretti a secco lungo la mulattiera, qualcuno nel guado
+  let seed = 99; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, list = [];
+  for (const sp of tr.spans) {
+    if (sp.kind === 'p') for (let s = sp.s0 + 2; s < sp.s1 - 2; s += .9) { const hw = widthAt(tr, s) / 2, edge = rnd() < .45; const d = edge ? (rnd() < .5 ? -1 : 1) * (hw + rnd() * 5) : (rnd() - .5) * hw * 1.9; list.push([s, d, edge ? .35 + rnd() * .9 : .07 + rnd() * .13, 0]); }
+    if (sp.kind === 'm') for (let s = sp.s0 + 1; s < sp.s1 - 1; s += .75) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .25 + rnd() * .2), .3 + rnd() * .22, sg > 0 ? .25 : 0]);
+    if (sp.kind === 'g') for (let s = sp.s0; s < sp.s1; s += 1.6) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .5 + rnd() * 3), .3 + rnd() * .5, 0]);
+  }
+  const geo = new T.DodecahedronGeometry(1, 0), im = new T.InstancedMesh(geo, new T.MeshLambertMaterial({ map: tex('../img/tex/mossrock_d.webp'), color: 0xcfcac2 }), list.length), m = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), sc = new T.Vector3(), ps = new T.Vector3();
+  list.forEach(([s, d, r, up], i) => { at(tr, s, d, P); e.set(rnd() * 6, rnd() * 6, rnd() * 6); q.setFromEuler(e); sc.set(r * (.8 + rnd() * .5), r * (.55 + rnd() * .3), r * (.8 + rnd() * .5)); ps.set(P.x, P.y + r * .2 + up, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
+}
+{ // alberi: due piani incrociati con la foto dell'abete. Nel single track sono fitti e a un passo dal sentiero
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (const [file, every] of [['fir_a', 5], ['fir_b', 7], ['fir_gold', 13]]) {
+  for (const [file, every] of [['fir_a', 4], ['fir_b', 6], ['fir_gold', 11], ['fir_c', 9]]) {
     const g1 = new T.PlaneGeometry(1, 2), g2 = g1.clone().rotateY(Math.PI / 2), g = new T.BufferGeometry();
     g.setAttribute('position', new T.Float32BufferAttribute([...g1.attributes.position.array, ...g2.attributes.position.array], 3));
     g.setAttribute('uv', new T.Float32BufferAttribute([...g1.attributes.uv.array, ...g2.attributes.uv.array], 2));
-    g.setAttribute('normal', new T.Float32BufferAttribute(new Array(24).fill(0).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
     g.setIndex([...g1.index.array, ...[...g2.index.array].map(v => v + 4)]);
-    const cnt = Math.floor(tr.len / every) * 2, im = new T.InstancedMesh(g, new T.MeshBasicMaterial({ map: tex(`../img/tex/${file}.webp`), alphaTest: .5, side: T.DoubleSide, color: 0xe6e6e6 }), cnt), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
-    let q = 0; for (let i = 0; i < cnt / 2; i++) for (const sg of [-1, 1]) { const s = i * every + rnd() * every, lim = sideLimit(s, sg); const d = sg * Math.min(lim - 1, W / 2 + 2.5 + rnd() * rnd() * 20); at(tr, s, d, P);
-      const hgt = 7 + rnd() * 7; qt.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(hgt * .5, hgt * .5, hgt * .5); ps.set(P.x, P.y + hgt * .5 - .3, P.z); m.compose(ps, qt, sc); im.setMatrixAt(q++, m); }
+    const cap = Math.floor(tr.len / every) * 6, im = new T.InstancedMesh(g, new T.MeshBasicMaterial({ map: tex(`../img/tex/${file}.webp`), alphaTest: .5, side: T.DoubleSide, color: 0xe6e6e6 }), cap), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
+    let q = 0; for (let s0 = 0; s0 < tr.len; s0 += every) { const kd = tr.kind[Math.min(tr.n - 1, Math.round(s0 / DS))], reps = kd === 't' ? 3 : kd === 'm' ? 2 : kd === 'p' || kd === 'g' ? 0 : 1;
+      for (let r = 0; r < reps; r++) for (const sg of [-1, 1]) { if (q >= cap) break; const s = s0 + rnd() * every, hw = widthAt(tr, s) / 2, lim = Math.max(hw + 1.2, sideLimit(s, sg) - 1); const near = kd === 't' ? 1.1 : kd === 'm' ? 1.6 : 2.5; const d = sg * Math.min(lim, hw + near + rnd() * rnd() * (kd === 't' ? 11 : 20)); at(tr, s, d, P);
+        const hgt = 7 + rnd() * 7; qt.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(hgt * .5, hgt * .5, hgt * .5); ps.set(P.x, P.y + hgt * .5 - .3, P.z); m.compose(ps, qt, sc); im.setMatrixAt(q++, m); } }
     im.count = q; scene.add(im);
   }
 }
-{ // partenza e arrivo
-  const gate = (s, col, label) => { at(tr, s, 0, P); const grp = new T.Group(); grp.position.set(P.x, P.y, P.z); grp.rotation.y = -P.h;
-    const mat = new T.MeshLambertMaterial({ color: 0x2a2a2a }); for (const sx of [-1, 1]) { const p = new T.Mesh(new T.CylinderGeometry(.14, .14, 5.2, 8), mat); p.position.set(sx * (W / 2 + .6), 2.6, 0); grp.add(p); }
-    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96; const x = cv.getContext('2d'); x.fillStyle = col; x.fillRect(0, 0, 512, 96); x.fillStyle = '#111'; x.font = 'bold 64px Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 256, 52);
-    const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace; const b = new T.Mesh(new T.PlaneGeometry(W + 1.6, 1.5), new T.MeshBasicMaterial({ map: t, side: T.DoubleSide })); b.position.y = 4.6; grp.add(b); scene.add(grp); };
-  gate(14, '#ffd400', 'ENDURO DRINKING TEAM'); gate(tr.len - 14, '#ffd400', 'RIFUGIO · ARRIVO');
+{ // partenza, arrivo e un cartello all'inizio di ogni tratto
+  const board = (label, col, w, h) => { const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96; const x = cv.getContext('2d'); x.fillStyle = col; x.fillRect(0, 0, 512, 96); x.fillStyle = '#111'; x.font = 'bold 60px Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 256, 52);
+    const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace; return new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: t, side: T.DoubleSide })); };
+  const gate = (s, label) => { at(tr, s, 0, P); const w = widthAt(tr, s), grp = new T.Group(); grp.position.set(P.x, P.y, P.z); grp.rotation.y = -P.h;
+    const mat = new T.MeshLambertMaterial({ color: 0x2a2a2a }); for (const sx of [-1, 1]) { const p = new T.Mesh(new T.CylinderGeometry(.14, .14, 5.2, 8), mat); p.position.set(sx * (w / 2 + .6), 2.6, 0); grp.add(p); }
+    const b = board(label, '#ffd400', w + 1.6, 1.5); b.position.y = 4.6; grp.add(b); scene.add(grp); };
+  gate(14, 'ENDURO DRINKING TEAM'); gate(tr.len - 14, 'RIFUGIO · ARRIVO');
+  for (const sp of tr.spans.slice(1)) { const s = sp.s0 - 6; at(tr, s, widthAt(tr, s) / 2 + 1.2, P); const b = board(KIND[sp.kind].name.toUpperCase(), '#f4f1e8', 2.6, .5); b.position.set(P.x, P.y + 1.5, P.z); b.rotation.y = -P.h; scene.add(b);
+    const pole = new T.Mesh(new T.CylinderGeometry(.04, .04, 1.4, 5), new T.MeshLambertMaterial({ color: 0x5a4632 })); pole.position.set(P.x, P.y + .7, P.z); scene.add(pole); }
 }
 
 // ---------- moto e pilota ----------
@@ -105,17 +129,19 @@ let wheelF = null, wheelR = null, steerG = null;
 }
 
 // ---------- terra e polvere dalla ruota dietro ----------
-const DN = 90, dPos = new Float32Array(DN * 3), dAge = new Float32Array(DN).fill(1), dVel = new Float32Array(DN * 3); let dNext = 0, dAcc = 0;
+const _cW = new T.Color(.86, .9, .9), _cM = new T.Color(.3, .23, .16), _cR = new T.Color(.6, .58, .54), _cD = new T.Color(.52, .42, .3);
+const DN = 140, dPos = new Float32Array(DN * 3), dAge = new Float32Array(DN).fill(1), dVel = new Float32Array(DN * 3); let dNext = 0, dAcc = 0;
 const dGeo = new T.BufferGeometry(); dGeo.setAttribute('position', new T.BufferAttribute(dPos, 3)); dGeo.setAttribute('aAge', new T.BufferAttribute(dAge, 1));
-const dMat = new T.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uH: { value: 800 } },
+const dMat = new T.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uH: { value: 800 }, uC: { value: new T.Color(.52, .42, .3) } },
   vertexShader: 'attribute float aAge; varying float vA; uniform float uH; void main(){ vA = aAge; vec4 mv = modelViewMatrix * vec4(position, 1.); gl_Position = projectionMatrix * mv; gl_PointSize = (aAge >= 1. ? 0. : (.35 + aAge * 1.5) * uH / -mv.z); }',
-  fragmentShader: 'varying float vA; void main(){ float d = length(gl_PointCoord - .5); if (d > .5) discard; gl_FragColor = vec4(.52, .42, .3, (1. - vA) * .55 * smoothstep(.5, .15, d)); }' });
+  fragmentShader: 'varying float vA; uniform vec3 uC; void main(){ float d = length(gl_PointCoord - .5); if (d > .5) discard; gl_FragColor = vec4(uC, (1. - vA) * .6 * smoothstep(.5, .15, d)); }' });
 const dPts = new T.Points(dGeo, dMat); dPts.frustumCulled = false; scene.add(dPts);
 function dust(dt) {
-  const rate = state === 'play' && S.air <= 0 ? Math.abs(S.slip) * 110 + (S.gasOn && S.v < 9 ? 45 : 0) + S.off * S.v * 2.5 + (S.gasOn ? S.v * .35 : 0) : 0; dAcc += rate * dt;
+  const wet = S.wet > .02, rate = state === 'play' && S.air <= 0 ? (wet ? S.v * 9 : Math.abs(S.slip) * 110 + (S.gasOn && S.v < 9 ? 45 : 0) + S.off * S.v * 2.5 + (S.gasOn ? S.v * (S.kd.name === 'fango' ? 1.6 : .35) : 0)) : 0; dAcc += rate * dt;
+  { const c = dMat.uniforms.uC.value, tx = S.kd.tex; if (wet) c.lerp(_cW, .2); else c.lerp(tx === 'mud' ? _cM : tx === 'rock' || tx === 'cobble' ? _cR : _cD, .08); }
   const bx = Math.sin(S.psi + S.slip), bz = -Math.cos(S.psi + S.slip);
   while (dAcc >= 1) { dAcc--; const i = dNext; dNext = (dNext + 1) % DN; dAge[i] = 0; dPos[i * 3] = S.x - bx * .75 + (Math.random() - .5) * .3; dPos[i * 3 + 1] = S.y + .15; dPos[i * 3 + 2] = S.z - bz * .75 + (Math.random() - .5) * .3;
-    const k = 1.5 + Math.random() * 2.5; dVel[i * 3] = -bx * k + (Math.random() - .5) * 2 - Math.cos(S.psi) * S.slip * 3; dVel[i * 3 + 1] = 1 + Math.random() * 1.8; dVel[i * 3 + 2] = -bz * k + (Math.random() - .5) * 2 - Math.sin(S.psi) * S.slip * 3; }
+    const k = 1.5 + Math.random() * 2.5; dVel[i * 3] = -bx * k + (Math.random() - .5) * 2 - Math.cos(S.psi) * S.slip * 3; dVel[i * 3 + 1] = (1 + Math.random() * 1.8) * (S.wet > .02 ? 2.2 : 1); dVel[i * 3 + 2] = -bz * k + (Math.random() - .5) * 2 - Math.sin(S.psi) * S.slip * 3; }
   for (let i = 0; i < DN; i++) if (dAge[i] < 1) { dAge[i] = Math.min(1, dAge[i] + dt * 1.5); dPos[i * 3] += dVel[i * 3] * dt; dPos[i * 3 + 1] += dVel[i * 3 + 1] * dt; dPos[i * 3 + 2] += dVel[i * 3 + 2] * dt; dVel[i * 3 + 1] -= 2.5 * dt; }
   dGeo.attributes.position.needsUpdate = true; dGeo.attributes.aAge.needsUpdate = true; dMat.uniforms.uH.value = renderer.domElement.height;
 }
@@ -147,19 +173,21 @@ hold($('brake'), v => braking = v); hold($('gasb'), v => gasHeld = v);
 
 // ---------- fisica ----------
 const G = 9.81, VMAX = 30;   // 108 km/h
-const S = { x: 0, z: 0, y: 0, psi: 0, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: 0, s: 0, d: 0, off: 0, hit: 0, pitch: 0, grade: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: 0, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0 };
+const S = { x: 0, z: 0, y: 0, psi: 0, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: 0, s: 0, d: 0, off: 0, hit: 0, pitch: 0, grade: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: 0, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0, grip: 1.1, wet: 0, kd: KIND.v };
 let state = 'menu', t0 = 0, time = 0, cd = 0, best = parseFloat(opt('best', '0')) || 0, wrong = 0;
-function place() { const s0 = 20; at(tr, s0, 0, P); Object.assign(S, { x: P.x, z: P.z, y: P.y, psi: P.h, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: Math.round(s0 / DS), s: s0, d: 0, off: 0, hit: 0, pitch: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: P.y, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0 }); cam.h = P.h; cam.init = false; tiltA0 = null; tiltSteer = 0; }
+function place() { const s0 = 20; at(tr, s0, 0, P); Object.assign(S, { x: P.x, z: P.z, y: P.y, psi: P.h, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: Math.round(s0 / DS), s: s0, d: 0, off: 0, hit: 0, pitch: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: P.y, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0, grip: 1.1, wet: 0 }); cam.h = P.h; cam.init = false; tiltA0 = null; tiltSteer = 0; }
 function step(dt) {
   const pr = project(tr, S.x, S.z, S.i); S.i = pr.i; S.s = pr.s; S.d = pr.d; S.grade = pr.g;
-  const onTrack = Math.abs(S.d) <= W / 2 + .2; S.off += ((onTrack ? 0 : 1) - S.off) * Math.min(1, dt * 6);
+  const HW = widthAt(tr, S.s) / 2, KD = kindAt(tr, S.s); S.kd = KD;
+  const onTrack = Math.abs(S.d) <= HW + .2; S.off += ((onTrack ? 0 : 1) - S.off) * Math.min(1, dt * 6);
+  S.grip += (KD.grip - S.grip) * Math.min(1, dt * 5); S.wet = S.air > 0 ? 0 : waterAt(tr, S.s, S.d, groundY(tr, S.s, S.d, true));   // aderenza del fondo e profondità dell'acqua sotto le ruote
   // sterzo: il comando chiede una piega, la moto ci arriva con il suo peso (molla smorzata)
   const key = keyR - keyL, raw = performance.now() - tiltSeen < 700 && Math.abs(tiltSteer) > .001 ? tiltSteer : (key || touchSteer);
   steerIn += (clamp(raw * (O.inv ? -1 : 1), -1, 1) - steerIn) * Math.min(1, dt * (key ? 7 : 14));
   const leanMax = .82 - S.off * .2, leanT = state === 'play' ? steerIn * leanMax * clamp(S.v / 6, .25, 1) : 0;
   S.leanV += ((leanT - S.lean) * 62 - S.leanV * 11.5) * dt; S.lean += S.leanV * dt;
   // la piega fa girare: velocità di imbardata = g·tan(piega)/v, fino al limite di aderenza del fondo
-  const mu = (1.12 - S.off * .42), vEff = Math.max(S.v, 4.5);
+  const mu = (S.grip - S.off * .42 - Math.min(.25, S.wet * .8)), vEff = Math.max(S.v, 4.5);
   let om = G * Math.tan(S.lean) / vEff; const omMax = mu * G / vEff, over = Math.max(0, Math.abs(om) - omMax);
   if (over > 0) om = Math.sign(om) * (omMax + over * .25);   // oltre il limite la moto allarga
   // velocità: gas (automatico o tasto), freno, salita/discesa, attrito in piega, erba
@@ -178,7 +206,7 @@ function step(dt) {
   om += S.slip * 1.7 * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt;
   const gas = gasOn ? 1 : 0, vTop = VMAX * (1 - S.off * .5);
-  let acc = gas * 9.5 * clamp(1.12 - S.v / vTop, 0, 1) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * .75 - .0035 * S.v * S.v * (1 + S.off * 8) - (gas ? 0 : .8) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2;
+  let acc = gas * 9.5 * clamp(1.12 - S.v / vTop, 0, 1) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * .75 - .0035 * S.v * S.v * (1 + S.off * 8) - (gas ? 0 : .8) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
   if (state !== 'play') acc = -S.v * 3;
   S.v = Math.max(0, S.v + acc * dt); S.brk = brk; S.gasOn = gas; S.over = over;
   // pilota: in piedi sul dritto, seduto in curva con la gamba interna fuori
@@ -189,12 +217,12 @@ function step(dt) {
   S.fwd += ((brk ? .16 * S.brkAmt : gas && S.v < VMAX * .7 ? -.14 : -.04) - S.fwd) * Math.min(1, dt * 5);
   S.x += Math.sin(S.psi) * S.v * dt; S.z -= Math.cos(S.psi) * S.v * dt;
   // bordi: dopo qualche metro di prato c'è la scarpata, si rimbalza dentro perdendo velocità
-  const lim = Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, W / 2 + 9);
+  const lim = Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'mulattiera' ? .15 : KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera c'è il muretto
   if (Math.abs(S.d) > lim) { const sg = Math.sign(S.d), push = Math.abs(S.d) - lim; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push; let rel = S.psi - pr.h; rel = Math.atan2(Math.sin(rel), Math.cos(rel)); if (rel * sg > 0) { S.psi = pr.h + rel * .4; S.v *= 1 - Math.min(.5, Math.abs(rel)); S.hit = 1; } }
   // altezza: le ruote seguono il fondo (profilo morbido), sui dossi presi forte la moto si stacca
-  const gy = groundY(tr, S.s, S.d, true); S.rough = Math.abs(S.d) < W / 2 + 1 ? roughAt(tr, S.s) : .02 * S.off;
-  if (S.air <= 0) { const vyG = (gy - S.y) / dt; if ((vyG - S.vy) / dt < -G * 1.35 && S.v > 5 && S.vy > 2) { S.air = 1; S.airT = 0; } else { S.vy = vyG; S.y = gy; } }
-  if (S.air > 0) { S.airT = (S.airT || 0) + dt; S.vy -= G * 1.35 * dt; S.y += S.vy * dt; if (S.y <= gy) { const imp = clamp(-S.vy / 8, 0, 1); S.y = gy; S.air = 0; const big = S.airT > .14 ? 1 : .25; S.hit = Math.max(S.hit, imp * big); S.bvy = S.vy * .9 * big; thud(imp * big); S.v *= 1 - imp * .06; S.vy = 0; } }
+  const gy = groundY(tr, S.s, S.d, true); S.rough = Math.abs(S.d) < HW + 1 ? roughAt(tr, S.s) : .02 * S.off;
+  if (S.air <= 0) { const vyG = (gy - S.y) / dt; if ((vyG - S.vy) / dt < -G * 1.7 && S.v > 5 && S.vy > 2.5) { S.air = 1; S.airT = 0; } else { S.vy = vyG; S.y = gy; } }
+  if (S.air > 0) { S.airT = (S.airT || 0) + dt; S.vy -= G * 1.7 * dt; S.y += S.vy * dt; if (S.y <= gy) { const imp = clamp(-S.vy / 8, 0, 1); S.y = gy; S.air = 0; const big = S.airT > .14 ? 1 : .25; S.hit = Math.max(S.hit, imp * big); S.bvy = S.vy * .9 * big; thud(imp * big); S.v *= 1 - imp * .06; S.vy = 0; } }
   S.hit = Math.max(0, S.hit - dt * 2.5);
   // sospensioni: la moto è una massa su una molla sopra le ruote. comp > 0 = schiacciata
   if (S.air > 0) { S.comp += ((S.airT > .1 ? -.09 : S.comp) - S.comp) * Math.min(1, dt * 8); S.by = S.y - S.comp; S.bvy = S.vy; }   // in aria le ruote scendono: sospensioni distese
@@ -234,7 +262,7 @@ function draw(dt) {
   if (wheelF) { const r = S.v * dt / .4; wheelF.rotation.x -= r; wheelR.rotation.x -= S.brk && Math.abs(S.slip) > .12 ? r * .15 : r; steerG.rotation.y = clamp(S.slip * .9 - S.lean * .1, -.5, .5); wheelF.position.y = P.wfY + S.cF; wheelR.position.y = P.wrY + S.cR; }   // di traverso: ruota dietro quasi bloccata e controsterzo
   if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0 });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
-  dust(dt); soundUpdate(dt, { sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
+  dust(dt); soundUpdate(dt, { wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
   blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.material.opacity = S.air > 0 ? .16 : .32;
   camUpdate(dt); if (!window.__noRender) renderer.render(scene, camera);
 }

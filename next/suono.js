@@ -47,7 +47,7 @@ export function soundUpdate(dt, p) {
   e.g.gain.setTargetAtTime((.11 + load * .1) * (e.shiftT > 0 ? .55 : 1) * 2.1, t, .04);
   e.intake.f.frequency.setTargetAtTime(900 + e.rpm * 1300, t, .1); e.intake.g.gain.setTargetAtTime((.006 + e.rpm * .008) * EP.nz, t, .1);
   e.sub.frequency.setTargetAtTime(32 + e.rpm * 26, t, .06); e.sg.gain.setTargetAtTime((.07 + load * .08) * (e.shiftT > 0 ? .5 : 1), t, .06);
-  const sp = Math.min(1.4, speed), rough = Math.min(1, p.rough * 14 + p.off * .6);
+  const sp = Math.min(1.4, speed), wetK = Math.min(1, (p.wet || 0) * 5), rough = Math.min(1, p.rough * 14 + p.off * .6 + wetK * 1.2 + (p.surf === 'mud' ? .35 : 0));   // nell'acqua e nel fango si sente lo sciacquio
   e.tyre.f.frequency.setTargetAtTime((520 + rough * 700) * (.8 + sp * .25), t, .15); e.tyre.g.gain.setTargetAtTime(airborne || speed < .05 ? 0 : (.015 + rough * .045) * sp, t, airborne ? .03 : .12);
   const fast = Math.max(0, Math.min(1, (speed - .6) / .9)); e.wind.g.gain.setTargetAtTime(speed < .05 ? 0 : fast * fast * .03, t, .25); e.wind.f.frequency.setTargetAtTime(500 + fast * 900, t, .3);
   e.skid.g.gain.setTargetAtTime(airborne ? 0 : Math.min(1, Math.abs(p.slip) * 2.4) * Math.min(1, speed / .6) * .13 + p.brk * .03 * Math.min(1, speed), t, .04); e.skid.f.frequency.setTargetAtTime(750 + speed * 250, t, .1);
