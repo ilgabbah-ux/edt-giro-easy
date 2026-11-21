@@ -12,7 +12,7 @@ export const KIND = {
   f: { name: 'fango', w: 7, side: 22, grip: .68, drag: 1.3, rough: .015, tex: 'mud', tape: 1 },
   m: { name: 'mulattiera', w: 4, side: 6.5, grip: .95, drag: .2, rough: .04, tex: 'cobble', tape: 0 },
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
-  t: { name: 'single track', w: 2.2, side: 13, grip: 1.0, drag: 0, rough: .018, tex: 'forest', tape: 0 },
+  t: { name: 'single track', w: 2.6, side: 13, grip: 1.12, drag: 0, rough: .018, tex: 'forest', tape: 0 },
 };
 // [lunghezza m, raggio m (+ destra, − sinistra, 0 = dritto), pendenza %, tipo]
 export const GIRO_EASY = [
@@ -22,7 +22,7 @@ export const GIRO_EASY = [
   [50, 0, -13, 'd'], [31, 24, -19, 'd'], [37, -22, -17, 'd'], [22, 0, -12, 'd'], [40, 0, -8, 'd'],
   [26, 0, 0, 'g'], [40, 60, 1, 'f'], [50, 0, 0, 'f'],
   [35, 0, 10, 'm'], [31, -13, 14, 'm'], [35, 0, 15, 'm'], [31, 13, 14, 'm'], [35, 0, 12, 'm'], [28, -14, 9, 'm'], [30, 0, 5, 'm'],
-  [40, 0, 2, 't'], [23, 15, 0, 't'], [23, -14, -2, 't'], [12, 0, -1, 't'], [35, 22, -3, 't'], [30, -20, -2, 't'], [40, 25, 0, 't'], [30, -22, -3, 't'], [40, 0, -4, 't'],
+  [40, 0, 2, 't'], [30, 20, 0, 't'], [30, -18, -2, 't'], [35, 22, -3, 't'], [30, -20, -2, 't'], [40, 25, 0, 't'], [30, -22, -3, 't'], [40, 0, -4, 't'],
   [40, 0, -1, 'b'], [45, 30, 0, 'b'], [40, -28, 0, 'b'], [35, 0, 0, 'b'],
   [60, 0, -2, 'v'], [90, -75, -1, 'v'], [110, 0, 0, 'v'],
 ];

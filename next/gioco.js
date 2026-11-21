@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=11';
+import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=12';
 import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=9';
 import { makeRider } from './pilota.js?v=4';
 
@@ -105,7 +105,7 @@ const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di per
     g.setIndex([...g1.index.array, ...[...g2.index.array].map(v => v + 4)]);
     const cap = Math.floor(tr.len / every) * 6, im = new T.InstancedMesh(g, new T.MeshBasicMaterial({ map: tex(`../img/tex/${file}.webp`), alphaTest: .5, side: T.DoubleSide, color: 0xe6e6e6 }), cap), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
     let q = 0; for (let s0 = 0; s0 < tr.len; s0 += every) { const kd = tr.kind[Math.min(tr.n - 1, Math.round(s0 / DS))], reps = kd === 't' ? 3 : kd === 'm' ? 2 : kd === 'p' || kd === 'g' ? 0 : 1;
-      for (let r = 0; r < reps; r++) for (const sg of [-1, 1]) { if (q >= cap) break; const s = s0 + rnd() * every, hw = widthAt(tr, s) / 2, lim = Math.max(hw + 1.2, sideLimit(s, sg) - 1); const near = kd === 't' ? 1.1 : kd === 'm' ? 1.6 : 2.5; const d = sg * Math.min(lim, hw + near + rnd() * rnd() * (kd === 't' ? 11 : 20)); at(tr, s, d, P);
+      for (let r = 0; r < reps; r++) for (const sg of [-1, 1]) { if (q >= cap) break; const s = s0 + rnd() * every, hw = widthAt(tr, s) / 2, lim = Math.max(hw + 1.2, sideLimit(s, sg) - 1); const near = kd === 't' ? 1.8 : kd === 'm' ? 1.6 : 2.5; const d = sg * Math.min(lim, hw + near + rnd() * rnd() * (kd === 't' ? 11 : 20)); at(tr, s, d, P);
         (TREES[Math.floor(s / 8)] ||= []).push(P.x, P.z); const hgt = 7 + rnd() * 7; qt.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(hgt * .5, hgt * .5, hgt * .5); ps.set(P.x, P.y + hgt * .5 - .3, P.z); m.compose(ps, qt, sc); im.setMatrixAt(q++, m); } }
     im.count = q; scene.add(im);
   }
@@ -225,7 +225,7 @@ function step(dt) {
   let om = G * Math.tan(S.lean) / vEff; const omMax = mu * G / vEff, over = Math.max(0, Math.abs(om) - omMax);
   if (over > 0) om = Math.sign(om) * (omMax + over * .25);   // oltre il limite la moto allarga
   // troppo piegato per il fondo che c'è (fango, pietre bagnate, erba): la gomma tiene mezzo secondo, poi la moto si stende
-  { const ask = Math.tan(Math.abs(S.lean)) / Math.max(.3, mu); S.overT = (ask > 1.18 || Math.abs(S.slip) > .4 && S.off > .5) && S.v > 7 && S.air <= 0 && !down ? (S.overT || 0) + dt * (ask > 1.45 ? 1.6 : 1) : Math.max(0, (S.overT || 0) - dt * 2); if (S.overT > .6) crash(Math.sign(S.lean)); }
+  { const ask = Math.tan(Math.abs(S.lean)) / Math.max(.3, mu); S.overT = (ask > 1.18 || Math.abs(S.slip) > .45 && S.off > .8) && S.v > 7 && S.air <= 0 && !down ? (S.overT || 0) + dt * (ask > 1.45 ? 1.6 : 1) : Math.max(0, (S.overT || 0) - dt * 2); if (S.overT > .6) crash(Math.sign(S.lean)); }
   if (down) om = S.fallSide * .5 * clamp(S.v / 6, 0, 1);
   // velocità: gas (automatico o tasto), freno, salita/discesa, attrito in piega, erba
   let kAhead = 0; { const far = Math.round(clamp(S.v * S.v / 15, 8, 64) / DS); for (let j = 2; j <= far; j += 2) { const kk = tr.k[Math.min(tr.n - 1, S.i + j)]; if (Math.abs(kk) > Math.abs(kAhead)) kAhead = kk; } }   // la curva più stretta nello spazio che serve per frenare
@@ -236,7 +236,7 @@ function step(dt) {
   // ENDURO: frenando col posteriore la moto si mette di traverso, tanto più quanto freni e quanto sterzi; il muso entra in curva prima
   const turnDir = Math.abs(steerIn) > .06 ? Math.sign(steerIn) : Math.abs(kAhead) > .006 ? Math.sign(kAhead) : 0;
   const brakeSlide = brk && S.v > 5 ? turnDir * Math.min(.62, S.brkAmt * (.2 + .55 * Math.abs(steerIn))) * clamp((S.v - 4) / 7, 0, 1) : 0;
-  const gasOn = state === 'play' && !brk && !down && (O.gas === 'a' || gasHeld);
+  const gasOn = state === 'play' && !brk && !down && (O.gas === 'a' ? S.v < vSafe + 1.5 : gasHeld);   // il gas automatico molla prima delle curve strette (non frena: quello lo fai tu)
   const powerSlide = gasOn ? Math.sign(S.lean) * Math.max(0, Math.abs(S.lean) - .5) * .7 * clamp(1.3 - S.v / 14, 0, 1) : 0;   // in uscita, col gas e piegato, il posteriore scappa un po'
   const slipT = brakeSlide + powerSlide + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0);
   S.slip += (slipT - S.slip) * Math.min(1, dt * (Math.abs(slipT) > Math.abs(S.slip) ? 6.5 : 3.2));
@@ -256,8 +256,8 @@ function step(dt) {
   S.fwd += ((brk ? .16 * S.brkAmt : gas && S.v < VMAX * .7 ? -.14 : -.04) - clamp(S.grade, -.22, .22) * 1.3 - S.fwd) * Math.min(1, dt * 5);   // in salita il peso va avanti, in discesa indietro
   S.x += Math.sin(S.psi) * S.v * dt; S.z -= Math.cos(S.psi) * S.v * dt;
   // alberi: il tronco non si sposta. Forte si cade, piano ci si pianta contro
-  if (!down && S.air <= 0) { const b0 = Math.floor(S.s / 8); for (let b = b0 - 1; b <= b0 + 1; b++) { const a = TREES[b]; if (!a) continue; for (let q = 0; q < a.length; q += 2) { const dx = S.x - a[q], dz = S.z - a[q + 1], dd = dx * dx + dz * dz; if (dd < .36) { const dist = Math.sqrt(dd) || .01, side = Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1;
-    S.x = a[q] + dx / dist * .6; S.z = a[q + 1] + dz / dist * .6; if (S.v > 5.5) crash(side); else { S.v *= .3; S.hit = Math.max(S.hit, .5); thud(.4); } } } } }
+  if (!down && S.air <= 0) { const b0 = Math.floor(S.s / 8); for (let b = b0 - 1; b <= b0 + 1; b++) { const a = TREES[b]; if (!a) continue; for (let q = 0; q < a.length; q += 2) { const dx = S.x - a[q], dz = S.z - a[q + 1], dd = dx * dx + dz * dz; if (dd < .2) { const dist = Math.sqrt(dd) || .01, side = Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1;
+    S.x = a[q] + dx / dist * .46; S.z = a[q + 1] + dz / dist * .46; if (S.v > 9) crash(side); else { S.v *= .3; S.hit = Math.max(S.hit, .5); thud(.4); } } } } }
   // bordi: dopo qualche metro di prato c'è la scarpata, si rimbalza dentro perdendo velocità
   const wall = KD.name === 'mulattiera', lim = wall ? HW - .12 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
   if (Math.abs(S.d) > lim) { const sg = Math.sign(S.d), push = Math.abs(S.d) - lim; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push;
@@ -296,16 +296,23 @@ function camUpdate(dt) {
   cam.x = tx; cam.z = tz; cam.y += (ty - cam.y) * Math.min(1, dt * 5);
   const sh = S.hit * .1 + S.off * .012 * sp; camera.position.set(cam.x + (Math.random() - .5) * sh, cam.y + (Math.random() - .5) * sh, cam.z);
   const la = 7 + sp * 6; camera.lookAt(S.x + Math.sin(S.psi) * la, S.y + 1.25 + S.pitch * la * .22, S.z - Math.cos(S.psi) * la);
-  cam.roll += (-S.lean * .2 - cam.roll) * Math.min(1, dt * 5); camera.rotateZ(cam.roll);
+  cam.roll += (-clamp(S.lean, -.82, .82) * .2 - cam.roll) * Math.min(1, dt * 5); camera.rotateZ(cam.roll);
   const fovT = (portrait ? 72 : 58) + sp * sp * 24; cam.fov += (fovT - cam.fov) * Math.min(1, dt * 3); if (Math.abs(camera.fov - cam.fov) > .05) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
   if (cam.dbg) { const a = S.psi + cam.dbg; camera.position.set(S.x + Math.sin(a) * 4.4, S.y + 1.7, S.z - Math.cos(a) * 4.4); camera.lookAt(S.x, S.y + .95, S.z); }   // solo per le prove: vista da davanti
   P.sky.position.x = camera.position.x; P.sky.position.z = camera.position.z;
 }
+const RD = { off: 0 };
 function draw(dt) {
   { const st = clamp(S.stand - Math.max(0, S.comp) * 2.5 + ((S.airT || 0) > .12 && S.air > 0 ? .6 : 0) + S.rough * 6, 0, 1); S.standV = (S.standV || 0) + (st - (S.standV || 0)) * Math.min(1, dt * 7); }   // il pilota si alza e si abbassa con calma, senza scatti
   const leanVis = clamp(S.lean * 1.12 + S.slip * .35, -1, 1) + (S.fall > 0 ? clamp(S.lean, -1.45, 1.45) * .3 : 0);   // la moto si butta giù più del pilota
   bike.position.set(S.x, S.y, S.z); bike.rotation.y = -(S.psi + S.slip); leanG.rotation.z = -leanVis; pitchG.rotation.x = S.pitch + (S.air > 0 ? clamp(-S.vy * .03, -.25, .3) : 0) - (S.cF - S.cR) / 1.45; pitchG.position.y = -(S.cF + S.cR) / 2 + (S.y - groundY(tr, S.s, S.d, true)) * 0;
   if (wheelF) { const r = S.v * dt / .4; wheelF.rotation.x -= r; wheelR.rotation.x -= S.brk && Math.abs(S.slip) > .12 ? r * .15 : r; steerG.rotation.y = clamp(S.slip * .9 - S.lean * .1, -.5, .5); wheelF.position.y = P.wfY + S.cF; wheelR.position.y = P.wrY + S.cR; }   // di traverso: ruota dietro quasi bloccata e controsterzo
+  if (P.rider) { const r = P.rider.root;   // in caduta il pilota si stacca dalla moto, scivola avanti per conto suo e resta a terra; alla ripartenza torna in sella
+    if (S.fall > 0 && !RD.off) { RD.p = r.position.clone(); RD.q = r.quaternion.clone(); RD.s = r.scale.clone(); scene.attach(r); RD.off = 1; RD.t = 0; RD.vx = Math.sin(S.psi) * (S.v * .9 + 2) + Math.cos(S.psi) * S.fallSide * 1.5; RD.vz = -Math.cos(S.psi) * (S.v * .9 + 2) + Math.sin(S.psi) * S.fallSide * 1.5; RD.h = S.psi; }
+    if (RD.off && S.fall > 0) { RD.t += dt; const e = Math.min(1, RD.t * 2.2), ee = 1 - (1 - e) * (1 - e), f = 2.6 * ee, o = S.fallSide * 1.3 * ee;   // sbalzato avanti e di lato, poi striscia insieme alla moto
+      r.position.x = S.x + Math.sin(RD.h) * f + Math.cos(RD.h) * o; r.position.z = S.z - Math.cos(RD.h) * f + Math.sin(RD.h) * o; const pj = project(tr, r.position.x, r.position.z, S.i);
+      r.position.y += (groundY(tr, pj.s, pj.d, true) + .3 + Math.sin(Math.PI * e) * .5 - r.position.y) * Math.min(1, dt * 12); r.rotation.set(1.42 * ee, -RD.h + S.fallSide * 1.1 * ee, S.fallSide * .35 * ee, 'YXZ'); }
+    if (RD.off && !(S.fall > 0)) { pitchG.add(r); r.position.copy(RD.p); r.quaternion.copy(RD.q); r.scale.copy(RD.s); RD.off = 0; } }
   if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0 });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
   lensDraw(dt); dust(dt); soundUpdate(dt, { wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
@@ -344,4 +351,4 @@ function frame(now) {
   if (fdt > .03) { if (++slow > 40 && pix > 1) { pix = Math.max(1, pix - .25); slow = 0; resize(); } } else slow = Math.max(0, slow - 1);
 }
 requestAnimationFrame(frame);
-window.__next = { S, tr, O, cam, restart, get state() { return state; }, steer(v) { keyL = v < 0 ? -v : 0; keyR = v > 0 ? v : 0; }, brake(v) { braking = v; }, get time() { return time; } };
+window.__next = { S, tr, O, cam, restart, P, RD, get state() { return state; }, steer(v) { keyL = v < 0 ? -v : 0; keyR = v > 0 ? v : 0; }, brake(v) { braking = v; }, get time() { return time; } };
