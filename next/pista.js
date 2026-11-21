@@ -28,7 +28,7 @@ export const GIRO_EASY = [
 ];
 // SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
 export const SCUOLA = [
-  [80, 0, 0, 'v'], [70, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
+  [150, 0, 0, 'v'], [140, 0, 0, 'v'], [140, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
   [60, 0, 0, 'f'],
   [40, 0, 0, 'v'], [30, 13, 0, 'v'], [30, 0, 0, 'v'],
   [80, 0, 0, 'v'],
@@ -38,18 +38,22 @@ export const SCUOLA = [
   [30, 0, 0, 't'], [23, 15, 0, 't'], [23, -14, 0, 't'], [30, 0, 0, 't'],
   [50, 0, 0, 'v'],
 ];
-export const SCUOLA_EXTRA = { plain: true, logs: [580, 625], steps: [688, 696, 704, 712],
+export const SCUOLA_EXTRA = { plain: true, logs: [860, 905], steps: [968, 976, 984, 992],
+  // Una cosa per volta, dalle basi. Nelle prime tre stazioni la moto sta in strada da sola (auto): prima si impara gas e freno, poi lo sterzo.
+  // goal: go = prendere velocità, stop = fermarsi col freno, half = gas a metà, lean = piegare da una parte e dall'altra (si passano appena fatti); gli altri si giudicano a fine stazione. hl = tasto da far lampeggiare
   stations: [
-    { s0: 0, s1: 50, goal: 'pass', t: 'BENVENUTO ALLA SCUOLA', x: 'Dieci stazioni, una cosa per volta. Qui sotto leggi cosa fare. Se sbagli riparti dalla stessa stazione.', no: '' },
-    { s0: 50, s1: 150, goal: 'half', t: 'GAS', x: 'Tocca il tasto GAS: è tutto aperto. Senza staccare il pollice trascinalo in giù per chiudere, in su per riaprire. Prova a tenerlo a metà per un secondo.', no: 'TOCCA IL GAS E TRASCINA IN GIÙ' },
-    { s0: 150, s1: 312, goal: 'on', t: 'STERZO', x: 'Inclina il telefono come un manubrio. Fai lo slalom senza uscire dal sentiero.', no: 'RESTA SUL SENTIERO' },
-    { s0: 312, s1: 385, goal: 'spin', t: 'FANGO', x: 'Nel fango apri poco: a tutto gas la ruota pattina e non vai avanti. Trascina il pollice in giù.', no: 'MENO GAS NEL FANGO' },
-    { s0: 385, s1: 480, goal: 'slide', t: 'FRENO', x: 'Curva stretta: frena prima e sterza. La moto va di traverso e chiude la curva.', no: 'FRENA PRIMA, POI STERZA' },
-    { s0: 480, s1: 560, goal: 'wh', t: 'IMPENNATA', x: 'Colpo di gas: molla e riapri subito. La ruota davanti si alza, la tieni su col gas.', no: 'MOLLA E RIAPRI SUBITO' },
-    { s0: 560, s1: 640, goal: 'pass', t: 'TRONCHI', x: 'Arriva piano (sotto i 60) e impenna appena prima del tronco. Con la ruota a terra e forte, cadi.', no: 'IMPENNA PRIMA DEL TRONCO' },
-    { s0: 640, s1: 770, goal: 'pass', t: 'SALITA', x: 'Gas pieno e non mollare. Sui gradoni alza la ruota davanti.', no: 'GAS PIENO, NON MOLLARE' },
-    { s0: 770, s1: 880, goal: 'pass', t: 'SASSI E RAMI', x: 'Sassi grossi e alberi si schivano. I rami in faccia ti tolgono la vista e ti rallentano.', no: 'SCHIVA I SASSI GROSSI' },
-    { s0: 880, s1: 986, goal: 'pass', t: 'SINGLE TRACK', x: 'Stretto tra gli alberi: frena prima, piega tutto, gas in uscita.', no: 'FRENA PRIMA DELLA CURVA' },
+    { s0: 0, s1: 90, goal: 'go', auto: 1, hl: 'gasb', t: 'PARTI', x: 'Tieni premuto il tasto giallo GAS, in basso a destra. La moto parte e per ora sta in strada da sola.', no: 'TIENI PREMUTO IL GAS' },
+    { s0: 90, s1: 230, goal: 'stop', auto: 1, hl: 'brake', t: 'FRENA', x: 'Molla il gas e tieni premuto il tasto rosso FRENO, in basso a sinistra, finché la moto è ferma.', no: 'TIENI PREMUTO IL FRENO' },
+    { s0: 230, s1: 330, goal: 'half', auto: 1, hl: 'gasb', t: 'DOSA IL GAS', x: 'Riparti col GAS. Poi, senza staccare il pollice, trascinalo in giù: il gas cala. In su: riapre. Tienilo a metà per un secondo.', no: 'POLLICE SUL GAS E TRASCINA IN GIÙ' },
+    { s0: 330, s1: 430, goal: 'lean', t: 'STERZA', x: 'Adesso guidi tu. Inclina il telefono come un manubrio: prima a destra, poi a sinistra. (Senza sensore: tocca il lato destro o sinistro dello schermo.)', no: 'INCLINA A DESTRA E A SINISTRA' },
+    { s0: 430, s1: 592, goal: 'on', t: 'SLALOM', x: 'Segui le curve inclinando il telefono. Resta sul sentiero.', no: 'RESTA SUL SENTIERO' },
+    { s0: 592, s1: 665, goal: 'spin', t: 'FANGO', x: 'Nel fango apri poco: a tutto gas la ruota pattina e non vai avanti. Trascina il pollice in giù.', no: 'MENO GAS NEL FANGO' },
+    { s0: 665, s1: 760, goal: 'slide', hl: 'brake', t: 'CURVA STRETTA', x: 'Arriva una curva stretta a destra: frena prima, poi inclina. Frenando in curva la moto va di traverso e chiude.', no: 'FRENA PRIMA, POI STERZA' },
+    { s0: 760, s1: 840, goal: 'wh', hl: 'gasb', t: 'IMPENNATA', x: 'Colpo di gas: stacca il pollice dal GAS e ripremi subito. La ruota davanti si alza.', no: 'STACCA E RIPREMI SUBITO IL GAS' },
+    { s0: 840, s1: 920, goal: 'pass', t: 'TRONCHI', x: 'Due tronchi. Arriva piano (sotto i 60) e impenna appena prima: lo scavalchi. Con la ruota a terra e forte, cadi.', no: 'IMPENNA PRIMA DEL TRONCO' },
+    { s0: 920, s1: 1050, goal: 'pass', t: 'SALITA', x: 'Gas pieno e non mollare. Sui gradoni di pietra alza la ruota davanti.', no: 'GAS PIENO, NON MOLLARE' },
+    { s0: 1050, s1: 1160, goal: 'pass', t: 'SASSI E RAMI', x: 'Vai piano. Sassi grossi e alberi si schivano; i rami in faccia ti tolgono la vista.', no: 'PIANO: SCHIVA I SASSI GROSSI' },
+    { s0: 1160, s1: 1266, goal: 'pass', hl: 'brake', t: 'SINGLE TRACK', x: 'Stretto tra gli alberi: frena prima della curva, piega tutto, gas in uscita.', no: 'FRENA PRIMA DELLA CURVA' },
   ] };
 const smooth = (a, n) => a.map((_, i) => { let s = 0, c = 0; for (let k = -n; k <= n; k++) { s += a[Math.max(0, Math.min(a.length - 1, i + k))]; c++; } return s / c; });
 export function buildTrack(segs = GIRO_EASY, extra = {}) {

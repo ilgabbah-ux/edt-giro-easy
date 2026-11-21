@@ -30,6 +30,8 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #panel h1 { font: 40px/1.02 Anton, Impact, sans-serif; margin: 0; color: #ffd400; } #panel p { margin: 0; max-width: 360px; font-size: 17px; line-height: 1.3; opacity: .92; }
 #panel .btn { position: static; min-width: 240px; } #panel .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 #panel.hide, .hidden { display: none !important; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 4px 0 #0009, 0 0 0 0 #fff; } 50% { box-shadow: 0 4px 0 #0009, 0 0 0 9px #ffffffcc; } } .btn.pulse { animation: pulse .8s infinite; z-index: 4; }
+#tip.done { border-top-color: #58d05a; } #tip.done b { color: #7fe081; }
 /* bordi sicuri: tacca e angoli tondi, in orizzontale e in verticale */
 :root { --L: max(14px, env(safe-area-inset-left)); --R: max(14px, env(safe-area-inset-right)); }
 #spd, #brake, #opts { left: var(--L); } #tim, #gasb, #again { right: var(--R); } #bar { left: var(--L); right: var(--R); }
@@ -60,7 +62,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v31</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v32</div>
 <div class="hud hidden" id="tip"></div>
 <div class="hud" id="msg"></div>
 <button class="btn" id="brake" type="button">FRENO</button>
@@ -69,7 +71,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <button class="btn dark" id="opts" type="button">☰ OPZIONI</button>
 <div id="panel">
   <h1>GIRO EASY · <br>PISTA VERA 3D</h1>
-  <p id="ptxt">Prova di guida: niente ostacoli, niente punti. Inclina il telefono come un manubrio per piegare la moto. Il gas è automatico, il freno è il tasto rosso.</p>
+  <p id="ptxt">Si guida inclinando il telefono come un manubrio. Gas col tasto giallo, freno col tasto rosso. Nelle opzioni qui sotto puoi farti aiutare (freno e gas automatici) e regolare lo sterzo.</p>
   <button class="btn" id="go" type="button">ACCENDI LA MOTO</button>
   <div class="row">
     <button class="btn dark" id="oAuto" type="button"></button>
@@ -83,7 +85,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   <p id="pres" style="color:#ffd400;font-size:20px"></p>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 31; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=31"></script>
+(function () { var V = 32; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=32"></script>
 </body>
 </html>
