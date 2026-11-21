@@ -20,7 +20,7 @@ const renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference:
 renderer.outputColorSpace = T.SRGBColorSpace;
 const scene = new T.Scene();
 const SKY = 0xbfd6e6;
-scene.background = new T.Color(SKY); scene.fog = new T.Fog(0xb9c4a6, 110, 520);   // foschia calda d'autunno, del colore della valle: il lontano sfuma nel panorama invece che nel grigio
+scene.background = new T.Color(SKY); scene.fog = new T.Fog(0x9fb873, 260, 1500);   // foschia calda d'autunno, del colore della valle: il lontano sfuma nel panorama invece che nel grigio
 const camera = new T.PerspectiveCamera(66, 1, .3, 1400);
 scene.add(new T.HemisphereLight(0xdfeeff, 0x4a5a36, .95));
 // sole basso d'autunno con ombre vere: la luce segue la moto e disegna le ombre solo nei 70 m intorno
@@ -91,18 +91,18 @@ for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single
 { // fondovalle lontano e montagne all'orizzonte
   // PAESAGGIO intorno: non un piano verde ma colline di prato che seguono le quote del percorso, a chiazze, con boschi e radure
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, yMin = 1e9; for (let i = 0; i < tr.n; i++) { x0 = Math.min(x0, tr.x[i]); x1 = Math.max(x1, tr.x[i]); z0 = Math.min(z0, tr.z[i]); z1 = Math.max(z1, tr.z[i]); yMin = Math.min(yMin, tr.y[i]); }
-  const M = 420, C = 11, nx = Math.ceil((x1 - x0 + 2 * M) / C) + 1, nz = Math.ceil((z1 - z0 + 2 * M) / C) + 1, pos = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2), col = new Float32Array(nx * nz * 3), idx = [], hgt = new Float32Array(nx * nz), dst = new Float32Array(nx * nz);
+  const M = 700, C = 14, nx = Math.ceil((x1 - x0 + 2 * M) / C) + 1, nz = Math.ceil((z1 - z0 + 2 * M) / C) + 1, pos = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2), col = new Float32Array(nx * nz * 3), idx = [], hgt = new Float32Array(nx * nz), dst = new Float32Array(nx * nz);
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const x = x0 - M + i * C, z = z0 - M + j * C; let bd = 1e12, bi = 0; for (let q = 0; q < tr.n; q += 3) { const dx = x - tr.x[q], dz = z - tr.z[q], dd = dx * dx + dz * dz; if (dd < bd) { bd = dd; bi = q; } }
-    const d = Math.sqrt(bd), o = j * nx + i, far = Math.min(1, d / 260), hills = (vn(x * .006 + 3, z * .006) - .45) * 46 * far + (vn(x * .021, z * .021 + 9) - .5) * 9 * Math.min(1, d / 60);
-    const y = tr.y[bi] * (1 - far * .75) + yMin * far * .75 - 2.6 - Math.min(d, 45) * .1 + hills; hgt[o] = y; dst[o] = d;
-    pos[o * 3] = x; pos[o * 3 + 1] = y; pos[o * 3 + 2] = z; uv[o * 2] = x / 14; uv[o * 2 + 1] = z / 14; const k = .7 + .42 * vn(x * .012 + 50, z * .012) + .14 * (vn(x * .06, z * .06) - .5), dry = vn(x * .008 + 90, z * .008 + 4); col[o * 3] = k * (1 + dry * .2); col[o * 3 + 1] = k; col[o * 3 + 2] = k * (1 - dry * .3); }
+    const d = Math.sqrt(bd), o = j * nx + i, far = Math.min(1, d / 260), rim = Math.max(0, (d - 430) / 270), hills = (vn(x * .006 + 3, z * .006) - .45) * 46 * far + (vn(x * .021, z * .021 + 9) - .5) * 9 * Math.min(1, d / 60);
+    const y = tr.y[bi] * (1 - far * .75) + yMin * far * .75 - 2.6 - Math.min(d, 45) * .1 + hills - rim * rim * 90;   /* il bordo estremo del terreno scende sotto l'orizzonte: non si vede dove finisce */ hgt[o] = y; dst[o] = d;
+    pos[o * 3] = x; pos[o * 3 + 1] = y; pos[o * 3 + 2] = z; uv[o * 2] = x / 9; uv[o * 2 + 1] = z / 9; const k = .7 + .42 * vn(x * .012 + 50, z * .012) + .14 * (vn(x * .06, z * .06) - .5), dry = vn(x * .008 + 90, z * .008 + 4); const gr = Math.min(1, d / 120); col[o * 3] = k * (1 + dry * .12) * (1 - gr * .12); col[o * 3 + 1] = k * (1 + gr * .22); col[o * 3 + 2] = k * (1 - dry * .25) * (1 - gr * .25); }   /* lontano il prato è verde pieno, come quello dello sfondo */
   for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) { const a = j * nx + i; idx.push(a, a + nx, a + 1, a + 1, a + nx, a + nx + 1); }
   const lg = new T.BufferGeometry(); lg.setAttribute('position', new T.BufferAttribute(pos, 3)); lg.setAttribute('uv', new T.BufferAttribute(uv, 2)); lg.setAttribute('color', new T.BufferAttribute(col, 3)); lg.setIndex(idx); lg.computeVertexNormals();
-  const land = new T.Mesh(lg, new T.MeshLambertMaterial({ map: tex('../img/tex/pasture_d.webp'), vertexColors: true })); land.userData.noShadow = 1; land.receiveShadow = true; scene.add(land);
+  const land = new T.Mesh(lg, new T.MeshLambertMaterial({ map: tex('../img/tex/meadow_d.webp'), normalMap: ntex('../img/tex/meadow_n.webp'), normalScale: new T.Vector2(1.5, 1.5), vertexColors: true })); land.userData.noShadow = 1; land.receiveShadow = true; scene.add(land);
   { // boschi lontani: macchie di abeti e larici sulle colline, radure in mezzo
     let seed = 515; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, lists = [[], [], []];
-    for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) { const o = j * nx + i, d = dst[o]; if (d < 34 || d > 400) continue; const x = pos[o * 3], z = pos[o * 3 + 2], wood = vn(x * .009 + 7, z * .009 + 2); if (wood < .5) continue;
-      const nT = wood > .68 ? 2 : 1; for (let t = 0; t < nT; t++) { if (rnd() > .8) continue; const fx = rnd(), fz = rnd(), y = hgt[o] * (1 - fx) * (1 - fz) + hgt[o + 1] * fx * (1 - fz) + hgt[o + nx] * (1 - fx) * fz + hgt[o + nx + 1] * fx * fz; lists[rnd() < .2 ? 2 : rnd() < .5 ? 1 : 0].push([x + fx * C, y, z + fz * C, 9 + rnd() * 9]); } }
+    for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) { const o = j * nx + i, d = dst[o]; if (d < 34 || d > 600 || rnd() < .45) continue; const x = pos[o * 3], z = pos[o * 3 + 2], wood = vn(x * .009 + 7, z * .009 + 2); if (wood < .42 && rnd() > .07) continue;   /* nei prati qualche albero isolato */
+      const nT = wood > .62 ? 3 : wood > .5 ? 2 : 1; for (let t = 0; t < nT; t++) { if (rnd() > .8) continue; const fx = rnd(), fz = rnd(), y = hgt[o] * (1 - fx) * (1 - fz) + hgt[o + 1] * fx * (1 - fz) + hgt[o + nx] * (1 - fx) * fz + hgt[o + nx + 1] * fx * fz; lists[rnd() < .2 ? 2 : rnd() < .5 ? 1 : 0].push([x + (fx * 2.4 - .7) * C, y, z + (fz * 2.4 - .7) * C, 8 + rnd() * rnd() * 16]); } }
     const g1 = new T.PlaneGeometry(1, 2), g2 = g1.clone().rotateY(Math.PI / 2), tg = new T.BufferGeometry(); tg.setAttribute('position', new T.Float32BufferAttribute([...g1.attributes.position.array, ...g2.attributes.position.array], 3)); tg.setAttribute('uv', new T.Float32BufferAttribute([...g1.attributes.uv.array, ...g2.attributes.uv.array], 2)); tg.setIndex([...g1.index.array, ...[...g2.index.array].map(v => v + 4)]);
     const m = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
     ['fir_a', 'fir_b', 'fir_gold'].forEach((f, k) => { const L = lists[k]; if (!L.length) return; const im = new T.InstancedMesh(tg, new T.MeshBasicMaterial({ map: tex(`../img/tex/${f}.webp`), alphaTest: .5, side: T.DoubleSide, color: 0xdcdcdc }), L.length); im.userData.noShadow = 1;
