@@ -91,8 +91,8 @@ const noise = (a, b) => Math.sin(a * .071 + b * .13) * .5 + Math.sin(a * .023 - 
 export function groundY(tr, s, d, smoothOnly) {
   const yc = centerY(tr, s), kk = lerpA(tr.k, s, tr.n), hw = widthAt(tr, s) / 2, kd = kindAt(tr, s);
   const a = Math.abs(d), out = Math.max(0, a - hw);
-  const rut = a < hw ? -.04 * Math.pow(Math.cos(d * Math.PI / (hw * 2) * 2.2), 2) + Math.sin(s * .9 + d) * .01 : 0;
-  const bank = -d * Math.max(-.07, Math.min(.07, kk * 2.2)) * Math.min(1, hw / Math.max(a, .01)) * (a < hw ? 1 : .6);
+  const rut = (-.04 * Math.pow(Math.cos(Math.min(a, hw) * Math.PI / (hw * 2) * 2.2), 2) + Math.sin(s * .9 + d) * .01) * Math.max(0, 1 - out / 1.5);
+  const bank = -d * Math.max(-.07, Math.min(.07, kk * 2.2)) * Math.min(1, hw / Math.max(a, .01)) * (.6 + .4 * Math.max(0, 1 - out / 2));   /* niente scalino sul bordo: uscendo non si decolla */
   // ai lati: prato che sale dolce; sulla mulattiera un lato è la scarpata a monte e l'altro scende; nel single track il sottobosco è mosso
   let side = out * out * .012 * (1 + noise(s, d) * .9) + out * .05 * noise(s * 1.7, d * 2 + 9);
   if (kd.name === 'mulattiera') side = out * (d > 0 ? .55 : -.35) + out * .08 * noise(s * 2, d * 3);
