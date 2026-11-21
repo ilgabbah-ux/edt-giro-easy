@@ -8,7 +8,7 @@ export const KIND = {
   s: { name: 'salita', w: 6.5, side: 22, grip: 1.05, drag: 0, rough: .012, tex: 'trail', tape: 1 },
   d: { name: 'discesa', w: 6.5, side: 22, grip: 1.0, drag: 0, rough: .014, tex: 'trail', tape: 1 },
   p: { name: 'pietraia', w: 6, side: 20, grip: .86, drag: .5, rough: .075, tex: 'rock', tape: 0 },
-  g: { name: 'guado', w: 7, side: 20, grip: .8, drag: 0, rough: .01, tex: 'mud', tape: 0 },
+  g: { name: 'guado', w: 7, side: 20, grip: .8, drag: 0, rough: .01, tex: 'rock', tape: 0 },
   f: { name: 'fango', w: 7, side: 22, grip: .68, drag: 1.3, rough: .015, tex: 'mud', tape: 1 },
   m: { name: 'mulattiera', w: 4, side: 6.5, grip: .95, drag: .2, rough: .04, tex: 'cobble', tape: 0 },
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },

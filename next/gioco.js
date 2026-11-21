@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=15';
+import { SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=16';
 import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=10';
 import { makeRider } from './pilota.js?v=4';
 
@@ -118,7 +118,7 @@ const WATER_N = (() => { const N = 128, cv = document.createElement('canvas'); c
   x.putImageData(im, 0, 0); const t = new T.CanvasTexture(cv); t.wrapS = t.wrapT = T.RepeatWrapping; return t; })();
 { // acqua: il guado è acqua di torrente, verde e trasparente; le pozze nel fango sono acqua marrone e ferma. Bordi che sfumano sulla riva, riflesso del sole sulle increspature
   const mk = (color, opacity) => new T.MeshPhongMaterial({ color, transparent: true, opacity, depthWrite: false, vertexColors: true, shininess: 110, specular: 0xfff2d8, normalMap: WATER_N, normalScale: new T.Vector2(.5, .5) });
-  const mGuado = mk(0x4c6f66, .8), mPozza = mk(0x6e5b43, .93);
+  const mGuado = mk(0x3f6f6a, .6), mPozza = mk(0x6e5b43, .93);   // il guado è trasparente: sotto si vedono i sassi del fondo
   for (const wt of tr.water) { const pos = [], idx = [], col = [], uv = [], nrm = []; let r = 0; const L = wt.s1 - wt.s0;
     for (let s = wt.s0; s <= wt.s1 + .01; s += .5) { const hw = wt.half || widthAt(tr, s) / 2 + 2.5, t = (s - wt.s0) / L, e = wt.half ? Math.sqrt(Math.max(.05, Math.sin(Math.PI * t))) : 1, c = wt.off || 0, endA = Math.min(1, Math.min(t, 1 - t) * L / 1.2), wob = 1 + (vn(s * .9, wt.s0) - .5) * .25;
       for (const [f, al] of [[-1, 0], [-.72, 1], [.72, 1], [1, 0]]) { at(tr, s, c + hw * e * f * wob, P); pos.push(P.x, wt.y, P.z); col.push(1, 1, 1, al * endA); uv.push(P.x / 2.6, P.z / 2.6); nrm.push(0, 1, 0); }
@@ -188,6 +188,10 @@ const bike = new T.Group(), leanG = new T.Group(), pitchG = new T.Group(); bike.
 scene.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material], m = ms[0];
   if (o.userData.noShadow) return; if (m.isMeshLambertMaterial || m.isMeshPhongMaterial) { o.receiveShadow = true; const t = o.geometry.type; if (t === 'CylinderGeometry' || t === 'DodecahedronGeometry') o.castShadow = true; }
   else if (m.isMeshBasicMaterial && m.alphaTest > 0 && m.map) { o.castShadow = true; o.customDepthMaterial = new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking, map: m.map, alphaTest: m.alphaTest, side: T.DoubleSide }); } });
+// scia nell'acqua: anelli di schiuma bianca che si allargano e svaniscono dove passa la moto
+const RINGS = Array.from({ length: 10 }, () => { const m = new T.Mesh(new T.RingGeometry(.8, 1, 24), new T.MeshBasicMaterial({ color: 0xf4f8f4, transparent: true, opacity: 0, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.visible = false; m.renderOrder = 3; m.userData.noShadow = 1; scene.add(m); return m; }); let ringI = 0, ringT = 0;
+function rings(dt) { ringT -= dt; if (S.wet > .03 && S.v > 1.5 && S.air <= 0 && ringT <= 0) { const wt = tr.water.find(w => S.s >= w.s0 && S.s <= w.s1); if (wt) { const r = RINGS[ringI++ % RINGS.length]; r.position.set(S.x, wt.y + .03, S.z); r.userData.a = 0; r.userData.k = Math.min(1, S.v / 12); r.visible = true; ringT = .09; } }
+  for (const r of RINGS) if (r.visible) { r.userData.a += dt; const a = r.userData.a, s = .5 + a * (2.2 + r.userData.k * 2.5); r.scale.set(s, s, 1); r.material.opacity = Math.max(0, .5 - a * .6) * (.5 + r.userData.k * .5); if (a > .85) r.visible = false; } }
 const blob = new T.Mesh(new T.CircleGeometry(.9, 20), new T.MeshBasicMaterial({ color: 0, transparent: true, opacity: .32, depthWrite: false })); blob.rotation.x = -Math.PI / 2; blob.scale.set(.42, 1.25, 1); scene.add(blob);
 let wheelF = null, wheelR = null, steerG = null;
 { const gltf = new GLTFLoader(), dl = new DRACOLoader(); dl.setDecoderPath('../draco/'); gltf.setDRACOLoader(dl);
@@ -401,7 +405,7 @@ function draw(dt) {
     if (RD.off && !(S.fall > 0)) { pitchG.add(r); r.position.copy(RD.p); r.quaternion.copy(RD.q); r.scale.copy(RD.s); RD.off = 0; } }
   if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0 });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
-  WATER_N.offset.x += dt * .018; WATER_N.offset.y += dt * .03; lensDraw(dt); dust(dt); soundUpdate(dt, { thr: S.thr || 0, spin: S.spin || 0, wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
+  rings(dt); WATER_N.offset.x += dt * .018; WATER_N.offset.y += dt * .03; lensDraw(dt); dust(dt); soundUpdate(dt, { thr: S.thr || 0, spin: S.spin || 0, wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
   blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.visible = !renderer.shadowMap.enabled; blob.material.opacity = S.air > 0 ? .16 : .32;
   { const fx = Math.sin(S.psi), fz = -Math.cos(S.psi); sun.target.position.set(Math.round(S.x + fx * 16), S.y, Math.round(S.z + fz * 16)); sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 110); }
   camUpdate(dt); if (!window.__noRender) renderer.render(scene, camera);
@@ -421,7 +425,7 @@ function school(dt) { flashT -= dt; if (!tr.stations || state !== 'play') return
     if (S.fall > 0) m.fell = 1; else if (m.fell) toStation(k, tr.stations[k].no); } }
 function hud() { $('spd').firstChild.nodeValue = Math.round(S.v * 3.6); $('tim').firstChild.nodeValue = fmt(time); $('bar').firstElementChild.style.width = clamp(S.s / (tr.len - 14) * 100, 0, 100) + '%';
   $('best').textContent = best ? 'RECORD ' + fmt(best) + ' s' : ''; $('gasb').classList.toggle('hidden', O.gas === 'a'); $('gasb').style.setProperty('--g', Math.round((S.thr || 0) * 100) + '%');
-  if (state === 'play') $('msg').textContent = S.fall > 0 ? 'CADUTO!' : flashT > 0 ? flashMsg : wrong > .8 ? 'GIRATI!' : time < .9 ? 'VIA!' : ''; }
+  if (state === 'play') { const t = S.fall > 0 ? 'CADUTO!' : flashT > 0 ? flashMsg : wrong > .8 ? 'GIRATI!' : time < .9 ? 'VIA!' : ''; if ($('msg').textContent !== t) $('msg').textContent = t; $('msg').classList.toggle('small', t.length > 9); } else $('msg').classList.remove('small'); }
 function labels() { $('oAuto').textContent = 'FRENO AUTO: ' + (O.auto ? 'SÌ' : 'NO'); $('oGas').textContent = 'GAS: ' + (O.gas === 'a' ? 'AUTOMATICO' : 'COL TASTO'); $('oSens').textContent = 'STERZO: ' + ({ s: 'MORBIDO', m: 'MEDIO', h: 'RAPIDO' }[O.sens]); $('oInv').textContent = 'VERSO STERZO: ' + (O.inv ? 'INVERTITO' : 'NORMALE'); $('oSnd').textContent = 'SUONO: ' + (O.snd ? 'SÌ' : 'NO'); $('oCam').textContent = 'CAMERA: ' + ({ c: 'VICINA', m: 'MEDIA', l: 'LONTANA' }[O.cam]); }
 $('oPista').textContent = 'PERCORSO: ' + (SCHOOL ? 'SCUOLA' : 'GIRO EASY'); $('oPista').onclick = () => { setOpt('pista', SCHOOL ? 'g' : 's'); location.reload(); };
 if (SCHOOL) { $('ptxt').textContent = 'Scuola di enduro: otto stazioni, ognuna ti insegna una cosa. Se sbagli riparti da quella stazione. Qui gas e freno sono manuali.'; $('tag').textContent = $('tag').textContent.replace('PERCORSO ENDURO', 'SCUOLA DI ENDURO'); }
