@@ -50,14 +50,15 @@ const ntex = src => { const t = tl.load(src); t.wrapS = t.wrapT = T.RepeatWrappi
     for (let c = 0; c < cols; c++) { const sg = c < 5 ? -1 : 1, e = sg < 0 ? ragL : rag, edge = hw + e * (hw > 2 ? 1 : .5);
       const d = c === 0 || c === 10 ? sg * (edge + .75) : c === 1 || c === 9 ? sg * (edge + .2) : c === 2 || c === 8 ? sg * (edge - .3) : (c - 5) / 2 * (hw - .5) * .8;
       at(tr, s, d, P); pos.push(P.x, P.y + (c === 0 || c === 10 ? .05 : .03), P.z); uv.push(d / 7, s / 7);
-      const a = Math.abs(d), rut = Math.exp(-Math.pow((a - hw * .42) / (hw * .16), 2)), patch = .86 + .26 * vn(s * .11 + 5, d * .5) + .1 * (vn(s * .9, d * 1.7) - .5), k = patch * (1 - rut * .16) * (kindAt(tr, s).tex === 'forest' ? 1.28 : 1);   /* nel bosco il sentiero battuto è più chiaro del sottobosco: si deve vedere dove va */
+      const a = Math.abs(d), rut = Math.exp(-Math.pow((a - hw * .42) / (hw * .16), 2)), patch = .86 + .26 * vn(s * .11 + 5, d * .5) + .1 * (vn(s * .9, d * 1.7) - .5), mudK = kindAt(tr, s).tex === 'mud', wetK = tr.water.some(wt => s > wt.s0 - 1.6 && s < wt.s1 + 1.6 && Math.abs(d - (wt.off || 0)) < (wt.half || 99) + 1.3) ? .7 : 1, k = patch * (1 - rut * (mudK ? .34 : .16)) * (kindAt(tr, s).tex === 'forest' ? 1.28 : 1) * wetK * (mudK ? .82 + .3 * vn(s * .5, d * .8 + 30) : 1);   /* nel bosco il sentiero battuto è più chiaro del sottobosco: si deve vedere dove va */
       const al = c === 0 || c === 10 ? 0 : c === 1 || c === 9 ? .35 + .5 * vn(s * 2.1, c) : 1; col.push(k * (1 + rut * .03), k, k * (1 - rut * .05), al); } }
   const g = new T.BufferGeometry(); let cur = null, start = 0;
   for (let i = 0; i < n - 1; i++) { const tx = TEXN.indexOf(kindAt(tr, (i + .5) * RS).tex); if (tx !== cur) { if (cur !== null) g.addGroup(start, idx.length - start, cur); cur = tx; start = idx.length; }
     for (let c = 0; c < cols - 1; c++) { const a = i * cols + c, b = a + cols; idx.push(a, a + 1, b, a + 1, b + 1, b); } }
   g.addGroup(start, idx.length - start, cur);
   g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new T.Float32BufferAttribute(col, 4)); g.setIndex(idx); g.computeVertexNormals();
-  const road = new T.Mesh(g, TEXN.map(k => new T.MeshLambertMaterial({ map: tex(`../img/tex/${TEXF[k]}.webp`), normalMap: ntex(`../img/tex/${NRM[k]}.webp`), normalScale: new T.Vector2(1.6, 1.6), color: k === 'cobble' ? 0xd8d2c8 : 0xffffff, vertexColors: true, transparent: true }))); road.renderOrder = 1; scene.add(road);
+  const road = new T.Mesh(g, TEXN.map(k => k === 'mud' ? new T.MeshPhongMaterial({ map: tex('../img/tex/mudtrack_d.webp'), normalMap: ntex('../img/tex/mudtrack_n.webp'), normalScale: new T.Vector2(2.4, 2.4), shininess: 48, specular: 0x6a6258, vertexColors: true, transparent: true })   /* il fango è bagnato: luccica */
+    : new T.MeshLambertMaterial({ map: tex(`../img/tex/${TEXF[k]}.webp`), normalMap: ntex(`../img/tex/${NRM[k]}.webp`), normalScale: new T.Vector2(1.6, 1.6), color: k === 'cobble' ? 0xd8d2c8 : 0xffffff, vertexColors: true, transparent: true }))); road.renderOrder = 1; scene.add(road);
 }
 // quanto ci si può allontanare di lato senza che il terreno si accavalli all'interno delle curve
 const sideLimit = (s, sign) => { const k = tr.k[Math.min(tr.n - 1, Math.round(s / DS))], sd = sideAt(tr, s); return k * sign > .002 ? Math.min(sd, .8 / Math.abs(k)) : sd; };
@@ -93,12 +94,19 @@ for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single
   const cyl = new T.Mesh(new T.CylinderGeometry(1100, 1100, 1470, 48, 1, true), new T.MeshBasicMaterial({ map: pano, side: T.BackSide, fog: false, depthWrite: false }));
   cyl.position.y = 240; cyl.renderOrder = -1; scene.add(cyl); P.sky = cyl;
 }
-{ // acqua: il guado (tutta la larghezza) e le pozze nel fango
-  const mat = new T.MeshBasicMaterial({ color: 0x6f8f8c, transparent: true, opacity: .72, depthWrite: false });
-  for (const wt of tr.water) { const pos = [], idx = []; let r = 0;
-    for (let s = wt.s0; s <= wt.s1 + .01; s += .5) { const hw = wt.half || widthAt(tr, s) / 2 + 2.5, e = wt.half ? Math.sqrt(Math.max(.05, Math.sin(Math.PI * (s - wt.s0) / (wt.s1 - wt.s0)))) : 1, c = wt.off || 0;
-      at(tr, s, c - hw * e, P); pos.push(P.x, wt.y, P.z); at(tr, s, c + hw * e, P); pos.push(P.x, wt.y, P.z); if (r) { const a = (r - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } r++; }
-    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); const m = new T.Mesh(g, mat); m.renderOrder = 2; scene.add(m); }
+// increspature dell'acqua: una mappa del rilievo fatta al volo, che scorre piano. Il sole basso ci si riflette
+const WATER_N = (() => { const N = 128, cv = document.createElement('canvas'); cv.width = cv.height = N; const x = cv.getContext('2d'), im = x.createImageData(N, N), h = (u, v) => Math.sin(u * 6.283 * 3 + Math.sin(v * 6.283 * 2) * 1.3) * .5 + Math.sin(v * 6.283 * 5 + u * 6.283 * 2) * .3 + Math.sin((u + v) * 6.283 * 7) * .2;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const u = i / N, v = j / N, dx = (h(u + 1 / N, v) - h(u - 1 / N, v)) * 3, dy = (h(u, v + 1 / N) - h(u, v - 1 / N)) * 3, l = Math.hypot(dx, dy, 1), o = (j * N + i) * 4; im.data[o] = (-dx / l * .5 + .5) * 255; im.data[o + 1] = (-dy / l * .5 + .5) * 255; im.data[o + 2] = (1 / l * .5 + .5) * 255; im.data[o + 3] = 255; }
+  x.putImageData(im, 0, 0); const t = new T.CanvasTexture(cv); t.wrapS = t.wrapT = T.RepeatWrapping; return t; })();
+{ // acqua: il guado è acqua di torrente, verde e trasparente; le pozze nel fango sono acqua marrone e ferma. Bordi che sfumano sulla riva, riflesso del sole sulle increspature
+  const mk = (color, opacity) => new T.MeshPhongMaterial({ color, transparent: true, opacity, depthWrite: false, vertexColors: true, shininess: 110, specular: 0xfff2d8, normalMap: WATER_N, normalScale: new T.Vector2(.5, .5) });
+  const mGuado = mk(0x4c6f66, .8), mPozza = mk(0x6e5b43, .93);
+  for (const wt of tr.water) { const pos = [], idx = [], col = [], uv = [], nrm = []; let r = 0; const L = wt.s1 - wt.s0;
+    for (let s = wt.s0; s <= wt.s1 + .01; s += .5) { const hw = wt.half || widthAt(tr, s) / 2 + 2.5, t = (s - wt.s0) / L, e = wt.half ? Math.sqrt(Math.max(.05, Math.sin(Math.PI * t))) : 1, c = wt.off || 0, endA = Math.min(1, Math.min(t, 1 - t) * L / 1.2), wob = 1 + (vn(s * .9, wt.s0) - .5) * .25;
+      for (const [f, al] of [[-1, 0], [-.72, 1], [.72, 1], [1, 0]]) { at(tr, s, c + hw * e * f * wob, P); pos.push(P.x, wt.y, P.z); col.push(1, 1, 1, al * endA); uv.push(P.x / 2.6, P.z / 2.6); nrm.push(0, 1, 0); }
+      if (r) { const a = (r - 1) * 4; for (let q = 0; q < 3; q++) idx.push(a + q, a + q + 1, a + q + 4, a + q + 1, a + q + 5, a + q + 4); } r++; }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new T.Float32BufferAttribute(col, 4)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setAttribute('normal', new T.Float32BufferAttribute(nrm, 3)); g.setIndex(idx);
+    const m = new T.Mesh(g, wt.kind === 'guado' ? mGuado : mPozza); m.renderOrder = 2; m.userData.noShadow = 1; m.receiveShadow = true; scene.add(m); }
 }
 { // macchia: cespugli a ridosso del sentiero (qualcuno ci entra) e rami bassi che sporgono. Niente fettuccia: è enduro nei boschi
   let seed = 31; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -157,7 +165,7 @@ const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di per
 const bike = new T.Group(), leanG = new T.Group(), pitchG = new T.Group(); bike.add(leanG); leanG.add(pitchG); scene.add(bike);
 // chi riceve e chi fa ombra: il terreno riceve; sassi, tronchi, pali, alberi e cespugli la fanno (alberi e cespugli con la sagoma della foto)
 scene.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material], m = ms[0];
-  if (o.userData.noShadow) return; if (m.isMeshLambertMaterial) { o.receiveShadow = true; const t = o.geometry.type; if (t === 'CylinderGeometry' || t === 'DodecahedronGeometry') o.castShadow = true; }
+  if (o.userData.noShadow) return; if (m.isMeshLambertMaterial || m.isMeshPhongMaterial) { o.receiveShadow = true; const t = o.geometry.type; if (t === 'CylinderGeometry' || t === 'DodecahedronGeometry') o.castShadow = true; }
   else if (m.isMeshBasicMaterial && m.alphaTest > 0 && m.map) { o.castShadow = true; o.customDepthMaterial = new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking, map: m.map, alphaTest: m.alphaTest, side: T.DoubleSide }); } });
 const blob = new T.Mesh(new T.CircleGeometry(.9, 20), new T.MeshBasicMaterial({ color: 0, transparent: true, opacity: .32, depthWrite: false })); blob.rotation.x = -Math.PI / 2; blob.scale.set(.42, 1.25, 1); scene.add(blob);
 let wheelF = null, wheelR = null, steerG = null;
@@ -193,15 +201,17 @@ function dust(dt) {
 
 // ---------- visiera: schizzi d'acqua e di fango, rami in faccia ----------
 const lens = $('lens'), lx = lens.getContext('2d'), drops = []; let lensDirty = false;
+const leafImg = new Image(); leafImg.src = '../img/tex/shrubs.webp';   // quattro rami veri con le foglie: sono loro che ti passano davanti agli occhi
 function lensSize() { lens.width = Math.round(innerWidth / 2); lens.height = Math.round(innerHeight / 2); } addEventListener('resize', lensSize); lensSize();
 function splat(kind, n, side = 0) { const W2 = lens.width, H2 = lens.height;
-  for (let i = 0; i < n && drops.length < 90; i++) { if (kind === 'leaf') { const fromL = side < 0; drops.push({ k: 2, x: fromL ? -40 : W2 + 40, y: H2 * (.15 + Math.random() * .6), vx: (fromL ? 1 : -1) * W2 * (2.6 + Math.random() * 1.6), vy: (Math.random() - .5) * H2 * .5, r: H2 * (.1 + Math.random() * .14), a: .92, life: .55, rot: Math.random() * 3 }); }
+  for (let i = 0; i < n && drops.length < 90; i++) { if (kind === 'leaf') { const fromL = side < 0; drops.push({ k: 2, x: fromL ? -40 : W2 + 40, y: H2 * (.15 + Math.random() * .6), vx: (fromL ? 1 : -1) * W2 * (2.6 + Math.random() * 1.6), vy: (Math.random() - .5) * H2 * .5, r: H2 * (.1 + Math.random() * .14), a: .95, life: .6, rot: (Math.random() - .5) * 1.2, cell: Math.floor(Math.random() * 4), fl: fromL ? 1 : -1 }); }
     else { const big = Math.random() < .3; drops.push({ k: kind === 'mud' ? 1 : 0, x: Math.random() * W2, y: H2 * (.12 + Math.random() * .85), vx: 0, vy: H2 * (.02 + Math.random() * .06), r: H2 * (big ? .07 + Math.random() * .1 : .015 + Math.random() * .03), a: kind === 'mud' ? .92 : .8, life: 1.8 + Math.random() * 2.2, rot: Math.random() * 3 }); } } }
 function lensDraw(dt) { if (!drops.length) { if (lensDirty) { lx.clearRect(0, 0, lens.width, lens.height); lensDirty = false; } return; }
   lx.clearRect(0, 0, lens.width, lens.height); lensDirty = true; const wind = 1 + S.v / 12;
   for (let i = drops.length - 1; i >= 0; i--) { const d = drops[i]; d.life -= dt * (d.k === 2 ? 1 : wind * .5); if (d.life <= 0) { drops.splice(i, 1); continue; } d.x += d.vx * dt; d.y += d.vy * dt * (d.k === 2 ? 1 : wind);
     const al = d.a * Math.min(1, d.life * (d.k === 2 ? 6 : 1.4)); lx.save(); lx.translate(d.x, d.y); lx.rotate(d.rot);
-    if (d.k === 2) { lx.fillStyle = `rgba(46,84,34,${al})`; lx.beginPath(); lx.ellipse(0, 0, d.r * 2.6, d.r * .55, 0, 0, 7); lx.fill(); lx.fillStyle = `rgba(88,128,52,${al * .8})`; lx.beginPath(); lx.ellipse(d.r * .4, -d.r * .2, d.r * 1.7, d.r * .3, .3, 0, 7); lx.fill(); }
+    if (d.k === 2 && leafImg.complete && leafImg.naturalWidth) { const hw = leafImg.naturalWidth / 2, sz = d.r * 9; lx.scale(d.fl, 1); for (const [off, a2] of [[-.22, .3], [-.1, .55], [0, 1]]) { lx.globalAlpha = al * a2; lx.drawImage(leafImg, (d.cell % 2) * hw, Math.floor(d.cell / 2) * hw, hw, hw, -sz / 2 + off * sz, -sz / 2, sz, sz); } lx.globalAlpha = 1; }   /* tre copie in scia: il ramo passa veloce e sfocato */
+    else if (d.k === 2) { lx.fillStyle = `rgba(46,84,34,${al})`; lx.beginPath(); lx.ellipse(0, 0, d.r * 2.6, d.r * .55, 0, 0, 7); lx.fill(); lx.fillStyle = `rgba(88,128,52,${al * .8})`; lx.beginPath(); lx.ellipse(d.r * .4, -d.r * .2, d.r * 1.7, d.r * .3, .3, 0, 7); lx.fill(); }
     else { const c = d.k ? '66,46,28' : '104,96,78'; const gr = lx.createRadialGradient(0, 0, d.r * .15, 0, 0, d.r); gr.addColorStop(0, `rgba(${c},${al})`); gr.addColorStop(.7, `rgba(${c},${al * .75})`); gr.addColorStop(1, `rgba(${c},0)`); lx.fillStyle = gr; lx.beginPath(); lx.ellipse(0, 0, d.r, d.r * (.75 + (d.rot % 1) * .5), 0, 0, 7); lx.fill();
       if (d.r > lens.height * .04) { lx.fillStyle = `rgba(${c},${al * .6})`; lx.fillRect(-d.r * .12, 0, d.r * .24, d.r * (1.2 + (3 - d.life) * .6)); } }   // la goccia grossa cola
     lx.restore(); } }
@@ -370,7 +380,7 @@ function draw(dt) {
     if (RD.off && !(S.fall > 0)) { pitchG.add(r); r.position.copy(RD.p); r.quaternion.copy(RD.q); r.scale.copy(RD.s); RD.off = 0; } }
   if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0 });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
-  lensDraw(dt); dust(dt); soundUpdate(dt, { thr: S.thr || 0, spin: S.spin || 0, wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
+  WATER_N.offset.x += dt * .018; WATER_N.offset.y += dt * .03; lensDraw(dt); dust(dt); soundUpdate(dt, { thr: S.thr || 0, spin: S.spin || 0, wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
   blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.visible = !renderer.shadowMap.enabled; blob.material.opacity = S.air > 0 ? .16 : .32;
   { const fx = Math.sin(S.psi), fz = -Math.cos(S.psi); sun.target.position.set(Math.round(S.x + fx * 16), S.y, Math.round(S.z + fz * 16)); sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 110); }
   camUpdate(dt); if (!window.__noRender) renderer.render(scene, camera);
