@@ -26,8 +26,31 @@ export const GIRO_EASY = [
   [40, 0, -1, 'b'], [45, 30, 0, 'b'], [40, -28, 0, 'b'], [35, 0, 0, 'b'],
   [60, 0, -2, 'v'], [90, -75, -1, 'v'], [110, 0, 0, 'v'],
 ];
+// SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
+export const SCUOLA = [
+  [70, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
+  [60, 0, 0, 'f'],
+  [40, 0, 0, 'v'], [30, 13, 0, 'v'], [30, 0, 0, 'v'],
+  [80, 0, 0, 'v'],
+  [80, 0, 0, 'v'],
+  [40, 0, 8, 's'], [50, 0, 20, 's'], [20, 0, 6, 's'], [30, 0, 0, 'v'],
+  [50, 0, 0, 'p'], [50, 0, 0, 'b'],
+  [30, 0, 0, 't'], [23, 15, 0, 't'], [23, -14, 0, 't'], [30, 0, 0, 't'],
+  [50, 0, 0, 'v'],
+];
+export const SCUOLA_EXTRA = { plain: true, logs: [500, 545], steps: [608, 616, 624, 632],
+  stations: [
+    { s0: 60, s1: 232, goal: 'on', t: 'STERZO', x: 'Inclina il telefono come un manubrio. Fai lo slalom senza uscire dal sentiero.', no: 'RESTA SUL SENTIERO' },
+    { s0: 232, s1: 305, goal: 'spin', t: 'GAS', x: 'Tocchi il tasto ed è tutto aperto, trascini il pollice in giù per chiudere. Nel fango apri poco: se la ruota pattina non vai avanti.', no: 'MENO GAS NEL FANGO' },
+    { s0: 305, s1: 400, goal: 'slide', t: 'FRENO', x: 'Curva stretta: frena prima e sterza. La moto va di traverso e chiude la curva.', no: 'FRENA PRIMA, POI STERZA' },
+    { s0: 400, s1: 480, goal: 'wh', t: 'IMPENNATA', x: 'Colpo di gas: molla e riapri subito. La ruota davanti si alza, la tieni su col gas.', no: 'MOLLA E RIAPRI SUBITO' },
+    { s0: 480, s1: 560, goal: 'pass', t: 'TRONCHI', x: 'Arriva piano (sotto i 60) e impenna appena prima del tronco. Con la ruota a terra e forte, cadi.', no: 'IMPENNA PRIMA DEL TRONCO' },
+    { s0: 560, s1: 690, goal: 'pass', t: 'SALITA', x: 'Gas pieno e non mollare. Sui gradoni alza la ruota davanti.', no: 'GAS PIENO, NON MOLLARE' },
+    { s0: 690, s1: 800, goal: 'pass', t: 'SASSI E RAMI', x: 'Sassi grossi e alberi si schivano. I rami in faccia ti tolgono la vista e ti rallentano.', no: 'SCHIVA I SASSI GROSSI' },
+    { s0: 800, s1: 906, goal: 'pass', t: 'SINGLE TRACK', x: 'Stretto tra gli alberi: frena prima, piega tutto, gas in uscita.', no: 'FRENA PRIMA DELLA CURVA' },
+  ] };
 const smooth = (a, n) => a.map((_, i) => { let s = 0, c = 0; for (let k = -n; k <= n; k++) { s += a[Math.max(0, Math.min(a.length - 1, i + k))]; c++; } return s / c; });
-export function buildTrack(segs = GIRO_EASY) {
+export function buildTrack(segs = GIRO_EASY, extra = {}) {
   let k = [], g = [], w = [], sd = [], kind = [];
   for (const [len, r, gr, kd] of segs) for (let s = 0; s < len; s += DS) { k.push(r ? 1 / r : 0); g.push(gr / 100); w.push(KIND[kd].w); sd.push(KIND[kd].side); kind.push(kd); }
   k = smooth(k, 4); g = smooth(g, 8); w = smooth(w, 6); sd = smooth(sd, 6);
@@ -36,7 +59,7 @@ export function buildTrack(segs = GIRO_EASY) {
   const n = k.length, x = new Float32Array(n), z = new Float32Array(n), y = new Float32Array(n), h = new Float32Array(n);
   let px = 0, pz = 0, py = 0, ph = 0;
   for (let i = 0; i < n; i++) { x[i] = px; z[i] = pz; y[i] = py; h[i] = ph; ph += k[i] * DS; px += Math.sin(ph) * DS; pz -= Math.cos(ph) * DS; py += g[i] * DS; }
-  const tr = { n, x, z, y, h, k: Float32Array.from(k), g: Float32Array.from(g), w: Float32Array.from(w), side: Float32Array.from(sd), kind, len: (n - 1) * DS, water: [], branches: [] };
+  const tr = { n, x, z, y, h, k: Float32Array.from(k), g: Float32Array.from(g), w: Float32Array.from(w), side: Float32Array.from(sd), kind, len: (n - 1) * DS, water: [], branches: [], logs: (extra.logs || []).map(s => ({ s })), stations: extra.stations || null, plain: !!extra.plain, steps: extra.steps || null };
   // tratti (inizio, fine, tipo) per il disegno e per i cartelli
   tr.spans = []; for (let i = 0; i < n; i++) { const L = tr.spans[tr.spans.length - 1]; if (L && L.kind === kind[i]) L.s1 = (i + 1) * DS; else tr.spans.push({ kind: kind[i], s0: i * DS, s1: (i + 1) * DS }); }
   addGround(tr); return tr;
@@ -56,8 +79,9 @@ function addGround(tr) {
       for (let s = sp.s0 + 8; s < sp.s1 - 12; s += 17 + rnd() * 8) { const len = 6 + rnd() * 3; put(s, len, (i, u, e) => { bump[i] -= .2 * e * e; }); tr.water.push({ s0: s + 1.2, s1: s + len - 1.2, half: 2.4, off: (rnd() - .5) * 2.2, depth: .2, kind: 'pozza' }); }
     } else if (sp.kind === 'v' || sp.kind === 's' || sp.kind === 'd') {   // dossi, canali e gobbe
       const kinds = sp.kind === 'v' ? ['dosso', 'gobbe', 'dosso'] : sp.kind === 's' ? ['canale', 'gradino'] : ['dosso', 'canale'];
-      if (sp.kind === 's') for (let s = sp.s0 + 88; s < sp.s0 + 126; s += 7.5) { feat.push({ s, kind: 'gradone' }); put(s, 6, (i, u) => { bump[i] += .42 * (u < .3 ? u / .3 : 1 - (u - .3) / .7); }); }   // gradoni sul pezzo più ripido: salgono di colpo e scendono piano
-      let q = 0; for (let s = sp.s0 + 34; s < sp.s1 - 30; s += 44 + rnd() * 30) {
+      const stp = tr.steps ? tr.steps.filter(s => s > sp.s0 && s < sp.s1) : []; if (!tr.steps) for (let s = sp.s0 + 88; s < sp.s0 + 126; s += 7.5) stp.push(s);
+      if (sp.kind === 's') for (const s of stp) { feat.push({ s, kind: 'gradone' }); put(s, 6, (i, u) => { bump[i] += .42 * (u < .3 ? u / .3 : 1 - (u - .3) / .7); }); }   // gradoni sul pezzo più ripido: salgono di colpo e scendono piano
+      let q = 0; if (!tr.plain) for (let s = sp.s0 + 34; s < sp.s1 - 30; s += 44 + rnd() * 30) {
         const kd = kinds[q++ % kinds.length], tight = Math.abs(tr.k[Math.min(tr.n - 1, Math.round(s / DS))]) > .025 ? .55 : 1; feat.push({ s, kind: kd });
         if (kd === 'dosso') put(s, 6.5, (i, u, e) => { bump[i] += .45 * tight * e * e; });
         else if (kd === 'canale') put(s, 4, (i, u, e) => { bump[i] -= .22 * tight * e * e; });

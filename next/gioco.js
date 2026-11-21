@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=14';
+import { SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=15';
 import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=10';
 import { makeRider } from './pilota.js?v=4';
 
@@ -32,7 +32,8 @@ const tl = new T.TextureLoader();
 const tex = (src, rx, ry) => { const t = tl.load(src); t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; if (rx) t.repeat.set(rx, ry); t.anisotropy = 4; return t; };
 
 // ---------- pista ----------
-const tr = buildTrack();
+const SCHOOL = opt('pista', 's') === 's';   // si parte dalla scuola; finita quella, il giro
+const tr = SCHOOL ? buildTrack(SCUOLA, SCUOLA_EXTRA) : buildTrack();
 const P = {};
 const TEXF = { trail: 'trail_d', rock: 'mossrock_d', mud: 'mudtrack_d', cobble: 'rockwall_d', forest: 'forestfloor_d' }, TEXN = Object.keys(TEXF);
 { // sentiero: una fila ogni mezzo metro, largo quanto il tratto; ogni tipo di fondo ha la sua foto
@@ -117,7 +118,9 @@ const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di per
   const gate = (s, label) => { at(tr, s, 0, P); const w = widthAt(tr, s), grp = new T.Group(); grp.position.set(P.x, P.y, P.z); grp.rotation.y = -P.h;
     const mat = new T.MeshLambertMaterial({ color: 0x2a2a2a }); for (const sx of [-1, 1]) { const p = new T.Mesh(new T.CylinderGeometry(.14, .14, 5.2, 8), mat); p.position.set(sx * (w / 2 + .6), 2.6, 0); grp.add(p); }
     const b = board(label, '#ffd400', w + 1.6, 1.5); b.position.y = 4.6; grp.add(b); scene.add(grp); };
-  gate(14, 'ENDURO DRINKING TEAM'); gate(tr.len - 14, 'RIFUGIO · ARRIVO');
+  gate(14, SCHOOL ? 'SCUOLA DI ENDURO' : 'ENDURO DRINKING TEAM'); gate(tr.len - 14, SCHOOL ? 'FINE SCUOLA' : 'RIFUGIO · ARRIVO');
+  // tronchi di traverso sul sentiero
+  { const bark = new T.MeshLambertMaterial({ map: tex('../img/tex/forestfloor_d.webp'), color: 0x7a5a3c }); for (const lg of tr.logs) { at(tr, lg.s, 0, P); const w = widthAt(tr, lg.s) + 3, m = new T.Mesh(new T.CylinderGeometry(.21, .24, w, 10), bark); m.rotation.set(0, -P.h, Math.PI / 2, 'YXZ'); m.position.set(P.x, groundY(tr, lg.s, 0, true) + .2, P.z); scene.add(m); } }
 }
 
 // ---------- moto e pilota ----------
@@ -224,6 +227,8 @@ function step(dt) {
     if (KD.name === 'fango' && S.off < .5 && S.v > 6) { S.mudA = (S.mudA || 0) + (Math.abs(S.slip) * 9 + (S.gasOn ? .7 : .2)) * dt; while (S.mudA >= 1) { S.mudA--; splat('mud', 1); } }
     for (const br of tr.branches) if (br.s > S.sPrev && br.s <= S.s) { const hw = widthAt(tr, br.s) / 2; if (S.d * br.side > -br.reach - .25) { const deep = clamp((S.d * br.side + br.reach + .25) / (hw + br.reach), .2, 1); splat('leaf', Math.round(2 + deep * 4), br.side); whip(); S.v *= 1 - .07 * deep; S.hit = Math.max(S.hit, .25 * deep); S.psi -= br.side * .03 * deep; } }   // ramo in faccia: non vedi, perdi un po' di velocità, la moto scarta
   }
+  // tronco di traverso: con la ruota davanti alta (o in volo) lo scavalchi, piano ci sbatti e passi quasi da fermo, forte con la ruota a terra voli giù
+  if (state === 'play' && !down) for (const lg of tr.logs) if (lg.s > S.sPrev && lg.s <= S.s && S.air <= 0) { if ((S.wh || 0) > .2) { S.hit = Math.max(S.hit, .2); thud(.25); S.v *= .97; S.bvy += 1.2; } else if (S.v > 8) crash(Math.sign(S.lean) || 1); else { S.v *= .3; S.hit = Math.max(S.hit, .5); thud(.5); S.bvy += 1.6; } }
   S.sPrev = S.s;
   const mu = (S.grip - S.off * .3 - Math.min(.25, S.wet * .8)), vEff = Math.max(S.v, 4.5);
   let om = G * Math.tan(S.lean) / vEff; const omMax = mu * G / vEff, over = Math.max(0, Math.abs(om) - omMax);
@@ -243,7 +248,7 @@ function step(dt) {
   // manopola: quanto chiedi (0..1) e quanto il motore dà davvero (apre e chiude in un attimo, ma non a scatto)
   const want = state === 'play' && !brk && !down ? (O.gas === 'a' ? (S.v < vSafe + 1.5 ? 1 : 0) : gasHeld ? gasCmd : 0) : 0;
   // IMPENNATA: colpo di gas (chiudi e riapri subito) a bassa e media velocità e la ruota davanti si alza. La tieni su col gas, scende se chiudi o freni; troppo gas da piano e ti ribalti
-  { const now = time, on = want > .05; if (!on && S.gasWas) S.relT = now; if (on && !S.gasWas && now - (S.relT ?? -9) < .4 && S.v > 1.5 && S.v < 17 && Math.abs(S.lean) < .4 && S.air <= 0 && !(S.wh > .05) && O.gas !== 'a') S.whV = 2.1; S.gasWas = on;
+  { const now = time, on = gasHeld && state === 'play'; if (!on && S.gasWas) S.relT = now; if (on && !S.gasWas && now - (S.relT ?? -9) < .4 && S.v > 1.5 && S.v < 19 && Math.abs(S.lean) < .4 && S.air <= 0 && !(S.wh > .05) && O.gas !== 'a') S.whV = 2.1; S.gasWas = on;
     S.wh = S.wh || 0; S.whV = S.whV || 0; if (S.wh > 0 || S.whV > 0) { S.whV += ((want > .35 ? 5 * (want - .35) * Math.max(0, 1 - S.v / 20) : -6) - 3.2 * S.wh - (brk ? 16 : 0) - S.whV * 2.4) * dt; S.wh += S.whV * dt;
       if (S.wh <= 0) { if (S.whV < -1.2) { S.hit = Math.max(S.hit, .3); thud(.3); } S.wh = 0; S.whV = 0; } if (S.wh > 1.22) { S.wh = 0; S.whV = 0; crash(0); } if (down || S.air > 0) { S.whV = Math.min(S.whV, 0) - 4 * dt; } } }
   S.thr = (S.thr || 0) + (want - (S.thr || 0)) * Math.min(1, dt * (want > (S.thr || 0) ? 14 : 20)); const thr = S.thr, gasOn = thr > .05;   // il gas automatico molla prima delle curve strette (non frena: quello lo fai tu)
@@ -338,18 +343,31 @@ function draw(dt) {
 
 // ---------- gioco ----------
 const fmt = t => t.toFixed(1).replace('.', ',');
+// ---------- scuola: stazioni ----------
+let stI = null, stM = {}, flashT = 0, flashMsg = '';
+function flash(m, t = 1.5) { flashMsg = m; flashT = t; }
+function toStation(k, why) { const a = tr.stations[k], s = a.s0 + 3; at(tr, s, 0, P); Object.assign(S, { x: P.x, z: P.z, y: P.y, by: P.y, psi: P.h, v: 0, lean: 0, leanV: 0, slip: 0, vy: 0, bvy: 0, air: 0, fall: 0, safe: 1.5, wh: 0, whV: 0, thr: 0, i: Math.round(s / DS), s, sPrev: s, d: 0, overT: 0 }); steerIn = 0; cam.h = P.h; cam.init = false; stM = {}; if (why) flash(why, 2.2); }
+function school(dt) { flashT -= dt; if (!tr.stations || state !== 'play') return;
+  const k = tr.stations.findIndex(a => S.s >= a.s0 && S.s < a.s1);
+  if (stI !== null && stI >= 0 && k !== stI && S.s >= tr.stations[stI].s1) { const a = tr.stations[stI], m = stM, ok = a.goal === 'on' ? (m.off || 0) < 1.5 : a.goal === 'spin' ? (m.spin || 0) < 1.2 : a.goal === 'slide' ? !!m.braked && (m.off || 0) < 1.2 : a.goal === 'wh' ? (m.wh || 0) >= .4 : true; if (!ok) { toStation(stI, a.no); return; } flash('BRAVO!', 1.2); }
+  if (k !== stI) { stI = k; stM = {}; $('tip').innerHTML = k >= 0 ? '<b>' + (k + 1) + '/' + tr.stations.length + ' · ' + tr.stations[k].t + '</b>' + tr.stations[k].x : ''; $('tip').classList.toggle('hidden', k < 0); }
+  if (k >= 0) { const m = stM; if (Math.abs(S.d) > widthAt(tr, S.s) / 2 + .3) m.off = (m.off || 0) + dt; if ((S.spin || 0) > .5) m.spin = (m.spin || 0) + dt; if (S.brk && S.v > 4) m.braked = 1; m.wh = Math.max(m.wh || 0, S.wh || 0);
+    if (S.fall > 0) m.fell = 1; else if (m.fell) toStation(k, tr.stations[k].no); } }
 function hud() { $('spd').firstChild.nodeValue = Math.round(S.v * 3.6); $('tim').firstChild.nodeValue = fmt(time); $('bar').firstElementChild.style.width = clamp(S.s / (tr.len - 14) * 100, 0, 100) + '%';
   $('best').textContent = best ? 'RECORD ' + fmt(best) + ' s' : ''; $('gasb').classList.toggle('hidden', O.gas === 'a'); $('gasb').style.setProperty('--g', Math.round((S.thr || 0) * 100) + '%');
-  if (state === 'play') $('msg').textContent = wrong > .8 ? 'GIRATI!' : time < .9 ? 'VIA!' : ''; }
+  if (state === 'play') $('msg').textContent = S.fall > 0 ? 'CADUTO!' : flashT > 0 ? flashMsg : wrong > .8 ? 'GIRATI!' : time < .9 ? 'VIA!' : ''; }
 function labels() { $('oAuto').textContent = 'FRENO AUTO: ' + (O.auto ? 'SÌ' : 'NO'); $('oGas').textContent = 'GAS: ' + (O.gas === 'a' ? 'AUTOMATICO' : 'COL TASTO'); $('oSens').textContent = 'STERZO: ' + ({ s: 'MORBIDO', m: 'MEDIO', h: 'RAPIDO' }[O.sens]); $('oInv').textContent = 'VERSO STERZO: ' + (O.inv ? 'INVERTITO' : 'NORMALE'); $('oSnd').textContent = 'SUONO: ' + (O.snd ? 'SÌ' : 'NO'); $('oCam').textContent = 'CAMERA: ' + ({ c: 'VICINA', m: 'MEDIA', l: 'LONTANA' }[O.cam]); }
+$('oPista').textContent = 'PERCORSO: ' + (SCHOOL ? 'SCUOLA' : 'GIRO EASY'); $('oPista').onclick = () => { setOpt('pista', SCHOOL ? 'g' : 's'); location.reload(); };
+if (SCHOOL) { $('ptxt').textContent = 'Scuola di enduro: otto stazioni, ognuna ti insegna una cosa. Se sbagli riparti da quella stazione. Qui gas e freno sono manuali.'; $('tag').textContent = $('tag').textContent.replace('PERCORSO ENDURO', 'SCUOLA DI ENDURO'); }
 $('oAuto').onclick = () => { O.auto = !O.auto; setOpt('auto', O.auto ? '1' : '0'); labels(); };
 $('oGas').onclick = () => { O.gas = O.gas === 'a' ? 'm' : 'a'; setOpt('gas', O.gas); labels(); hud(); };
 $('oSens').onclick = () => { O.sens = { s: 'm', m: 'h', h: 's' }[O.sens]; setOpt('sens', O.sens); labels(); };
 $('oSnd').onclick = () => { O.snd = !O.snd; setOpt('snd', O.snd ? '1' : '0'); setSound(O.snd); labels(); };
 $('oInv').onclick = () => { O.inv = !O.inv; setOpt('inv', O.inv ? '1' : '0'); labels(); };
 $('oCam').onclick = () => { O.cam = { c: 'm', m: 'l', l: 'c' }[O.cam]; setOpt('cam', O.cam); labels(); };
-function restart() { place(); time = 0; state = 'count'; cd = 2.4; $('panel').classList.add('hide'); $('msg').textContent = '3'; }
-function finish() { state = 'done'; const rec = !best || time < best; if (rec) { best = time; setOpt('best', String(time)); }
+function restart() { stI = null; stM = {}; if (SCHOOL) { O.gas = 't'; O.auto = false; $('tip').classList.add('hidden'); } place(); time = 0; state = 'count'; cd = 2.4; $('panel').classList.add('hide'); $('msg').textContent = '3'; }
+function finish() { state = 'done'; if (SCHOOL) { setOpt('pista', 'g'); $('tip').classList.add('hidden'); $('pres').textContent = 'SCUOLA FINITA! Adesso il giro vero.'; $('go').textContent = 'VAI AL GIRO'; $('go').onclick = () => location.reload(); setTimeout(() => $('panel').classList.remove('hide'), 900); $('msg').textContent = 'PROMOSSO!'; return; }
+  const rec = !best || time < best; if (rec) { best = time; setOpt('best', String(time)); }
   $('pres').textContent = 'AL RIFUGIO IN ' + fmt(time) + ' s' + (rec ? ' · RECORD!' : ''); $('go').textContent = 'UN ALTRO GIRO'; setTimeout(() => $('panel').classList.remove('hide'), 900); $('msg').textContent = 'ARRIVATO!'; }
 $('go').onclick = () => { askTilt(); startSound(); restart(); }; $('again').onclick = () => { askTilt(); startSound(); restart(); };
 $('opts').onclick = () => { state = 'menu'; $('pres').textContent = ''; $('go').textContent = 'RIPARTI'; $('panel').classList.remove('hide'); };
@@ -362,7 +380,7 @@ function frame(now) {
   const fdt = Math.min(.05, (now - last) / 1000); last = now; if (fdt <= 0) return;
   if (state === 'count') { cd -= fdt; $('msg').textContent = cd > 1.6 ? '3' : cd > .8 ? '2' : cd > 0 ? '1' : 'VIA!'; if (cd <= 0) { state = 'play'; time = 0; } }
   const n = Math.max(1, Math.round(fdt / (1 / 120))); for (let i = 0; i < n; i++) step(fdt / n);
-  draw(fdt); hud();
+  school(fdt); draw(fdt); hud();
   // telefoni lenti: si abbassa la risoluzione, mai la fluidità
   if (fdt > .03) { if (++slow > 40 && pix > 1) { pix = Math.max(1, pix - .25); slow = 0; resize(); } } else slow = Math.max(0, slow - 1);
 }
