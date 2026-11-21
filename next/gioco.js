@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=8';
+import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=9';
 import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=9';
 import { makeRider } from './pilota.js?v=4';
 
@@ -75,7 +75,7 @@ for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single
   const g1 = new T.PlaneGeometry(1, 1), g2 = g1.clone().rotateY(Math.PI / 2), cross = new T.BufferGeometry();
   cross.setAttribute('position', new T.Float32BufferAttribute([...g1.attributes.position.array, ...g2.attributes.position.array], 3)); cross.setAttribute('uv', new T.Float32BufferAttribute([...g1.attributes.uv.array, ...g2.attributes.uv.array], 2)); cross.setIndex([...g1.index.array, ...[...g2.index.array].map(v => v + 4)]);
   const list = []; for (const sp of tr.spans) { const dense = sp.kind === 'b', some = sp.kind === 't' || sp.kind === 'm' || sp.kind === 'd' || sp.kind === 's'; if (!dense && !some) continue;
-    for (let s = sp.s0 + 1; s < sp.s1 - 1; s += dense ? 1.1 : 5) for (const sg of [-1, 1]) { if (!dense && rnd() < .5) continue; const hw = widthAt(tr, s) / 2; const out = dense ? -.1 + rnd() * rnd() * 4 : .3 + rnd() * 3; list.push([s + rnd(), sg * (hw + out), dense ? .75 + rnd() * .6 + Math.max(0, out - .6) * .55 : 1.1 + rnd() * 1.2]); } }   // bassi a ridosso del sentiero, più alti dietro: il sentiero e la moto devono restare visibili
+    for (let s = sp.s0 + 1; s < sp.s1 - 1; s += dense ? 1.7 : 5) for (const sg of [-1, 1]) { if (!dense && rnd() < .5) continue; const hw = widthAt(tr, s) / 2; const out = dense ? .55 + rnd() * rnd() * 4 : .3 + rnd() * 3; list.push([s + rnd(), sg * (hw + out), dense ? .55 + rnd() * .35 + Math.max(0, out - 1.2) * .6 : 1.1 + rnd() * 1.2]); } }   // bassi a ridosso del sentiero, più alti dietro: il sentiero e la moto devono restare visibili
   const im = new T.InstancedMesh(cross, leaf, list.length), m = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3(), e = new T.Euler();
   list.forEach(([s, d, h], i) => { at(tr, s, d, P); q.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(h * 1.25, h, h * 1.25); ps.set(P.x, P.y + h * .42, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
   const bm = new T.InstancedMesh(new T.PlaneGeometry(1, 1), leaf, tr.branches.length * 2); let k = 0;
@@ -200,7 +200,7 @@ function place() { const s0 = 20; at(tr, s0, 0, P); Object.assign(S, { x: P.x, z
 function step(dt) {
   const pr = project(tr, S.x, S.z, S.i); S.i = pr.i; S.s = pr.s; S.d = pr.d; S.grade = pr.g;
   const HW = widthAt(tr, S.s) / 2, KD = kindAt(tr, S.s); S.kd = KD;
-  const onTrack = Math.abs(S.d) <= HW + .2; S.off += ((onTrack ? 0 : 1) - S.off) * Math.min(1, dt * 6);
+  const onTrack = Math.abs(S.d) <= HW + .2; S.off += ((onTrack ? 0 : clamp((Math.abs(S.d) - HW - .2) / 1.6, .12, 1)) - S.off) * Math.min(1, dt * 6);
   S.grip += (KD.grip - S.grip) * Math.min(1, dt * 5); S.wet = S.air > 0 ? 0 : waterAt(tr, S.s, S.d, groundY(tr, S.s, S.d, true));   // aderenza del fondo e profondità dell'acqua sotto le ruote
   // sterzo: il comando chiede una piega, la moto ci arriva con il suo peso (molla smorzata)
   const key = keyR - keyL, raw = performance.now() - tiltSeen < 700 && Math.abs(tiltSteer) > .001 ? tiltSteer : (key || touchSteer);
@@ -214,7 +214,7 @@ function step(dt) {
     for (const br of tr.branches) if (br.s > S.sPrev && br.s <= S.s) { const hw = widthAt(tr, br.s) / 2; if (S.d * br.side > -br.reach - .25) { const deep = clamp((S.d * br.side + br.reach + .25) / (hw + br.reach), .2, 1); splat('leaf', Math.round(2 + deep * 4), br.side); whip(); S.v *= 1 - .07 * deep; S.hit = Math.max(S.hit, .25 * deep); S.psi -= br.side * .03 * deep; } }   // ramo in faccia: non vedi, perdi un po' di velocità, la moto scarta
   }
   S.sPrev = S.s;
-  const mu = (S.grip - S.off * .42 - Math.min(.25, S.wet * .8)), vEff = Math.max(S.v, 4.5);
+  const mu = (S.grip - S.off * .3 - Math.min(.25, S.wet * .8)), vEff = Math.max(S.v, 4.5);
   let om = G * Math.tan(S.lean) / vEff; const omMax = mu * G / vEff, over = Math.max(0, Math.abs(om) - omMax);
   if (over > 0) om = Math.sign(om) * (omMax + over * .25);   // oltre il limite la moto allarga
   // velocità: gas (automatico o tasto), freno, salita/discesa, attrito in piega, erba
