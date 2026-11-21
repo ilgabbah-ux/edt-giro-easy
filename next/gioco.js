@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=16';
+import { SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=17';
 import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=10';
 import { makeRider } from './pilota.js?v=4';
 
@@ -417,18 +417,18 @@ const fmt = t => t.toFixed(1).replace('.', ',');
 let stI = null, stM = {}, flashT = 0, flashMsg = '';
 function flash(m, t = 1.5) { flashMsg = m; flashT = t; }
 function toStation(k, why) { const a = tr.stations[k], s = a.s0 + 3; at(tr, s, 0, P); Object.assign(S, { x: P.x, z: P.z, y: P.y, by: P.y, psi: P.h, v: 0, lean: 0, leanV: 0, slip: 0, vy: 0, bvy: 0, air: 0, fall: 0, safe: 1.5, wh: 0, whV: 0, thr: 0, i: Math.round(s / DS), s, sPrev: s, d: 0, overT: 0 }); steerIn = 0; cam.h = P.h; cam.init = false; stM = {}; if (why) flash(why, 2.2); }
-function school(dt) { flashT -= dt; if (!tr.stations || state !== 'play') return;
+function school(dt) { flashT -= dt; if (!tr.stations || (state !== 'play' && state !== 'count')) return;
   const k = tr.stations.findIndex(a => S.s >= a.s0 && S.s < a.s1);
-  if (stI !== null && stI >= 0 && k !== stI && S.s >= tr.stations[stI].s1) { const a = tr.stations[stI], m = stM, ok = a.goal === 'on' ? (m.off || 0) < 1.5 : a.goal === 'spin' ? (m.spin || 0) < 1.2 : a.goal === 'slide' ? !!m.braked && (m.off || 0) < 1.2 : a.goal === 'wh' ? (m.wh || 0) >= .4 : true; if (!ok) { toStation(stI, a.no); return; } flash('BRAVO!', 1.2); }
+  if (stI !== null && stI >= 0 && k !== stI && S.s >= tr.stations[stI].s1) { const a = tr.stations[stI], m = stM, ok = a.goal === 'on' ? (m.off || 0) < 1.5 : a.goal === 'spin' ? (m.spin || 0) < 1.2 : a.goal === 'slide' ? !!m.braked && (m.off || 0) < 1.2 : a.goal === 'wh' ? (m.wh || 0) >= .4 : a.goal === 'half' ? (m.half || 0) >= 1 : true; if (!ok) { toStation(stI, a.no); return; } if (a.no) flash('BRAVO!', 1.2); }
   if (k !== stI) { stI = k; stM = {}; $('tip').innerHTML = k >= 0 ? '<b>' + (k + 1) + '/' + tr.stations.length + ' · ' + tr.stations[k].t + '</b>' + tr.stations[k].x : ''; $('tip').classList.toggle('hidden', k < 0); }
-  if (k >= 0) { const m = stM; if (Math.abs(S.d) > widthAt(tr, S.s) / 2 + .3) m.off = (m.off || 0) + dt; if ((S.spin || 0) > .5) m.spin = (m.spin || 0) + dt; if (S.brk && S.v > 4) m.braked = 1; m.wh = Math.max(m.wh || 0, S.wh || 0);
+  if (k >= 0) { const m = stM; if (Math.abs(S.d) > widthAt(tr, S.s) / 2 + .3) m.off = (m.off || 0) + dt; if ((S.spin || 0) > .5) m.spin = (m.spin || 0) + dt; if (S.brk && S.v > 4) m.braked = 1; if ((S.thr || 0) > .25 && (S.thr || 0) < .75) m.half = (m.half || 0) + dt; m.wh = Math.max(m.wh || 0, S.wh || 0);
     if (S.fall > 0) m.fell = 1; else if (m.fell) toStation(k, tr.stations[k].no); } }
 function hud() { $('spd').firstChild.nodeValue = Math.round(S.v * 3.6); $('tim').firstChild.nodeValue = fmt(time); $('bar').firstElementChild.style.width = clamp(S.s / (tr.len - 14) * 100, 0, 100) + '%';
   $('best').textContent = best ? 'RECORD ' + fmt(best) + ' s' : ''; $('gasb').classList.toggle('hidden', O.gas === 'a'); $('gasb').style.setProperty('--g', Math.round((S.thr || 0) * 100) + '%');
   if (state === 'play') { const t = S.fall > 0 ? 'CADUTO!' : flashT > 0 ? flashMsg : wrong > .8 ? 'GIRATI!' : time < .9 ? 'VIA!' : ''; if ($('msg').textContent !== t) $('msg').textContent = t; $('msg').classList.toggle('small', t.length > 9); } else $('msg').classList.remove('small'); }
 function labels() { $('oAuto').textContent = 'FRENO AUTO: ' + (O.auto ? 'SÌ' : 'NO'); $('oGas').textContent = 'GAS: ' + (O.gas === 'a' ? 'AUTOMATICO' : 'COL TASTO'); $('oSens').textContent = 'STERZO: ' + ({ s: 'MORBIDO', m: 'MEDIO', h: 'RAPIDO' }[O.sens]); $('oInv').textContent = 'VERSO STERZO: ' + (O.inv ? 'INVERTITO' : 'NORMALE'); $('oSnd').textContent = 'SUONO: ' + (O.snd ? 'SÌ' : 'NO'); $('oCam').textContent = 'CAMERA: ' + ({ c: 'VICINA', m: 'MEDIA', l: 'LONTANA' }[O.cam]); }
 $('oPista').textContent = 'PERCORSO: ' + (SCHOOL ? 'SCUOLA' : 'GIRO EASY'); $('oPista').onclick = () => { setOpt('pista', SCHOOL ? 'g' : 's'); location.reload(); };
-if (SCHOOL) { $('ptxt').textContent = 'Scuola di enduro: otto stazioni, ognuna ti insegna una cosa. Se sbagli riparti da quella stazione. Qui gas e freno sono manuali.'; $('tag').textContent = $('tag').textContent.replace('PERCORSO ENDURO', 'SCUOLA DI ENDURO'); }
+if (SCHOOL) { $('ptxt').textContent = 'Scuola di enduro: dieci stazioni, ognuna ti insegna una cosa. Se sbagli riparti da quella stazione. Qui gas e freno sono manuali.'; $('tag').textContent = $('tag').textContent.replace('PERCORSO ENDURO', 'SCUOLA DI ENDURO'); }
 $('oAuto').onclick = () => { O.auto = !O.auto; setOpt('auto', O.auto ? '1' : '0'); labels(); };
 $('oGas').onclick = () => { O.gas = O.gas === 'a' ? 'm' : 'a'; setOpt('gas', O.gas); labels(); hud(); };
 $('oSens').onclick = () => { O.sens = { s: 'm', m: 'h', h: 's' }[O.sens]; setOpt('sens', O.sens); labels(); };

@@ -28,7 +28,7 @@ export const GIRO_EASY = [
 ];
 // SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
 export const SCUOLA = [
-  [70, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
+  [80, 0, 0, 'v'], [70, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
   [60, 0, 0, 'f'],
   [40, 0, 0, 'v'], [30, 13, 0, 'v'], [30, 0, 0, 'v'],
   [80, 0, 0, 'v'],
@@ -38,16 +38,18 @@ export const SCUOLA = [
   [30, 0, 0, 't'], [23, 15, 0, 't'], [23, -14, 0, 't'], [30, 0, 0, 't'],
   [50, 0, 0, 'v'],
 ];
-export const SCUOLA_EXTRA = { plain: true, logs: [500, 545], steps: [608, 616, 624, 632],
+export const SCUOLA_EXTRA = { plain: true, logs: [580, 625], steps: [688, 696, 704, 712],
   stations: [
-    { s0: 60, s1: 232, goal: 'on', t: 'STERZO', x: 'Inclina il telefono come un manubrio. Fai lo slalom senza uscire dal sentiero.', no: 'RESTA SUL SENTIERO' },
-    { s0: 232, s1: 305, goal: 'spin', t: 'GAS', x: 'Tocchi il tasto ed è tutto aperto, trascini il pollice in giù per chiudere. Nel fango apri poco: se la ruota pattina non vai avanti.', no: 'MENO GAS NEL FANGO' },
-    { s0: 305, s1: 400, goal: 'slide', t: 'FRENO', x: 'Curva stretta: frena prima e sterza. La moto va di traverso e chiude la curva.', no: 'FRENA PRIMA, POI STERZA' },
-    { s0: 400, s1: 480, goal: 'wh', t: 'IMPENNATA', x: 'Colpo di gas: molla e riapri subito. La ruota davanti si alza, la tieni su col gas.', no: 'MOLLA E RIAPRI SUBITO' },
-    { s0: 480, s1: 560, goal: 'pass', t: 'TRONCHI', x: 'Arriva piano (sotto i 60) e impenna appena prima del tronco. Con la ruota a terra e forte, cadi.', no: 'IMPENNA PRIMA DEL TRONCO' },
-    { s0: 560, s1: 690, goal: 'pass', t: 'SALITA', x: 'Gas pieno e non mollare. Sui gradoni alza la ruota davanti.', no: 'GAS PIENO, NON MOLLARE' },
-    { s0: 690, s1: 800, goal: 'pass', t: 'SASSI E RAMI', x: 'Sassi grossi e alberi si schivano. I rami in faccia ti tolgono la vista e ti rallentano.', no: 'SCHIVA I SASSI GROSSI' },
-    { s0: 800, s1: 906, goal: 'pass', t: 'SINGLE TRACK', x: 'Stretto tra gli alberi: frena prima, piega tutto, gas in uscita.', no: 'FRENA PRIMA DELLA CURVA' },
+    { s0: 0, s1: 50, goal: 'pass', t: 'BENVENUTO ALLA SCUOLA', x: 'Dieci stazioni, una cosa per volta. Qui sotto leggi cosa fare. Se sbagli riparti dalla stessa stazione.', no: '' },
+    { s0: 50, s1: 150, goal: 'half', t: 'GAS', x: 'Tocca il tasto GAS: è tutto aperto. Senza staccare il pollice trascinalo in giù per chiudere, in su per riaprire. Prova a tenerlo a metà per un secondo.', no: 'TOCCA IL GAS E TRASCINA IN GIÙ' },
+    { s0: 150, s1: 312, goal: 'on', t: 'STERZO', x: 'Inclina il telefono come un manubrio. Fai lo slalom senza uscire dal sentiero.', no: 'RESTA SUL SENTIERO' },
+    { s0: 312, s1: 385, goal: 'spin', t: 'FANGO', x: 'Nel fango apri poco: a tutto gas la ruota pattina e non vai avanti. Trascina il pollice in giù.', no: 'MENO GAS NEL FANGO' },
+    { s0: 385, s1: 480, goal: 'slide', t: 'FRENO', x: 'Curva stretta: frena prima e sterza. La moto va di traverso e chiude la curva.', no: 'FRENA PRIMA, POI STERZA' },
+    { s0: 480, s1: 560, goal: 'wh', t: 'IMPENNATA', x: 'Colpo di gas: molla e riapri subito. La ruota davanti si alza, la tieni su col gas.', no: 'MOLLA E RIAPRI SUBITO' },
+    { s0: 560, s1: 640, goal: 'pass', t: 'TRONCHI', x: 'Arriva piano (sotto i 60) e impenna appena prima del tronco. Con la ruota a terra e forte, cadi.', no: 'IMPENNA PRIMA DEL TRONCO' },
+    { s0: 640, s1: 770, goal: 'pass', t: 'SALITA', x: 'Gas pieno e non mollare. Sui gradoni alza la ruota davanti.', no: 'GAS PIENO, NON MOLLARE' },
+    { s0: 770, s1: 880, goal: 'pass', t: 'SASSI E RAMI', x: 'Sassi grossi e alberi si schivano. I rami in faccia ti tolgono la vista e ti rallentano.', no: 'SCHIVA I SASSI GROSSI' },
+    { s0: 880, s1: 986, goal: 'pass', t: 'SINGLE TRACK', x: 'Stretto tra gli alberi: frena prima, piega tutto, gas in uscita.', no: 'FRENA PRIMA DELLA CURVA' },
   ] };
 const smooth = (a, n) => a.map((_, i) => { let s = 0, c = 0; for (let k = -n; k <= n; k++) { s += a[Math.max(0, Math.min(a.length - 1, i + k))]; c++; } return s / c; });
 export function buildTrack(segs = GIRO_EASY, extra = {}) {
