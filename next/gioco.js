@@ -194,9 +194,9 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) canvas.addEvent
 function upd() { let v = 0; for (const x of touches.values()) v += x < innerWidth / 2 ? -1 : 1; touchSteer = clamp(v, -1, 1); }
 const hold = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); fn(true); }); for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, () => fn(false)); };
 hold($('brake'), v => braking = v);
-// GAS a manopola: il tasto è alto, dove appoggi il pollice decide quanto apri (in basso un filo, in alto tutto) e puoi scorrere su e giù senza staccare
-{ const el = $('gasb'), set = e => { const r = el.getBoundingClientRect(); gasCmd = clamp(.22 + (r.bottom - e.clientY) / (r.height * .82) * .78, .22, 1); };
-  el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); gasHeld = true; set(e); }); el.addEventListener('pointermove', e => { if (gasHeld) set(e); });
+// GAS: tocchi il tasto dove capita ed è tutto aperto; trascinando il pollice in giù chiudi (un dito e mezzo di corsa = un filo di gas), risalendo riapri. Non c'è da mirare
+{ const el = $('gasb'); let y0 = 0; const set = e => { if (e.clientY < y0) y0 = e.clientY; gasCmd = clamp(1 - (e.clientY - y0) / 120 * .8, .2, 1); };
+  el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); gasHeld = true; y0 = e.clientY; gasCmd = 1; }); el.addEventListener('pointermove', e => { if (gasHeld) set(e); });
   for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, () => { gasHeld = false; gasCmd = 0; }); }
 
 // ---------- fisica ----------

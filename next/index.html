@@ -21,7 +21,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 .btn { position: fixed; z-index: 3; pointer-events: auto; border: 0; font: 700 18px Barlow, sans-serif; letter-spacing: .04em; color: #111; background: #ffd400; padding: 0 18px; height: 54px; transform: skewX(-8deg); box-shadow: 0 4px 0 #0009; }
 .btn.dark { background: #1c1f1cdd; color: #fff; border: 2px solid #ffffff44; }
 #brake { left: 14px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 132px; height: 92px; font-size: 24px; background: #d6332bdd; color: #fff; }
-#gasb { right: 14px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 132px; height: 168px; font-size: 24px; touch-action: none; background: linear-gradient(to top, #ffd400 var(--g, 0%), #6b5a00cc var(--g, 0%)); color: #111; }
+#gasb { right: 14px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 140px; height: 120px; font-size: 24px; touch-action: none; background: linear-gradient(to top, #ffd400 var(--g, 0%), #6b5a00cc var(--g, 0%)); color: #111; }
 #again { right: 14px; top: calc(96px + env(safe-area-inset-top)); height: 40px; font-size: 15px; }
 #opts { left: 14px; top: calc(96px + env(safe-area-inset-top)); height: 40px; font-size: 15px; }
 #panel { position: fixed; z-index: 5; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #0b0e0bd9; padding: 24px; text-align: center; }
@@ -36,7 +36,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v19</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v20</div>
 <div class="hud" id="msg"></div>
 <button class="btn" id="brake" type="button">FRENO</button>
 <button class="btn" id="gasb" type="button">GAS</button>
@@ -57,7 +57,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   <p id="pres" style="color:#ffd400;font-size:20px"></p>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 19; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=19"></script>
+(function () { var V = 20; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=20"></script>
 </body>
 </html>
