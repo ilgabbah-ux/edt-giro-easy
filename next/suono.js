@@ -4,7 +4,16 @@ let ctx = null, master = null, E = null, on = true, noiseBuf = null;
 const GEARS = [0, .42, .72, 1.02, 1.34, 1.7, 9];
 // Motore di ogni moto: due registrazioni vere a giri costanti (basso e alto regime) che si danno il cambio. f = scoppi al secondo della registrazione, len = durata del giro chiuso.
 const EP = { lo: { url: 'suoni/fakedomi-basso.mp3?v=1', f: 31, len: 2.998526 }, hi: { url: 'suoni/fakedomi-alto.mp3?v=1', f: 55, len: 2.986032 }, x0: 36, x1: 48, nz: .6 };   // Fake Domi: mono 4 tempi 650
-export function setSound(v) { on = v; if (ctx) master.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, .05); }
+const mLevel = () => on ? (vSrc ? .4 : 1) : 0;   // mentre il Gabbah parla il motore si abbassa
+export function setSound(v) { on = v; if (ctx) master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .05); if (!on) hush(); }
+// VOCE della scuola: le frasi del Gabbah, una per stazione. Si caricano alla prima richiesta; se ne parte una nuova la vecchia si zittisce
+const VB = {}; let vSrc = null, vWant = '';
+function hush() { if (vSrc) { try { vSrc.stop(); } catch {} vSrc = null; } if (ctx) master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .15); }
+export async function say(name) { vWant = name; hush(); if (!ctx || !on) return;
+  try { if (!VB[name]) VB[name] = fetch('voce/' + name + '.mp3?v=1').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)); const buf = await VB[name]; if (vWant !== name || !on) return;
+    const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = buf; g.gain.value = 1.7; src.connect(g); g.connect(ctx.destination); vSrc = src; master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .12);
+    src.onended = () => { if (vSrc === src) { vSrc = null; master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .3); } }; src.start(); } catch {} }
+export function preloadVoice(names) { if (ctx) for (const n of names) if (!VB[n]) VB[n] = fetch('voce/' + n + '.mp3?v=1').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).catch(() => null); }
 function burst(dur, freq, q, vol, type, when = 0) { const t = ctx.currentTime + when, s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
   const g = ctx.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * .5); s.stop(t + dur + .05); }
 export async function startSound() {

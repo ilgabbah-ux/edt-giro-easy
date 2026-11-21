@@ -4,7 +4,7 @@ import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
 import { SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=18';
-import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=10';
+import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice } from './suono.js?v=11';
 import { makeRider } from './pilota.js?v=4';
 
 const $ = id => document.getElementById(id);
@@ -418,8 +418,8 @@ const fmt = t => t.toFixed(1).replace('.', ',');
 let stI = null, stM = {}, flashT = 0, flashMsg = '';
 function flash(m, t = 1.5) { flashMsg = m; flashT = t; }
 function toStation(k, why) { const a = tr.stations[k], s = a.s0 + 3; tipSet(k, 0); at(tr, s, 0, P); Object.assign(S, { x: P.x, z: P.z, y: P.y, by: P.y, psi: P.h, v: 0, lean: 0, leanV: 0, slip: 0, vy: 0, bvy: 0, air: 0, fall: 0, safe: 1.5, wh: 0, whV: 0, thr: 0, i: Math.round(s / DS), s, sPrev: s, d: 0, overT: 0 }); steerIn = 0; cam.h = P.h; cam.init = false; stM = {}; if (why) flash(why, 2.2); }
-let assist = false;   // nelle prime stazioni della scuola la moto sta in strada da sola
-const tipSet = (k, done) => { const a = tr.stations[k]; $('tip').innerHTML = '<b>' + (k + 1) + '/' + tr.stations.length + ' · ' + a.t + (done ? ' · FATTO!' : '') + '</b>' + (done ? 'Bravo. Vai avanti col GAS fino alla prossima.' : a.x); $('tip').classList.toggle('done', !!done); for (const id of ['gasb', 'brake']) $(id).classList.toggle('pulse', !done && a.hl === id); };
+let assist = false, vLast = -1;   // nelle prime stazioni della scuola la moto sta in strada da sola
+const tipSet = (k, done) => { const a = tr.stations[k]; $('tip').innerHTML = '<b>' + (k + 1) + '/' + tr.stations.length + ' · ' + a.t + (done ? ' · FATTO!' : '') + '</b>' + (done ? 'Bravo. Vai avanti col GAS fino alla prossima.' : a.x); $('tip').classList.toggle('done', !!done); for (const id of ['gasb', 'brake']) $(id).classList.toggle('pulse', !done && a.hl === id); if (!done && vLast !== k) { vLast = k; say('v' + (k + 1)); } };
 function school(dt) { flashT -= dt; if (!tr.stations || (state !== 'play' && state !== 'count')) { assist = false; return; }
   const k = tr.stations.findIndex(a => S.s >= a.s0 && S.s < a.s1);
   if (stI !== null && stI >= 0 && k !== stI && S.s >= tr.stations[stI].s1) { const a = tr.stations[stI], m = stM, ok = m.done || (a.goal === 'on' ? (m.off || 0) < 1.5 : a.goal === 'spin' ? (m.spin || 0) < 1.2 : a.goal === 'slide' ? !!m.braked && (m.off || 0) < 1.2 : a.goal === 'pass'); if (!ok) { toStation(stI, a.no); return; } if (!m.done) flash('BRAVO!', 1.2); }
@@ -427,7 +427,7 @@ function school(dt) { flashT -= dt; if (!tr.stations || (state !== 'play' && sta
   assist = k >= 0 && !!tr.stations[k].auto;
   if (k >= 0 && state === 'play') { const a = tr.stations[k], m = stM; if (Math.abs(S.d) > widthAt(tr, S.s) / 2 + .3) m.off = (m.off || 0) + dt; if ((S.spin || 0) > .5) m.spin = (m.spin || 0) + dt; if (S.brk && S.v > 4) m.braked = 1; if ((S.thr || 0) > .25 && (S.thr || 0) < .75) m.half = (m.half || 0) + dt; m.wh = Math.max(m.wh || 0, S.wh || 0);
     if (S.v > 9) m.fast = 1; if (steerIn > .3) m.right = 1; if (steerIn < -.3) m.left = 1;
-    if (!m.done && (a.goal === 'go' ? S.v > 8 : a.goal === 'stop' ? m.fast && S.v < 1.2 && S.brk : a.goal === 'half' ? (m.half || 0) >= 1 : a.goal === 'lean' ? m.left && m.right : a.goal === 'wh' ? (m.wh || 0) >= .4 : false)) { m.done = 1; flash('BRAVO!', 1.2); tipSet(k, 1); }
+    if (!m.done && (a.goal === 'go' ? S.v > 8 : a.goal === 'stop' ? m.fast && S.v < 1.2 && S.brk : a.goal === 'half' ? (m.half || 0) >= 1 : a.goal === 'lean' ? m.left && m.right : a.goal === 'wh' ? (m.wh || 0) >= .4 : false)) { m.done = 1; flash('BRAVO!', 1.2); tipSet(k, 1); if (k > 0) say('si'); }
     if (S.fall > 0) m.fell = 1; else if (m.fell) toStation(k, a.no); } }
 function hud() { $('spd').firstChild.nodeValue = Math.round(S.v * 3.6); $('tim').firstChild.nodeValue = fmt(time); $('bar').firstElementChild.style.width = clamp(S.s / (tr.len - 14) * 100, 0, 100) + '%';
   $('best').textContent = best ? 'RECORD ' + fmt(best) + ' s' : ''; $('gasb').classList.toggle('hidden', O.gas === 'a'); $('gasb').style.setProperty('--g', Math.round((S.thr || 0) * 100) + '%');
@@ -441,8 +441,8 @@ $('oSens').onclick = () => { O.sens = { s: 'm', m: 'h', h: 's' }[O.sens]; setOpt
 $('oSnd').onclick = () => { O.snd = !O.snd; setOpt('snd', O.snd ? '1' : '0'); setSound(O.snd); labels(); };
 $('oInv').onclick = () => { O.inv = !O.inv; setOpt('inv', O.inv ? '1' : '0'); labels(); };
 $('oCam').onclick = () => { O.cam = { c: 'm', m: 'l', l: 'c' }[O.cam]; setOpt('cam', O.cam); labels(); };
-function restart() { stI = null; stM = {}; if (SCHOOL) { O.gas = 't'; O.auto = false; $('tip').classList.add('hidden'); } place(); time = 0; state = 'count'; cd = 2.4; $('panel').classList.add('hide'); $('msg').textContent = '3'; }
-function finish() { state = 'done'; if (SCHOOL) { setOpt('pista', 'g'); $('tip').classList.add('hidden'); $('pres').textContent = 'SCUOLA FINITA! Adesso il giro vero. Se vuoi una mano, nelle OPZIONI trovi freno automatico, gas automatico, sensibilità e verso dello sterzo, distanza della camera.'; $('go').textContent = 'VAI AL GIRO'; $('go').onclick = () => location.reload(); setTimeout(() => $('panel').classList.remove('hide'), 900); $('msg').textContent = 'PROMOSSO!'; return; }
+function restart() { stI = null; stM = {}; vLast = -1; if (SCHOOL) setTimeout(() => preloadVoice(['v1', 'v2', 'v3', 'v4', 'si', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'fine']), 300); if (SCHOOL) { O.gas = 't'; O.auto = false; $('tip').classList.add('hidden'); } place(); time = 0; state = 'count'; cd = 2.4; $('panel').classList.add('hide'); $('msg').textContent = '3'; }
+function finish() { state = 'done'; if (SCHOOL) { setOpt('pista', 'g'); $('tip').classList.add('hidden'); $('pres').textContent = 'SCUOLA FINITA! Adesso il giro vero. Se vuoi una mano, nelle OPZIONI trovi freno automatico, gas automatico, sensibilità e verso dello sterzo, distanza della camera.'; $('go').textContent = 'VAI AL GIRO'; say('fine'); $('go').onclick = () => location.reload(); setTimeout(() => $('panel').classList.remove('hide'), 900); $('msg').textContent = 'PROMOSSO!'; return; }
   const rec = !best || time < best; if (rec) { best = time; setOpt('best', String(time)); }
   $('pres').textContent = 'AL RIFUGIO IN ' + fmt(time) + ' s' + (rec ? ' · RECORD!' : ''); $('go').textContent = 'UN ALTRO GIRO'; setTimeout(() => $('panel').classList.remove('hide'), 900); $('msg').textContent = 'ARRIVATO!'; }
 $('go').onclick = () => { askTilt(); startSound(); restart(); }; $('again').onclick = () => { askTilt(); startSound(); restart(); };
