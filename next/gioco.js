@@ -84,6 +84,7 @@ for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single
     for (let r = 0; r < 2; r++) { at(tr, br.s + r * .5, mid, P); e.set(-Math.PI / 2 + (r ? .5 : -.35), -P.h, br.side * .16, 'YXZ'); q.setFromEuler(e); sc.set(len * 1.15, 2.4, 1); ps.set(P.x, P.y + 1.75 + r * .25, P.z); m.compose(ps, q, sc); bm.setMatrixAt(k++, m); } }
   scene.add(bm);
 }
+const ROCKS = [];   // i sassi grossi sono ostacoli veri: x, z, raggio, raggruppati ogni 8 m
 { // sassi: tanti nella pietraia (anche sul sentiero, piccoli), muretti a secco lungo la mulattiera, qualcuno nel guado
   let seed = 99; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, list = [];
   for (const sp of tr.spans) {
@@ -93,7 +94,7 @@ for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single
     if (sp.kind === 'g') for (let s = sp.s0; s < sp.s1; s += 1.6) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .5 + rnd() * 3), .3 + rnd() * .5, 0]);
   }
   const geo = new T.DodecahedronGeometry(1, 0), im = new T.InstancedMesh(geo, new T.MeshLambertMaterial({ map: tex('../img/tex/mossrock_d.webp'), color: 0xcfcac2 }), list.length), m = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), sc = new T.Vector3(), ps = new T.Vector3();
-  list.forEach(([s, d, r, up], i) => { at(tr, s, d, P); e.set(rnd() * 6, rnd() * 6, rnd() * 6); q.setFromEuler(e); sc.set(r * (.8 + rnd() * .5), r * (.55 + rnd() * .3), r * (.8 + rnd() * .5)); ps.set(P.x, P.y + r * .2 + up, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
+  list.forEach(([s, d, r, up], i) => { at(tr, s, d, P); e.set(rnd() * 6, rnd() * 6, rnd() * 6); q.setFromEuler(e); sc.set(r * (.8 + rnd() * .5), r * (.55 + rnd() * .3), r * (.8 + rnd() * .5)); if (r > .5 && up === 0) (ROCKS[Math.floor(s / 8)] ||= []).push(P.x, P.z, r * .8); ps.set(P.x, P.y + r * .2 + up, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
 }
 const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di percorso
 { // alberi: due piani incrociati con la foto dell'abete. Nel single track sono fitti e a un passo dal sentiero
@@ -117,8 +118,6 @@ const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di per
     const mat = new T.MeshLambertMaterial({ color: 0x2a2a2a }); for (const sx of [-1, 1]) { const p = new T.Mesh(new T.CylinderGeometry(.14, .14, 5.2, 8), mat); p.position.set(sx * (w / 2 + .6), 2.6, 0); grp.add(p); }
     const b = board(label, '#ffd400', w + 1.6, 1.5); b.position.y = 4.6; grp.add(b); scene.add(grp); };
   gate(14, 'ENDURO DRINKING TEAM'); gate(tr.len - 14, 'RIFUGIO · ARRIVO');
-  for (const sp of tr.spans.slice(1)) { const s = sp.s0 - 6; at(tr, s, widthAt(tr, s) / 2 + 1.2, P); const b = board(KIND[sp.kind].name.toUpperCase(), '#f4f1e8', 2.6, .5); b.position.set(P.x, P.y + 1.5, P.z); b.rotation.y = -P.h; scene.add(b);
-    const pole = new T.Mesh(new T.CylinderGeometry(.04, .04, 1.4, 5), new T.MeshLambertMaterial({ color: 0x5a4632 })); pole.position.set(P.x, P.y + .7, P.z); scene.add(pole); }
 }
 
 // ---------- moto e pilota ----------
@@ -243,6 +242,10 @@ function step(dt) {
   const brakeSlide = brk && S.v > 5 ? turnDir * Math.min(.62, S.brkAmt * (.2 + .55 * Math.abs(steerIn))) * clamp((S.v - 4) / 7, 0, 1) : 0;
   // manopola: quanto chiedi (0..1) e quanto il motore dà davvero (apre e chiude in un attimo, ma non a scatto)
   const want = state === 'play' && !brk && !down ? (O.gas === 'a' ? (S.v < vSafe + 1.5 ? 1 : 0) : gasHeld ? gasCmd : 0) : 0;
+  // IMPENNATA: colpo di gas (chiudi e riapri subito) a bassa e media velocità e la ruota davanti si alza. La tieni su col gas, scende se chiudi o freni; troppo gas da piano e ti ribalti
+  { const now = time, on = want > .05; if (!on && S.gasWas) S.relT = now; if (on && !S.gasWas && now - (S.relT ?? -9) < .4 && S.v > 1.5 && S.v < 17 && Math.abs(S.lean) < .4 && S.air <= 0 && !(S.wh > .05) && O.gas !== 'a') S.whV = 2.1; S.gasWas = on;
+    S.wh = S.wh || 0; S.whV = S.whV || 0; if (S.wh > 0 || S.whV > 0) { S.whV += ((want > .35 ? 5 * (want - .35) * Math.max(0, 1 - S.v / 20) : -6) - 3.2 * S.wh - (brk ? 16 : 0) - S.whV * 2.4) * dt; S.wh += S.whV * dt;
+      if (S.wh <= 0) { if (S.whV < -1.2) { S.hit = Math.max(S.hit, .3); thud(.3); } S.wh = 0; S.whV = 0; } if (S.wh > 1.22) { S.wh = 0; S.whV = 0; crash(0); } if (down || S.air > 0) { S.whV = Math.min(S.whV, 0) - 4 * dt; } } }
   S.thr = (S.thr || 0) + (want - (S.thr || 0)) * Math.min(1, dt * (want > (S.thr || 0) ? 14 : 20)); const thr = S.thr, gasOn = thr > .05;   // il gas automatico molla prima delle curve strette (non frena: quello lo fai tu)
   // trazione: la spinta chiesta contro quella che il fondo regge. Se apri troppo su fango, bagnato o salita la ruota gira a vuoto: spinge meno e il posteriore scappa
   const vTop0 = VMAX * (1 - S.off * .5) * (.4 + .6 * thr), push = thr * 11.5 * clamp(1.15 - S.v / vTop0, 0, 1), hold = Math.max(2, (mu * .92 - Math.abs(Math.tan(S.lean)) * .35) * G), spin = S.air > 0 ? 0 : clamp((push - hold) / hold, 0, 1);
@@ -251,10 +254,10 @@ function step(dt) {
   const slipT = brakeSlide + powerSlide + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0);
   S.slip += (slipT - S.slip) * Math.min(1, dt * (Math.abs(slipT) > Math.abs(S.slip) ? 6.5 : 3.2));
   om += S.slip * 1.7 * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
-  S.psi += om * dt;
+  S.psi += om * dt * (1 - clamp((S.wh || 0) / .5, 0, 1) * .75);   // su una ruota la moto gira poco
   const gas = thr, vTop = vTop0;
   let acc = Math.min(push, hold) * (1 - S.spin * .3) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * (S.grade > 0 ? 2.3 : 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (1 - thr) * (S.v > 2 ? 1.5 : .4) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
-  acc -= G * clamp(Math.tan(S.pitch) - S.grade, 0, .5) * 1.2 * (S.air > 0 ? 0 : 1);   // gradoni e gobbe in salita mangiano velocità: se molli il gas ti fermi
+  acc -= G * clamp(Math.tan(S.pitch) - S.grade, 0, .5) * 1.2 * (S.air > 0 ? 0 : 1) * (1 - clamp((S.wh || 0) / .3, 0, 1) * .8);   // gradoni e gobbe in salita mangiano velocità: se molli il gas ti fermi
   if (down) acc = -9;
   if (state !== 'play') acc = -S.v * 3;
   S.v = Math.max(0, S.v + acc * dt); S.acc = (S.acc || 0) + (acc - (S.acc || 0)) * Math.min(1, dt * 8); S.brk = brk; S.gasOn = gasOn ? 1 : 0; S.over = over;
@@ -268,6 +271,9 @@ function step(dt) {
   // alberi: il tronco non si sposta. Forte si cade, piano ci si pianta contro
   if (!down && S.air <= 0) { const b0 = Math.floor(S.s / 8); for (let b = b0 - 1; b <= b0 + 1; b++) { const a = TREES[b]; if (!a) continue; for (let q = 0; q < a.length; q += 2) { const dx = S.x - a[q], dz = S.z - a[q + 1], dd = dx * dx + dz * dz; if (dd < .2) { const dist = Math.sqrt(dd) || .01, side = Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1;
     S.x = a[q] + dx / dist * .46; S.z = a[q + 1] + dz / dist * .46; if (S.v > 9) crash(side); else { S.v *= .3; S.hit = Math.max(S.hit, .5); thud(.4); } } } } }
+  // sassi grossi: come i tronchi. Forte si cade, piano ci si ferma contro
+  if (!down && S.air <= 0) { const b0 = Math.floor(S.s / 8); for (let b = b0 - 1; b <= b0 + 1; b++) { const a = ROCKS[b]; if (!a) continue; for (let q = 0; q < a.length; q += 3) { const dx = S.x - a[q], dz = S.z - a[q + 1], rr = a[q + 2] + .25, dd = dx * dx + dz * dz; if (dd < rr * rr) { const dist = Math.sqrt(dd) || .01;
+    S.x = a[q] + dx / dist * rr; S.z = a[q + 1] + dz / dist * rr; if (S.v > 7) crash(Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1); else { S.v *= .3; S.hit = Math.max(S.hit, .5); thud(.4); } } } } }
   // bordi: dopo qualche metro di prato c'è la scarpata, si rimbalza dentro perdendo velocità
   const wall = KD.name === 'mulattiera', lim = wall ? HW - .12 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
   if (Math.abs(S.d) > lim) { const sg = Math.sign(S.d), push = Math.abs(S.d) - lim; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push;
@@ -315,7 +321,7 @@ const RD = { off: 0 };
 function draw(dt) {
   { const st = clamp(S.stand - Math.max(0, S.comp) * 2.5 + ((S.airT || 0) > .12 && S.air > 0 ? .6 : 0) + S.rough * 6, 0, 1); S.standV = (S.standV || 0) + (st - (S.standV || 0)) * Math.min(1, dt * 7); }   // il pilota si alza e si abbassa con calma, senza scatti
   const leanVis = clamp(S.lean * 1.12 + S.slip * .35, -1, 1) + (S.fall > 0 ? clamp(S.lean, -1.45, 1.45) * .3 : 0);   // la moto si butta giù più del pilota
-  bike.position.set(S.x, S.y, S.z); bike.rotation.y = -(S.psi + S.slip); leanG.rotation.z = -leanVis; pitchG.rotation.x = S.pitch + (S.air > 0 ? clamp(-S.vy * .03, -.25, .3) : 0) - (S.cF - S.cR) / 1.45 - clamp(S.acc || 0, -6, 9) * .009; pitchG.position.y = -(S.cF + S.cR) / 2 + (S.y - groundY(tr, S.s, S.d, true)) * 0;
+  bike.position.set(S.x, S.y, S.z); bike.rotation.y = -(S.psi + S.slip); leanG.rotation.z = -leanVis; pitchG.rotation.x = S.pitch + (S.air > 0 ? clamp(-S.vy * .03, -.25, .3) : 0) - (S.cF - S.cR) / 1.45 + clamp(S.acc || 0, -6, 9) * .009 + (S.wh || 0); pitchG.position.y = -(S.cF + S.cR) / 2 + (S.y - groundY(tr, S.s, S.d, true)) * 0; pitchG.position.y += Math.sin(S.wh || 0) * .66; pitchG.position.z = (1 - Math.cos(S.wh || 0)) * .66;   /* l'impennata gira attorno alla ruota dietro */
   if (wheelF) { const r = S.v * dt / .4; wheelF.rotation.x -= r; wheelR.rotation.x -= S.brk && Math.abs(S.slip) > .12 ? r * .15 : r; steerG.rotation.y = clamp(S.slip * .9 - S.lean * .1, -.5, .5); wheelF.position.y = P.wfY + S.cF; wheelR.position.y = P.wrY + S.cR; }   // di traverso: ruota dietro quasi bloccata e controsterzo
   if (P.rider) { const r = P.rider.root;   // in caduta il pilota si stacca dalla moto, scivola avanti per conto suo e resta a terra; alla ripartenza torna in sella
     if (S.fall > 0 && !RD.off) { RD.p = r.position.clone(); RD.q = r.quaternion.clone(); RD.s = r.scale.clone(); scene.attach(r); RD.off = 1; RD.t = 0; RD.vx = Math.sin(S.psi) * (S.v * .9 + 2) + Math.cos(S.psi) * S.fallSide * 1.5; RD.vz = -Math.cos(S.psi) * (S.v * .9 + 2) + Math.sin(S.psi) * S.fallSide * 1.5; RD.h = S.psi; }
