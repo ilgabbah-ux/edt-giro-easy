@@ -72,12 +72,13 @@ for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single
 { // macchia: cespugli a ridosso del sentiero (qualcuno ci entra) e rami bassi che sporgono. Niente fettuccia: è enduro nei boschi
   let seed = 31; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const leaf = new T.MeshBasicMaterial({ map: tex('../img/tex/tree_island.webp'), alphaTest: .45, side: T.DoubleSide, color: 0xd9e2cf });
-  const g1 = new T.PlaneGeometry(1, 1), g2 = g1.clone().rotateY(Math.PI / 2), cross = new T.BufferGeometry();
+  const g1 = new T.PlaneGeometry(1, 1); { const uv = g1.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, .32 + uv.getY(i) * .48); }   // solo la chioma della foto: col tronco sottile i cespugli sembravano sospesi in aria
+  const g2 = g1.clone().rotateY(Math.PI / 2), cross = new T.BufferGeometry();
   cross.setAttribute('position', new T.Float32BufferAttribute([...g1.attributes.position.array, ...g2.attributes.position.array], 3)); cross.setAttribute('uv', new T.Float32BufferAttribute([...g1.attributes.uv.array, ...g2.attributes.uv.array], 2)); cross.setIndex([...g1.index.array, ...[...g2.index.array].map(v => v + 4)]);
   const list = []; for (const sp of tr.spans) { const dense = sp.kind === 'b', some = sp.kind === 't' || sp.kind === 'm' || sp.kind === 'd' || sp.kind === 's'; if (!dense && !some) continue;
     for (let s = sp.s0 + 1; s < sp.s1 - 1; s += dense ? 1.7 : 5) for (const sg of [-1, 1]) { if (!dense && rnd() < .5) continue; const hw = widthAt(tr, s) / 2; const out = dense ? .55 + rnd() * rnd() * 4 : .3 + rnd() * 3; list.push([s + rnd(), sg * (hw + out), dense ? .55 + rnd() * .35 + Math.max(0, out - 1.2) * .6 : 1.1 + rnd() * 1.2]); } }   // bassi a ridosso del sentiero, più alti dietro: il sentiero e la moto devono restare visibili
   const im = new T.InstancedMesh(cross, leaf, list.length), m = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3(), e = new T.Euler();
-  list.forEach(([s, d, h], i) => { at(tr, s, d, P); q.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(h * 1.25, h, h * 1.25); ps.set(P.x, P.y + h * .42, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
+  list.forEach(([s, d, h], i) => { at(tr, s, d, P); q.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(h * 1.25, h, h * 1.25); ps.set(P.x, groundY(tr, s, d, true) + h * .4, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
   const bm = new T.InstancedMesh(new T.PlaneGeometry(1, 1), leaf, tr.branches.length * 2); let k = 0;
   for (const br of tr.branches) { const hw = widthAt(tr, br.s) / 2, d0 = br.side * (hw + .8), d1 = -br.side * br.reach, len = Math.abs(d1 - d0), mid = (d0 + d1) / 2;
     for (let r = 0; r < 2; r++) { at(tr, br.s + r * .5, mid, P); e.set(-Math.PI / 2 + (r ? .5 : -.35), -P.h, br.side * .16, 'YXZ'); q.setFromEuler(e); sc.set(len * 1.15, 2.4, 1); ps.set(P.x, P.y + 1.75 + r * .25, P.z); m.compose(ps, q, sc); bm.setMatrixAt(k++, m); } }
