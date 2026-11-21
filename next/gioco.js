@@ -29,7 +29,7 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
 { const c = sun.shadow.camera; c.left = -38; c.right = 38; c.top = 38; c.bottom = -38; c.near = 1; c.far = 220; c.updateProjectionMatrix(); }
 let pix = Math.min(2, window.devicePixelRatio || 1);
 function resize() { const w = innerWidth, h = innerHeight; renderer.setPixelRatio(pix); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
-addEventListener('resize', resize); resize();
+addEventListener('resize', () => { resize(); if (typeof tiltA0 !== 'undefined') tiltA0 = null; }); resize();   // girando il telefono si ritara anche lo sterzo
 
 const tl = new T.TextureLoader();
 const tex = (src, rx, ry) => { const t = tl.load(src); t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; if (rx) t.repeat.set(rx, ry); t.anisotropy = 4; return t; };
