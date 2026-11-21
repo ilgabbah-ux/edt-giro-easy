@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=12';
+import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=13';
 import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=9';
 import { makeRider } from './pilota.js?v=4';
 
@@ -212,8 +212,9 @@ function step(dt) {
   // sterzo: il comando chiede una piega, la moto ci arriva con il suo peso (molla smorzata)
   const key = keyR - keyL, raw = performance.now() - tiltSeen < 700 && Math.abs(tiltSteer) > .001 ? tiltSteer : (key || touchSteer);
   steerIn += (clamp(raw * (O.inv ? -1 : 1), -1, 1) - steerIn) * Math.min(1, dt * (key ? 7 : 14));
-  const leanMax = .82 - S.off * .2, leanT = state === 'play' ? steerIn * leanMax * clamp(S.v / 6, .25, 1) : 0;
-  if (down) { S.lean += (S.fallSide * 1.45 - S.lean) * Math.min(1, dt * 8); S.leanV = 0; } else { S.leanV += ((leanT - S.lean) * 62 - S.leanV * 11.5) * dt; S.lean += S.leanV * dt; }
+  const tight = KD.name === 'single track' || KD.name === 'macchia' || KD.name === 'mulattiera', leanMax = (KD.name === 'single track' ? .96 : tight ? .88 : .82) - S.off * .2,   // nello stretto la moto si butta giù di più e più in fretta: nel canale del sentiero c'è l'appoggio
+   leanT = state === 'play' ? steerIn * leanMax * clamp(S.v / 6, .25, 1) : 0;
+  if (down) { S.lean += (S.fallSide * 1.45 - S.lean) * Math.min(1, dt * 8); S.leanV = 0; } else { S.leanV += ((leanT - S.lean) * (tight ? 95 : 62) - S.leanV * (tight ? 14.5 : 11.5)) * dt; S.lean += S.leanV * dt; }
   // la piega fa girare: velocità di imbardata = g·tan(piega)/v, fino al limite di aderenza del fondo
   if (state === 'play') {
     if (S.wet > .03 && S.v > 4) { if (!S.inWater) { S.inWater = 1; splash(Math.min(1, S.v / 18)); splat('water', Math.round(8 + S.v * 1.6)); } S.splA = (S.splA || 0) + S.v * S.wet * 14 * dt; while (S.splA >= 1) { S.splA--; splat('water', 1); } } else if (S.wet < .01) S.inWater = 0;   // l'acqua ti arriva in faccia: più forte entri, meno vedi
