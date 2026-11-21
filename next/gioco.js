@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=10';
+import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=11';
 import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=9';
 import { makeRider } from './pilota.js?v=4';
 
@@ -89,11 +89,13 @@ for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single
   for (const sp of tr.spans) {
     if (sp.kind === 'p') for (let s = sp.s0 + 2; s < sp.s1 - 2; s += .9) { const hw = widthAt(tr, s) / 2, edge = rnd() < .45; const d = edge ? (rnd() < .5 ? -1 : 1) * (hw + rnd() * 5) : (rnd() - .5) * hw * 1.9; list.push([s, d, edge ? .35 + rnd() * .9 : .07 + rnd() * .13, 0]); }
     if (sp.kind === 'm') for (let s = sp.s0 + 1; s < sp.s1 - 1; s += .75) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .25 + rnd() * .2), .3 + rnd() * .22, sg > 0 ? .25 : 0]);
+    if (sp.kind === 's') for (const f of tr.feat) if (f.kind === 'gradone' && f.s > sp.s0 && f.s < sp.s1) { const hw = widthAt(tr, f.s) / 2; for (let d = -hw - .6; d < hw + .6; d += .5 + rnd() * .25) list.push([f.s + 1.9 + rnd() * .5, d, .3 + rnd() * .16, -.12]); }   // il bordo di ogni gradone è una fila di pietre: si vede dove sale
     if (sp.kind === 'g') for (let s = sp.s0; s < sp.s1; s += 1.6) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .5 + rnd() * 3), .3 + rnd() * .5, 0]);
   }
   const geo = new T.DodecahedronGeometry(1, 0), im = new T.InstancedMesh(geo, new T.MeshLambertMaterial({ map: tex('../img/tex/mossrock_d.webp'), color: 0xcfcac2 }), list.length), m = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), sc = new T.Vector3(), ps = new T.Vector3();
   list.forEach(([s, d, r, up], i) => { at(tr, s, d, P); e.set(rnd() * 6, rnd() * 6, rnd() * 6); q.setFromEuler(e); sc.set(r * (.8 + rnd() * .5), r * (.55 + rnd() * .3), r * (.8 + rnd() * .5)); ps.set(P.x, P.y + r * .2 + up, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
 }
+const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di percorso
 { // alberi: due piani incrociati con la foto dell'abete. Nel single track sono fitti e a un passo dal sentiero
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   for (const [file, every] of [['fir_a', 4], ['fir_b', 6], ['fir_gold', 11], ['fir_c', 9]]) {
@@ -104,7 +106,7 @@ for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single
     const cap = Math.floor(tr.len / every) * 6, im = new T.InstancedMesh(g, new T.MeshBasicMaterial({ map: tex(`../img/tex/${file}.webp`), alphaTest: .5, side: T.DoubleSide, color: 0xe6e6e6 }), cap), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
     let q = 0; for (let s0 = 0; s0 < tr.len; s0 += every) { const kd = tr.kind[Math.min(tr.n - 1, Math.round(s0 / DS))], reps = kd === 't' ? 3 : kd === 'm' ? 2 : kd === 'p' || kd === 'g' ? 0 : 1;
       for (let r = 0; r < reps; r++) for (const sg of [-1, 1]) { if (q >= cap) break; const s = s0 + rnd() * every, hw = widthAt(tr, s) / 2, lim = Math.max(hw + 1.2, sideLimit(s, sg) - 1); const near = kd === 't' ? 1.1 : kd === 'm' ? 1.6 : 2.5; const d = sg * Math.min(lim, hw + near + rnd() * rnd() * (kd === 't' ? 11 : 20)); at(tr, s, d, P);
-        const hgt = 7 + rnd() * 7; qt.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(hgt * .5, hgt * .5, hgt * .5); ps.set(P.x, P.y + hgt * .5 - .3, P.z); m.compose(ps, qt, sc); im.setMatrixAt(q++, m); } }
+        (TREES[Math.floor(s / 8)] ||= []).push(P.x, P.z); const hgt = 7 + rnd() * 7; qt.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(hgt * .5, hgt * .5, hgt * .5); ps.set(P.x, P.y + hgt * .5 - .3, P.z); m.compose(ps, qt, sc); im.setMatrixAt(q++, m); } }
     im.count = q; scene.add(im);
   }
 }
@@ -223,7 +225,7 @@ function step(dt) {
   let om = G * Math.tan(S.lean) / vEff; const omMax = mu * G / vEff, over = Math.max(0, Math.abs(om) - omMax);
   if (over > 0) om = Math.sign(om) * (omMax + over * .25);   // oltre il limite la moto allarga
   // troppo piegato per il fondo che c'è (fango, pietre bagnate, erba): la gomma tiene mezzo secondo, poi la moto si stende
-  { const ask = Math.tan(Math.abs(S.lean)) / Math.max(.3, mu + S.off * .15); S.overT = ask > 1.22 && S.v > 7 && S.air <= 0 && !down ? (S.overT || 0) + dt * (ask > 1.45 ? 1.6 : 1) : Math.max(0, (S.overT || 0) - dt * 2); if (S.overT > .6) crash(Math.sign(S.lean)); }
+  { const ask = Math.tan(Math.abs(S.lean)) / Math.max(.3, mu); S.overT = (ask > 1.18 || Math.abs(S.slip) > .4 && S.off > .5) && S.v > 7 && S.air <= 0 && !down ? (S.overT || 0) + dt * (ask > 1.45 ? 1.6 : 1) : Math.max(0, (S.overT || 0) - dt * 2); if (S.overT > .6) crash(Math.sign(S.lean)); }
   if (down) om = S.fallSide * .5 * clamp(S.v / 6, 0, 1);
   // velocità: gas (automatico o tasto), freno, salita/discesa, attrito in piega, erba
   let kAhead = 0; { const far = Math.round(clamp(S.v * S.v / 15, 8, 64) / DS); for (let j = 2; j <= far; j += 2) { const kk = tr.k[Math.min(tr.n - 1, S.i + j)]; if (Math.abs(kk) > Math.abs(kAhead)) kAhead = kk; } }   // la curva più stretta nello spazio che serve per frenare
@@ -241,7 +243,7 @@ function step(dt) {
   om += S.slip * 1.7 * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt;
   const gas = gasOn ? 1 : 0, vTop = VMAX * (1 - S.off * .5);
-  let acc = gas * 9.5 * clamp(1.12 - S.v / vTop, 0, 1) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * (S.grade > 0 ? 2.3 : 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (gas ? 0 : .8) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
+  let acc = gas * 9.5 * clamp(1.12 - S.v / vTop, 0, 1) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * (S.grade > 0 ? 2.3 : 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (gas ? 0 : .8) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
   acc -= G * clamp(Math.tan(S.pitch) - S.grade, 0, .5) * 1.2 * (S.air > 0 ? 0 : 1);   // gradoni e gobbe in salita mangiano velocità: se molli il gas ti fermi
   if (down) acc = -9;
   if (state !== 'play') acc = -S.v * 3;
@@ -253,6 +255,9 @@ function step(dt) {
   S.dab += (dabT - S.dab) * Math.min(1, dt * 4.5);
   S.fwd += ((brk ? .16 * S.brkAmt : gas && S.v < VMAX * .7 ? -.14 : -.04) - clamp(S.grade, -.22, .22) * 1.3 - S.fwd) * Math.min(1, dt * 5);   // in salita il peso va avanti, in discesa indietro
   S.x += Math.sin(S.psi) * S.v * dt; S.z -= Math.cos(S.psi) * S.v * dt;
+  // alberi: il tronco non si sposta. Forte si cade, piano ci si pianta contro
+  if (!down && S.air <= 0) { const b0 = Math.floor(S.s / 8); for (let b = b0 - 1; b <= b0 + 1; b++) { const a = TREES[b]; if (!a) continue; for (let q = 0; q < a.length; q += 2) { const dx = S.x - a[q], dz = S.z - a[q + 1], dd = dx * dx + dz * dz; if (dd < .36) { const dist = Math.sqrt(dd) || .01, side = Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1;
+    S.x = a[q] + dx / dist * .6; S.z = a[q + 1] + dz / dist * .6; if (S.v > 5.5) crash(side); else { S.v *= .3; S.hit = Math.max(S.hit, .5); thud(.4); } } } } }
   // bordi: dopo qualche metro di prato c'è la scarpata, si rimbalza dentro perdendo velocità
   const wall = KD.name === 'mulattiera', lim = wall ? HW - .12 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
   if (Math.abs(S.d) > lim) { const sg = Math.sign(S.d), push = Math.abs(S.d) - lim; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push;

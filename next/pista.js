@@ -56,7 +56,7 @@ function addGround(tr) {
       for (let s = sp.s0 + 8; s < sp.s1 - 12; s += 17 + rnd() * 8) { const len = 6 + rnd() * 3; put(s, len, (i, u, e) => { bump[i] -= .2 * e * e; }); tr.water.push({ s0: s + 1.2, s1: s + len - 1.2, half: 2.4, off: (rnd() - .5) * 2.2, depth: .2, kind: 'pozza' }); }
     } else if (sp.kind === 'v' || sp.kind === 's' || sp.kind === 'd') {   // dossi, canali e gobbe
       const kinds = sp.kind === 'v' ? ['dosso', 'gobbe', 'dosso'] : sp.kind === 's' ? ['canale', 'gradino'] : ['dosso', 'canale'];
-      if (sp.kind === 's') for (let s = sp.s0 + 88; s < sp.s0 + 126; s += 7.5) { feat.push({ s, kind: 'gradone' }); put(s, 6, (i, u) => { bump[i] += .3 * (u < .3 ? u / .3 : 1 - (u - .3) / .7); }); }   // gradoni sul pezzo più ripido: salgono di colpo e scendono piano
+      if (sp.kind === 's') for (let s = sp.s0 + 88; s < sp.s0 + 126; s += 7.5) { feat.push({ s, kind: 'gradone' }); put(s, 6, (i, u) => { bump[i] += .42 * (u < .3 ? u / .3 : 1 - (u - .3) / .7); }); }   // gradoni sul pezzo più ripido: salgono di colpo e scendono piano
       let q = 0; for (let s = sp.s0 + 34; s < sp.s1 - 30; s += 44 + rnd() * 30) {
         const kd = kinds[q++ % kinds.length], tight = Math.abs(tr.k[Math.min(tr.n - 1, Math.round(s / DS))]) > .025 ? .55 : 1; feat.push({ s, kind: kd });
         if (kd === 'dosso') put(s, 6.5, (i, u, e) => { bump[i] += .45 * tight * e * e; });
