@@ -11,6 +11,7 @@ export const KIND = {
   g: { name: 'guado', w: 7, side: 20, grip: .8, drag: 0, rough: .01, tex: 'mud', tape: 0 },
   f: { name: 'fango', w: 7, side: 22, grip: .68, drag: 1.3, rough: .015, tex: 'mud', tape: 1 },
   m: { name: 'mulattiera', w: 4, side: 6.5, grip: .95, drag: .2, rough: .04, tex: 'cobble', tape: 0 },
+  b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.2, side: 13, grip: 1.0, drag: 0, rough: .018, tex: 'forest', tape: 0 },
 };
 // [lunghezza m, raggio m (+ destra, − sinistra, 0 = dritto), pendenza %, tipo]
@@ -22,6 +23,7 @@ export const GIRO_EASY = [
   [26, 0, 0, 'g'], [40, 60, 1, 'f'], [50, 0, 0, 'f'],
   [35, 0, 10, 'm'], [31, -13, 14, 'm'], [35, 0, 15, 'm'], [31, 13, 14, 'm'], [35, 0, 12, 'm'], [28, -14, 9, 'm'], [30, 0, 5, 'm'],
   [40, 0, 2, 't'], [30, 20, 0, 't'], [30, -18, -2, 't'], [35, 22, -3, 't'], [30, -20, -2, 't'], [40, 25, 0, 't'], [30, -22, -3, 't'], [40, 0, -4, 't'],
+  [40, 0, -1, 'b'], [45, 30, 0, 'b'], [40, -28, 0, 'b'], [35, 0, 0, 'b'],
   [60, 0, -2, 'v'], [90, -75, -1, 'v'], [110, 0, 0, 'v'],
 ];
 const smooth = (a, n) => a.map((_, i) => { let s = 0, c = 0; for (let k = -n; k <= n; k++) { s += a[Math.max(0, Math.min(a.length - 1, i + k))]; c++; } return s / c; });
@@ -29,10 +31,12 @@ export function buildTrack(segs = GIRO_EASY) {
   let k = [], g = [], w = [], sd = [], kind = [];
   for (const [len, r, gr, kd] of segs) for (let s = 0; s < len; s += DS) { k.push(r ? 1 / r : 0); g.push(gr / 100); w.push(KIND[kd].w); sd.push(KIND[kd].side); kind.push(kd); }
   k = smooth(k, 4); g = smooth(g, 8); w = smooth(w, 6); sd = smooth(sd, 6);
+  // mai uguale: la larghezza respira lungo tutto il percorso (strettoie e slarghi), anche dentro lo stesso tratto
+  w = w.map((v, i) => { const s = i * DS, kk = kind[i] === 'm' || kind[i] === 't' || kind[i] === 'b' ? .55 : 1; return Math.max(1.9, v * (1 + kk * (.22 * Math.sin(s * .041 + 1) + .13 * Math.sin(s * .097 + 2.3) + .07 * Math.sin(s * .23)))); });
   const n = k.length, x = new Float32Array(n), z = new Float32Array(n), y = new Float32Array(n), h = new Float32Array(n);
   let px = 0, pz = 0, py = 0, ph = 0;
   for (let i = 0; i < n; i++) { x[i] = px; z[i] = pz; y[i] = py; h[i] = ph; ph += k[i] * DS; px += Math.sin(ph) * DS; pz -= Math.cos(ph) * DS; py += g[i] * DS; }
-  const tr = { n, x, z, y, h, k: Float32Array.from(k), g: Float32Array.from(g), w: Float32Array.from(w), side: Float32Array.from(sd), kind, len: (n - 1) * DS, water: [] };
+  const tr = { n, x, z, y, h, k: Float32Array.from(k), g: Float32Array.from(g), w: Float32Array.from(w), side: Float32Array.from(sd), kind, len: (n - 1) * DS, water: [], branches: [] };
   // tratti (inizio, fine, tipo) per il disegno e per i cartelli
   tr.spans = []; for (let i = 0; i < n; i++) { const L = tr.spans[tr.spans.length - 1]; if (L && L.kind === kind[i]) L.s1 = (i + 1) * DS; else tr.spans.push({ kind: kind[i], s0: i * DS, s1: (i + 1) * DS }); }
   addGround(tr); return tr;
@@ -63,6 +67,8 @@ function addGround(tr) {
       for (let s = sp.s0 + 6; s < sp.s1 - 8; s += 7 + rnd() * 6) { const a = (.06 + rnd() * .09) * (rnd() > .4 ? 1 : -1); put(s, 3.5 + rnd() * 2, (i, u, e) => { bump[i] += a * e; }); }
     } else if (sp.kind === 'm') {   // mulattiera: canalette di scolo di traverso
       for (let s = sp.s0 + 12; s < sp.s1 - 6; s += 19 + rnd() * 6) put(s, 2.4, (i, u, e) => { bump[i] += .08 * e * e; });
+    } else if (sp.kind === 'b') {   // macchia: rami bassi che sporgono, una volta da una parte e una dall'altra
+      let sg = 1; for (let s = sp.s0 + 9; s < sp.s1 - 5; s += 8 + rnd() * 7) { tr.branches.push({ s, side: sg, reach: .15 + rnd() * .5 }); sg = rnd() < .75 ? -sg : sg; }
     } else if (sp.kind === 't') {   // single track: radici e piccoli dossi naturali
       for (let s = sp.s0 + 10; s < sp.s1 - 8; s += 21 + rnd() * 12) put(s, 5, (i, u, e) => { bump[i] += .16 * e * e; });
     }

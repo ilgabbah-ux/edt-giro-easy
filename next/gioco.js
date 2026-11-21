@@ -3,8 +3,8 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=7';
-import { startSound, soundUpdate, thud, setSound } from './suono.js?v=6';
+import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=8';
+import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=8';
 import { makeRider } from './pilota.js?v=4';
 
 const $ = id => document.getElementById(id);
@@ -43,7 +43,7 @@ const TEXF = { trail: 'trail_d', rock: 'mossrock_d', mud: 'mudtrack_d', cobble: 
     for (let c = 0; c < cols - 1; c++) { const a = i * cols + c, b = a + cols; idx.push(a, a + 1, b, a + 1, b + 1, b); } }
   g.addGroup(start, idx.length - start, cur);
   g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-  scene.add(new T.Mesh(g, TEXN.map(k => new T.MeshLambertMaterial({ map: tex(`../img/tex/${TEXF[k]}.webp`), color: k === 'mud' ? 0xb9a58c : k === 'cobble' ? 0xd8d2c8 : 0xffffff }))));
+  scene.add(new T.Mesh(g, TEXN.map(k => new T.MeshLambertMaterial({ map: tex(`../img/tex/${TEXF[k]}.webp`), color: k === 'cobble' ? 0xd8d2c8 : 0xffffff }))));
 }
 // quanto ci si può allontanare di lato senza che il terreno si accavalli all'interno delle curve
 const sideLimit = (s, sign) => { const k = tr.k[Math.min(tr.n - 1, Math.round(s / DS))], sd = sideAt(tr, s); return k * sign > .002 ? Math.min(sd, .8 / Math.abs(k)) : sd; };
@@ -69,13 +69,19 @@ for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single
       at(tr, s, c - hw * e, P); pos.push(P.x, wt.y, P.z); at(tr, s, c + hw * e, P); pos.push(P.x, wt.y, P.z); if (r) { const a = (r - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } r++; }
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); const m = new T.Mesh(g, mat); m.renderOrder = 2; scene.add(m); }
 }
-{ // paletti e fettuccia: solo nei tratti da gara (veloce, salita, discesa, fango)
-  const m = new T.Matrix4(), pts = []; for (let s = 0; s < tr.len; s += 8) if (kindAt(tr, s).tape) for (const sg of [-1, 1]) { at(tr, s, sg * (widthAt(tr, s) / 2 + .35), P); pts.push([P.x, P.y + .55, P.z]); }
-  const post = new T.InstancedMesh(new T.CylinderGeometry(.045, .045, 1.1, 5), new T.MeshLambertMaterial({ color: 0xf2f2f2 }), pts.length); pts.forEach((p, i) => { m.makeTranslation(p[0], p[1], p[2]); post.setMatrixAt(i, m); }); scene.add(post);
-  const cv = document.createElement('canvas'); cv.width = 16; cv.height = 4; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 16, 4); x.fillStyle = '#d6332b'; x.fillRect(0, 0, 8, 4);
-  const tt = new T.CanvasTexture(cv); tt.wrapS = T.RepeatWrapping; tt.colorSpace = T.SRGBColorSpace; tt.magFilter = T.NearestFilter; const tmat = new T.MeshBasicMaterial({ map: tt, side: T.DoubleSide });
-  for (const sg of [-1, 1]) { const pos = [], uv = [], idx = []; let prev = false, r = 0; for (let i = 0; i < tr.n; i++) { const s = i * DS, on = !!kindAt(tr, s).tape; if (on) { at(tr, s, sg * (widthAt(tr, s) / 2 + .35), P); pos.push(P.x, P.y + .92, P.z, P.x, P.y + 1.02, P.z); uv.push(s / .8, 0, s / .8, 1); if (prev) { const a = (r - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } r++; } prev = on; }
-    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); scene.add(new T.Mesh(g, tmat)); }
+{ // macchia: cespugli a ridosso del sentiero (qualcuno ci entra) e rami bassi che sporgono. Niente fettuccia: è enduro nei boschi
+  let seed = 31; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const leaf = new T.MeshBasicMaterial({ map: tex('../img/tex/tree_island.webp'), alphaTest: .45, side: T.DoubleSide, color: 0xd9e2cf });
+  const g1 = new T.PlaneGeometry(1, 1), g2 = g1.clone().rotateY(Math.PI / 2), cross = new T.BufferGeometry();
+  cross.setAttribute('position', new T.Float32BufferAttribute([...g1.attributes.position.array, ...g2.attributes.position.array], 3)); cross.setAttribute('uv', new T.Float32BufferAttribute([...g1.attributes.uv.array, ...g2.attributes.uv.array], 2)); cross.setIndex([...g1.index.array, ...[...g2.index.array].map(v => v + 4)]);
+  const list = []; for (const sp of tr.spans) { const dense = sp.kind === 'b', some = sp.kind === 't' || sp.kind === 'm' || sp.kind === 'd' || sp.kind === 's'; if (!dense && !some) continue;
+    for (let s = sp.s0 + 1; s < sp.s1 - 1; s += dense ? .8 : 5) for (const sg of [-1, 1]) { if (!dense && rnd() < .5) continue; const hw = widthAt(tr, s) / 2; list.push([s + rnd(), sg * (hw + (dense ? -.25 + rnd() * rnd() * 3.5 : .3 + rnd() * 3)), dense ? 1.5 + rnd() * 1.9 : 1.1 + rnd() * 1.2]); } }
+  const im = new T.InstancedMesh(cross, leaf, list.length), m = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3(), e = new T.Euler();
+  list.forEach(([s, d, h], i) => { at(tr, s, d, P); q.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(h * 1.25, h, h * 1.25); ps.set(P.x, P.y + h * .42, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
+  const bm = new T.InstancedMesh(new T.PlaneGeometry(1, 1), leaf, tr.branches.length * 2); let k = 0;
+  for (const br of tr.branches) { const hw = widthAt(tr, br.s) / 2, d0 = br.side * (hw + .8), d1 = -br.side * br.reach, len = Math.abs(d1 - d0), mid = (d0 + d1) / 2;
+    for (let r = 0; r < 2; r++) { at(tr, br.s + r * .5, mid, P); e.set(-Math.PI / 2 + (r ? .5 : -.35), -P.h, br.side * .16, 'YXZ'); q.setFromEuler(e); sc.set(len * 1.15, 2.4, 1); ps.set(P.x, P.y + 1.75 + r * .25, P.z); m.compose(ps, q, sc); bm.setMatrixAt(k++, m); } }
+  scene.add(bm);
 }
 { // sassi: tanti nella pietraia (anche sul sentiero, piccoli), muretti a secco lungo la mulattiera, qualcuno nel guado
   let seed = 99; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, list = [];
@@ -146,6 +152,21 @@ function dust(dt) {
   dGeo.attributes.position.needsUpdate = true; dGeo.attributes.aAge.needsUpdate = true; dMat.uniforms.uH.value = renderer.domElement.height;
 }
 
+// ---------- visiera: schizzi d'acqua e di fango, rami in faccia ----------
+const lens = $('lens'), lx = lens.getContext('2d'), drops = []; let lensDirty = false;
+function lensSize() { lens.width = Math.round(innerWidth / 2); lens.height = Math.round(innerHeight / 2); } addEventListener('resize', lensSize); lensSize();
+function splat(kind, n, side = 0) { const W2 = lens.width, H2 = lens.height;
+  for (let i = 0; i < n && drops.length < 90; i++) { if (kind === 'leaf') { const fromL = side < 0; drops.push({ k: 2, x: fromL ? -40 : W2 + 40, y: H2 * (.15 + Math.random() * .6), vx: (fromL ? 1 : -1) * W2 * (2.6 + Math.random() * 1.6), vy: (Math.random() - .5) * H2 * .5, r: H2 * (.1 + Math.random() * .14), a: .92, life: .55, rot: Math.random() * 3 }); }
+    else { const big = Math.random() < .3; drops.push({ k: kind === 'mud' ? 1 : 0, x: Math.random() * W2, y: H2 * (.12 + Math.random() * .85), vx: 0, vy: H2 * (.02 + Math.random() * .06), r: H2 * (big ? .07 + Math.random() * .1 : .015 + Math.random() * .03), a: kind === 'mud' ? .92 : .8, life: 1.8 + Math.random() * 2.2, rot: Math.random() * 3 }); } } }
+function lensDraw(dt) { if (!drops.length) { if (lensDirty) { lx.clearRect(0, 0, lens.width, lens.height); lensDirty = false; } return; }
+  lx.clearRect(0, 0, lens.width, lens.height); lensDirty = true; const wind = 1 + S.v / 12;
+  for (let i = drops.length - 1; i >= 0; i--) { const d = drops[i]; d.life -= dt * (d.k === 2 ? 1 : wind * .5); if (d.life <= 0) { drops.splice(i, 1); continue; } d.x += d.vx * dt; d.y += d.vy * dt * (d.k === 2 ? 1 : wind);
+    const al = d.a * Math.min(1, d.life * (d.k === 2 ? 6 : 1.4)); lx.save(); lx.translate(d.x, d.y); lx.rotate(d.rot);
+    if (d.k === 2) { lx.fillStyle = `rgba(46,84,34,${al})`; lx.beginPath(); lx.ellipse(0, 0, d.r * 2.6, d.r * .55, 0, 0, 7); lx.fill(); lx.fillStyle = `rgba(88,128,52,${al * .8})`; lx.beginPath(); lx.ellipse(d.r * .4, -d.r * .2, d.r * 1.7, d.r * .3, .3, 0, 7); lx.fill(); }
+    else { const c = d.k ? '66,46,28' : '104,96,78'; const gr = lx.createRadialGradient(0, 0, d.r * .15, 0, 0, d.r); gr.addColorStop(0, `rgba(${c},${al})`); gr.addColorStop(.7, `rgba(${c},${al * .75})`); gr.addColorStop(1, `rgba(${c},0)`); lx.fillStyle = gr; lx.beginPath(); lx.ellipse(0, 0, d.r, d.r * (.75 + (d.rot % 1) * .5), 0, 0, 7); lx.fill();
+      if (d.r > lens.height * .04) { lx.fillStyle = `rgba(${c},${al * .6})`; lx.fillRect(-d.r * .12, 0, d.r * .24, d.r * (1.2 + (3 - d.life) * .6)); } }   // la goccia grossa cola
+    lx.restore(); } }
+
 // ---------- comandi ----------
 let steerIn = 0, tiltSteer = 0, tiltSeen = 0, tiltA0 = null, keyL = 0, keyR = 0, touchSteer = 0, braking = false, gasHeld = false;
 const D2R = Math.PI / 180;
@@ -187,6 +208,12 @@ function step(dt) {
   const leanMax = .82 - S.off * .2, leanT = state === 'play' ? steerIn * leanMax * clamp(S.v / 6, .25, 1) : 0;
   S.leanV += ((leanT - S.lean) * 62 - S.leanV * 11.5) * dt; S.lean += S.leanV * dt;
   // la piega fa girare: velocità di imbardata = g·tan(piega)/v, fino al limite di aderenza del fondo
+  if (state === 'play') {
+    if (S.wet > .03 && S.v > 4) { if (!S.inWater) { S.inWater = 1; splash(Math.min(1, S.v / 18)); splat('water', Math.round(8 + S.v * 1.6)); } S.splA = (S.splA || 0) + S.v * S.wet * 14 * dt; while (S.splA >= 1) { S.splA--; splat('water', 1); } } else if (S.wet < .01) S.inWater = 0;   // l'acqua ti arriva in faccia: più forte entri, meno vedi
+    if (KD.name === 'fango' && S.off < .5 && S.v > 6) { S.mudA = (S.mudA || 0) + (Math.abs(S.slip) * 9 + (S.gasOn ? .7 : .2)) * dt; while (S.mudA >= 1) { S.mudA--; splat('mud', 1); } }
+    for (const br of tr.branches) if (br.s > S.sPrev && br.s <= S.s) { const hw = widthAt(tr, br.s) / 2; if (S.d * br.side > -br.reach - .25) { const deep = clamp((S.d * br.side + br.reach + .25) / (hw + br.reach), .2, 1); splat('leaf', Math.round(2 + deep * 4), br.side); whip(); S.v *= 1 - .07 * deep; S.hit = Math.max(S.hit, .25 * deep); S.psi -= br.side * .03 * deep; } }   // ramo in faccia: non vedi, perdi un po' di velocità, la moto scarta
+  }
+  S.sPrev = S.s;
   const mu = (S.grip - S.off * .42 - Math.min(.25, S.wet * .8)), vEff = Math.max(S.v, 4.5);
   let om = G * Math.tan(S.lean) / vEff; const omMax = mu * G / vEff, over = Math.max(0, Math.abs(om) - omMax);
   if (over > 0) om = Math.sign(om) * (omMax + over * .25);   // oltre il limite la moto allarga
@@ -266,7 +293,7 @@ function draw(dt) {
   if (wheelF) { const r = S.v * dt / .4; wheelF.rotation.x -= r; wheelR.rotation.x -= S.brk && Math.abs(S.slip) > .12 ? r * .15 : r; steerG.rotation.y = clamp(S.slip * .9 - S.lean * .1, -.5, .5); wheelF.position.y = P.wfY + S.cF; wheelR.position.y = P.wrY + S.cR; }   // di traverso: ruota dietro quasi bloccata e controsterzo
   if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0 });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
-  dust(dt); soundUpdate(dt, { wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
+  lensDraw(dt); dust(dt); soundUpdate(dt, { wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
   blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.material.opacity = S.air > 0 ? .16 : .32;
   camUpdate(dt); if (!window.__noRender) renderer.render(scene, camera);
 }

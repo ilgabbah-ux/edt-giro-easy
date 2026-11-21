@@ -26,6 +26,8 @@ export async function startSound() {
     E = { src, bark, body, g, intake, tyre, wind, skid, sub, sg, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
   } catch (e) { /* senza audio si gioca lo stesso */ }
 }
+export function whip() { if (ctx && on) { burst(.11, 2600, .7, .22, 'bandpass'); burst(.07, 900, .8, .16, 'bandpass', .03); } }   // ramo in faccia
+export function splash(k) { if (ctx && on) { burst(.5, 1400, .5, Math.min(.5, .15 + k * .4), 'bandpass'); burst(.3, 300, .6, Math.min(.5, k * .5), 'lowpass'); } }   // entrata in acqua
 export function thud(k) {   // atterraggio o botta
   if (!ctx || !on || k < .12) return; const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(38, t + .18);
   g.gain.setValueAtTime(Math.min(.8, k), t); g.gain.exponentialRampToValueAtTime(.001, t + .25); o.connect(g); g.connect(master); o.start(t); o.stop(t + .27); burst(.14, 700, .7, Math.min(.4, k * .5), 'lowpass');
