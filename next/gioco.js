@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=6';
+import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=7';
 import { startSound, soundUpdate, thud, setSound } from './suono.js?v=6';
 import { makeRider } from './pilota.js?v=4';
 
@@ -137,7 +137,7 @@ const dMat = new T.ShaderMaterial({ transparent: true, depthWrite: false, unifor
   fragmentShader: 'varying float vA; uniform vec3 uC; void main(){ float d = length(gl_PointCoord - .5); if (d > .5) discard; gl_FragColor = vec4(uC, (1. - vA) * .6 * smoothstep(.5, .15, d)); }' });
 const dPts = new T.Points(dGeo, dMat); dPts.frustumCulled = false; scene.add(dPts);
 function dust(dt) {
-  const wet = S.wet > .02, rate = state === 'play' && S.air <= 0 ? (wet ? S.v * 9 : Math.abs(S.slip) * 110 + (S.gasOn && S.v < 9 ? 45 : 0) + S.off * S.v * 2.5 + (S.gasOn ? S.v * (S.kd.name === 'fango' ? 1.6 : .35) : 0)) : 0; dAcc += rate * dt;
+  const wet = S.wet > .02, rate = state === 'play' && S.air <= 0 ? (wet ? S.v * 9 : Math.abs(S.slip) * 110 + (S.gasOn && S.v < 9 ? 45 : 0) + S.off * S.v * 2.5 + (S.gasOn ? S.v * (S.kd.name === 'fango' ? 1.6 : .35) + Math.max(0, S.grade) * 260 : 0)) : 0; dAcc += rate * dt;
   { const c = dMat.uniforms.uC.value, tx = S.kd.tex; if (wet) c.lerp(_cW, .2); else c.lerp(tx === 'mud' ? _cM : tx === 'rock' || tx === 'cobble' ? _cR : _cD, .08); }
   const bx = Math.sin(S.psi + S.slip), bz = -Math.cos(S.psi + S.slip);
   while (dAcc >= 1) { dAcc--; const i = dNext; dNext = (dNext + 1) % DN; dAge[i] = 0; dPos[i * 3] = S.x - bx * .75 + (Math.random() - .5) * .3; dPos[i * 3 + 1] = S.y + .15; dPos[i * 3 + 2] = S.z - bz * .75 + (Math.random() - .5) * .3;
@@ -206,19 +206,23 @@ function step(dt) {
   om += S.slip * 1.7 * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt;
   const gas = gasOn ? 1 : 0, vTop = VMAX * (1 - S.off * .5);
-  let acc = gas * 9.5 * clamp(1.12 - S.v / vTop, 0, 1) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * .75 - .0035 * S.v * S.v * (1 + S.off * 8) - (gas ? 0 : .8) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
+  let acc = gas * 9.5 * clamp(1.12 - S.v / vTop, 0, 1) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * (S.grade > 0 ? 2.3 : 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (gas ? 0 : .8) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
   if (state !== 'play') acc = -S.v * 3;
   S.v = Math.max(0, S.v + acc * dt); S.brk = brk; S.gasOn = gas; S.over = over;
   // pilota: in piedi sul dritto, seduto in curva con la gamba interna fuori
-  const straight = Math.abs(steerIn) < (S.stand > .5 ? .24 : .12) && Math.abs(kAhead) < .008 && !brk && S.v > 8 && state === 'play';   // con un po' di margine: non si alza e siede di continuo
+  const straight = (Math.abs(steerIn) < (S.stand > .5 ? .24 : .12) && Math.abs(kAhead) < .008 && !brk && S.v > 8 || Math.abs(S.grade) > .1 && S.v > 4) && state === 'play';   // in salita e in discesa ripida si sta in piedi   // con un po' di margine: non si alza e siede di continuo
   S.stand += ((straight ? 1 : 0) - S.stand) * Math.min(1, dt * (straight ? 1.6 : 4));
   const dabOn = Math.abs(S.dab) > .3, dabT = Math.sign(S.lean + S.slip) * clamp((Math.abs(S.lean) - (dabOn ? .2 : .34)) / .14 + Math.abs(S.slip) * 3.5, 0, 1) * (S.v > 3 ? 1 : 0);   // esce in piega decisa e resta fuori finché non raddrizzi
   S.dab += (dabT - S.dab) * Math.min(1, dt * 4.5);
-  S.fwd += ((brk ? .16 * S.brkAmt : gas && S.v < VMAX * .7 ? -.14 : -.04) - S.fwd) * Math.min(1, dt * 5);
+  S.fwd += ((brk ? .16 * S.brkAmt : gas && S.v < VMAX * .7 ? -.14 : -.04) - clamp(S.grade, -.22, .22) * 1.3 - S.fwd) * Math.min(1, dt * 5);   // in salita il peso va avanti, in discesa indietro
   S.x += Math.sin(S.psi) * S.v * dt; S.z -= Math.cos(S.psi) * S.v * dt;
   // bordi: dopo qualche metro di prato c'è la scarpata, si rimbalza dentro perdendo velocità
-  const lim = Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'mulattiera' ? .15 : KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera c'è il muretto
-  if (Math.abs(S.d) > lim) { const sg = Math.sign(S.d), push = Math.abs(S.d) - lim; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push; let rel = S.psi - pr.h; rel = Math.atan2(Math.sin(rel), Math.cos(rel)); if (rel * sg > 0) { S.psi = pr.h + rel * .4; S.v *= 1 - Math.min(.5, Math.abs(rel)); S.hit = 1; } }
+  const wall = KD.name === 'mulattiera', lim = wall ? HW - .12 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
+  if (Math.abs(S.d) > lim) { const sg = Math.sign(S.d), push = Math.abs(S.d) - lim; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push;
+    let rel = S.psi - pr.h; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+    if (rel * sg > 0) { const imp = Math.abs(Math.sin(rel)); if (!S.wall && imp > .3) { S.v *= 1 - imp * .3; S.hit = Math.max(S.hit, imp * .8); thud(imp * .6); }   // botta solo se ci arrivi storto
+      S.psi -= rel * Math.min(1, dt * 9); S.v = Math.max(0, S.v - S.v * imp * 2.2 * dt - 1.5 * dt); S.lean *= 1 - Math.min(1, dt * 4); }   // poi la moto si raddrizza lungo il bordo e striscia, senza fermarsi
+    S.wall = .15; } else S.wall = Math.max(0, (S.wall || 0) - dt);
   // altezza: le ruote seguono il fondo (profilo morbido), sui dossi presi forte la moto si stacca
   const gy = groundY(tr, S.s, S.d, true); S.rough = Math.abs(S.d) < HW + 1 ? roughAt(tr, S.s) : .02 * S.off;
   if (S.air <= 0) { const vyG = (gy - S.y) / dt; if ((vyG - S.vy) / dt < -G * 1.7 && S.v > 5 && S.vy > 2.5) { S.air = 1; S.airT = 0; } else { S.vy = vyG; S.y = gy; } }
@@ -245,11 +249,11 @@ function camUpdate(dt) {
   const portrait = camera.aspect < .8, kc = { c: .8, m: 1, l: 1.3 }[O.cam] || 1, sp = S.v / VMAX;
   const distT = ((portrait ? 6.2 : 5.2) + sp * 2.1 - (S.brk ? .8 : 0)) * kc; cam.dist += (distT - cam.dist) * Math.min(1, dt * 2.2);
   const tx = S.x - Math.sin(cam.h) * cam.dist, tz = S.z + Math.cos(cam.h) * cam.dist;
-  const pc = project(tr, tx, tz, S.i), ty = Math.max(groundY(tr, pc.s, pc.d) + 1.1, S.y + (portrait ? 2.9 : 2.15) * kc - S.pitch * 2.2);
+  const pc = project(tr, tx, tz, S.i), ty = Math.max(groundY(tr, pc.s, pc.d) + 1.1, S.y + (portrait ? 2.9 : 2.15) * kc - S.pitch * 1.1);
   if (!cam.init) { cam.x = tx; cam.y = ty; cam.z = tz; cam.init = true; cam.dist = distT; }
   cam.x = tx; cam.z = tz; cam.y += (ty - cam.y) * Math.min(1, dt * 5);
   const sh = S.hit * .1 + S.off * .012 * sp; camera.position.set(cam.x + (Math.random() - .5) * sh, cam.y + (Math.random() - .5) * sh, cam.z);
-  const la = 7 + sp * 6; camera.lookAt(S.x + Math.sin(S.psi) * la, S.y + 1.25 + S.pitch * la * .6, S.z - Math.cos(S.psi) * la);
+  const la = 7 + sp * 6; camera.lookAt(S.x + Math.sin(S.psi) * la, S.y + 1.25 + S.pitch * la * .22, S.z - Math.cos(S.psi) * la);
   cam.roll += (-S.lean * .2 - cam.roll) * Math.min(1, dt * 5); camera.rotateZ(cam.roll);
   const fovT = (portrait ? 72 : 58) + sp * sp * 24; cam.fov += (fovT - cam.fov) * Math.min(1, dt * 3); if (Math.abs(camera.fov - cam.fov) > .05) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
   if (cam.dbg) { const a = S.psi + cam.dbg; camera.position.set(S.x + Math.sin(a) * 4.4, S.y + 1.7, S.z - Math.cos(a) * 4.4); camera.lookAt(S.x, S.y + .95, S.z); }   // solo per le prove: vista da davanti
