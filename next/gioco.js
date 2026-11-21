@@ -4,7 +4,7 @@ import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
 import { W, DS, SIDE, buildTrack, groundY, at, project, roughAt } from './pista.js?v=3';
-import { startSound, soundUpdate, thud, setSound } from './suono.js?v=4';
+import { startSound, soundUpdate, thud, setSound } from './suono.js?v=5';
 import { makeRider } from './pilota.js?v=4';
 
 const $ = id => document.getElementById(id);
