@@ -22,8 +22,11 @@ const scene = new T.Scene();
 const SKY = 0xbfd6e6;
 scene.background = new T.Color(SKY); scene.fog = new T.Fog(0xcfdde4, 90, 430);
 const camera = new T.PerspectiveCamera(66, 1, .3, 1400);
-scene.add(new T.HemisphereLight(0xdfeeff, 0x4a5a36, 1.15));
-const sun = new T.DirectionalLight(0xfff0d0, 1.6); sun.position.set(-.5, 1, .35); scene.add(sun);
+scene.add(new T.HemisphereLight(0xdfeeff, 0x4a5a36, .95));
+// sole basso d'autunno con ombre vere: la luce segue la moto e disegna le ombre solo nei 70 m intorno
+const SUN_DIR = new T.Vector3(-.55, .78, .32).normalize(), sun = new T.DirectionalLight(0xfff0d0, 2.1); sun.position.copy(SUN_DIR); scene.add(sun, sun.target);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.0005; sun.shadow.normalBias = .05;
+{ const c = sun.shadow.camera; c.left = -38; c.right = 38; c.top = 38; c.bottom = -38; c.near = 1; c.far = 220; c.updateProjectionMatrix(); }
 let pix = Math.min(2, window.devicePixelRatio || 1);
 function resize() { const w = innerWidth, h = innerHeight; renderer.setPixelRatio(pix); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
@@ -125,18 +128,22 @@ const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di per
 
 // ---------- moto e pilota ----------
 const bike = new T.Group(), leanG = new T.Group(), pitchG = new T.Group(); bike.add(leanG); leanG.add(pitchG); scene.add(bike);
+// chi riceve e chi fa ombra: il terreno riceve; sassi, tronchi, pali, alberi e cespugli la fanno (alberi e cespugli con la sagoma della foto)
+scene.traverse(o => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material], m = ms[0];
+  if (m.isMeshLambertMaterial) { o.receiveShadow = true; const t = o.geometry.type; if (t === 'CylinderGeometry' || t === 'DodecahedronGeometry') o.castShadow = true; }
+  else if (m.isMeshBasicMaterial && m.alphaTest > 0 && m.map) { o.castShadow = true; o.customDepthMaterial = new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking, map: m.map, alphaTest: m.alphaTest, side: T.DoubleSide }); } });
 const blob = new T.Mesh(new T.CircleGeometry(.9, 20), new T.MeshBasicMaterial({ color: 0, transparent: true, opacity: .32, depthWrite: false })); blob.rotation.x = -Math.PI / 2; blob.scale.set(.42, 1.25, 1); scene.add(blob);
 let wheelF = null, wheelR = null, steerG = null;
 { const gltf = new GLTFLoader(), dl = new DRACOLoader(); dl.setDecoderPath('../draco/'); gltf.setDRACOLoader(dl);
   gltf.load('../img/models/bike_fakedomi.glb?t=1', g => { const get = n => g.scene.getObjectByName(n), body = get('bike_body'), wf = get('wheel_f'), wr = get('wheel_r');
     steerG = new T.Group(); wheelF = new T.Group(); wheelR = new T.Group(); wheelF.position.copy(wf.position); wheelR.position.copy(wr.position); P.wfY = wf.position.y; P.wrY = wr.position.y; wf.position.set(0, 0, 0); wr.position.set(0, 0, 0);
-    wheelF.add(wf); wheelR.add(wr); steerG.add(wheelF); pitchG.add(body, steerG, wheelR); });
+    wheelF.add(wf); wheelR.add(wr); steerG.add(wheelF); pitchG.add(body, steerG, wheelR); pitchG.traverse(c => { if (c.isMesh) c.castShadow = true; }); });
   gltf.load('../img/models/rider_poses.glb?t=1', g => { const o = g.scene.getObjectByName('rider_sit'), mat = o.material.clone(); mat.color.set(0xf0c81e);
     const geo = o.geometry.clone(); geo.applyMatrix4(new T.Matrix4().compose(new T.Vector3(), o.quaternion, o.scale));
-    P.rider = makeRider(geo, mat); P.rider.root.position.set(0, 1.16, .27); pitchG.add(P.rider.root);
+    P.rider = makeRider(geo, mat); P.rider.root.position.set(0, 1.16, .27); pitchG.add(P.rider.root); P.rider.root.traverse(c => { if (c.isMesh) c.castShadow = true; });
     gltf.load('../img/models/helmet.glb?t=1', h => { let src = null; h.scene.traverse(c => { if (c.isMesh && !src) src = c; }); const hg = src.geometry.clone(); hg.applyMatrix4(src.matrixWorld); hg.rotateY(-Math.PI / 2); hg.computeBoundingBox();
       const bb = hg.boundingBox, sz = bb.getSize(new T.Vector3()), c = bb.getCenter(new T.Vector3()), k = .3 / sz.x; hg.translate(-c.x, -c.y, -c.z); hg.scale(k, k, k);
-      P.helm = new T.Mesh(hg, src.material); pitchG.add(P.helm); }); });
+      P.helm = new T.Mesh(hg, src.material); P.helm.castShadow = true; pitchG.add(P.helm); }); });
 }
 
 // ---------- terra e polvere dalla ruota dietro ----------
@@ -337,7 +344,8 @@ function draw(dt) {
   if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0 });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
   lensDraw(dt); dust(dt); soundUpdate(dt, { thr: S.thr || 0, spin: S.spin || 0, wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
-  blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.material.opacity = S.air > 0 ? .16 : .32;
+  blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.visible = !renderer.shadowMap.enabled; blob.material.opacity = S.air > 0 ? .16 : .32;
+  { const fx = Math.sin(S.psi), fz = -Math.cos(S.psi); sun.target.position.set(Math.round(S.x + fx * 16), S.y, Math.round(S.z + fz * 16)); sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 110); }
   camUpdate(dt); if (!window.__noRender) renderer.render(scene, camera);
 }
 
@@ -382,7 +390,7 @@ function frame(now) {
   const n = Math.max(1, Math.round(fdt / (1 / 120))); for (let i = 0; i < n; i++) step(fdt / n);
   school(fdt); draw(fdt); hud();
   // telefoni lenti: si abbassa la risoluzione, mai la fluidità
-  if (fdt > .03) { if (++slow > 40 && pix > 1) { pix = Math.max(1, pix - .25); slow = 0; resize(); } } else slow = Math.max(0, slow - 1);
+  if (fdt > .03) { if (++slow > 40) { slow = 0; if (pix > 1.25) { pix = Math.max(1.25, pix - .25); resize(); } else if (renderer.shadowMap.enabled) { renderer.shadowMap.enabled = false; sun.castShadow = false; scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); } else if (pix > 1) { pix = 1; resize(); } } } else slow = Math.max(0, slow - 1);
 }
 requestAnimationFrame(frame);
 window.__next = { S, tr, O, cam, restart, P, RD, get state() { return state; }, steer(v) { keyL = v < 0 ? -v : 0; keyR = v > 0 ? v : 0; }, brake(v) { braking = v; }, gas(v) { gasHeld = v > 0; gasCmd = v; }, get time() { return time; } };
