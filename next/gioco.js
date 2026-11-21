@@ -20,7 +20,7 @@ const renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference:
 renderer.outputColorSpace = T.SRGBColorSpace;
 const scene = new T.Scene();
 const SKY = 0xbfd6e6;
-scene.background = new T.Color(SKY); scene.fog = new T.Fog(0xcfdde4, 90, 430);
+scene.background = new T.Color(SKY); scene.fog = new T.Fog(0xb9c4a6, 110, 520);   // foschia calda d'autunno, del colore della valle: il lontano sfuma nel panorama invece che nel grigio
 const camera = new T.PerspectiveCamera(66, 1, .3, 1400);
 scene.add(new T.HemisphereLight(0xdfeeff, 0x4a5a36, .95));
 // sole basso d'autunno con ombre vere: la luce segue la moto e disegna le ombre solo nei 70 m intorno
@@ -89,7 +89,25 @@ for (const sign of [-1, 1]) { // terreno ai lati: prato, e sottobosco nel single
   stones.forEach(([s, d, r], i) => { at(tr, s, d, P); e.set(rnd() * 6, rnd() * 6, rnd() * 6); q.setFromEuler(e); sc.set(r * (1 + rnd() * .6), r * .6, r * (1 + rnd() * .6)); ps.set(P.x, groundY(tr, s, d, true) + r * .15, P.z); m.compose(ps, q, sc); sm.setMatrixAt(i, m); }); scene.add(sm);
 }
 { // fondovalle lontano e montagne all'orizzonte
-  const base = new T.Mesh(new T.PlaneGeometry(5000, 5000), new T.MeshLambertMaterial({ color: 0x6f8a3a, fog: false })); base.rotation.x = -Math.PI / 2; base.position.set(0, -12, -500); scene.add(base);
+  // PAESAGGIO intorno: non un piano verde ma colline di prato che seguono le quote del percorso, a chiazze, con boschi e radure
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, yMin = 1e9; for (let i = 0; i < tr.n; i++) { x0 = Math.min(x0, tr.x[i]); x1 = Math.max(x1, tr.x[i]); z0 = Math.min(z0, tr.z[i]); z1 = Math.max(z1, tr.z[i]); yMin = Math.min(yMin, tr.y[i]); }
+  const M = 420, C = 11, nx = Math.ceil((x1 - x0 + 2 * M) / C) + 1, nz = Math.ceil((z1 - z0 + 2 * M) / C) + 1, pos = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2), col = new Float32Array(nx * nz * 3), idx = [], hgt = new Float32Array(nx * nz), dst = new Float32Array(nx * nz);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const x = x0 - M + i * C, z = z0 - M + j * C; let bd = 1e12, bi = 0; for (let q = 0; q < tr.n; q += 3) { const dx = x - tr.x[q], dz = z - tr.z[q], dd = dx * dx + dz * dz; if (dd < bd) { bd = dd; bi = q; } }
+    const d = Math.sqrt(bd), o = j * nx + i, far = Math.min(1, d / 260), hills = (vn(x * .006 + 3, z * .006) - .45) * 46 * far + (vn(x * .021, z * .021 + 9) - .5) * 9 * Math.min(1, d / 60);
+    const y = tr.y[bi] * (1 - far * .75) + yMin * far * .75 - 2.6 - Math.min(d, 45) * .1 + hills; hgt[o] = y; dst[o] = d;
+    pos[o * 3] = x; pos[o * 3 + 1] = y; pos[o * 3 + 2] = z; uv[o * 2] = x / 14; uv[o * 2 + 1] = z / 14; const k = .7 + .42 * vn(x * .012 + 50, z * .012) + .14 * (vn(x * .06, z * .06) - .5), dry = vn(x * .008 + 90, z * .008 + 4); col[o * 3] = k * (1 + dry * .2); col[o * 3 + 1] = k; col[o * 3 + 2] = k * (1 - dry * .3); }
+  for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) { const a = j * nx + i; idx.push(a, a + nx, a + 1, a + 1, a + nx, a + nx + 1); }
+  const lg = new T.BufferGeometry(); lg.setAttribute('position', new T.BufferAttribute(pos, 3)); lg.setAttribute('uv', new T.BufferAttribute(uv, 2)); lg.setAttribute('color', new T.BufferAttribute(col, 3)); lg.setIndex(idx); lg.computeVertexNormals();
+  const land = new T.Mesh(lg, new T.MeshLambertMaterial({ map: tex('../img/tex/pasture_d.webp'), vertexColors: true })); land.userData.noShadow = 1; land.receiveShadow = true; scene.add(land);
+  { // boschi lontani: macchie di abeti e larici sulle colline, radure in mezzo
+    let seed = 515; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, lists = [[], [], []];
+    for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) { const o = j * nx + i, d = dst[o]; if (d < 34 || d > 400) continue; const x = pos[o * 3], z = pos[o * 3 + 2], wood = vn(x * .009 + 7, z * .009 + 2); if (wood < .5) continue;
+      const nT = wood > .68 ? 2 : 1; for (let t = 0; t < nT; t++) { if (rnd() > .8) continue; const fx = rnd(), fz = rnd(), y = hgt[o] * (1 - fx) * (1 - fz) + hgt[o + 1] * fx * (1 - fz) + hgt[o + nx] * (1 - fx) * fz + hgt[o + nx + 1] * fx * fz; lists[rnd() < .2 ? 2 : rnd() < .5 ? 1 : 0].push([x + fx * C, y, z + fz * C, 9 + rnd() * 9]); } }
+    const g1 = new T.PlaneGeometry(1, 2), g2 = g1.clone().rotateY(Math.PI / 2), tg = new T.BufferGeometry(); tg.setAttribute('position', new T.Float32BufferAttribute([...g1.attributes.position.array, ...g2.attributes.position.array], 3)); tg.setAttribute('uv', new T.Float32BufferAttribute([...g1.attributes.uv.array, ...g2.attributes.uv.array], 2)); tg.setIndex([...g1.index.array, ...[...g2.index.array].map(v => v + 4)]);
+    const m = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
+    ['fir_a', 'fir_b', 'fir_gold'].forEach((f, k) => { const L = lists[k]; if (!L.length) return; const im = new T.InstancedMesh(tg, new T.MeshBasicMaterial({ map: tex(`../img/tex/${f}.webp`), alphaTest: .5, side: T.DoubleSide, color: 0xdcdcdc }), L.length); im.userData.noShadow = 1;
+      L.forEach(([x, y, z, h], i) => { q.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(h * .5, h * .5, h * .5); ps.set(x, y + h * .5 - .4, z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im); }); }
+  const base = new T.Mesh(new T.PlaneGeometry(9000, 9000), new T.MeshLambertMaterial({ color: 0x6f8a3a })); base.rotation.x = -Math.PI / 2; base.position.set((x0 + x1) / 2, yMin - 30, (z0 + z1) / 2); base.userData.noShadow = 1; scene.add(base);
   const pano = tl.load('../img/pano-0.webp'); pano.colorSpace = T.SRGBColorSpace; pano.wrapS = T.MirroredRepeatWrapping; pano.repeat.x = 2;
   const cyl = new T.Mesh(new T.CylinderGeometry(1100, 1100, 1470, 48, 1, true), new T.MeshBasicMaterial({ map: pano, side: T.BackSide, fog: false, depthWrite: false }));
   cyl.position.y = 240; cyl.renderOrder = -1; scene.add(cyl); P.sky = cyl;
@@ -118,14 +136,13 @@ const WATER_N = (() => { const N = 128, cv = document.createElement('canvas'); c
     for (let s = sp.s0 + 1; s < sp.s1 - 1; s += dense ? 1.7 : 5) for (const sg of [-1, 1]) { if (!dense && rnd() < .5) continue; const hw = widthAt(tr, s) / 2; const out = dense ? .55 + rnd() * rnd() * 4 : .3 + rnd() * 3; list.push([s + rnd(), sg * (hw + out), dense ? .55 + rnd() * .35 + Math.max(0, out - 1.2) * .6 : 1.1 + rnd() * 1.2]); } }   // bassi a ridosso del sentiero, più alti dietro: il sentiero e la moto devono restare visibili
   const im = new T.InstancedMesh(cross, leaf, list.length), m = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3(), e = new T.Euler();
   list.forEach(([s, d, h], i) => { at(tr, s, d, P); q.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(h * 1.25, h, h * 1.25); ps.set(P.x, Math.min(groundY(tr, s, d, true), groundY(tr, s, d + .6, true), groundY(tr, s, d - .6, true)) + h * .2, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
-  // rami bassi: un alberello sul bordo con un ramo che si allunga sul sentiero ad altezza casco, coperto di fronde
-  const N = tr.branches.length, bark = new T.MeshLambertMaterial({ color: 0x8a6f52 }), wood = new T.InstancedMesh(new T.CylinderGeometry(.025, .055, 1, 6), bark, N), trunk = new T.InstancedMesh(new T.CylinderGeometry(.07, .12, 1, 7), bark, N);
-  const fg = new T.PlaneGeometry(1, 1); { const uv = fg.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, .36 + uv.getY(i) * .44); } const frond = new T.InstancedMesh(fg, leaf, N * 5); let k = 0, w = 0;
-  for (const br of tr.branches) { const hw = widthAt(tr, br.s) / 2, d0 = br.side * (hw + 1.5), d1 = -br.side * br.reach, len = Math.abs(d1 - d0), mid = (d0 + d1) / 2, y0 = groundY(tr, br.s, 0, true) + 1.9;
-    at(tr, br.s, mid, P); e.set(0, -P.h, Math.PI / 2 - br.side * .07, 'YXZ'); q.setFromEuler(e); sc.set(1, len, 1); ps.set(P.x, y0, P.z); m.compose(ps, q, sc); wood.setMatrixAt(w, m);
-    at(tr, br.s, d0, P); q.identity(); sc.set(1, 4.6, 1); ps.set(P.x, groundY(tr, br.s, d0, true) + 2.1, P.z); m.compose(ps, q, sc); trunk.setMatrixAt(w++, m);
-    for (let r = 0; r < 5; r++) { const t = (r + .6) / 5, d = d0 + (d1 - d0) * t, sz = 1.5 + rnd() * .6; at(tr, br.s + (rnd() - .5) * .5, d, P); e.set((rnd() - .5) * .25, -P.h + (rnd() - .5) * .7, (rnd() - .5) * .25, 'YXZ'); q.setFromEuler(e); sc.set(sz, sz * .75, 1); ps.set(P.x, y0 - .12 + (rnd() - .5) * .25, P.z); m.compose(ps, q, sc); frond.setMatrixAt(k++, m); } }
-  scene.add(wood, trunk, frond);
+  // rami bassi: niente pali né sbarre. Un ramo che scende ad arco dal bosco sopra il sentiero (quattro pezzi di legno storti) carico di fronde fino ad altezza casco
+  const N = tr.branches.length, bark = new T.MeshLambertMaterial({ color: 0x6b5540 }), wood = new T.InstancedMesh(new T.CylinderGeometry(.02, .035, 1, 5), bark, N * 4);
+  const fg = new T.PlaneGeometry(1, 1); { const uv = fg.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, .36 + uv.getY(i) * .44); } const frond = new T.InstancedMesh(fg, leaf, N * 9); let k = 0, w = 0; const A = new T.Vector3(), B = new T.Vector3(), UP = new T.Vector3(0, 1, 0);
+  for (const br of tr.branches) { const hw = widthAt(tr, br.s) / 2, d0 = br.side * (hw + 2.6), d1 = -br.side * br.reach, g0 = groundY(tr, br.s, 0, true), pt = t => { const d = d0 + (d1 - d0) * t, y = g0 + 4.4 - 2.55 * Math.pow(t, .6) + Math.sin(t * 9 + br.s) * .12; at(tr, br.s + Math.sin(t * 5 + br.s) * .35, d, P); return [P.x, y, P.z]; };
+    for (let r = 0; r < 4; r++) { A.fromArray(pt(r / 4)); B.fromArray(pt((r + 1) / 4)); ps.copy(A).add(B).multiplyScalar(.5); const dir = B.clone().sub(A), L = dir.length(); q.setFromUnitVectors(UP, dir.normalize()); sc.set(1.6 - r * .35, L * 1.04, 1.6 - r * .35); m.compose(ps, q, sc); wood.setMatrixAt(w++, m); }
+    for (let r = 0; r < 9; r++) { const t = .12 + .88 * (r + rnd() * .6) / 9.6, p = pt(Math.min(1, t)), sz = 1.1 + rnd() * .9; e.set((rnd() - .5) * .5, rnd() * 3.14, (rnd() - .5) * .5, 'YXZ'); q.setFromEuler(e); sc.set(sz * 1.2, sz * .8, 1); ps.set(p[0], p[1] - sz * .18 + (rnd() - .5) * .2, p[2]); m.compose(ps, q, sc); frond.setMatrixAt(k++, m); } }
+  scene.add(wood, frond);
 }
 const ROCKS = [];   // i sassi grossi sono ostacoli veri: x, z, raggio, raggruppati ogni 8 m
 { // sassi: tanti nella pietraia (anche sul sentiero, piccoli), muretti a secco lungo la mulattiera, qualcuno nel guado
