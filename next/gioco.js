@@ -4,8 +4,8 @@ import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
 import { W, DS, SIDE, buildTrack, groundY, at, project, roughAt } from './pista.js?v=3';
-import { startSound, soundUpdate, thud, setSound } from './suono.js?v=3';
-import { makeRider } from './pilota.js?v=2';
+import { startSound, soundUpdate, thud, setSound } from './suono.js?v=4';
+import { makeRider } from './pilota.js?v=4';
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -132,7 +132,7 @@ addEventListener('deviceorientation', e => {
   let d = upA - tiltA0; if (d > 180) d -= 360; if (d < -180) d += 360;
   const raw = -d, dead = 2, full = { s: 26, m: 19, h: 13 }[O.sens] || 19;
   const lin = Math.abs(raw) < dead ? 0 : clamp((raw - Math.sign(raw) * dead) / (full - dead), -1, 1);
-  tiltSteer += (Math.sign(lin) * Math.pow(Math.abs(lin), 1.25) - tiltSteer) * .5;
+  tiltSteer += (Math.sign(lin) * Math.pow(Math.abs(lin), 1.25) - tiltSteer) * .35;
 });
 const askTilt = () => { if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') DeviceOrientationEvent.requestPermission().catch(() => {}); };
 addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'a') keyL = 1; if (e.key === 'ArrowRight' || e.key === 'd') keyR = 1; if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 's') braking = true; if (e.key === 'ArrowUp' || e.key === 'w') gasHeld = true; if (e.key === 'r') restart(); });
@@ -146,7 +146,7 @@ const hold = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDe
 hold($('brake'), v => braking = v); hold($('gasb'), v => gasHeld = v);
 
 // ---------- fisica ----------
-const G = 9.81, VMAX = 21.5;   // 77 km/h
+const G = 9.81, VMAX = 30;   // 108 km/h
 const S = { x: 0, z: 0, y: 0, psi: 0, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: 0, s: 0, d: 0, off: 0, hit: 0, pitch: 0, grade: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: 0, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0 };
 let state = 'menu', t0 = 0, time = 0, cd = 0, best = parseFloat(opt('best', '0')) || 0, wrong = 0;
 function place() { const s0 = 20; at(tr, s0, 0, P); Object.assign(S, { x: P.x, z: P.z, y: P.y, psi: P.h, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: Math.round(s0 / DS), s: s0, d: 0, off: 0, hit: 0, pitch: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: P.y, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0 }); cam.h = P.h; cam.init = false; tiltA0 = null; tiltSteer = 0; }
@@ -163,7 +163,8 @@ function step(dt) {
   let om = G * Math.tan(S.lean) / vEff; const omMax = mu * G / vEff, over = Math.max(0, Math.abs(om) - omMax);
   if (over > 0) om = Math.sign(om) * (omMax + over * .25);   // oltre il limite la moto allarga
   // velocità: gas (automatico o tasto), freno, salita/discesa, attrito in piega, erba
-  const kAhead = tr.k[Math.min(tr.n - 1, S.i + Math.round(clamp(S.v * 1.1, 8, 30) / DS))], vSafe = Math.abs(kAhead) > .004 ? Math.sqrt(mu * G * .86 / Math.abs(kAhead)) : 99;
+  let kAhead = 0; { const far = Math.round(clamp(S.v * S.v / 15, 8, 64) / DS); for (let j = 2; j <= far; j += 2) { const kk = tr.k[Math.min(tr.n - 1, S.i + j)]; if (Math.abs(kk) > Math.abs(kAhead)) kAhead = kk; } }   // la curva più stretta nello spazio che serve per frenare
+  const vSafe = Math.abs(kAhead) > .004 ? Math.sqrt(mu * G * .86 / Math.abs(kAhead)) : 99;
   const autoBrake = O.auto && S.v > vSafe + .5, brk = state === 'play' && (braking || autoBrake);
   // quanto stai frenando: il tasto tenuto premuto sale da poco a tutto in mezzo secondo (il freno automatico pinza a metà)
   S.brkAmt += ((braking ? 1 : autoBrake ? .5 : 0) - S.brkAmt) * Math.min(1, dt * (brk ? 2.4 : 7));
@@ -177,14 +178,14 @@ function step(dt) {
   om += S.slip * 1.7 * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt;
   const gas = gasOn ? 1 : 0, vTop = VMAX * (1 - S.off * .5);
-  let acc = gas * 7.2 * clamp(1.15 - S.v / vTop, 0, 1) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * .75 - .007 * S.v * S.v * (1 + S.off * 5) - (gas ? 0 : .8) - Math.abs(Math.sin(S.lean)) * 1.6 - over * 3.5 - Math.abs(S.slip) * 2.2;
+  let acc = gas * 9.5 * clamp(1.12 - S.v / vTop, 0, 1) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * .75 - .0035 * S.v * S.v * (1 + S.off * 8) - (gas ? 0 : .8) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2;
   if (state !== 'play') acc = -S.v * 3;
   S.v = Math.max(0, S.v + acc * dt); S.brk = brk; S.gasOn = gas; S.over = over;
   // pilota: in piedi sul dritto, seduto in curva con la gamba interna fuori
-  const straight = Math.abs(steerIn) < .16 && Math.abs(kAhead) < .008 && !brk && S.v > 8 && state === 'play';
-  S.stand += ((straight ? 1 : 0) - S.stand) * Math.min(1, dt * (straight ? 2.2 : 5));
-  const dabT = Math.sign(S.lean + S.slip) * clamp((Math.abs(S.lean) - .22) / .2 + Math.abs(S.slip) * 3.5, 0, 1) * (S.v > 3 ? 1 : 0);
-  S.dab += (dabT - S.dab) * Math.min(1, dt * 6);
+  const straight = Math.abs(steerIn) < (S.stand > .5 ? .24 : .12) && Math.abs(kAhead) < .008 && !brk && S.v > 8 && state === 'play';   // con un po' di margine: non si alza e siede di continuo
+  S.stand += ((straight ? 1 : 0) - S.stand) * Math.min(1, dt * (straight ? 1.6 : 4));
+  const dabOn = Math.abs(S.dab) > .3, dabT = Math.sign(S.lean + S.slip) * clamp((Math.abs(S.lean) - (dabOn ? .2 : .34)) / .14 + Math.abs(S.slip) * 3.5, 0, 1) * (S.v > 3 ? 1 : 0);   // esce in piega decisa e resta fuori finché non raddrizzi
+  S.dab += (dabT - S.dab) * Math.min(1, dt * 4.5);
   S.fwd += ((brk ? .16 * S.brkAmt : gas && S.v < VMAX * .7 ? -.14 : -.04) - S.fwd) * Math.min(1, dt * 5);
   S.x += Math.sin(S.psi) * S.v * dt; S.z -= Math.cos(S.psi) * S.v * dt;
   // bordi: dopo qualche metro di prato c'è la scarpata, si rimbalza dentro perdendo velocità
@@ -192,14 +193,14 @@ function step(dt) {
   if (Math.abs(S.d) > lim) { const sg = Math.sign(S.d), push = Math.abs(S.d) - lim; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push; let rel = S.psi - pr.h; rel = Math.atan2(Math.sin(rel), Math.cos(rel)); if (rel * sg > 0) { S.psi = pr.h + rel * .4; S.v *= 1 - Math.min(.5, Math.abs(rel)); S.hit = 1; } }
   // altezza: le ruote seguono il fondo (profilo morbido), sui dossi presi forte la moto si stacca
   const gy = groundY(tr, S.s, S.d, true); S.rough = Math.abs(S.d) < W / 2 + 1 ? roughAt(tr, S.s) : .02 * S.off;
-  if (S.air <= 0) { const vyG = (gy - S.y) / dt; if ((vyG - S.vy) / dt < -G * 1.35 && S.v > 5) { S.air = 1; } else { S.vy = vyG; S.y = gy; } }
-  if (S.air > 0) { S.vy -= G * 1.35 * dt; S.y += S.vy * dt; if (S.y <= gy) { const imp = clamp(-S.vy / 8, 0, 1); S.y = gy; S.air = 0; S.hit = Math.max(S.hit, imp); S.bvy = S.vy * .9; thud(imp); S.v *= 1 - imp * .06; S.vy = 0; } }
+  if (S.air <= 0) { const vyG = (gy - S.y) / dt; if ((vyG - S.vy) / dt < -G * 1.35 && S.v > 5 && S.vy > 2) { S.air = 1; S.airT = 0; } else { S.vy = vyG; S.y = gy; } }
+  if (S.air > 0) { S.airT = (S.airT || 0) + dt; S.vy -= G * 1.35 * dt; S.y += S.vy * dt; if (S.y <= gy) { const imp = clamp(-S.vy / 8, 0, 1); S.y = gy; S.air = 0; const big = S.airT > .14 ? 1 : .25; S.hit = Math.max(S.hit, imp * big); S.bvy = S.vy * .9 * big; thud(imp * big); S.v *= 1 - imp * .06; S.vy = 0; } }
   S.hit = Math.max(0, S.hit - dt * 2.5);
   // sospensioni: la moto è una massa su una molla sopra le ruote. comp > 0 = schiacciata
-  if (S.air > 0) { S.comp += (-.09 - S.comp) * Math.min(1, dt * 8); S.by = S.y - S.comp; S.bvy = S.vy; }   // in aria le ruote scendono: sospensioni distese
+  if (S.air > 0) { S.comp += ((S.airT > .1 ? -.09 : S.comp) - S.comp) * Math.min(1, dt * 8); S.by = S.y - S.comp; S.bvy = S.vy; }   // in aria le ruote scendono: sospensioni distese
   else { S.bvy += ((S.y - S.by) * 300 - (S.bvy - S.vy) * 19) * dt; S.by += S.bvy * dt; if (S.y - S.by > .2) { S.by = S.y - .2; S.bvy = Math.max(S.bvy, S.vy); } if (S.y - S.by < -.12) { S.by = S.y + .12; S.bvy = Math.min(S.bvy, S.vy); } }
   S.comp = S.y - S.by;
-  const chat = S.rough * clamp(S.v / 10, 0, 1.3), tt = time * 60;
+  const chat = S.rough * clamp(S.v / 10, 0, 1.3) * .45, tt = S.s * 2.1;   // legato ai metri fatti, non al tempo: sono le radici che passano sotto
   S.cF += (clamp(S.comp + .075 * S.brkAmt * (S.brk ? 1 : 0) - (gas ? .02 : 0) + chat * Math.sin(tt * 1.3) * 1.4, -.13, .21) - S.cF) * Math.min(1, dt * 30);   // forcella: affonda in frenata
   S.cR += (clamp(S.comp - .03 * S.brkAmt * (S.brk ? 1 : 0) + (gas ? .045 * clamp(1.2 - S.v / 15, 0, 1) : 0) + chat * Math.sin(tt * 1.1 + 2) * 1.4, -.13, .21) - S.cR) * Math.min(1, dt * 30);   // dietro: si siede col gas
   if (S.rough > .01) S.v = Math.max(0, S.v - S.rough * 14 * dt);
@@ -214,27 +215,28 @@ const cam = { h: 0, x: 0, y: 0, z: 0, roll: 0, fov: 66, init: false, dist: 0 };
 function camUpdate(dt) {
   let dh = S.psi + S.slip * .12 - cam.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); cam.h += dh * Math.min(1, dt * 3.4);   // gira in ritardo: la moto entra in curva prima della camera
   const portrait = camera.aspect < .8, kc = { c: .8, m: 1, l: 1.3 }[O.cam] || 1, sp = S.v / VMAX;
-  const distT = ((portrait ? 6.4 : 5.6) + sp * 1.7 - (S.brk ? .8 : 0)) * kc; cam.dist += (distT - cam.dist) * Math.min(1, dt * 2.2);
+  const distT = ((portrait ? 6.2 : 5.2) + sp * 2.1 - (S.brk ? .8 : 0)) * kc; cam.dist += (distT - cam.dist) * Math.min(1, dt * 2.2);
   const tx = S.x - Math.sin(cam.h) * cam.dist, tz = S.z + Math.cos(cam.h) * cam.dist;
-  const pc = project(tr, tx, tz, S.i), ty = Math.max(groundY(tr, pc.s, pc.d) + 1.1, S.y + (portrait ? 3.1 : 2.5) * kc - S.pitch * 2.2);
+  const pc = project(tr, tx, tz, S.i), ty = Math.max(groundY(tr, pc.s, pc.d) + 1.1, S.y + (portrait ? 2.9 : 2.15) * kc - S.pitch * 2.2);
   if (!cam.init) { cam.x = tx; cam.y = ty; cam.z = tz; cam.init = true; cam.dist = distT; }
   cam.x = tx; cam.z = tz; cam.y += (ty - cam.y) * Math.min(1, dt * 5);
-  const sh = S.hit * .12 + S.off * .03 * sp + S.rough * .35 * sp; camera.position.set(cam.x + (Math.random() - .5) * sh, cam.y + (Math.random() - .5) * sh, cam.z);
+  const sh = S.hit * .1 + S.off * .012 * sp; camera.position.set(cam.x + (Math.random() - .5) * sh, cam.y + (Math.random() - .5) * sh, cam.z);
   const la = 7 + sp * 6; camera.lookAt(S.x + Math.sin(S.psi) * la, S.y + 1.25 + S.pitch * la * .6, S.z - Math.cos(S.psi) * la);
   cam.roll += (-S.lean * .2 - cam.roll) * Math.min(1, dt * 5); camera.rotateZ(cam.roll);
-  const fovT = (portrait ? 74 : 60) + sp * sp * 16; cam.fov += (fovT - cam.fov) * Math.min(1, dt * 3); if (Math.abs(camera.fov - cam.fov) > .05) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
+  const fovT = (portrait ? 72 : 58) + sp * sp * 24; cam.fov += (fovT - cam.fov) * Math.min(1, dt * 3); if (Math.abs(camera.fov - cam.fov) > .05) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
   if (cam.dbg) { const a = S.psi + cam.dbg; camera.position.set(S.x + Math.sin(a) * 4.4, S.y + 1.7, S.z - Math.cos(a) * 4.4); camera.lookAt(S.x, S.y + .95, S.z); }   // solo per le prove: vista da davanti
   P.sky.position.x = camera.position.x; P.sky.position.z = camera.position.z;
 }
 function draw(dt) {
+  { const st = clamp(S.stand - Math.max(0, S.comp) * 2.5 + ((S.airT || 0) > .12 && S.air > 0 ? .6 : 0) + S.rough * 6, 0, 1); S.standV = (S.standV || 0) + (st - (S.standV || 0)) * Math.min(1, dt * 7); }   // il pilota si alza e si abbassa con calma, senza scatti
   const leanVis = clamp(S.lean * 1.12 + S.slip * .35, -1, 1);   // la moto si butta giù più del pilota
   bike.position.set(S.x, S.y, S.z); bike.rotation.y = -(S.psi + S.slip); leanG.rotation.z = -leanVis; pitchG.rotation.x = S.pitch + (S.air > 0 ? clamp(-S.vy * .03, -.25, .3) : 0) - (S.cF - S.cR) / 1.45; pitchG.position.y = -(S.cF + S.cR) / 2 + (S.y - groundY(tr, S.s, S.d, true)) * 0;
   if (wheelF) { const r = S.v * dt / .4; wheelF.rotation.x -= r; wheelR.rotation.x -= S.brk && Math.abs(S.slip) > .12 ? r * .15 : r; steerG.rotation.y = clamp(S.slip * .9 - S.lean * .1, -.5, .5); wheelF.position.y = P.wfY + S.cF; wheelR.position.y = P.wrY + S.cR; }   // di traverso: ruota dietro quasi bloccata e controsterzo
-  if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: clamp(S.stand - Math.max(0, S.comp) * 3.5 + (S.air > 0 ? .5 : 0) + S.rough * 8, 0, 1), dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: S.off * .04 + S.hit * .05 + S.rough * .8 });
+  if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0 });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
-  dust(dt); soundUpdate(dt, { v: S.v, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
+  dust(dt); soundUpdate(dt, { sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
   blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.material.opacity = S.air > 0 ? .16 : .32;
-  camUpdate(dt); renderer.render(scene, camera);
+  camUpdate(dt); if (!window.__noRender) renderer.render(scene, camera);
 }
 
 // ---------- gioco ----------

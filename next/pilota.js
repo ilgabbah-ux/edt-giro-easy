@@ -53,7 +53,7 @@ export function makeRider(geo, mat) {
     B.neck.quaternion.setFromEuler(e.set(-p.fwd * .6 + .12 + st * .2, 0, -p.side * .6));
     root.updateMatrixWorld(true);
     for (const [n, sd] of [['R', 1], ['L', -1]]) {
-      const outer = Math.max(0, -sd * p.dab), vib = (p.vib || 0) * Math.sin(performance.now() * .05 + sd * 1.7);
+      const outer = Math.max(0, -sd * p.dab), vib = 0;
       tg.copy(RV('wrist' + n)); root.localToWorld(tg);
       pw.copy(RV('elbow' + n)); pw.x += sd * (.5 + outer * .25); pw.y += .1 + .18 * st + outer * .3 + vib * .5; pw.z += .1; rig.mesh.localToWorld(pw);   // gomiti alti e in fuori; in curva quello esterno sale
       ik2(B['uarm' + n], B['farm' + n], R['hand' + n], tg, pw);
