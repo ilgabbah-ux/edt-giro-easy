@@ -33,15 +33,15 @@ export function thud(k) {   // atterraggio o botta
 }
 // p: sp = velocità 0…2 (2 = velocità massima), gas, brk 0..1, slip (rad), air, off 0..1, rough (m), play
 export function soundUpdate(dt, p) {
-  if (!E) return; const e = E, t = ctx.currentTime, speed = p.play ? p.sp : 0, gas = !!p.gas, airborne = !!p.air, f60 = dt * 60;
+  if (!E) return; const e = E, t = ctx.currentTime, speed = p.play ? p.sp : 0, gas = !!p.gas, thr = p.thr == null ? (gas ? 1 : 0) : p.thr, spin = p.spin || 0, airborne = !!p.air, f60 = dt * 60;
   let gear = 1; while (gear < 6 && speed > GEARS[gear]) gear++;
   if (gear !== e.gear) { const up = gear > e.gear; e.gear = gear; if (up) { e.shiftT = .16; e.rpm *= .62; } }
   e.shiftT = Math.max(0, e.shiftT - dt);
   const lo = GEARS[gear - 1], hi = Math.min(GEARS[gear], 2.2), frac = Math.max(0, Math.min(1, (speed - lo) / Math.max(.2, hi - lo)));
-  let target = .55 + frac * 1.9 + (gas ? .25 : 0) + (gas && Math.abs(p.slip) > .15 ? .5 : 0);   // di traverso col gas la ruota pattina: i giri salgono
+  let target = .55 + frac * 1.9 + thr * .3 + (gas && Math.abs(p.slip) > .15 ? .5 * thr : 0) + spin * .9;   // di traverso col gas la ruota pattina: i giri salgono
   if (airborne) target = 2.9; if (speed < .05) target = .5;
-  e.rpm += (target - e.rpm) * Math.min(1, (airborne ? .08 : .14) * f60);
-  const load = e.shiftT > 0 ? .35 : (gas ? 1 : .72) * (airborne ? .6 : 1);
+  e.rpm += (target - e.rpm) * Math.min(1, (airborne ? .08 : .24) * f60);
+  const load = e.shiftT > 0 ? .35 : (.5 + .5 * thr) * (airborne ? .6 : 1);
   const r = e.rpm, F = r < .8 ? 14 + Math.max(0, r - .5) / .3 * 12 : 26 + (r - .8) * 19.5;   // scoppi al secondo: 14 al minimo (1700 giri), 26 appena si parte, 65 tirata (7800 giri)
   const k = Math.max(0, Math.min(1, (F - EP.x0) / (EP.x1 - EP.x0)));
   e.lo.s.playbackRate.setTargetAtTime(F / e.lo.f, t, .04); e.hi.s.playbackRate.setTargetAtTime(F / e.hi.f, t, .04);

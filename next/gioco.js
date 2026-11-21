@@ -4,7 +4,7 @@ import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
 import { DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=14';
-import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=9';
+import { startSound, soundUpdate, thud, setSound, whip, splash } from './suono.js?v=10';
 import { makeRider } from './pilota.js?v=4';
 
 const $ = id => document.getElementById(id);
@@ -146,7 +146,7 @@ const dMat = new T.ShaderMaterial({ transparent: true, depthWrite: false, unifor
   fragmentShader: 'varying float vA; uniform vec3 uC; void main(){ float d = length(gl_PointCoord - .5); if (d > .5) discard; gl_FragColor = vec4(uC, (1. - vA) * .6 * smoothstep(.5, .15, d)); }' });
 const dPts = new T.Points(dGeo, dMat); dPts.frustumCulled = false; scene.add(dPts);
 function dust(dt) {
-  const wet = S.wet > .02, rate = state === 'play' && S.air <= 0 ? (wet ? S.v * 9 : Math.abs(S.slip) * 110 + (S.gasOn && S.v < 9 ? 45 : 0) + S.off * S.v * 2.5 + (S.gasOn ? S.v * (S.kd.name === 'fango' ? 1.6 : .35) + Math.max(0, S.grade) * 260 : 0)) : 0; dAcc += rate * dt;
+  const wet = S.wet > .02, rate = state === 'play' && S.air <= 0 ? (wet ? S.v * 9 : Math.abs(S.slip) * 110 + (S.gasOn && S.v < 9 ? 45 * (S.thr || 0) : 0) + (S.spin || 0) * 160 + S.off * S.v * 2.5 + (S.gasOn ? S.v * (S.kd.name === 'fango' ? 1.6 : .35) + Math.max(0, S.grade) * 260 : 0)) : 0; dAcc += rate * dt;
   { const c = dMat.uniforms.uC.value, tx = S.kd.tex; if (wet) c.lerp(_cW, .2); else c.lerp(tx === 'mud' ? _cM : tx === 'rock' || tx === 'cobble' ? _cR : _cD, .08); }
   const bx = Math.sin(S.psi + S.slip), bz = -Math.cos(S.psi + S.slip);
   while (dAcc >= 1) { dAcc--; const i = dNext; dNext = (dNext + 1) % DN; dAge[i] = 0; dPos[i * 3] = S.x - bx * .75 + (Math.random() - .5) * .3; dPos[i * 3 + 1] = S.y + .15; dPos[i * 3 + 2] = S.z - bz * .75 + (Math.random() - .5) * .3;
@@ -171,7 +171,7 @@ function lensDraw(dt) { if (!drops.length) { if (lensDirty) { lx.clearRect(0, 0,
     lx.restore(); } }
 
 // ---------- comandi ----------
-let steerIn = 0, tiltSteer = 0, tiltSeen = 0, tiltA0 = null, keyL = 0, keyR = 0, touchSteer = 0, braking = false, gasHeld = false;
+let steerIn = 0, tiltSteer = 0, tiltSeen = 0, tiltA0 = null, keyL = 0, keyR = 0, touchSteer = 0, braking = false, gasHeld = false, gasCmd = 0;
 const D2R = Math.PI / 180;
 addEventListener('deviceorientation', e => {
   if (e.gamma === null || e.gamma === undefined) return; tiltSeen = performance.now();
@@ -185,7 +185,7 @@ addEventListener('deviceorientation', e => {
   tiltSteer += (Math.sign(lin) * Math.pow(Math.abs(lin), 1.25) - tiltSteer) * .35;
 });
 const askTilt = () => { if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') DeviceOrientationEvent.requestPermission().catch(() => {}); };
-addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'a') keyL = 1; if (e.key === 'ArrowRight' || e.key === 'd') keyR = 1; if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 's') braking = true; if (e.key === 'ArrowUp' || e.key === 'w') gasHeld = true; if (e.key === 'r') restart(); });
+addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'a') keyL = 1; if (e.key === 'ArrowRight' || e.key === 'd') keyR = 1; if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 's') braking = true; if (e.key === 'ArrowUp' || e.key === 'w') { gasHeld = true; gasCmd = e.shiftKey ? .5 : 1; } if (e.key === 'r') restart(); });
 addEventListener('keyup', e => { if (e.key === 'ArrowLeft' || e.key === 'a') keyL = 0; if (e.key === 'ArrowRight' || e.key === 'd') keyR = 0; if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 's') braking = false; if (e.key === 'ArrowUp' || e.key === 'w') gasHeld = false; });
 // senza sensore (o da computer col mouse): metà schermo sinistra/destra
 const touches = new Map();
@@ -193,7 +193,11 @@ canvas.addEventListener('pointerdown', e => { touches.set(e.pointerId, e.clientX
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) canvas.addEventListener(ev, e => { touches.delete(e.pointerId); upd(); });
 function upd() { let v = 0; for (const x of touches.values()) v += x < innerWidth / 2 ? -1 : 1; touchSteer = clamp(v, -1, 1); }
 const hold = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); fn(true); }); for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, () => fn(false)); };
-hold($('brake'), v => braking = v); hold($('gasb'), v => gasHeld = v);
+hold($('brake'), v => braking = v);
+// GAS a manopola: il tasto è alto, dove appoggi il pollice decide quanto apri (in basso un filo, in alto tutto) e puoi scorrere su e giù senza staccare
+{ const el = $('gasb'), set = e => { const r = el.getBoundingClientRect(); gasCmd = clamp(.22 + (r.bottom - e.clientY) / (r.height * .82) * .78, .22, 1); };
+  el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); gasHeld = true; set(e); }); el.addEventListener('pointermove', e => { if (gasHeld) set(e); });
+  for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, () => { gasHeld = false; gasCmd = 0; }); }
 
 // ---------- fisica ----------
 const G = 9.81, VMAX = 30;   // 108 km/h
@@ -237,24 +241,29 @@ function step(dt) {
   // ENDURO: frenando col posteriore la moto si mette di traverso, tanto più quanto freni e quanto sterzi; il muso entra in curva prima
   const turnDir = Math.abs(steerIn) > .06 ? Math.sign(steerIn) : Math.abs(kAhead) > .006 ? Math.sign(kAhead) : 0;
   const brakeSlide = brk && S.v > 5 ? turnDir * Math.min(.62, S.brkAmt * (.2 + .55 * Math.abs(steerIn))) * clamp((S.v - 4) / 7, 0, 1) : 0;
-  const gasOn = state === 'play' && !brk && !down && (O.gas === 'a' ? S.v < vSafe + 1.5 : gasHeld);   // il gas automatico molla prima delle curve strette (non frena: quello lo fai tu)
-  const powerSlide = gasOn ? Math.sign(S.lean) * Math.max(0, Math.abs(S.lean) - .5) * .7 * clamp(1.3 - S.v / 14, 0, 1) : 0;   // in uscita, col gas e piegato, il posteriore scappa un po'
+  // manopola: quanto chiedi (0..1) e quanto il motore dà davvero (apre e chiude in un attimo, ma non a scatto)
+  const want = state === 'play' && !brk && !down ? (O.gas === 'a' ? (S.v < vSafe + 1.5 ? 1 : 0) : gasHeld ? gasCmd : 0) : 0;
+  S.thr = (S.thr || 0) + (want - (S.thr || 0)) * Math.min(1, dt * (want > (S.thr || 0) ? 14 : 20)); const thr = S.thr, gasOn = thr > .05;   // il gas automatico molla prima delle curve strette (non frena: quello lo fai tu)
+  // trazione: la spinta chiesta contro quella che il fondo regge. Se apri troppo su fango, bagnato o salita la ruota gira a vuoto: spinge meno e il posteriore scappa
+  const vTop0 = VMAX * (1 - S.off * .5) * (.4 + .6 * thr), push = thr * 11.5 * clamp(1.15 - S.v / vTop0, 0, 1), hold = Math.max(2, (mu * .92 - Math.abs(Math.tan(S.lean)) * .35) * G), spin = S.air > 0 ? 0 : clamp((push - hold) / hold, 0, 1);
+  S.spin = (S.spin || 0) + (spin - (S.spin || 0)) * Math.min(1, dt * 9);
+  const powerSlide = gasOn ? Math.sign(S.lean || steerIn) * (Math.max(0, Math.abs(S.lean) - .5) * .7 * thr * clamp(1.3 - S.v / 14, 0, 1) + S.spin * (.12 + Math.abs(S.lean) * .5)) : 0;   // in uscita, col gas e piegato, il posteriore scappa un po'
   const slipT = brakeSlide + powerSlide + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0);
   S.slip += (slipT - S.slip) * Math.min(1, dt * (Math.abs(slipT) > Math.abs(S.slip) ? 6.5 : 3.2));
   om += S.slip * 1.7 * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt;
-  const gas = gasOn ? 1 : 0, vTop = VMAX * (1 - S.off * .5);
-  let acc = gas * 9.5 * clamp(1.12 - S.v / vTop, 0, 1) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * (S.grade > 0 ? 2.3 : 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (gas ? 0 : .8) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
+  const gas = thr, vTop = vTop0;
+  let acc = Math.min(push, hold) * (1 - S.spin * .3) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * (S.grade > 0 ? 2.3 : 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (1 - thr) * (S.v > 2 ? 1.5 : .4) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
   acc -= G * clamp(Math.tan(S.pitch) - S.grade, 0, .5) * 1.2 * (S.air > 0 ? 0 : 1);   // gradoni e gobbe in salita mangiano velocità: se molli il gas ti fermi
   if (down) acc = -9;
   if (state !== 'play') acc = -S.v * 3;
-  S.v = Math.max(0, S.v + acc * dt); S.brk = brk; S.gasOn = gas; S.over = over;
+  S.v = Math.max(0, S.v + acc * dt); S.acc = (S.acc || 0) + (acc - (S.acc || 0)) * Math.min(1, dt * 8); S.brk = brk; S.gasOn = gasOn ? 1 : 0; S.over = over;
   // pilota: in piedi sul dritto, seduto in curva con la gamba interna fuori
   const straight = (Math.abs(steerIn) < (S.stand > .5 ? .24 : .12) && Math.abs(kAhead) < .008 && !brk && S.v > 8 || Math.abs(S.grade) > .1 && S.v > 4) && state === 'play';   // in salita e in discesa ripida si sta in piedi   // con un po' di margine: non si alza e siede di continuo
   S.stand += ((straight ? 1 : 0) - S.stand) * Math.min(1, dt * (straight ? 1.6 : 4));
   const dabOn = Math.abs(S.dab) > .3, dabT = Math.sign(S.lean + S.slip) * clamp((Math.abs(S.lean) - (dabOn ? .2 : .34)) / .14 + Math.abs(S.slip) * 3.5, 0, 1) * (S.v > 3 ? 1 : 0);   // esce in piega decisa e resta fuori finché non raddrizzi
   S.dab += (dabT - S.dab) * Math.min(1, dt * 4.5);
-  S.fwd += ((brk ? .16 * S.brkAmt : gas && S.v < VMAX * .7 ? -.14 : -.04) - clamp(S.grade, -.22, .22) * 1.3 - S.fwd) * Math.min(1, dt * 5);   // in salita il peso va avanti, in discesa indietro
+  S.fwd += ((brk ? .16 * S.brkAmt : -.03 - clamp(S.acc || 0, -2, 9) * .016) - clamp(S.grade, -.22, .22) * 1.3 - S.fwd) * Math.min(1, dt * 5);   // in salita il peso va avanti, in discesa indietro
   S.x += Math.sin(S.psi) * S.v * dt; S.z -= Math.cos(S.psi) * S.v * dt;
   // alberi: il tronco non si sposta. Forte si cade, piano ci si pianta contro
   if (!down && S.air <= 0) { const b0 = Math.floor(S.s / 8); for (let b = b0 - 1; b <= b0 + 1; b++) { const a = TREES[b]; if (!a) continue; for (let q = 0; q < a.length; q += 2) { const dx = S.x - a[q], dz = S.z - a[q + 1], dd = dx * dx + dz * dz; if (dd < .2) { const dist = Math.sqrt(dd) || .01, side = Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1;
@@ -306,7 +315,7 @@ const RD = { off: 0 };
 function draw(dt) {
   { const st = clamp(S.stand - Math.max(0, S.comp) * 2.5 + ((S.airT || 0) > .12 && S.air > 0 ? .6 : 0) + S.rough * 6, 0, 1); S.standV = (S.standV || 0) + (st - (S.standV || 0)) * Math.min(1, dt * 7); }   // il pilota si alza e si abbassa con calma, senza scatti
   const leanVis = clamp(S.lean * 1.12 + S.slip * .35, -1, 1) + (S.fall > 0 ? clamp(S.lean, -1.45, 1.45) * .3 : 0);   // la moto si butta giù più del pilota
-  bike.position.set(S.x, S.y, S.z); bike.rotation.y = -(S.psi + S.slip); leanG.rotation.z = -leanVis; pitchG.rotation.x = S.pitch + (S.air > 0 ? clamp(-S.vy * .03, -.25, .3) : 0) - (S.cF - S.cR) / 1.45; pitchG.position.y = -(S.cF + S.cR) / 2 + (S.y - groundY(tr, S.s, S.d, true)) * 0;
+  bike.position.set(S.x, S.y, S.z); bike.rotation.y = -(S.psi + S.slip); leanG.rotation.z = -leanVis; pitchG.rotation.x = S.pitch + (S.air > 0 ? clamp(-S.vy * .03, -.25, .3) : 0) - (S.cF - S.cR) / 1.45 - clamp(S.acc || 0, -6, 9) * .009; pitchG.position.y = -(S.cF + S.cR) / 2 + (S.y - groundY(tr, S.s, S.d, true)) * 0;
   if (wheelF) { const r = S.v * dt / .4; wheelF.rotation.x -= r; wheelR.rotation.x -= S.brk && Math.abs(S.slip) > .12 ? r * .15 : r; steerG.rotation.y = clamp(S.slip * .9 - S.lean * .1, -.5, .5); wheelF.position.y = P.wfY + S.cF; wheelR.position.y = P.wrY + S.cR; }   // di traverso: ruota dietro quasi bloccata e controsterzo
   if (P.rider) { const r = P.rider.root;   // in caduta il pilota si stacca dalla moto, scivola avanti per conto suo e resta a terra; alla ripartenza torna in sella
     if (S.fall > 0 && !RD.off) { RD.p = r.position.clone(); RD.q = r.quaternion.clone(); RD.s = r.scale.clone(); scene.attach(r); RD.off = 1; RD.t = 0; RD.vx = Math.sin(S.psi) * (S.v * .9 + 2) + Math.cos(S.psi) * S.fallSide * 1.5; RD.vz = -Math.cos(S.psi) * (S.v * .9 + 2) + Math.sin(S.psi) * S.fallSide * 1.5; RD.h = S.psi; }
@@ -316,7 +325,7 @@ function draw(dt) {
     if (RD.off && !(S.fall > 0)) { pitchG.add(r); r.position.copy(RD.p); r.quaternion.copy(RD.q); r.scale.copy(RD.s); RD.off = 0; } }
   if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0 });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
-  lensDraw(dt); dust(dt); soundUpdate(dt, { wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
+  lensDraw(dt); dust(dt); soundUpdate(dt, { thr: S.thr || 0, spin: S.spin || 0, wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
   blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.material.opacity = S.air > 0 ? .16 : .32;
   camUpdate(dt); if (!window.__noRender) renderer.render(scene, camera);
 }
@@ -324,7 +333,7 @@ function draw(dt) {
 // ---------- gioco ----------
 const fmt = t => t.toFixed(1).replace('.', ',');
 function hud() { $('spd').firstChild.nodeValue = Math.round(S.v * 3.6); $('tim').firstChild.nodeValue = fmt(time); $('bar').firstElementChild.style.width = clamp(S.s / (tr.len - 14) * 100, 0, 100) + '%';
-  $('best').textContent = best ? 'RECORD ' + fmt(best) + ' s' : ''; $('gasb').classList.toggle('hidden', O.gas === 'a');
+  $('best').textContent = best ? 'RECORD ' + fmt(best) + ' s' : ''; $('gasb').classList.toggle('hidden', O.gas === 'a'); $('gasb').style.setProperty('--g', Math.round((S.thr || 0) * 100) + '%');
   if (state === 'play') $('msg').textContent = wrong > .8 ? 'GIRATI!' : time < .9 ? 'VIA!' : ''; }
 function labels() { $('oAuto').textContent = 'FRENO AUTO: ' + (O.auto ? 'SÌ' : 'NO'); $('oGas').textContent = 'GAS: ' + (O.gas === 'a' ? 'AUTOMATICO' : 'COL TASTO'); $('oSens').textContent = 'STERZO: ' + ({ s: 'MORBIDO', m: 'MEDIO', h: 'RAPIDO' }[O.sens]); $('oInv').textContent = 'VERSO STERZO: ' + (O.inv ? 'INVERTITO' : 'NORMALE'); $('oSnd').textContent = 'SUONO: ' + (O.snd ? 'SÌ' : 'NO'); $('oCam').textContent = 'CAMERA: ' + ({ c: 'VICINA', m: 'MEDIA', l: 'LONTANA' }[O.cam]); }
 $('oAuto').onclick = () => { O.auto = !O.auto; setOpt('auto', O.auto ? '1' : '0'); labels(); };
@@ -352,4 +361,4 @@ function frame(now) {
   if (fdt > .03) { if (++slow > 40 && pix > 1) { pix = Math.max(1, pix - .25); slow = 0; resize(); } } else slow = Math.max(0, slow - 1);
 }
 requestAnimationFrame(frame);
-window.__next = { S, tr, O, cam, restart, P, RD, get state() { return state; }, steer(v) { keyL = v < 0 ? -v : 0; keyR = v > 0 ? v : 0; }, brake(v) { braking = v; }, get time() { return time; } };
+window.__next = { S, tr, O, cam, restart, P, RD, get state() { return state; }, steer(v) { keyL = v < 0 ? -v : 0; keyR = v > 0 ? v : 0; }, brake(v) { braking = v; }, gas(v) { gasHeld = v > 0; gasCmd = v; }, get time() { return time; } };
