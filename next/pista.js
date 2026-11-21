@@ -17,12 +17,12 @@ export const KIND = {
 // [lunghezza m, raggio m (+ destra, − sinistra, 0 = dritto), pendenza %, tipo]
 export const GIRO_EASY = [
   [80, 0, 0, 'v'], [90, 80, 1, 'v'], [60, 0, 2, 'v'], [100, -70, 2, 'v'], [70, 0, -1, 'v'], [80, 60, -2, 'v'],
-  [50, 0, 13, 's'], [45, -28, 19, 's'], [40, 0, 22, 's'], [45, 30, 18, 's'], [40, 0, 9, 's'],
+  [50, 0, 13, 's'], [32, -20, 19, 's'], [52, 0, 22, 's'], [33, 22, 18, 's'], [40, 0, 9, 's'],
   [70, 0, 1, 'p'], [50, -40, 0, 'p'],
-  [50, 0, -13, 'd'], [45, 35, -19, 'd'], [50, -30, -17, 'd'], [40, 0, -8, 'd'],
+  [50, 0, -13, 'd'], [31, 24, -19, 'd'], [37, -22, -17, 'd'], [22, 0, -12, 'd'], [40, 0, -8, 'd'],
   [26, 0, 0, 'g'], [40, 60, 1, 'f'], [50, 0, 0, 'f'],
   [35, 0, 10, 'm'], [31, -13, 14, 'm'], [35, 0, 15, 'm'], [31, 13, 14, 'm'], [35, 0, 12, 'm'], [28, -14, 9, 'm'], [30, 0, 5, 'm'],
-  [40, 0, 2, 't'], [30, 20, 0, 't'], [30, -18, -2, 't'], [35, 22, -3, 't'], [30, -20, -2, 't'], [40, 25, 0, 't'], [30, -22, -3, 't'], [40, 0, -4, 't'],
+  [40, 0, 2, 't'], [23, 15, 0, 't'], [23, -14, -2, 't'], [12, 0, -1, 't'], [35, 22, -3, 't'], [30, -20, -2, 't'], [40, 25, 0, 't'], [30, -22, -3, 't'], [40, 0, -4, 't'],
   [40, 0, -1, 'b'], [45, 30, 0, 'b'], [40, -28, 0, 'b'], [35, 0, 0, 'b'],
   [60, 0, -2, 'v'], [90, -75, -1, 'v'], [110, 0, 0, 'v'],
 ];
@@ -56,6 +56,7 @@ function addGround(tr) {
       for (let s = sp.s0 + 8; s < sp.s1 - 12; s += 17 + rnd() * 8) { const len = 6 + rnd() * 3; put(s, len, (i, u, e) => { bump[i] -= .2 * e * e; }); tr.water.push({ s0: s + 1.2, s1: s + len - 1.2, half: 2.4, off: (rnd() - .5) * 2.2, depth: .2, kind: 'pozza' }); }
     } else if (sp.kind === 'v' || sp.kind === 's' || sp.kind === 'd') {   // dossi, canali e gobbe
       const kinds = sp.kind === 'v' ? ['dosso', 'gobbe', 'dosso'] : sp.kind === 's' ? ['canale', 'gradino'] : ['dosso', 'canale'];
+      if (sp.kind === 's') for (let s = sp.s0 + 88; s < sp.s0 + 126; s += 7.5) { feat.push({ s, kind: 'gradone' }); put(s, 6, (i, u) => { bump[i] += .3 * (u < .3 ? u / .3 : 1 - (u - .3) / .7); }); }   // gradoni sul pezzo più ripido: salgono di colpo e scendono piano
       let q = 0; for (let s = sp.s0 + 34; s < sp.s1 - 30; s += 44 + rnd() * 30) {
         const kd = kinds[q++ % kinds.length], tight = Math.abs(tr.k[Math.min(tr.n - 1, Math.round(s / DS))]) > .025 ? .55 : 1; feat.push({ s, kind: kd });
         if (kd === 'dosso') put(s, 6.5, (i, u, e) => { bump[i] += .45 * tight * e * e; });
