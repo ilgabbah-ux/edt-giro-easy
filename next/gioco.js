@@ -311,9 +311,13 @@ function glug() { thud(.2); }
 function place() { const s0 = 20; at(tr, s0, 0, P); Object.assign(S, { x: P.x, z: P.z, y: P.y, psi: P.h, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: Math.round(s0 / DS), s: s0, d: 0, off: 0, hit: 0, pitch: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: P.y, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0, grip: 1.1, wet: 0 }); cam.h = P.h; cam.init = false; tiltA0 = null; tiltSteer = 0; }
 // CADUTA: la moto va giù, striscia, e dopo un paio di secondi si riparte da fermi in mezzo al sentiero. Il tempo continua a correre.
 function crash(side) { if (S.fall > 0 || S.safe > 0 || state !== 'play') return; S.fall = 2.3; S.fallSide = side || 1; S.falls = (S.falls || 0) + 1; S.hit = 1; S.air = 0; thud(1); $('msg').textContent = 'CADUTO!'; }
+// contro un sasso o un tronco, piano: una botta sola, poi la moto gira lungo l'ostacolo e scivola via. Prima restava incastrata (rallentava a ogni istante finché ci stava contro)
+function glance(nx, nz, dt) { const hx = Math.sin(S.psi), hz = -Math.cos(S.psi); if (hx * nx + hz * nz >= 0) return;   // se te ne stai già andando, niente
+  let tx = -nz, tz = nx; if (hx * tx + hz * tz < 0) { tx = -tx; tz = -tz; } const want = Math.atan2(tx + nx * .35, -(tz + nz * .35)); let da = want - S.psi; da = Math.atan2(Math.sin(da), Math.cos(da)); S.psi += da * Math.min(1, dt * 12); S.lean *= 1 - Math.min(1, dt * 6);
+  if (!(S.bumpCd > 0)) { S.v *= .5; S.hit = Math.max(S.hit, .5); thud(.4); } S.bumpCd = .6; S.v = Math.max(S.v, 1.2); }
 function getUp() { { const ls = laneSide(tr, S.s, S.d); at(tr, S.s, ls * laneOff(tr, S.s, ls), P); }   /* nel bivio si riparte nella propria corsia, non sui sassi in mezzo */ Object.assign(S, { x: P.x, z: P.z, psi: P.h, v: 0, lean: 0, leanV: 0, slip: 0, vy: 0, air: 0, fall: 0, safe: 1.5, overT: 0, brkAmt: 0 }); steerIn = 0; $('msg').textContent = ''; }
 function step(dt) {
-  if (S.fall > 0) { S.fall -= dt; if (S.fall <= 0) getUp(); } S.safe = Math.max(0, (S.safe || 0) - dt); const down = S.fall > 0;
+  if (S.fall > 0) { S.fall -= dt; if (S.fall <= 0) getUp(); } S.safe = Math.max(0, (S.safe || 0) - dt); S.bumpCd = Math.max(0, (S.bumpCd || 0) - dt); const down = S.fall > 0;
   const pr = project(tr, S.x, S.z, S.i); S.i = pr.i; S.s = pr.s; S.d = pr.d; S.grade = pr.g;
   const HW = widthAt(tr, S.s) / 2, KD = kindAt(tr, S.s); S.kd = KD;
   const latA = Math.abs(lat(tr, S.s, S.d)), onTrack = latA <= HW + .2; S.off += ((onTrack ? 0 : clamp((latA - HW - .2) / 1.6, .12, 1)) - S.off) * Math.min(1, dt * 6);
@@ -385,10 +389,10 @@ function step(dt) {
   S.x += Math.sin(S.psi) * S.v * dt; S.z -= Math.cos(S.psi) * S.v * dt;
   // alberi: il tronco non si sposta. Forte si cade, piano ci si pianta contro
   if (!down && S.air <= 0) { const b0 = Math.floor(S.s / 8); for (let b = b0 - 1; b <= b0 + 1; b++) { const a = TREES[b]; if (!a) continue; for (let q = 0; q < a.length; q += 2) { const dx = S.x - a[q], dz = S.z - a[q + 1], dd = dx * dx + dz * dz; if (dd < .2) { const dist = Math.sqrt(dd) || .01, side = Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1;
-    S.x = a[q] + dx / dist * .46; S.z = a[q + 1] + dz / dist * .46; if (S.v > 9) crash(side); else { S.v *= .3; S.hit = Math.max(S.hit, .5); thud(.4); } } } } }
+    S.x = a[q] + dx / dist * .46; S.z = a[q + 1] + dz / dist * .46; if (S.v > 9) crash(side); else glance(dx / dist, dz / dist, dt); } } } }
   // sassi grossi: come i tronchi. Forte si cade, piano ci si ferma contro
   if (!down && S.air <= 0) { const b0 = Math.floor(S.s / 8); for (let b = b0 - 1; b <= b0 + 1; b++) { const a = ROCKS[b]; if (!a) continue; for (let q = 0; q < a.length; q += 3) { const dx = S.x - a[q], dz = S.z - a[q + 1], rr = a[q + 2] + .25, dd = dx * dx + dz * dz; if (dd < rr * rr) { const dist = Math.sqrt(dd) || .01;
-    S.x = a[q] + dx / dist * rr; S.z = a[q + 1] + dz / dist * rr; if (S.v > 7) crash(Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1); else { S.v *= .3; S.hit = Math.max(S.hit, .5); thud(.4); } } } } }
+    S.x = a[q] + dx / dist * rr; S.z = a[q + 1] + dz / dist * rr; if (S.v > 7) crash(Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1); else glance(dx / dist, dz / dist, dt); } } } }
   // bordi: dopo qualche metro di prato c'è la scarpata, si rimbalza dentro perdendo velocità
   const wall = KD.name === 'mulattiera', lim = wall ? HW - .12 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
   const limF = lim + laneOff(tr, S.s, Math.sign(S.d) || 1); if (Math.abs(S.d) > limF) { const sg = Math.sign(S.d), push = Math.abs(S.d) - limF; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push;
@@ -503,4 +507,4 @@ function frame(now) {
   if (fdt > .03) { if (++slow > 40) { slow = 0; if (pix > 1.25) { pix = Math.max(1.25, pix - .25); resize(); } else if (renderer.shadowMap.enabled) { renderer.shadowMap.enabled = false; sun.castShadow = false; scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); } else if (pix > 1) { pix = 1; resize(); } } } else slow = Math.max(0, slow - 1);
 }
 requestAnimationFrame(frame);
-window.__next = { S, tr, O, cam, restart, P, RD, laneOff, get state() { return state; }, steer(v) { keyL = v < 0 ? -v : 0; keyR = v > 0 ? v : 0; }, brake(v) { braking = v; }, gas(v) { gasHeld = v > 0; gasCmd = v; }, get time() { return time; } };
+window.__next = { S, tr, O, cam, restart, P, RD, laneOff, ROCKS, TREES, get state() { return state; }, steer(v) { keyL = v < 0 ? -v : 0; keyR = v > 0 ? v : 0; }, brake(v) { braking = v; }, gas(v) { gasHeld = v > 0; gasCmd = v; }, get time() { return time; } };
