@@ -174,19 +174,25 @@ const ROCKS = [];   // i sassi grossi sono ostacoli veri: x, z, raggio, raggrupp
   list.forEach(([s, d, r, up], i) => { at(tr, s, d, P); e.set(rnd() * 6, rnd() * 6, rnd() * 6); q.setFromEuler(e); sc.set(r * (.8 + rnd() * .5), r * (.55 + rnd() * .3), r * (.8 + rnd() * .5)); if (r > .5 && up === 0) (ROCKS[Math.floor(s / 8)] ||= []).push(P.x, P.z, r * .8); ps.set(P.x, P.y + r * .2 + up, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
 }
 const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di percorso
-{ // alberi: modelli 3D fatti in Blender, resi da 4 lati e montati su 4 piani a stella (volume vero da ogni angolo, leggeri per il telefono). Nel single track sono fitti e a un passo dal sentiero
-  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (const [file, every, asp, h0, h1] of [['abete', 3.2, .561, 7, 7], ['larice', 8, .64, 7, 6], ['alberello', 9, 1.684, 3.2, 2.6]]) {
-    const pos = [], uv = [], idx = [];
-    for (let k = 0; k < 4; k++) { const g1 = new T.PlaneGeometry(asp, 1).rotateY(k * Math.PI / 4), u = g1.attributes.uv; pos.push(...g1.attributes.position.array); for (let i = 0; i < u.count; i++) uv.push((k + u.getX(i)) / 4, u.getY(i)); idx.push(...[...g1.index.array].map(v => v + k * 4)); }
-    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
-    const tx = tex(`modelli/${file}.webp?v=1`); tx.wrapS = tx.wrapT = T.ClampToEdgeWrapping;
-    const cap = Math.floor(tr.len / every) * 6, im = new T.InstancedMesh(g, new T.MeshBasicMaterial({ map: tx, alphaTest: .5, side: T.DoubleSide, color: 0xdcdcdc }), cap), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
-    let q = 0; for (let s0 = 0; s0 < tr.len; s0 += every) { const kd = tr.kind[Math.min(tr.n - 1, Math.round(s0 / DS))], reps = kd === 't' ? 3 : kd === 'm' ? 2 : kd === 'p' || kd === 'g' ? 0 : 1;
-      for (let r = 0; r < reps; r++) for (const sg of [-1, 1]) { if (q >= cap) break; const s = s0 + rnd() * every, hw = widthAt(tr, s) / 2, lim = Math.max(hw + 1.2, sideLimit(s, sg) - 1); const near = kd === 't' ? 1.8 : kd === 'm' ? 1.6 : 2.5; const lo = laneOff(tr, s, sg), isl = lo > hw + near + 1 && rnd() < .8; const d = isl ? sg * rnd() * (lo - hw - near) : sg * (lo + Math.min(lim, hw + near + rnd() * rnd() * (kd === 't' ? 11 : 20))); at(tr, s, d, P); P.y = groundY(tr, s, d, true);
-        (TREES[Math.floor(s / 8)] ||= []).push(P.x, P.z); const hgt = h0 + rnd() * h1; qt.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(hgt, hgt, hgt); ps.set(P.x, P.y + hgt * .5 - .12, P.z); m.compose(ps, qt, sc); im.setMatrixAt(q++, m); } }
-    im.count = q; scene.add(im);
+{ // alberi: modelli 3D fatti in Blender, resi da 4 lati e montati su 4 piani a stella. Quelli a ridosso del sentiero hanno il fusto nudo fino a 3,4 m e la chioma sopra la testa: nel bosco si passa tra i tronchi, non dentro i rami
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647; const LIFT = 3.4, V0 = .14, trunks = [];
+  for (const [file, every, asp, h0, h1, wide] of [['abete', 3.2, .561, 7, 7, 0], ['larice', 8, .64, 7, 6, 0], ['alberello', 9, 1.684, 3.2, 2.6, 1]]) {
+    const star = (hh, v0) => { const pos = [], uv = [], idx = [];
+      for (let k = 0; k < 4; k++) { const g1 = new T.PlaneGeometry(asp, hh).rotateY(k * Math.PI / 4), u = g1.attributes.uv; pos.push(...g1.attributes.position.array); for (let i = 0; i < u.count; i++) uv.push((k + u.getX(i)) / 4, v0 + u.getY(i) * (1 - v0)); idx.push(...[...g1.index.array].map(v => v + k * 4)); }
+      const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); return g; };
+    const tx = tex(`modelli/${file}.webp?v=1`); tx.wrapS = tx.wrapT = T.ClampToEdgeWrapping; const mat = new T.MeshBasicMaterial({ map: tx, alphaTest: .5, side: T.DoubleSide, color: 0xdcdcdc });
+    const cap = Math.floor(tr.len / every) * 6, im = new T.InstancedMesh(star(1, 0), mat, cap), imH = new T.InstancedMesh(star(1 - V0, V0), mat, cap), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
+    let q = 0, qh = 0; for (let s0 = 0; s0 < tr.len; s0 += every) { const kd = tr.kind[Math.min(tr.n - 1, Math.round(s0 / DS))], reps = kd === 't' ? 3 : kd === 'm' ? 2 : kd === 'p' || kd === 'g' ? 0 : 1;
+      for (let r = 0; r < reps; r++) for (const sg of [-1, 1]) { if (q >= cap || qh >= cap) break; const s = s0 + rnd() * every, hw = widthAt(tr, s) / 2, lim = Math.max(hw + 1.2, sideLimit(s, sg) - 1); const near = kd === 't' ? 1.8 : kd === 'm' ? 1.6 : 2.5; const lo = laneOff(tr, s, sg), isl = lo > hw + near + 1 && rnd() < .8; let X = Math.min(lim, hw + near + rnd() * rnd() * (kd === 't' ? 11 : 20)); const hgt = h0 + rnd() * h1, ang = rnd() * 6.3, rad = asp * hgt * .5;
+        if (wide) { if (isl) continue; X = Math.max(X, hw + rad + .6); if (X > lim + 6) continue; }   /* l'alberello è largo: sta abbastanza indietro da non coprire il sentiero, oppure non c'è */
+        const d = isl ? sg * rnd() * (lo - hw - near) : sg * (lo + X), high = !wide && (isl || X - hw < rad + 1); at(tr, s, d, P); P.y = groundY(tr, s, d, true);
+        (TREES[Math.floor(s / 8)] ||= []).push(P.x, P.z); qt.setFromAxisAngle(T.Object3D.DEFAULT_UP, ang); sc.set(hgt, hgt, hgt);
+        if (high) { ps.set(P.x, P.y + LIFT + hgt * (1 - V0) * .5, P.z); m.compose(ps, qt, sc); imH.setMatrixAt(qh++, m); trunks.push(P.x, P.y, P.z, .13 + hgt * .012); }
+        else { ps.set(P.x, P.y + hgt * .5 - .12, P.z); m.compose(ps, qt, sc); im.setMatrixAt(q++, m); } } }
+    im.count = q; imH.count = qh; scene.add(im, imH);
   }
+  { const n = trunks.length / 4, tm = new T.InstancedMesh(new T.CylinderGeometry(.42, .7, 1, 7, 1, true), new T.MeshLambertMaterial({ color: 0x7a5c44 }), n), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
+    for (let i = 0; i < n; i++) { const r = trunks[i * 4 + 3], h = LIFT + 2.2; sc.set(r, h, r); ps.set(trunks[i * 4], trunks[i * 4 + 1] + h / 2 - .3, trunks[i * 4 + 2]); m.compose(ps, qt, sc); tm.setMatrixAt(i, m); } tm.castShadow = true; scene.add(tm); }
 }
 { // partenza, arrivo e un cartello all'inizio di ogni tratto
   const board = (label, col, w, h) => { const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96; const x = cv.getContext('2d'); x.fillStyle = col; x.fillRect(0, 0, 512, 96); x.fillStyle = '#111'; x.font = 'bold 60px Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 256, 52);
