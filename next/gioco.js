@@ -174,17 +174,17 @@ const ROCKS = [];   // i sassi grossi sono ostacoli veri: x, z, raggio, raggrupp
   list.forEach(([s, d, r, up], i) => { at(tr, s, d, P); e.set(rnd() * 6, rnd() * 6, rnd() * 6); q.setFromEuler(e); sc.set(r * (.8 + rnd() * .5), r * (.55 + rnd() * .3), r * (.8 + rnd() * .5)); if (r > .5 && up === 0) (ROCKS[Math.floor(s / 8)] ||= []).push(P.x, P.z, r * .8); ps.set(P.x, P.y + r * .2 + up, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
 }
 const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di percorso
-{ // alberi: due piani incrociati con la foto dell'abete. Nel single track sono fitti e a un passo dal sentiero
+{ // alberi: modelli 3D fatti in Blender, resi da 4 lati e montati su 4 piani a stella (volume vero da ogni angolo, leggeri per il telefono). Nel single track sono fitti e a un passo dal sentiero
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (const [file, every] of [['fir_a', 4], ['fir_b', 6], ['fir_gold', 11], ['fir_c', 9]]) {
-    const g1 = new T.PlaneGeometry(1, 2), g2 = g1.clone().rotateY(Math.PI / 2), g = new T.BufferGeometry();
-    g.setAttribute('position', new T.Float32BufferAttribute([...g1.attributes.position.array, ...g2.attributes.position.array], 3));
-    g.setAttribute('uv', new T.Float32BufferAttribute([...g1.attributes.uv.array, ...g2.attributes.uv.array], 2));
-    g.setIndex([...g1.index.array, ...[...g2.index.array].map(v => v + 4)]);
-    const cap = Math.floor(tr.len / every) * 6, im = new T.InstancedMesh(g, new T.MeshBasicMaterial({ map: tex(`../img/tex/${file}.webp`), alphaTest: .5, side: T.DoubleSide, color: 0xe6e6e6 }), cap), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
+  for (const [file, every, asp, h0, h1] of [['abete', 3.2, .561, 7, 7], ['larice', 8, .64, 7, 6], ['alberello', 9, 1.684, 3.2, 2.6]]) {
+    const pos = [], uv = [], idx = [];
+    for (let k = 0; k < 4; k++) { const g1 = new T.PlaneGeometry(asp, 1).rotateY(k * Math.PI / 4), u = g1.attributes.uv; pos.push(...g1.attributes.position.array); for (let i = 0; i < u.count; i++) uv.push((k + u.getX(i)) / 4, u.getY(i)); idx.push(...[...g1.index.array].map(v => v + k * 4)); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+    const tx = tex(`modelli/${file}.webp?v=1`); tx.wrapS = tx.wrapT = T.ClampToEdgeWrapping;
+    const cap = Math.floor(tr.len / every) * 6, im = new T.InstancedMesh(g, new T.MeshBasicMaterial({ map: tx, alphaTest: .5, side: T.DoubleSide, color: 0xdcdcdc }), cap), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
     let q = 0; for (let s0 = 0; s0 < tr.len; s0 += every) { const kd = tr.kind[Math.min(tr.n - 1, Math.round(s0 / DS))], reps = kd === 't' ? 3 : kd === 'm' ? 2 : kd === 'p' || kd === 'g' ? 0 : 1;
       for (let r = 0; r < reps; r++) for (const sg of [-1, 1]) { if (q >= cap) break; const s = s0 + rnd() * every, hw = widthAt(tr, s) / 2, lim = Math.max(hw + 1.2, sideLimit(s, sg) - 1); const near = kd === 't' ? 1.8 : kd === 'm' ? 1.6 : 2.5; const lo = laneOff(tr, s, sg), isl = lo > hw + near + 1 && rnd() < .8; const d = isl ? sg * rnd() * (lo - hw - near) : sg * (lo + Math.min(lim, hw + near + rnd() * rnd() * (kd === 't' ? 11 : 20))); at(tr, s, d, P); P.y = groundY(tr, s, d, true);
-        (TREES[Math.floor(s / 8)] ||= []).push(P.x, P.z); const hgt = 7 + rnd() * 7; qt.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(hgt * .5, hgt * .5, hgt * .5); ps.set(P.x, P.y + hgt * .5 - .3, P.z); m.compose(ps, qt, sc); im.setMatrixAt(q++, m); } }
+        (TREES[Math.floor(s / 8)] ||= []).push(P.x, P.z); const hgt = h0 + rnd() * h1; qt.setFromAxisAngle(T.Object3D.DEFAULT_UP, rnd() * 6.3); sc.set(hgt, hgt, hgt); ps.set(P.x, P.y + hgt * .5 - .12, P.z); m.compose(ps, qt, sc); im.setMatrixAt(q++, m); } }
     im.count = q; scene.add(im);
   }
 }
@@ -224,12 +224,13 @@ let wheelF = null, wheelR = null, steerG = null;
   gltf.load('../img/models/bike_fakedomi.glb?t=1', g => { const get = n => g.scene.getObjectByName(n), body = get('bike_body'), wf = get('wheel_f'), wr = get('wheel_r');
     steerG = new T.Group(); wheelF = new T.Group(); wheelR = new T.Group(); wheelF.position.copy(wf.position); wheelR.position.copy(wr.position); P.wfY = wf.position.y; P.wrY = wr.position.y; wf.position.set(0, 0, 0); wr.position.set(0, 0, 0);
     P.parts = { body: body.clone(), wf: wf.clone(), wr: wr.clone(), pf: wheelF.position.clone(), pr: wheelR.position.clone() }; wheelF.add(wf); wheelR.add(wr); steerG.add(wheelF); pitchG.add(body, steerG, wheelR); pitchG.traverse(c => { if (c.isMesh) c.castShadow = true; }); });
-  gltf.load('../img/models/rider_poses.glb?t=1', g => { const o = g.scene.getObjectByName('rider_sit'), mat = o.material.clone(); mat.color.set(0xf0c81e);
+  gltf.load('../img/models/rider_poses.glb?t=1', g => { const o = g.scene.getObjectByName('rider_sit'), mat = o.material.clone(); P.rMatRiv = o.material.clone();   /* il pilota porta il completo EDT grigio (texture dipinta in Blender sul modello); gli avversari restano a tinta unita */
+    { const tj = tl.load('modelli/pilota-edt.webp?v=1'); tj.colorSpace = T.SRGBColorSpace; tj.flipY = false; tj.anisotropy = 4; mat.map = tj; mat.color.set(0xffffff); }
     const geo = o.geometry.clone(); geo.applyMatrix4(new T.Matrix4().compose(new T.Vector3(), o.quaternion, o.scale));
     P.rGeo = geo; P.rMat = mat; P.rider = makeRider(geo, mat); P.rider.root.position.set(0, 1.16, .27); pitchG.add(P.rider.root); P.rider.root.traverse(c => { if (c.isMesh) c.castShadow = true; });
     gltf.load('../img/models/helmet.glb?t=1', h => { let src = null; h.scene.traverse(c => { if (c.isMesh && !src) src = c; }); const hg = src.geometry.clone(); hg.applyMatrix4(src.matrixWorld); hg.rotateY(-Math.PI / 2); hg.computeBoundingBox();
       const bb = hg.boundingBox, sz = bb.getSize(new T.Vector3()), c = bb.getCenter(new T.Vector3()), k = .3 / sz.x; hg.translate(-c.x, -c.y, -c.z); hg.scale(k, k, k);
-      P.helm = new T.Mesh(hg, src.material); P.helm.castShadow = true; pitchG.add(P.helm); P.ears = new T.Group(); for (const sx of [-1, 1]) { const e = new T.Mesh(new T.CapsuleGeometry(.035, .22, 4, 8), new T.MeshLambertMaterial({ color: 0xf6f2ea })); e.position.set(sx * .07, .27, 0); e.rotation.z = -sx * .28; P.ears.add(e); } P.ears.visible = false; P.helm.add(P.ears); }); });
+      const hmR = src.material.clone(); P.helm = new T.Mesh(hg, src.material.clone()); P.helm.material.color.set(0x2a2a2e); P.helmRiv = hmR; P.helm.castShadow = true; pitchG.add(P.helm); P.ears = new T.Group(); for (const sx of [-1, 1]) { const e = new T.Mesh(new T.CapsuleGeometry(.035, .22, 4, 8), new T.MeshLambertMaterial({ color: 0xf6f2ea })); e.position.set(sx * .07, .27, 0); e.rotation.z = -sx * .28; P.ears.add(e); } P.ears.visible = false; P.helm.add(P.ears); }); });
 }
 
 // ---------- terra e polvere dalla ruota dietro ----------
@@ -314,7 +315,7 @@ const RIV = [{ name: 'LINUS', col: 0x2f6fd0, skill: .86, s0: 14 }, { name: 'COST
 const KSPD = { v: 1, s: .78, d: .8, p: .68, g: .55, f: .55, m: .5, t: .5, b: .55 };
 function rivReset() { for (const r of RIV) { r.s = 20 + r.s0; r.d = (r.s0 % 28 ? 1.4 : -1.4); r.v = 0; r.done = 0; r.lane = r.skill > 1 ? 1 : -1; r.lean = 0; r.h = tr.h[10]; } }
 function rivBuild() { if (rivBuilt || SCHOOL || !P.parts || !P.rGeo || !P.helm) return; rivBuilt = true; rivReset();
-  for (const r of RIV) { const gp = new T.Group(), b = P.parts.body.clone(), wf = P.parts.wf.clone(), wr = P.parts.wr.clone(); wf.position.copy(P.parts.pf); wr.position.copy(P.parts.pr); const m = P.rMat.clone(); m.color.set(r.col); const rd = new T.Mesh(P.rGeo, m); rd.position.set(0, 1.16, .27); const hm = new T.Mesh(P.helm.geometry, P.helm.material); hm.position.set(0, 1.83, .12);
+  for (const r of RIV) { const gp = new T.Group(), b = P.parts.body.clone(), wf = P.parts.wf.clone(), wr = P.parts.wr.clone(); wf.position.copy(P.parts.pf); wr.position.copy(P.parts.pr); const m = P.rMatRiv.clone(); m.color.set(r.col); const rd = new T.Mesh(P.rGeo, m); rd.position.set(0, 1.16, .27); const hm = new T.Mesh(P.helm.geometry, P.helmRiv); hm.position.set(0, 1.83, .12);
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const x = cv.getContext('2d'); x.font = 'bold 44px Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 6; x.strokeStyle = '#111'; x.strokeText(r.name, 128, 34); x.fillStyle = '#fff'; x.fillText(r.name, 128, 34); const tt = new T.CanvasTexture(cv); tt.colorSpace = T.SRGBColorSpace; const lab = new T.Sprite(new T.SpriteMaterial({ map: tt, transparent: true, depthWrite: false })); lab.scale.set(1.9, .48, 1); lab.position.y = 2.45; lab.renderOrder = 6;
     gp.add(b, wf, wr, rd, hm, lab); gp.traverse(c => { if (c.isMesh) c.castShadow = true; }); scene.add(gp); r.g = gp; } }
 function rivStep(dt) { if (!rivBuilt) return; for (const r of RIV) { if (state === 'play' && !r.done) { const i = Math.min(tr.n - 1, Math.round(r.s / DS)); let km = 0; for (let q = 0; q <= 14; q += 2) km = Math.max(km, Math.abs(tr.k[Math.min(tr.n - 1, i + q)]));
