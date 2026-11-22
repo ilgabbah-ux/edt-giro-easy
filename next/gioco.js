@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=22';
+import { GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=23';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice } from './suono.js?v=11';
 import { makeRider } from './pilota.js?v=4';
 
@@ -291,9 +291,10 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) canvas.addEvent
 function upd() { let v = 0; for (const x of touches.values()) v += x < innerWidth / 2 ? -1 : 1; touchSteer = clamp(v, -1, 1); }
 const hold = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); fn(true); }); for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, () => fn(false)); };
 hold($('brake'), v => braking = v);
-// GAS: tocchi il tasto dove capita ed è tutto aperto; trascinando il pollice in giù chiudi (un dito e mezzo di corsa = un filo di gas), risalendo riapri. Non c'è da mirare
-{ const el = $('gasb'); let y0 = 0; const set = e => { if (e.clientY < y0) y0 = e.clientY; gasCmd = clamp(1 - (e.clientY - y0) / 120 * .8, .2, 1); };
-  el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); gasHeld = true; y0 = e.clientY; gasCmd = 1; }); el.addEventListener('pointermove', e => { if (gasHeld) set(e); });
+// GAS: tocchi il tasto dove capita ed è tutto aperto. Per dosare allontani il pollice da dove l'hai appoggiato, in qualsiasi direzione (in su, di lato: sotto c'è il bordo dello schermo); tornando indietro riapri.
+// Corsa lunga (150 px) e più fine verso il basso del gas, dove serve precisione
+{ const el = $('gasb'); let x0 = 0, y0 = 0; const set = e => { const r = Math.max(0, Math.hypot(e.clientX - x0, e.clientY - y0) - 14) / 150, k = clamp(1 - r, 0, 1); gasCmd = .15 + .85 * Math.pow(k, 1.25); };
+  el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); gasHeld = true; x0 = e.clientX; y0 = e.clientY; gasCmd = 1; }); el.addEventListener('pointermove', e => { if (gasHeld) set(e); });
   for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, () => { gasHeld = false; gasCmd = 0; }); }
 
 // ---------- fisica ----------
@@ -366,7 +367,7 @@ function step(dt) {
       if (S.wh <= 0) { if (S.whV < -1.2) { S.hit = Math.max(S.hit, .3); thud(.3); } S.wh = 0; S.whV = 0; } if (S.wh > 1.22) { S.wh = 0; S.whV = 0; crash(0); } if (down || S.air > 0) { S.whV = Math.min(S.whV, 0) - 4 * dt; } } }
   S.thr = (S.thr || 0) + (want - (S.thr || 0)) * Math.min(1, dt * (want > (S.thr || 0) ? 14 : 20)); const thr = S.thr, gasOn = thr > .05;   // il gas automatico molla prima delle curve strette (non frena: quello lo fai tu)
   // trazione: la spinta chiesta contro quella che il fondo regge. Se apri troppo su fango, bagnato o salita la ruota gira a vuoto: spinge meno e il posteriore scappa
-  const vTop0 = VMAX * (1 - S.off * .5) * (.4 + .6 * thr), push = thr * 11.5 * clamp(1.15 - S.v / vTop0, 0, 1), hold = Math.max(2, (mu * .92 - Math.abs(Math.tan(S.lean)) * .35) * G), spin = S.air > 0 ? 0 : clamp((push - hold) / hold, 0, 1);
+  const vTop0 = VMAX * (1 - S.off * .5) * (.3 + .7 * thr), push = Math.pow(thr, 1.35) * 11.5 * clamp(1.15 - S.v / vTop0, 0, 1), hold = Math.max(2, (mu * .92 - Math.abs(Math.tan(S.lean)) * .35) * G), spin = S.air > 0 ? 0 : clamp((push - hold) / hold, 0, 1);
   S.spin = (S.spin || 0) + (spin - (S.spin || 0)) * Math.min(1, dt * 9);
   const powerSlide = gasOn ? Math.sign(S.lean || steerIn) * (Math.max(0, Math.abs(S.lean) - .5) * .7 * thr * clamp(1.3 - S.v / 14, 0, 1) + S.spin * (.12 + Math.abs(S.lean) * .5)) : 0;   // in uscita, col gas e piegato, il posteriore scappa un po'
   const slipT = brakeSlide + powerSlide + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0);
@@ -475,7 +476,7 @@ function school(dt) { flashT -= dt; if (!tr.stations || (state !== 'play' && sta
     if (!m.done && (a.goal === 'go' ? S.v > 8 : a.goal === 'stop' ? m.fast && S.v < 1.2 && S.brk : a.goal === 'half' ? (m.half || 0) >= 1 : a.goal === 'lean' ? m.left && m.right : a.goal === 'wh' ? (m.wh || 0) >= .4 : false)) { m.done = 1; flash('BRAVO!', 1.2); tipSet(k, 1); if (k > 0) say('si'); }
     if (S.fall > 0) m.fell = 1; else if (m.fell) toStation(k, a.no); } }
 function hud() { $('spd').firstChild.nodeValue = Math.round(S.v * 3.6); $('tim').firstChild.nodeValue = fmt(time); $('bar').firstElementChild.style.width = clamp(S.s / (tr.len - 14) * 100, 0, 100) + '%';
-  $('best').textContent = SCHOOL ? '' : (best ? 'RECORD ' + fmt(best) + ' s · ' : '') + '🍺 ' + (S.beers || 0); $('gasb').classList.toggle('hidden', O.gas === 'a'); $('gasb').style.setProperty('--g', Math.round((S.thr || 0) * 100) + '%');
+  $('best').textContent = SCHOOL ? '' : (best ? 'RECORD ' + fmt(best) + ' s · ' : '') + '🍺 ' + (S.beers || 0); $('gasb').classList.toggle('hidden', O.gas === 'a'); $('gasb').style.setProperty('--g', Math.round((S.thr || 0) * 100) + '%'); { const t = gasHeld ? 'GAS ' + Math.round(gasCmd * 100) + '%' : 'GAS'; if ($('gasb').textContent !== t) $('gasb').textContent = t; }
   if (state === 'play') { const t = S.fall > 0 ? 'CADUTO!' : flashT > 0 ? flashMsg : wrong > .8 ? 'GIRATI!' : time < .9 ? 'VIA!' : ''; if ($('msg').textContent !== t) $('msg').textContent = t; $('msg').classList.toggle('small', t.length > 9); } else $('msg').classList.remove('small'); }
 function labels() { $('oAuto').textContent = 'FRENO AUTO: ' + (O.auto ? 'SÌ' : 'NO'); $('oGas').textContent = 'GAS: ' + (O.gas === 'a' ? 'AUTOMATICO' : 'COL TASTO'); $('oSens').textContent = 'STERZO: ' + ({ s: 'MORBIDO', m: 'MEDIO', h: 'RAPIDO' }[O.sens]); $('oInv').textContent = 'VERSO STERZO: ' + (O.inv ? 'INVERTITO' : 'NORMALE'); $('oSnd').textContent = 'SUONO: ' + (O.snd ? 'SÌ' : 'NO'); $('oCam').textContent = 'CAMERA: ' + ({ c: 'VICINA', m: 'MEDIA', l: 'LONTANA' }[O.cam]); }
 $('oPista').textContent = 'PERCORSO: ' + (SCHOOL ? 'SCUOLA' : 'GIRO EASY'); $('oPista').onclick = () => { setOpt('pista', SCHOOL ? 'g' : 's'); location.reload(); };

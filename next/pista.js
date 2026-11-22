@@ -46,10 +46,10 @@ export const SCUOLA_EXTRA = { plain: true, logs: [860, 905], steps: [968, 976, 9
   stations: [
     { s0: 0, s1: 90, goal: 'go', auto: 1, hl: 'gasb', t: 'PARTI', x: 'Tieni premuto il tasto giallo GAS, in basso a destra. La moto parte e per ora sta in strada da sola.', no: 'TIENI PREMUTO IL GAS' },
     { s0: 90, s1: 230, goal: 'stop', auto: 1, hl: 'brake', t: 'FRENA', x: 'Molla il gas e tieni premuto il tasto rosso FRENO, in basso a sinistra, finché la moto è ferma.', no: 'TIENI PREMUTO IL FRENO' },
-    { s0: 230, s1: 330, goal: 'half', auto: 1, hl: 'gasb', t: 'DOSA IL GAS', x: 'Riparti col GAS. Poi, senza staccare il pollice, trascinalo in giù: il gas cala. In su: riapre. Tienilo a metà per un secondo.', no: 'POLLICE SUL GAS E TRASCINA IN GIÙ' },
+    { s0: 230, s1: 330, goal: 'half', auto: 1, hl: 'gasb', t: 'DOSA IL GAS', x: 'Riparti col GAS. Poi, senza staccare il pollice, fallo scorrere via dal punto di appoggio: il gas cala (lo leggi sul tasto). Torna indietro: riapre. Tienilo a metà per un secondo.', no: 'POLLICE SUL GAS E FALLO SCORRERE' },
     { s0: 330, s1: 430, goal: 'lean', t: 'STERZA', x: 'Adesso guidi tu. Inclina il telefono come un manubrio: prima a destra, poi a sinistra. (Senza sensore: tocca il lato destro o sinistro dello schermo.)', no: 'INCLINA A DESTRA E A SINISTRA' },
     { s0: 430, s1: 592, goal: 'on', t: 'SLALOM', x: 'Segui le curve inclinando il telefono. Resta sul sentiero.', no: 'RESTA SUL SENTIERO' },
-    { s0: 592, s1: 665, goal: 'spin', t: 'FANGO', x: 'Nel fango apri poco: a tutto gas la ruota pattina e non vai avanti. Trascina il pollice in giù.', no: 'MENO GAS NEL FANGO' },
+    { s0: 592, s1: 665, goal: 'spin', t: 'FANGO', x: 'Nel fango apri poco: a tutto gas la ruota pattina e non vai avanti. Fai scorrere il pollice finché leggi 40–50%.', no: 'MENO GAS NEL FANGO' },
     { s0: 665, s1: 760, goal: 'slide', hl: 'brake', t: 'CURVA STRETTA', x: 'Arriva una curva stretta a destra: frena prima, poi inclina. Frenando in curva la moto va di traverso e chiude.', no: 'FRENA PRIMA, POI STERZA' },
     { s0: 760, s1: 840, goal: 'wh', hl: 'gasb', t: 'IMPENNATA', x: 'Colpo di gas: stacca il pollice dal GAS e ripremi subito. La ruota davanti si alza.', no: 'STACCA E RIPREMI SUBITO IL GAS' },
     { s0: 840, s1: 920, goal: 'pass', t: 'TRONCHI', x: 'Due tronchi. Arriva piano (sotto i 60) e impenna appena prima: lo scavalchi. Con la ruota a terra e forte, cadi.', no: 'IMPENNA PRIMA DEL TRONCO' },
