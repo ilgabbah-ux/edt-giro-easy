@@ -1,0 +1,30 @@
+// I piloti dell'EDT, gli stessi dell'altro gioco: stesso ordine, stesso numero, stessa voce.
+// v = le battute registrate che ha (start partenza, hit botta, win arrivo, suka sorpasso); senza v il pilota non parla
+export const PILOTI = [
+  { id: 'gabbah', name: "IL GABBAH", num: 1, voce: 'gabbah', v: 'start hit win suka' },
+  { id: 'angelo', name: "ANGELO", num: 2, voce: 'angelo', v: 'start hit win suka' },
+  { id: 'miti', name: "MITI", num: 3, voce: 'miti', v: 'start hit win suka' },
+  { id: 'claudio', name: "CLAUDIO", num: 4 },
+  { id: 'max', name: "MAX", num: 5 },
+  { id: 'purcello', name: "PURCELLO", num: 6, voce: 'purcello', v: 'start hit win suka' },
+  { id: 'ciprian', name: "CIPRIAN", num: 7 },
+  { id: 'costa', name: "COSTA", num: 8, voce: 'costa', v: 'start hit win' },
+  { id: 'linus', name: "LINUS", num: 9, voce: 'linus', v: 'start hit win' },
+  { id: 'mirco', name: "MIRCO", num: 10, voce: 'mirco', v: 'start hit win suka' },
+  { id: 'luigi', name: "LUIGI", num: 11 },
+  { id: 'renard', name: "RENARD", num: 12, voce: 'renard', v: 'start hit win suka' },
+  { id: 'paletta', name: "PALETTA", num: 13 },
+  { id: 'andrea', name: "ANDREA", num: 14 },
+  { id: 'brizio', name: "BRIZIO", num: 15 },
+  { id: 'sergio', name: "SERGIO", num: 16 },
+  { id: 'albo', name: "ALBO", num: 17 },
+  { id: 'alex', name: "ALEX", num: 18, voce: 'alex', v: 'start hit win suka' },
+  { id: 'albertone', name: "ALBERTONE", num: 19 },
+  { id: 'erika', name: "ERIKA", num: 20, voce: 'erika', v: 'start hit win suka' },
+  { id: 'maggie', name: "MAGGIE", num: 21, voce: 'maggie', v: 'start hit win suka' },
+  { id: 'guccio', name: "GUCCIO", num: 22 },
+  { id: 'gusta', name: "GUSTA", num: 23, voce: 'gusta', v: 'start hit win' },
+  { id: 'daniel', name: "DANIEL", num: 24 },
+  { id: 'siro', name: "SIRO", num: 25 },
+];
+export const pilotaById = id => PILOTI.find(p => p.id === id) || PILOTI[0];

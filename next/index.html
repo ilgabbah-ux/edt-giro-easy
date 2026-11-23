@@ -54,7 +54,8 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   #brake { width: 42vw; max-width: 190px; height: 110px; } #gasb { width: 42vw; max-width: 190px; height: 136px; }
   #panel { padding: 18px 14px; } #panel h1 { font-size: 34px; } #panel .btn { min-width: 0; } #panel #go { min-width: 260px; } #panel .row .btn { flex: 1 1 44%; font-size: 15px; padding: 0 8px; }
 }
-#moto{display:flex;align-items:stretch;gap:8px;margin:6px auto 8px;max-width:640px}#moto.hidden{display:none}#moto .btn{flex:0 0 52px;font-size:22px;padding:0}#mBox{flex:1;background:rgba(0,0,0,.45);border:2px solid #ffd400;padding:6px 10px;text-align:left;min-width:0}#mName{display:block;color:#ffd400;font-size:22px;letter-spacing:.04em}#mTxt{display:block;font-size:14px;line-height:1.2;color:#eee;margin:2px 0 5px}#mStat{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:3px 8px;align-items:center;font-size:11px;color:#ccc}#mStat i{display:block;height:6px;background:#333}#mStat b{display:block;height:6px;background:#ffd400}
+#panel>*{flex-shrink:0}#sel{display:flex;flex-direction:column;gap:8px;width:100%;max-width:640px;margin:4px auto}#pil{display:flex;align-items:stretch;gap:8px}#pil.hidden{display:none}#pil .btn{flex:0 0 52px;font-size:22px;padding:0;min-width:0}#pBox{flex:1;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.45);border:2px solid #ffd400;padding:6px 10px;text-align:left;min-width:0}#pFoto{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #ffd400;flex:0 0 auto;background:#222}#pName{display:block;color:#ffd400;font-size:22px;letter-spacing:.04em}#pTxt{display:block;font-size:13px;line-height:1.2;color:#eee}@media (orientation:landscape) and (max-height:520px){#sel{flex-direction:row;max-width:760px}#sel>div{flex:1 1 50%;min-width:0}#pName,#mName{font-size:18px}#pFoto{width:46px;height:46px}#sel .btn{flex-basis:40px!important;height:auto!important}}
+#moto{margin:0!important;max-width:none!important}#moto{display:flex;align-items:stretch;gap:8px;margin:6px auto 8px;max-width:640px}#moto.hidden{display:none}#moto .btn{flex:0 0 52px;font-size:22px;padding:0}#mBox{flex:1;background:rgba(0,0,0,.45);border:2px solid #ffd400;padding:6px 10px;text-align:left;min-width:0}#mName{display:block;color:#ffd400;font-size:22px;letter-spacing:.04em}#mTxt{display:block;font-size:14px;line-height:1.2;color:#eee;margin:2px 0 5px}#mStat{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:3px 8px;align-items:center;font-size:11px;color:#ccc}#mStat i{display:block;height:6px;background:#333}#mStat b{display:block;height:6px;background:#ffd400}
 </style>
 </head>
 <body>
@@ -63,7 +64,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v46</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v47</div>
 <div class="hud hidden" id="tip"></div>
 <div class="hud" id="msg"></div>
 <button class="btn" id="brake" type="button">FRENO</button>
@@ -74,7 +75,8 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   <h1>GIRO EASY · <br>PISTA VERA 3D</h1>
   <p id="ptxt">Si guida inclinando il telefono come un manubrio. Gas col tasto giallo, freno col tasto rosso. Nelle opzioni qui sotto puoi farti aiutare (freno e gas automatici) e regolare lo sterzo.</p>
   <button class="btn" id="go" type="button">ACCENDI LA MOTO</button>
-  <div id="moto"><button class="btn dark" id="mPrev" type="button">◀</button><div id="mBox"><b id="mName"></b><span id="mTxt"></span><div id="mStat"></div></div><button class="btn dark" id="mNext" type="button">▶</button></div>
+  <div id="sel"><div id="pil"><button class="btn dark" id="pPrev" type="button">◀</button><div id="pBox"><img id="pFoto" alt=""><div><b id="pName"></b><span id="pTxt"></span></div></div><button class="btn dark" id="pNext" type="button">▶</button></div>
+  <div id="moto"><button class="btn dark" id="mPrev" type="button">◀</button><div id="mBox"><b id="mName"></b><span id="mTxt"></span><div id="mStat"></div></div><button class="btn dark" id="mNext" type="button">▶</button></div></div>
   <div class="row">
     <button class="btn dark" id="oAuto" type="button"></button>
     <button class="btn dark" id="oGas" type="button"></button>
@@ -87,7 +89,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   <p id="pres" style="color:#ffd400;font-size:20px"></p>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 46; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=46"></script>
+(function () { var V = 47; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=47"></script>
 </body>
 </html>
