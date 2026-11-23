@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=26';
+import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=27';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=16';
 import { MOTO, motoById } from './moto.js?v=3';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
@@ -174,7 +174,6 @@ const ROCKS = [];   // i sassi grossi sono ostacoli veri: x, z, raggio, raggrupp
   let seed = 99; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, list = [];
   for (const sp of tr.spans) {
     if (sp.kind === 'p') for (let s = sp.s0 + 2; s < sp.s1 - 2; s += .9) { const hw = widthAt(tr, s) / 2, edge = rnd() < .45; const d = edge ? (rnd() < .5 ? -1 : 1) * (hw + rnd() * 5) : (rnd() - .5) * hw * 1.9; list.push([s, d, edge ? .35 + rnd() * .9 : .07 + rnd() * .13, 0]); }
-    if (sp.kind === 'm') for (let s = sp.s0 + 1; s < sp.s1 - 1; s += .75) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .3 + rnd() * .2), .28 + rnd() * .2, sg > 0 ? .25 : 0]);
     if (sp.kind === 's') for (const f of tr.feat) if (f.kind === 'gradone' && f.s > sp.s0 && f.s < sp.s1) { const hw = widthAt(tr, f.s) / 2; for (let d = -hw - .6; d < hw + .6; d += .5 + rnd() * .25) list.push([f.s + 1.9 + rnd() * .5, d, .3 + rnd() * .16, -.12]); }   // il bordo di ogni gradone è una fila di pietre: si vede dove sale
     if (sp.kind === 'g') for (let s = sp.s0; s < sp.s1; s += 1.6) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .5 + rnd() * 3), .3 + rnd() * .5, 0]);
   }
@@ -470,7 +469,7 @@ function step(dt) {
   if (!down && S.air <= 0) { const b0 = Math.floor(S.s / 8); for (let b = b0 - 1; b <= b0 + 1; b++) { const a = ROCKS[b]; if (!a) continue; for (let q = 0; q < a.length; q += 3) { const dx = S.x - a[q], dz = S.z - a[q + 1], rr = a[q + 2] + .25, dd = dx * dx + dz * dz; if (dd < rr * rr) { const dist = Math.sqrt(dd) || .01;
     S.x = a[q] + dx / dist * rr; S.z = a[q + 1] + dz / dist * rr; if (S.v > 7) crash(Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1); else glance(dx / dist, dz / dist, dt); } } } }
   // bordi: dopo qualche metro di prato c'è la scarpata, si rimbalza dentro perdendo velocità
-  const wall = KD.name === 'mulattiera', lim = wall ? HW - .05 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
+  const wall = false /* niente più muretti di sassi ai bordi della mulattiera: è un sentiero lastricato largo, col suo prato ai lati */, lim = wall ? HW - .05 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
   const limF = lim + laneOff(tr, S.s, Math.sign(S.d) || 1); if (Math.abs(S.d) > limF) { const sg = Math.sign(S.d), push = Math.abs(S.d) - limF; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push;
     let rel = S.psi - pr.h; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
     if (rel * sg > 0) { const imp = Math.abs(Math.sin(rel)); if (!S.wall && imp > (wall ? .75 : .5) && S.v > (wall ? 14 : 9)) crash(-sg); else if (!S.wall && imp > .3) { S.v *= 1 - imp * (wall ? .15 : .3);   /* il muretto della mulattiera perdona: ci si striscia contro, si cade solo arrivandoci dritti e forte */ S.hit = Math.max(S.hit, imp * .8); thud(imp * .6); }   // botta solo se ci arrivi storto
@@ -479,7 +478,7 @@ function step(dt) {
   // altezza: le ruote seguono il fondo (profilo morbido), sui dossi presi forte la moto si stacca
   const gy = groundY(tr, S.s, S.d, true); S.rough = Math.abs(S.d) < HW + 1 ? roughAt(tr, S.s) : .02 * S.off;
   if (S.air <= 0) { const vyG = (gy - S.y) / dt; if ((vyG - S.vy) / dt < -G * 1.7 && S.v > 5 && S.vy > (Math.abs(lat(tr, S.s, S.d)) > HW ? 6 : 2.5)) { S.air = 1; S.airT = 0; } /* fuori dal sentiero il terreno è mosso ma non è un trampolino: le ruote lo seguono */ else { S.vy = vyG; S.y = gy; } }
-  if (S.air > 0) { S.airT = (S.airT || 0) + dt; S.vy -= G * 1.7 * dt; S.y += S.vy * dt; if (S.y <= gy) { const imp = clamp(-S.vy / 8, 0, 1); S.y = gy; S.air = 0; const big = S.airT > .14 ? 1 : .25; if (imp > .8 && Math.abs(S.lean) > .4 && S.airT > .3) crash(Math.sign(S.lean)); S.hit = Math.max(S.hit, imp * big); S.bvy = S.vy * .9 * big; thud(imp * big); S.v *= 1 - imp * .06; S.vy = 0; } }
+  if (S.air > 0) { S.airT = (S.airT || 0) + dt; S.vy -= G * 1.7 * dt; S.y += S.vy * dt; if (S.y <= gy) { const imp = clamp(-S.vy / 8, 0, 1); S.y = gy; S.air = 0; const big = S.airT > .14 ? 1 : .25; if (imp > .8 && Math.abs(S.lean) > .4 && S.airT > .3) crash(Math.sign(S.lean)); S.hit = Math.max(S.hit, imp * big); S.bvy = S.vy * .9 * big; thud(imp * big); S.v *= 1 - imp * (gasHeld ? .03 : .08); S.vy = 0; if (S.airT > .45 && state === 'play' && !SCHOOL) flash('SALTO! ' + (S.airT * S.v).toFixed(0) + ' m', .9); } }
   S.hit = Math.max(0, S.hit - dt * 2.5);
   // sospensioni: la moto è una massa su una molla sopra le ruote. comp > 0 = schiacciata
   if (S.air > 0) { S.comp += ((S.airT > .1 ? -.09 : S.comp) - S.comp) * Math.min(1, dt * 8); S.by = S.y - S.comp; S.bvy = S.vy; }   // in aria le ruote scendono: sospensioni distese
@@ -517,7 +516,7 @@ const RD = { off: 0 };
 function draw(dt) {
   { const st = clamp(S.stand - Math.max(0, S.comp) * 2.5 + ((S.airT || 0) > .12 && S.air > 0 ? .6 : 0) + S.rough * 6, 0, 1); S.standV = (S.standV || 0) + (st - (S.standV || 0)) * Math.min(1, dt * 7); }   // il pilota si alza e si abbassa con calma, senza scatti
   const leanVis = clamp(S.lean * 1.12 + S.slip * .35, -1, 1) + (S.fall > 0 ? clamp(S.lean, -1.45, 1.45) * .3 : 0);   // la moto si butta giù più del pilota
-  bike.position.set(S.x, S.y, S.z); bike.rotation.y = -(S.psi + S.slip); leanG.rotation.z = -leanVis; pitchG.rotation.x = S.pitch + (S.air > 0 ? clamp(-S.vy * .03, -.25, .3) : 0) - (S.cF - S.cR) / 1.45 + clamp(S.acc || 0, -6, 9) * .009 + (S.wh || 0); pitchG.position.y = -(S.cF + S.cR) / 2 + (S.y - groundY(tr, S.s, S.d, true)) * 0; pitchG.position.y += Math.sin(S.wh || 0) * .66; pitchG.position.z = (1 - Math.cos(S.wh || 0)) * .66;   /* l'impennata gira attorno alla ruota dietro */
+  bike.position.set(S.x, S.y, S.z); bike.rotation.y = -(S.psi + S.slip); leanG.rotation.z = -leanVis; pitchG.rotation.x = S.pitch + (S.air > 0 ? clamp(-S.vy * .03, -.25, .3) + (S.airP = (S.airP || 0) + ((gasHeld ? .16 : braking ? -.16 : 0) - (S.airP || 0)) * Math.min(1, dt * 5)) : (S.airP = 0)) - (S.cF - S.cR) / 1.45 + clamp(S.acc || 0, -6, 9) * .009 + (S.wh || 0); pitchG.position.y = -(S.cF + S.cR) / 2 + (S.y - groundY(tr, S.s, S.d, true)) * 0; pitchG.position.y += Math.sin(S.wh || 0) * .66; pitchG.position.z = (1 - Math.cos(S.wh || 0)) * .66;   /* l'impennata gira attorno alla ruota dietro */
   if (wheelF) { const r = S.v * dt / .4; wheelF.rotation.x -= r; wheelR.rotation.x -= S.brk && Math.abs(S.slip) > .12 ? r * .15 : r; steerG.rotation.y = clamp(S.slip * .9 - S.lean * .1, -.5, .5); wheelF.position.y = P.wfY + S.cF; wheelR.position.y = P.wrY + S.cR; }   // di traverso: ruota dietro quasi bloccata e controsterzo
   if (P.rider) { const r = P.rider.root;   // in caduta il pilota si stacca dalla moto, scivola avanti per conto suo e resta a terra; alla ripartenza torna in sella
     if (S.fall > 0 && !RD.off) { RD.p = r.position.clone(); RD.q = r.quaternion.clone(); RD.s = r.scale.clone(); scene.attach(r); RD.off = 1; RD.t = 0; RD.vx = Math.sin(S.psi) * (S.v * .9 + 2) + Math.cos(S.psi) * S.fallSide * 1.5; RD.vz = -Math.cos(S.psi) * (S.v * .9 + 2) + Math.sin(S.psi) * S.fallSide * 1.5; RD.h = S.psi; }

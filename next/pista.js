@@ -27,7 +27,7 @@ export const GIRO_EASY = [
   [60, 0, -2, 'v'], [90, -75, -1, 'v'], [110, 0, 0, 'v'],
 ];
 // BIVI del Giro Easy: il sentiero si allarga e in mezzo c'è una fila di sassi. A sinistra la CONIGLIERA (molle, lenta, zero rischi), a destra la EASY (tronchi e sassi, ma veloce e con le birre)
-export const GIRO_EXTRA = { forks: [[262, 412, 15, 9], [1822, 1962, 15, 9]] };   // da, a, quanto si allontana la conigliera (a sinistra), quanto la Easy (a destra)
+export const GIRO_EXTRA = { forks: [[262, 412, 15, 9], [1822, 1962, 15, 9]], jumps: [178, 692, 1765, 1966] };   // da, a, quanto si allontana la conigliera (a sinistra), quanto la Easy (a destra)
 // TAPPA 2 · SALITA INFAME: dal fondovalle su per il muro coi gradoni, pietraia in salita, i tornanti della mulattiera, la cresta in single track, poi giù a rotta di collo fino al guado e alla volata
 export const SALITA_INFAME = [
   [70, 0, 0, 'v'], [80, -70, 2, 'v'], [70, 0, 4, 'v'], [60, 55, 5, 'v'],
@@ -42,7 +42,7 @@ export const SALITA_INFAME = [
   [40, 0, -8, 'd'], [30, 22, -12, 'd'], [35, 0, -9, 'd'],
   [70, 0, -2, 'v'], [90, -70, -1, 'v'], [120, 0, 0, 'v'],
 ];
-export const SALITA_EXTRA = { forks: [[100, 240, 15, 9], [1935, 2075, 15, 9]] };
+export const SALITA_EXTRA = { forks: [[100, 240, 15, 9], [1935, 2075, 15, 9]], jumps: [40, 492, 1118, 1888, 2085] };
 // SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
 export const SCUOLA = [
   [150, 0, 0, 'v'], [140, 0, 0, 'v'], [140, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
@@ -83,7 +83,7 @@ export function buildTrack(segs = GIRO_EASY, extra = {}) {
   const n = k.length, x = new Float32Array(n), z = new Float32Array(n), y = new Float32Array(n), h = new Float32Array(n);
   let px = 0, pz = 0, py = 0, ph = 0;
   for (let i = 0; i < n; i++) { x[i] = px; z[i] = pz; y[i] = py; h[i] = ph; ph += k[i] * DS; px += Math.sin(ph) * DS; pz -= Math.cos(ph) * DS; py += g[i] * DS; }
-  const tr = { n, x, z, y, h, k: Float32Array.from(k), g: Float32Array.from(g), w: Float32Array.from(w), side: Float32Array.from(sd), kind, len: (n - 1) * DS, water: [], branches: [], logs: (extra.logs || []).map(s => ({ s })), stations: extra.stations || null, forks: (extra.forks || []).map(([s0, s1, DL, DR]) => ({ s0, s1, DL, DR })), plain: !!extra.plain, steps: extra.steps || null };
+  const tr = { n, x, z, y, h, k: Float32Array.from(k), g: Float32Array.from(g), w: Float32Array.from(w), side: Float32Array.from(sd), kind, len: (n - 1) * DS, water: [], branches: [], logs: (extra.logs || []).map(s => ({ s })), stations: extra.stations || null, forks: (extra.forks || []).map(([s0, s1, DL, DR]) => ({ s0, s1, DL, DR })), plain: !!extra.plain, steps: extra.steps || null, jumps: extra.jumps || [] };
   // tratti (inizio, fine, tipo) per il disegno e per i cartelli
   tr.spans = []; for (let i = 0; i < n; i++) { const L = tr.spans[tr.spans.length - 1]; if (L && L.kind === kind[i]) L.s1 = (i + 1) * DS; else tr.spans.push({ kind: kind[i], s0: i * DS, s1: (i + 1) * DS }); }
   addGround(tr); return tr;
@@ -122,6 +122,8 @@ function addGround(tr) {
       for (let s = sp.s0 + 10; s < sp.s1 - 8; s += 21 + rnd() * 12) put(s, 5, (i, u, e) => { bump[i] += .16 * e * e; });
     }
   }
+  /* DOSSI DA SALTO: una rampa che sale sempre più ripida per 11 m e poi cade in 4. Presa forte si stacca e si vola; presa piano si scavalca */
+  for (const s of tr.jumps) { feat.push({ s: s + 11, kind: 'salto' }); put(s, 15, (i, u) => { const a = u / .733; bump[i] += 1.0 * (a < 1 ? a * a : Math.pow(1 - (u - .733) / .267, 1.5)); }); }
   tr.bump = bump; tr.rough = rough; tr.feat = feat;
   for (const wt of tr.water) { const sm = (wt.s0 + wt.s1) / 2; wt.y = centerY(tr, sm) + prof(bump, sm) + wt.depth * (wt.kind === 'guado' ? .62 : .7); }
 }
@@ -150,7 +152,7 @@ export function groundY(tr, s, d, smoothOnly) {
   const bank = -d * Math.max(-.07, Math.min(.07, kk * 2.2)) * Math.min(1, hw / Math.max(a, .01)) * (.6 + .4 * Math.max(0, 1 - out / 2)) * (fkk ? 0 : 1);   /* niente scalino sul bordo: uscendo non si decolla */
   // ai lati: prato che sale dolce; sulla mulattiera un lato è la scarpata a monte e l'altro scende; nel single track il sottobosco è mosso
   let side = out * out * .012 * (1 + noise(s, d) * .9) + out * .05 * noise(s * 1.7, d * 2 + 9);
-  if (kd.name === 'mulattiera') side = out * (d > 0 ? .55 : -.35) + out * .08 * noise(s * 2, d * 3);
+  if (kd.name === 'mulattiera') side = out * (d > 0 ? .3 : -.2) + out * .08 * noise(s * 2, d * 3);
   else if (kd.name === 'single track') side = out * .1 * noise(s * 2.3, d * 2.1 + 4) + out * out * .008;
   const fade = Math.max(0, 1 - out / 3), rg = smoothOnly ? 0 : prof(tr.rough, s) * (Math.sin(s * 7.3 + d * 5.1) + Math.sin(s * 11.7 - d * 3.3)) * .5;
   if (fkk) { const isl = Math.min(d + laneOff(tr, s, -1), laneOff(tr, s, 1) - d); if (isl > hw) side += 2.1 * sm((isl - hw - .4) / 4.5); }   // l'isola tra le due vie è un dosso di bosco: da una via non si vede l'altra
