@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=30';
+import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=31';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=16';
 import { MOTO, motoById } from './moto.js?v=3';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
@@ -60,7 +60,7 @@ const ntex = src => { const t = tl.load(src); t.wrapS = t.wrapT = T.RepeatWrappi
 // sentiero: non un tappeto. Bordo frastagliato che sfuma nel terreno, due carreggiate più scure e battute, chiazze chiare e scure, rilievo della foto sotto il sole basso.
 // Si costruisce a strisce: quella principale segue la via di destra, e in ogni bivio ce n'è una seconda per la via di sinistra
 const ROADM = TEXN.map(k => k === 'mud' ? new T.MeshPhongMaterial({ map: tex('../img/tex/mudtrack_d.webp'), normalMap: ntex('../img/tex/mudtrack_n.webp'), normalScale: new T.Vector2(2.4, 2.4), shininess: 48, specular: 0x6a6258, vertexColors: true, transparent: true })
-  : k === 'ice' ? new T.MeshPhongMaterial({ map: tex('../img/tex/mudtrack_d.webp'), normalMap: ntex('../img/tex/mudtrack_n.webp'), normalScale: new T.Vector2(1.1, 1.1), color: 0xc4cfdc, emissive: 0x1c2229, shininess: 110, specular: 0xc4d6ea, vertexColors: true, transparent: true })   /* ghiaccio sporco: la neve grattata via dalle ruote fino al fondo scuro, lucido come nella foto */
+  : k === 'ice' ? new T.MeshPhongMaterial({ color: 0xbcd9f2, emissive: 0x1d3146, normalMap: ntex('../img/tex/mudtrack_n.webp'), normalScale: new T.Vector2(.55, .55), shininess: 140, specular: 0xe8f4ff, vertexColors: true, transparent: true })   /* tutto neve e ghiaccio: la pista è ghiaccio vivo azzurro, lucido, rigato dalle gomme chiodate; intorno neve bianca */
   : k === 'cobble' ? new T.MeshLambertMaterial({ map: tex('../img/tex/rockwall_d.webp'), color: 0xfff6e8, vertexColors: true, transparent: true })   /* l'acciottolato senza rilievo finto: con quello usciva quasi nero */
   : new T.MeshLambertMaterial({ map: tex(`../img/tex/${TEXF[k]}.webp`), normalMap: ntex(`../img/tex/${NRM[k]}.webp`), normalScale: new T.Vector2(1.6, 1.6), vertexColors: true, transparent: true }));
 function roadStrip(sA, sB, side) {
@@ -232,6 +232,8 @@ function barkTex() {   /* corteccia disegnata: solchi verticali scuri, creste ch
     for (const b of tr.beers) { at(tr, b.s, b.d, P); b.m = new T.Sprite(sm); b.m.renderOrder = 6; b.m.scale.set(1.3, 1.3, 1); b.y = groundY(tr, b.s, b.d, true) + 1.05; b.m.position.set(P.x, b.y, P.z); scene.add(b.m); } }
 }
 
+if (ICE) { const list = []; let acc = 0; for (let i = 0; i < tr.n - 1; i++) { acc += DS * (Math.abs(tr.k[i]) > .012 ? 2 : 1); if (acc < 9) continue; acc = 0; for (const sg of [-1, 1]) { const s = i * DS, d = sg * (widthAt(tr, s) / 2 + .55); at(tr, s, d, P); list.push(P.x, groundY(tr, s, d, true), P.z); } }
+  const g = new T.CylinderGeometry(.045, .045, 1.25, 6), im = new T.InstancedMesh(g, new T.MeshLambertMaterial({ color: 0xff5a14, emissive: 0x5a1c00 }), list.length / 3), m = new T.Matrix4(); for (let i = 0; i < list.length / 3; i++) { m.makeTranslation(list[i * 3], list[i * 3 + 1] + .55, list[i * 3 + 2]); im.setMatrixAt(i, m); } im.castShadow = true; scene.add(im); }
 unroll(tr);   /* il circuito è stato disegnato lungo un giro: da qui in poi vale per tutti i giri */
 // ---------- moto e pilota ----------
 const bike = new T.Group(), leanG = new T.Group(), pitchG = new T.Group(); bike.add(leanG); leanG.add(pitchG); scene.add(bike);
@@ -426,7 +428,7 @@ function step(dt) {
   let om = G * Math.tan(S.lean) / vEff; const omMax = mu * G / vEff, over = Math.max(0, Math.abs(om) - omMax);
   if (over > 0) om = Math.sign(om) * (omMax + over * .25);   // oltre il limite la moto allarga
   // troppo piegato per il fondo che c'è (fango, pietre bagnate, erba): la gomma tiene mezzo secondo, poi la moto si stende
-  { const ask = Math.tan(Math.abs(S.lean)) / Math.max(.3, mu); S.overT = (ask > 1.18 || Math.abs(S.slip) > .45 && S.off > .8) && S.v > 7 && S.air <= 0 && !down ? (S.overT || 0) + dt * (ask > 1.45 ? 1.6 : 1) : Math.max(0, (S.overT || 0) - dt * 2); if (S.overT > .6) crash(Math.sign(S.lean)); }
+  { const ask = Math.tan(Math.abs(S.lean)) / Math.max(.3, mu); S.overT = (ask > 1.18 || Math.abs(S.slip) > .45 && S.off > .8) && S.v > 7 && S.air <= 0 && !down ? (S.overT || 0) + dt * (ask > 1.45 ? 1.6 : 1) : Math.max(0, (S.overT || 0) - dt * 2); if (S.overT > .6 && !ICE) crash(Math.sign(S.lean)); }
   if (down) om = S.fallSide * .5 * clamp(S.v / 6, 0, 1);
   // velocità: gas (automatico o tasto), freno, salita/discesa, attrito in piega, erba
   let kAhead = 0; { const far = Math.round(clamp(S.v * S.v / 15, 8, 64) / DS); for (let j = 2; j <= far; j += 2) { const kk = tr.k[Math.min(tr.n - 1, S.i + j)]; if (Math.abs(kk) > Math.abs(kAhead)) kAhead = kk; } }   // la curva più stretta nello spazio che serve per frenare
@@ -448,13 +450,14 @@ function step(dt) {
   const vTop0 = VMAX * (1 - S.off * .5) * (.3 + .7 * thr), push = Math.pow(thr, 1.35) * 11.5 * BK.acc * (1 + scia() * .22) * clamp(1.15 - S.v / vTop0, 0, 1), hold = Math.max(2, (mu * .92 - Math.abs(Math.tan(S.lean)) * .35) * G), spin = S.air > 0 ? 0 : clamp((push - hold) / hold, 0, 1);
   S.spin = (S.spin || 0) + (spin - (S.spin || 0)) * Math.min(1, dt * 9);
   const powerSlide = gasOn ? Math.sign(S.lean || steerIn) * (Math.max(0, Math.abs(S.lean) - .5) * .7 * thr * clamp(1.3 - S.v / 14, 0, 1) + S.spin * (.12 + Math.abs(S.lean) * .5)) : 0;   // in uscita, col gas e piegato, il posteriore scappa un po'
-  const slipT = brakeSlide + powerSlide + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0);
+  const iceSlide = ICE && S.air <= 0 ? Math.sign(S.lean) * clamp((Math.abs(S.lean) - .16) * 1.3, 0, .62) * clamp(S.v / 7, 0, 1) * (.6 + .4 * thr) : 0;   /* ICE SCROFY: in curva si va solo di traverso. Più pieghi e più gas dai, più il posteriore esce, e la moto gira col traverso */
+  let slipT = brakeSlide + powerSlide + iceSlide + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0); if (ICE) slipT = clamp(slipT, -.7, .7);
   S.slip += (slipT - S.slip) * Math.min(1, dt * (Math.abs(slipT) > Math.abs(S.slip) ? 6.5 : 3.2));
   if (ICE && state === 'play' && !(S.fall > 0) && Math.abs(S.slip) > .12 && S.v > 5 && S.off < .3) S.drift = (S.drift || 0) + Math.abs(S.slip) * S.v * dt * 2.2;   /* Ice Scrofy: la derapata fa punti, come nel gioco in uso */
-  om += S.slip * 1.7 * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
+  om += S.slip * (ICE ? 1.9 : 1.7) * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt * (1 - clamp((S.wh || 0) / .5, 0, 1) * .75);   // su una ruota la moto gira poco
   const gas = thr, vTop = vTop0 * (S.soft ? .5 : 1);
-  let acc = Math.min(push, hold) * (1 - S.spin * .3) - (brk ? 4.5 + 8 * S.brkAmt : 0) - (S.grade > 0 ? Math.min(G * Math.sin(Math.atan(S.grade)) * 2.3, 5.6) / BK.climb : G * Math.sin(Math.atan(S.grade)) * 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (1 - thr) * (S.v > 2 ? 1.5 : .4) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
+  let acc = Math.min(push, hold) * (1 - S.spin * .3) - (brk ? 4.5 + 8 * S.brkAmt : 0) - (S.grade > 0 ? Math.min(G * Math.sin(Math.atan(S.grade)) * 2.3, 5.6) / BK.climb : G * Math.sin(Math.atan(S.grade)) * 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (1 - thr) * (S.v > 2 ? 1.5 : .4) - Math.abs(Math.sin(S.lean)) * (ICE ? .5 : 1.1) - over * (ICE ? .9 : 3.5) - Math.abs(S.slip) * (ICE ? .45 : 2.2) - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
   if (S.grade > .1 && thr > .8 && S.v < 2.5 && !brk && S.fall <= 0 && acc < 1) acc = 1;   /* prima corta: da fermi sul ripido, a gas aperto, qualsiasi moto riparte. Piano, ma riparte */
   acc -= G * clamp(Math.tan(S.pitch) - S.grade, 0, .5) * 1.2 * (S.air > 0 ? 0 : 1) * (1 - clamp((S.wh || 0) / .3, 0, 1) * .8);   // gradoni e gobbe in salita mangiano velocità: se molli il gas ti fermi
   if (S.soft) acc -= 3.2 * clamp(S.v / 7, 0, 1.6);   // conigliera: fondo molle, si va piano
@@ -478,7 +481,7 @@ function step(dt) {
   const wall = false /* niente più muretti di sassi ai bordi della mulattiera: è un sentiero lastricato largo, col suo prato ai lati */, lim = wall ? HW - .05 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
   const limF = lim + laneOff(tr, S.s, Math.sign(S.d) || 1); if (Math.abs(S.d) > limF) { const sg = Math.sign(S.d), push = Math.abs(S.d) - limF; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push;
     let rel = S.psi - pr.h; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
-    if (rel * sg > 0) { const imp = Math.abs(Math.sin(rel)); if (!S.wall && imp > (wall ? .75 : .5) && S.v > (wall ? 14 : 9)) crash(-sg); else if (!S.wall && imp > .3) { S.v *= 1 - imp * (wall ? .15 : .3);   /* il muretto della mulattiera perdona: ci si striscia contro, si cade solo arrivandoci dritti e forte */ S.hit = Math.max(S.hit, imp * .8); thud(imp * .6); }   // botta solo se ci arrivi storto
+    if (rel * sg > 0) { const imp = Math.abs(Math.sin(rel)); if (!ICE && !S.wall && imp > (wall ? .75 : .5) && S.v > (wall ? 14 : 9)) crash(-sg);   /* sul ghiaccio il bordo è un cumulo di neve: ci si pianta e si perde velocità, non si cade */ else if (!S.wall && imp > .3) { S.v *= 1 - imp * (wall ? .15 : .3);   /* il muretto della mulattiera perdona: ci si striscia contro, si cade solo arrivandoci dritti e forte */ S.hit = Math.max(S.hit, imp * .8); thud(imp * .6); }   // botta solo se ci arrivi storto
       S.psi -= rel * Math.min(1, dt * 9); S.v = Math.max(0, S.v - S.v * imp * 2.2 * dt - 1.5 * dt); S.lean *= 1 - Math.min(1, dt * 4); }   // poi la moto si raddrizza lungo il bordo e striscia, senza fermarsi
     S.wall = .15; } else S.wall = Math.max(0, (S.wall || 0) - dt);
   // altezza: le ruote seguono il fondo (profilo morbido), sui dossi presi forte la moto si stacca

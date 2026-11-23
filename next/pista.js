@@ -91,7 +91,7 @@ export function buildCircuit(pts, kd = 'i', laps = 2, start = 0, zones = []) {
   { let d = h[0] - h[m - 1]; const turn = Math.round((h[m - 1] - h[0]) / (2 * Math.PI)) * 2 * Math.PI; h[m] = h[0] + turn; }   /* a fine giro la direzione è quella di partenza più i giri completi fatti */
   const n = m + 1, k = new Float32Array(n), K = KIND[kd]; for (let i = 0; i < m; i++) k[i] = (h[i + 1] - h[i]) / DS; k[m] = k[0];
   { const c = Float32Array.from(k); for (let i = 0; i < n; i++) k[i] = (c[(i + m - 1) % m] + 2 * c[i % m] + c[(i + 1) % m]) / 4; }
-  const w = new Float32Array(n), sd = new Float32Array(n), kind = []; for (let i = 0; i < n; i++) { const s = (i % m) * DS; w[i] = K.w * (1 + .1 * Math.sin(s * 2 * Math.PI / (m * DS) * 3 + 1) + .05 * Math.sin(s * 2 * Math.PI / (m * DS) * 7)); sd[i] = K.side; kind.push(kd); }
+  const w = new Float32Array(n), sd = new Float32Array(n), kind = []; for (let i = 0; i < n; i++) { const s = (i % m) * DS; const q = zi[i % m], big = q >= 10 && q <= 18 ? Math.min(1, Math.min(q - 9.5, 18.5 - q) / 2.5) : 0; w[i] = K.w * (1 + .1 * Math.sin(s * 2 * Math.PI / (m * DS) * 3 + 1) + .05 * Math.sin(s * 2 * Math.PI / (m * DS) * 7)) * (1 + .9 * big); sd[i] = K.side;   /* il Curvone Derapage è largo quasi il doppio: è lo spiazzo dove si gira di traverso */ kind.push(kd); }
   const tr = { n, x, z, y: new Float32Array(n), h, k, g: new Float32Array(n), w, side: sd, kind, len: m * DS, water: [], branches: [], logs: [], stations: null, forks: [], plain: false, steps: [], jumps: [], circuit: { laps, m, lap: m * DS, turn: h[m] - h[0], zi, zones } };
   tr.spans = [{ kind: kd, s0: 0, s1: m * DS }]; addGround(tr); return tr;
 }
@@ -183,7 +183,7 @@ export function groundY(tr, s, d, smoothOnly) {
   // ai lati: prato che sale dolce; sulla mulattiera un lato è la scarpata a monte e l'altro scende; nel single track il sottobosco è mosso
   let side = out * out * .012 * (1 + noise(s, d) * .9) + out * .05 * noise(s * 1.7, d * 2 + 9);
   if (kd.name === 'mulattiera') side = out * (d > 0 ? .3 : -.2) + out * .08 * noise(s * 2, d * 3);
-  else if (kd.name === 'ghiaccio') side = .36 * Math.pow(Math.sin(Math.PI * Math.min(1, out / 3)), 1.2) - .1 * Math.min(1, out / 3.2);   /* sponda di neve spalata ai bordi, poi la piana */
+  else if (kd.name === 'ghiaccio') side = .55 * Math.pow(Math.sin(Math.PI * Math.min(1, out / 3)), 1.2) - .1 * Math.min(1, out / 3.2);   /* sponda di neve spalata ai bordi, poi la piana */
   else if (kd.name === 'single track') side = out * .1 * noise(s * 2.3, d * 2.1 + 4) + out * out * .008;
   const fade = Math.max(0, 1 - out / 3), rg = smoothOnly ? 0 : prof(tr.rough, s) * (Math.sin(s * 7.3 + d * 5.1) + Math.sin(s * 11.7 - d * 3.3)) * .5;
   if (fkk) { const isl = Math.min(d + laneOff(tr, s, -1), laneOff(tr, s, 1) - d); if (isl > hw) side += 2.1 * sm((isl - hw - .4) / 4.5); }   // l'isola tra le due vie è un dosso di bosco: da una via non si vede l'altra
