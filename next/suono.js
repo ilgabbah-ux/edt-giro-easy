@@ -33,7 +33,11 @@ export async function startSound() {
     const g = ctx.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.2, t + .35);
     const pk = ctx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = EP.pk ? EP.pk[0] : 1000; pk.gain.value = EP.pk ? EP.pk[1] : 0; pk.Q.value = EP.pk ? EP.pk[2] : 1;
     lo.g.connect(body); hi.g.connect(body); body.connect(pk); pk.connect(hp); hp.connect(g); g.connect(master);
-    let el = null; if (EP.el) { const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), eg = ctx.createGain(), ef = ctx.createBiquadFilter(); o1.type = 'sawtooth'; o2.type = 'sine'; ef.type = 'lowpass'; ef.frequency.value = 2600; eg.gain.value = 0; o1.connect(ef); o2.connect(ef); ef.connect(eg); eg.connect(master); o1.start(); o2.start(); el = { o1, o2, eg }; }
+    /* elettrica: niente sibilo a dente di sega. Un motore elettrico è un tono pulito che sale con la velocità, un ronzio basso quando spinge e il fruscio di catena e gomme */
+    let el = null; if (EP.el) { const mk = (type, gain) => { const o = ctx.createOscillator(), g1 = ctx.createGain(); o.type = type; g1.gain.value = gain; o.connect(g1); o.start(); return [o, g1]; };
+      const [o1, g1] = mk('sine', 1), [o2, g2] = mk('triangle', .28), [o3, g3] = mk('sine', .0), ef = ctx.createBiquadFilter(), eg = ctx.createGain(); ef.type = 'lowpass'; ef.frequency.value = 1900; ef.Q.value = .5; eg.gain.value = 0; g1.connect(ef); g2.connect(ef); g3.connect(ef); ef.connect(eg); eg.connect(master);
+      const nb = ctx.createBuffer(1, ctx.sampleRate * 1.5, ctx.sampleRate), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1; const ns = ctx.createBufferSource(); ns.buffer = nb; ns.loop = true; const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.Q.value = 2.2; const ng = ctx.createGain(); ng.gain.value = 0; ns.connect(nf); nf.connect(ng); ng.connect(master); ns.start();
+      el = { o1, o2, o3, g3, eg, nf, ng, lv: 0 }; }
     const loopN = (rate, type, f, q, dest) => { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; s.playbackRate.value = rate; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const gg = ctx.createGain(); gg.gain.value = 0; s.connect(fl); fl.connect(gg); gg.connect(dest); s.start(); return { f: fl, g: gg }; };
     const intake = loopN(1, 'bandpass', 1400, .9, g), tyre = loopN(.9, 'bandpass', 520, .7, master), wind = loopN(.7, 'bandpass', 700, .55, master), skid = loopN(1.1, 'bandpass', 950, 1.1, master);
     const sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = 45; const sg = ctx.createGain(); sg.gain.value = 0; sub.connect(sg); sg.connect(g); sub.start(); lo.s.start(); hi.s.start();
@@ -60,7 +64,9 @@ export function soundUpdate(dt, p) {
   const r = e.rpm, F = r < .8 ? 14 + Math.max(0, r - .5) / .3 * 12 : 26 + (r - .8) * 19.5;   // scoppi al secondo: 14 al minimo (1700 giri), 26 appena si parte, 65 tirata (7800 giri)
   const k = Math.max(0, Math.min(1, (F - EP.x0) / (EP.x1 - EP.x0)));
   const Fb = F * (EP.fm || 1); e.lo.s.playbackRate.setTargetAtTime(Fb / e.lo.f, t, .04); e.hi.s.playbackRate.setTargetAtTime(Fb / e.hi.f, t, .04);
-  if (e.el) { const fe = 140 + Math.min(1.5, speed) * 620 + thr * 70; e.el.o1.frequency.setTargetAtTime(fe, t, .08); e.el.o2.frequency.setTargetAtTime(fe * 2.01, t, .08); e.el.eg.gain.setTargetAtTime(speed > .02 || thr > .05 ? .012 + thr * .03 + Math.min(1, speed) * .012 : 0, t, .08); }
+  if (e.el) { const x = e.el, v = Math.min(2, speed), fe = 170 + v * 430, on = Math.min(1, v * 3 + thr * 1.5); x.lv += ((.0035 + thr * .013 + v * .003) * on - x.lv) * Math.min(1, dt * 6);
+    x.o1.frequency.setTargetAtTime(fe, t, .09); x.o2.frequency.setTargetAtTime(fe * 1.5, t, .09); x.o3.frequency.setTargetAtTime(fe * .25, t, .09); x.g3.gain.setTargetAtTime(thr * .9, t, .1); x.eg.gain.setTargetAtTime(x.lv, t, .05);
+    x.nf.frequency.setTargetAtTime(500 + v * 900, t, .1); x.ng.gain.setTargetAtTime(Math.min(1, v) * .012 + thr * v * .006, t, .12); }
   e.lo.g.gain.setTargetAtTime(Math.cos(k * Math.PI / 2), t, .05); e.hi.g.gain.setTargetAtTime(Math.sin(k * Math.PI / 2), t, .05);
   e.body.frequency.setTargetAtTime((1400 + F * 40 + load * 3200) * (EP.bf || 1), t, .05);   // a gas aperto lo scarico si apre, in rilascio si chiude
   e.g.gain.setTargetAtTime(EP.el ? 0 : (.3 + load * .45) * (e.shiftT > 0 ? .55 : 1), t, .04);
