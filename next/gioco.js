@@ -60,7 +60,7 @@ const ntex = src => { const t = tl.load(src); t.wrapS = t.wrapT = T.RepeatWrappi
 // sentiero: non un tappeto. Bordo frastagliato che sfuma nel terreno, due carreggiate più scure e battute, chiazze chiare e scure, rilievo della foto sotto il sole basso.
 // Si costruisce a strisce: quella principale segue la via di destra, e in ogni bivio ce n'è una seconda per la via di sinistra
 const ROADM = TEXN.map(k => k === 'mud' ? new T.MeshPhongMaterial({ map: tex('../img/tex/mudtrack_d.webp'), normalMap: ntex('../img/tex/mudtrack_n.webp'), normalScale: new T.Vector2(2.4, 2.4), shininess: 48, specular: 0x6a6258, vertexColors: true, transparent: true })
-  : k === 'ice' ? new T.MeshPhongMaterial({ color: 0xbcd9f2, emissive: 0x1d3146, normalMap: ntex('../img/tex/mudtrack_n.webp'), normalScale: new T.Vector2(.55, .55), shininess: 140, specular: 0xe8f4ff, vertexColors: true, transparent: true })   /* tutto neve e ghiaccio: la pista è ghiaccio vivo azzurro, lucido, rigato dalle gomme chiodate; intorno neve bianca */
+  : k === 'ice' ? new T.MeshPhongMaterial({ color: 0x7fb2e8, emissive: 0x0a1a30, normalMap: ntex('../img/tex/mudtrack_n.webp'), normalScale: new T.Vector2(.55, .55), shininess: 140, specular: 0xe8f4ff, vertexColors: true, transparent: true })   /* tutto neve e ghiaccio: la pista è ghiaccio vivo azzurro, lucido, rigato dalle gomme chiodate; intorno neve bianca */
   : k === 'cobble' ? new T.MeshLambertMaterial({ map: tex('../img/tex/rockwall_d.webp'), color: 0xfff6e8, vertexColors: true, transparent: true })   /* l'acciottolato senza rilievo finto: con quello usciva quasi nero */
   : new T.MeshLambertMaterial({ map: tex(`../img/tex/${TEXF[k]}.webp`), normalMap: ntex(`../img/tex/${NRM[k]}.webp`), normalScale: new T.Vector2(1.6, 1.6), vertexColors: true, transparent: true }));
 function roadStrip(sA, sB, side) {
@@ -232,8 +232,8 @@ function barkTex() {   /* corteccia disegnata: solchi verticali scuri, creste ch
     for (const b of tr.beers) { at(tr, b.s, b.d, P); b.m = new T.Sprite(sm); b.m.renderOrder = 6; b.m.scale.set(1.3, 1.3, 1); b.y = groundY(tr, b.s, b.d, true) + 1.05; b.m.position.set(P.x, b.y, P.z); scene.add(b.m); } }
 }
 
-if (ICE) { const list = []; let acc = 0; for (let i = 0; i < tr.n - 1; i++) { acc += DS * (Math.abs(tr.k[i]) > .012 ? 2 : 1); if (acc < 9) continue; acc = 0; for (const sg of [-1, 1]) { const s = i * DS, d = sg * (widthAt(tr, s) / 2 + .55); at(tr, s, d, P); list.push(P.x, groundY(tr, s, d, true), P.z); } }
-  const g = new T.CylinderGeometry(.045, .045, 1.25, 6), im = new T.InstancedMesh(g, new T.MeshLambertMaterial({ color: 0xff5a14, emissive: 0x5a1c00 }), list.length / 3), m = new T.Matrix4(); for (let i = 0; i < list.length / 3; i++) { m.makeTranslation(list[i * 3], list[i * 3 + 1] + .55, list[i * 3 + 2]); im.setMatrixAt(i, m); } im.castShadow = true; scene.add(im); }
+if (ICE) { const list = []; let acc = 0; for (let i = 0; i < tr.n - 1; i++) { acc += DS * (Math.abs(tr.k[i]) > .012 ? 2.6 : 1); if (acc < 6) continue; acc = 0; for (const sg of [-1, 1]) { const s = i * DS, d = sg * (widthAt(tr, s) / 2 + .55); at(tr, s, d, P); list.push(P.x, groundY(tr, s, d, true), P.z); } }
+  const g = new T.CylinderGeometry(.06, .06, 1.4, 6), im = new T.InstancedMesh(g, new T.MeshLambertMaterial({ color: 0xff5a14, emissive: 0x5a1c00 }), list.length / 3), m = new T.Matrix4(); for (let i = 0; i < list.length / 3; i++) { m.makeTranslation(list[i * 3], list[i * 3 + 1] + .55, list[i * 3 + 2]); im.setMatrixAt(i, m); } im.castShadow = true; scene.add(im); }
 if (ICE) { const lapL = tr.n * DS, A = new T.Vector3(), B = new T.Vector3();   /* i cartelli veri di Ice Scrofy, grandi e a bordo pista, girati verso chi arriva */
   const SG = [['trenta', .06, 1, 1.5, 2.25, 0], ['chiodi', .115, -1, 2.3, 1.52, 1], ['trenta', .245, -1, 1.5, 2.25, 0], ['gusta', .385, 1, 1.5, 2.27, 1], ['chiodi', .52, 1, 2.3, 1.52, 1], ['gusta', .64, -1, 1.5, 2.27, 1], ['chiodi', .75, -1, 2.3, 1.52, 1], ['gusta', .86, 1, 1.5, 2.27, 1], ['trenta', .95, -1, 1.5, 2.25, 0]];
   const poleM = new T.MeshLambertMaterial({ color: 0x8a9096 });
@@ -466,14 +466,14 @@ function step(dt) {
   S.sPrev = S.s;
   const mu = (S.grip - S.off * .3 - Math.min(.25, S.wet * .8)), vEff = Math.max(S.v, 4.5);
   let om = G * Math.tan(S.lean) / vEff; const omMax = mu * G / vEff, over = Math.max(0, Math.abs(om) - omMax);
-  if (over > 0) om = Math.sign(om) * (omMax + over * .25); if (ICE && S.v < 11) om *= 1 + .75 * clamp((11 - S.v) / 6, 0, 1);   /* nei tornanti stretti di Ice Scrofy, andando piano, la moto gira molto di più: piede a terra e perno sul posteriore */   // oltre il limite la moto allarga
+  if (over > 0) om = Math.sign(om) * (omMax + over * .25); if (ICE && S.air <= 0) { const kT = tr.k[Math.min(tr.n - 1, S.i + 2)], need = S.v * kT; if (need * steerIn > 0 && Math.abs(need) > Math.abs(om)) om += (need - om) * Math.min(1, Math.abs(steerIn) * 2.5) * .8; }   /* aiuto di traiettoria: se sterzi dalla parte giusta la moto chiude la curva quanto serve per restare in pista */ if (ICE && S.v < 11) om *= 1 + .75 * clamp((11 - S.v) / 6, 0, 1);   /* nei tornanti stretti di Ice Scrofy, andando piano, la moto gira molto di più: piede a terra e perno sul posteriore */   // oltre il limite la moto allarga
   // troppo piegato per il fondo che c'è (fango, pietre bagnate, erba): la gomma tiene mezzo secondo, poi la moto si stende
   { const ask = Math.tan(Math.abs(S.lean)) / Math.max(.3, mu); S.overT = (ask > 1.18 || Math.abs(S.slip) > .45 && S.off > .8) && S.v > 7 && S.air <= 0 && !down ? (S.overT || 0) + dt * (ask > 1.45 ? 1.6 : 1) : Math.max(0, (S.overT || 0) - dt * 2); if (S.overT > .6 && !ICE) crash(Math.sign(S.lean)); }
   if (down) om = S.fallSide * .5 * clamp(S.v / 6, 0, 1);
   // velocità: gas (automatico o tasto), freno, salita/discesa, attrito in piega, erba
   let kAhead = 0; { const far = Math.round(clamp(S.v * S.v / 15, 8, 64) / DS); for (let j = 2; j <= far; j += 2) { const kk = tr.k[Math.min(tr.n - 1, S.i + j)]; if (Math.abs(kk) > Math.abs(kAhead)) kAhead = kk; } }   // la curva più stretta nello spazio che serve per frenare
   const vSafe = Math.abs(kAhead) > .004 ? Math.sqrt(mu * G * .86 / Math.abs(kAhead)) : 99;
-  const autoBrake = O.auto && S.v > vSafe + .5, brk = state === 'play' && (braking || autoBrake);
+  const autoBrake = (O.auto || ICE) && S.v > vSafe + .5 /* su Ice Scrofy la moto rallenta sempre da sola prima dei tornanti */, brk = state === 'play' && (braking || autoBrake);
   // quanto stai frenando: il tasto tenuto premuto sale da poco a tutto in mezzo secondo (il freno automatico pinza a metà)
   S.brkAmt += ((braking ? 1 : autoBrake ? .5 : 0) - S.brkAmt) * Math.min(1, dt * (brk ? 2.4 : 7));
   // ENDURO: frenando col posteriore la moto si mette di traverso, tanto più quanto freni e quanto sterzi; il muso entra in curva prima
@@ -550,9 +550,9 @@ const cam = { h: 0, x: 0, y: 0, z: 0, roll: 0, fov: 66, init: false, dist: 0 };
 function camUpdate(dt) {
   let dh = S.psi + S.slip * .12 - cam.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); cam.h += dh * Math.min(1, dt * 3.4);   // gira in ritardo: la moto entra in curva prima della camera
   const portrait = camera.aspect < .8, kc = { c: .8, m: 1, l: 1.3 }[O.cam] || 1, sp = S.v / VMAX;
-  const distT = ((portrait ? 6.2 : 5.2) * (1 - sp * .3) - (S.brk ? .8 : 0)) * kc;   /* in velocità la camera non scappa più indietro: resta addosso alla moto e scende, così il terreno corre */ cam.dist += (distT - cam.dist) * Math.min(1, dt * 2.2);
+  const distT = ((portrait ? 6.2 : 5.2) * (1 - sp * (ICE ? .12 : .3)) + (ICE ? 1.6 : 0) - (S.brk ? .8 : 0)) * kc;   /* in velocità la camera non scappa più indietro: resta addosso alla moto e scende, così il terreno corre */ cam.dist += (distT - cam.dist) * Math.min(1, dt * 2.2);
   const tx = S.x - Math.sin(cam.h) * cam.dist, tz = S.z + Math.cos(cam.h) * cam.dist;
-  const pc = project(tr, tx, tz, S.i), ty = Math.max(groundY(tr, pc.s, pc.d) + 1.1, S.y + ((portrait ? 2.9 : 2.15) - sp * sp * .45) * kc - S.pitch * 1.1);
+  const pc = project(tr, tx, tz, S.i), ty = Math.max(groundY(tr, pc.s, pc.d) + 1.1, S.y + ((portrait ? 2.9 : 2.15) + (ICE ? 1.7 : 0) - sp * sp * (ICE ? .1 : .45)) * kc - S.pitch * 1.1);
   if (!cam.init) { cam.x = tx; cam.y = ty; cam.z = tz; cam.init = true; cam.dist = distT; }
   cam.x = tx; cam.z = tz; cam.y += (ty - cam.y) * Math.min(1, dt * 5);
   const sh = S.hit * .1 + S.off * .012 * sp + Math.max(0, sp - .55) * .05; camera.position.set(cam.x + (Math.random() - .5) * sh, cam.y + (Math.random() - .5) * sh, cam.z);
