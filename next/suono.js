@@ -16,7 +16,10 @@ export async function say(name) { vWant = name; hush(); if (!ctx || !on) return;
 export function preloadVoice(names) { if (ctx) for (const n of names) if (!VB[n]) VB[n] = fetch('voce/' + n + '.mp3?v=1').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).catch(() => null); }
 function burst(dur, freq, q, vol, type, when = 0) { const t = ctx.currentTime + when, s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
   const g = ctx.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * .5); s.stop(t + dur + .05); }
-export function setBike(p) { EP = { ...EP, fm: 1, bf: 1, pk: null, el: 0, ...p }; }   /* la voce della moto scelta: stessi campioni veri, ma scoppi, timbro e risonanza suoi. L'elettrica non ha scoppi: fischia */
+const SETS = {   /* registrazioni vere: due tempi e bicilindrico, basso e alto regime, tagliate a giro chiuso */
+  '2t': { lo: { url: 'suoni/2t-lo.mp3?v=1', f: 52, len: 1.056984 }, hi: { url: 'suoni/2t-hi.mp3?v=1', f: 46, len: 2.52898 } },
+  tw: { lo: { url: 'suoni/tw-lo.mp3?v=1', f: 48, len: .66 }, hi: { url: 'suoni/tw-hi.mp3?v=1', f: 56, len: .58 } } };
+export function setBike(p) { EP = { ...EP, fm: 1, bf: 1, pk: null, el: 0, ...p, ...(SETS[p.smp] || {}) }; }   /* la voce della moto scelta: stessi campioni veri, ma scoppi, timbro e risonanza suoi. L'elettrica non ha scoppi: fischia */
 export async function startSound() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   try {

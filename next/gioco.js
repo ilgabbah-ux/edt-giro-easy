@@ -4,8 +4,8 @@ import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
 import { GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=24';
-import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike } from './suono.js?v=12';
-import { MOTO, motoById } from './moto.js?v=1';
+import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike } from './suono.js?v=13';
+import { MOTO, motoById } from './moto.js?v=2';
 import { makeRider } from './pilota.js?v=5';
 
 const $ = id => document.getElementById(id);
