@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=34';
+import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=35';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=17';
 import { MOTO, motoById } from './moto.js?v=3';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
@@ -202,7 +202,7 @@ function barkTex() {   /* corteccia disegnata: solchi verticali scuri, creste ch
         if (wide) { if (isl) continue; X = Math.max(X, hw + rad + .6); if (X > lim + 6) continue; }   /* l'alberello è largo: sta abbastanza indietro da non coprire il sentiero, oppure non c'è */
         if (ICE) { if (rnd() < .55) continue; X = hw + 2.4 + rnd() * rnd() * 30; }   /* piana innevata: larici e abeti sparsi, anche lontano dalla pista */
         const d = isl ? sg * rnd() * (lo - hw - near) : sg * (lo + X), high = !wide && (isl || X - hw < rad + 1); at(tr, s, d, P); P.y = groundY(tr, s, d, true);
-        if (ICE) { let near2 = 0; for (let q = 0; q < tr.n; q += 2) if ((tr.x[q] - P.x) ** 2 + (tr.z[q] - P.z) ** 2 < 26) { near2 = 1; break; } if (near2) continue; P.y = -.09; }   /* mai sopra un altro ramo del circuito */
+        if (ICE) { let near2 = 0; for (let q = 0; q < tr.n; q += 2) if ((tr.x[q] - P.x) ** 2 + (tr.z[q] - P.z) ** 2 < 46) { near2 = 1; break; } if (near2) continue; P.y = -.09; }   /* mai sopra un altro ramo del circuito */
         { let bad = 0; const b0 = Math.floor(s / 8); for (let bb = b0 - 1; bb <= b0 + 1 && !bad; bb++) { const a = TREES[bb]; if (a) for (let i = 0; i < a.length; i += 2) if ((a[i] - P.x) ** 2 + (a[i + 1] - P.z) ** 2 < 2.9) { bad = 1; break; } } if (bad) continue; }
         (TREES[Math.floor(s / 8)] ||= []).push(P.x, P.z); qt.setFromAxisAngle(T.Object3D.DEFAULT_UP, ang); sc.set(hgt, hgt, hgt);
         if (high) { ps.set(P.x, P.y + LIFT + hgt * (1 - V0) * .5, P.z); m.compose(ps, qt, sc); imH.setMatrixAt(qh++, m); trunks.push(P.x, P.y, P.z, .13 + hgt * .012); }
@@ -524,7 +524,7 @@ function step(dt) {
   const wall = false /* niente più muretti di sassi ai bordi della mulattiera: è un sentiero lastricato largo, col suo prato ai lati */, lim = wall ? HW - .05 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
   const limF = lim + laneOff(tr, S.s, Math.sign(S.d) || 1); if (Math.abs(S.d) > limF) { const sg = Math.sign(S.d), push = Math.abs(S.d) - limF; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push;
     let rel = S.psi - pr.h; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
-    if (rel * sg > 0) { const imp = Math.abs(Math.sin(rel)); if (!ICE && !S.wall && imp > (wall ? .75 : .5) && S.v > (wall ? 14 : 9)) crash(-sg);   /* sul ghiaccio il bordo è un cumulo di neve: ci si pianta e si perde velocità, non si cade */ else if (!S.wall && imp > .3) { S.v *= 1 - imp * (wall ? .15 : .3);   /* il muretto della mulattiera perdona: ci si striscia contro, si cade solo arrivandoci dritti e forte */ S.hit = Math.max(S.hit, imp * .8); thud(imp * .6); }   // botta solo se ci arrivi storto
+    if (rel * sg > 0) { const imp = Math.abs(Math.sin(rel)); if (!ICE && !S.wall && imp > (wall ? .75 : .5) && S.v > (wall ? 14 : 9)) crash(-sg);   /* sul ghiaccio il bordo è un cumulo di neve: ci si pianta e si perde velocità, non si cade */ else if (!S.wall && imp > .3) { S.v *= 1 - imp * (wall ? .15 : ICE ? .1 : .3);   /* il muretto della mulattiera perdona: ci si striscia contro, si cade solo arrivandoci dritti e forte */ S.hit = Math.max(S.hit, imp * .8); thud(imp * .6); }   // botta solo se ci arrivi storto
       S.psi -= rel * Math.min(1, dt * 9); S.v = Math.max(0, S.v - S.v * imp * 2.2 * dt - 1.5 * dt); S.lean *= 1 - Math.min(1, dt * 4); }   // poi la moto si raddrizza lungo il bordo e striscia, senza fermarsi
     S.wall = .15; } else S.wall = Math.max(0, (S.wall || 0) - dt);
   // altezza: le ruote seguono il fondo (profilo morbido), sui dossi presi forte la moto si stacca

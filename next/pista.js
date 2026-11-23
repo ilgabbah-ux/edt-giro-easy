@@ -11,7 +11,7 @@ export const KIND = {
   g: { name: 'guado', w: 7, side: 20, grip: .8, drag: 0, rough: .01, tex: 'rock', tape: 0 },
   f: { name: 'fango', w: 7, side: 22, grip: .68, drag: 1.3, rough: .015, tex: 'mud', tape: 1 },
   m: { name: 'mulattiera', w: 5.2, side: 7.5, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },
-  i: { name: 'ghiaccio', w: 5.2, side: 3.2, grip: .72, drag: 0, rough: .006, tex: 'ice', tape: 0 },   /* Ice Scrofy: neve battuta e ghiaccio, gomme chiodate. Tiene poco: si gira di traverso */
+  i: { name: 'ghiaccio', w: 7.2, side: 3.2, grip: .85, drag: 0, rough: .006, tex: 'ice', tape: 0 },   /* Ice Scrofy: neve battuta e ghiaccio, gomme chiodate. Tiene poco: si gira di traverso */
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
 };
@@ -95,7 +95,7 @@ export function buildCircuit(pts, kd = 'i', laps = 2, start = 0, zones = []) {
   const n = m + 1, k = new Float32Array(n), K = KIND[kd]; for (let i = 0; i < m; i++) k[i] = (h[i + 1] - h[i]) / DS; k[m] = k[0];
   { const c = Float32Array.from(k); for (let i = 0; i < n; i++) k[i] = (c[(i + m - 1) % m] + 2 * c[i % m] + c[(i + 1) % m]) / 4; }
   const kAbs = i => { let a = 0; for (let j = -5; j <= 5; j++) a += Math.abs(k[((i + j) % m + m) % m]); return a / 11; };   /* nelle curve strette la pista si allarga fino a una volta e mezza: spazio per girare */
-  const w = new Float32Array(n), sd = new Float32Array(n), kind = []; for (let i = 0; i < n; i++) { const s = (i % m) * DS; const q = zi[i % m], big = q >= 10 && q <= 18 ? Math.min(1, Math.min(q - 9.5, 18.5 - q) / 2.5) : 0; w[i] = K.w * (1 + .1 * Math.sin(s * 2 * Math.PI / (m * DS) * 3 + 1) + .05 * Math.sin(s * 2 * Math.PI / (m * DS) * 7)) * (1 + .9 * big) * (1 + .5 * Math.min(1, Math.max(0, (kAbs(i) - .05) / .08))); sd[i] = K.side;   /* il Curvone Derapage è largo quasi il doppio: è lo spiazzo dove si gira di traverso */ kind.push(kd); }
+  const w = new Float32Array(n), sd = new Float32Array(n), kind = []; for (let i = 0; i < n; i++) { const s = (i % m) * DS; const q = zi[i % m], big = q >= 10 && q <= 18 ? Math.min(1, Math.min(q - 9.5, 18.5 - q) / 2.5) : 0; w[i] = K.w * (1 + .1 * Math.sin(s * 2 * Math.PI / (m * DS) * 3 + 1) + .05 * Math.sin(s * 2 * Math.PI / (m * DS) * 7)) * (1 + .6 * big) * (1 + .22 * Math.min(1, Math.max(0, (kAbs(i) - .05) / .08))); sd[i] = K.side;   /* il Curvone Derapage è largo quasi il doppio: è lo spiazzo dove si gira di traverso */ kind.push(kd); }
   const tr = { n, x, z, y: new Float32Array(n), h, k, g: new Float32Array(n), w, side: sd, kind, len: m * DS, water: [], branches: [], logs: [], stations: null, forks: [], plain: false, steps: [], jumps: [], circuit: { laps, m, lap: m * DS, turn: h[m] - h[0], zi, zones } };
   tr.spans = [{ kind: kd, s0: 0, s1: m * DS }]; addGround(tr); return tr;
 }
