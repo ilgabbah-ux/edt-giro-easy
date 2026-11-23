@@ -4,9 +4,10 @@ import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
 import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=26';
-import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike } from './suono.js?v=14';
+import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=15';
 import { MOTO, motoById } from './moto.js?v=3';
-import { PILOTI, pilotaById } from './piloti.js?v=1';
+import { PILOTI, pilotaById } from './piloti.js?v=2';
+import { CANZONI, titolo, suona, volume, abbassa, ferma, musicaOn, inOnda } from './musica.js?v=1';
 import { makeRider } from './pilota.js?v=5';
 
 const $ = id => document.getElementById(id);
@@ -520,7 +521,7 @@ function draw(dt) {
     if (RD.off && !(S.fall > 0)) { pitchG.add(r); r.position.copy(RD.p); r.quaternion.copy(RD.q); r.scale.copy(RD.s); RD.off = 0; } }
   if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0, hx: FIT.hx, hy: FIT.hy, hz: FIT.hz });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
-  if (P.ears) P.ears.visible = (S.bunny || 0) > 0; { const tt = performance.now() / 1000; for (const b of tr.beers) if (!b.got) b.m.position.y = b.y + Math.sin(tt * 3 + b.s) * .12; } vociGara(); ghostDraw(dt); rivBuild(); rivStep(dt);
+  if (P.ears) P.ears.visible = (S.bunny || 0) > 0; { const tt = performance.now() / 1000; for (const b of tr.beers) if (!b.got) b.m.position.y = b.y + Math.sin(tt * 3 + b.s) * .12; } vociGara(); abbassa(speaking() ? .45 : 1); ghostDraw(dt); rivBuild(); rivStep(dt);
   rings(dt); WATER_N.offset.x += dt * .018; WATER_N.offset.y += dt * .03; lensDraw(dt); dust(dt); soundUpdate(dt, { thr: S.thr || 0, spin: S.spin || 0, wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
   blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.visible = !renderer.shadowMap.enabled; blob.material.opacity = S.air > 0 ? .16 : .32;
   { const fx = Math.sin(S.psi), fz = -Math.cos(S.psi); sun.target.position.set(Math.round(S.x + fx * 16), S.y, Math.round(S.z + fz * 16)); sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 110); }
@@ -553,6 +554,9 @@ const PISTE = [{ id: 's', ps: 'SCUOLA · 1,3 km', name: 'SCUOLA DI ENDURO', txt:
   { id: 'g', ps: 'TAPPA 1 · 2,0 km', name: 'GIRO EASY', txt: 'Veloce, salita coi gradoni, pietraia, guado, fango, mulattiera, single track e macchia. Due bivi: conigliera o Easy.', short: 'il classico', med: [122, 135, 150] },
   { id: 'i', ps: 'TAPPA 2 · 2,2 km', name: 'SALITA INFAME', txt: 'Il muro coi gradoni, la pietraia in salita, i tornanti della mulattiera, la cresta e poi giù fino al guado.', short: 'si sale davvero', med: [136, 150, 166] }];
 const BIMG = { fakedomi: 'fakedomi', enduro: 'edt250', hard300: 'hard300', trial: 'trial', pitbike: 'pitbike', adventure: 'boanal', dakar: 'dakar', bestia: 'bestia', vintage: 'vintage', electric: 'electric' };
+/* MUSICA: tutte le canzoni del Gabbah. Di base ogni percorso ha la sua; si può scegliere una canzone fissa o farle girare a caso. Nel menu va Giro Easy dal ritornello, piano */
+const SUA = { s: 'brindisi-easy', g: 'giro-easy', i: 'salita-infame' }; let musSel = opt('musica', 'sua'), musOn = opt('mus', '1') === '1'; musicaOn(musOn);
+const canzoneGara = () => musSel === 'sua' ? SUA[SCHOOL ? 's' : TAPPA2 ? 'i' : 'g'] : musSel === 'caso' ? CANZONI[Math.floor(Math.random() * CANZONI.length)][0] : musSel;
 const NOW = { pilota: PL.id, moto: BK.id, pista: SCHOOL ? 's' : TAPPA2 ? 'i' : 'g' }, SEL = { ...NOW }, dirty = () => SEL.pilota !== NOW.pilota || SEL.moto !== NOW.moto || SEL.pista !== NOW.pista;
 function menuDraw() { const p = pilotaById(SEL.pilota), m = motoById(SEL.moto), t = PISTE.find(x => x.id === SEL.pista);
   $('cNum').textContent = String(p.num).padStart(2, '0'); $('cFoto').src = 'piloti/' + p.id + '.webp?v=1'; $('cName').textContent = p.name; $('cRole').textContent = p.ruolo || ''; $('cMoto').textContent = m.name;
@@ -568,8 +572,13 @@ function menuDraw() { const p = pilotaById(SEL.pilota), m = motoById(SEL.moto), 
   for (const [g, k] of [['gTr', 'pista'], ['gPil', 'pilota'], ['gMoto', 'moto']]) $(g).onclick = e => { const c = e.target.closest('.card'); if (c) pick(k, c.dataset.id); };
   const step = d => { const i = PISTE.findIndex(x => x.id === SEL.pista); pick('pista', PISTE[(i + d + PISTE.length) % PISTE.length].id); }; $('tPrev').onclick = () => step(-1); $('tNext').onclick = () => step(1);
   $('chip').onclick = e => $(e.target.closest('.bk') ? 'sMoto' : 'sPil').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const musDraw = () => { for (const e of document.querySelectorAll('#gMus .song')) e.classList.toggle('on', e.dataset.id === musSel); $('oMus').textContent = 'MUSICA: ' + (musOn ? 'SÌ' : 'NO'); };
+  $('gMus').innerHTML = `<button class="song" type="button" data-id="sua"><i>★</i><b>LA CANZONE DEL PERCORSO</b><span>ogni pista ha la sua</span></button><button class="song" type="button" data-id="caso"><i>⤮</i><b>A CASO</b><span>una diversa a ogni partenza</span></button>` + CANZONI.map(([f, n], k) => `<button class="song" type="button" data-id="${f}"><i>${String(k + 1).padStart(2, '0')}</i><b>${n}</b><span>Il GaBbAH</span></button>`).join('');
+  $('gMus').onclick = e => { const c = e.target.closest('.song'); if (!c) return; musSel = c.dataset.id; setOpt('musica', musSel); if (!musOn) { musOn = true; setOpt('mus', '1'); musicaOn(true); } musDraw(); if (musSel !== 'sua' && musSel !== 'caso') suona(musSel, .4, 30); else suona('giro-easy', .28, 37.5); };
+  $('oMus').onclick = () => { musOn = !musOn; setOpt('mus', musOn ? '1' : '0'); musicaOn(musOn); if (musOn) suona('giro-easy', .28, 37.5); musDraw(); }; musDraw();
+  $('panel').addEventListener('click', () => { if (musOn && !inOnda() && state !== 'play' && state !== 'count') suona('giro-easy', .28, 37.5); });   /* la musica del menu parte al primo tocco: prima il telefono non lo permette */
   $('toMenu').onclick = () => { $('panel').classList.remove('quick'); $('go').textContent = 'ACCENDI LA MOTO'; };
-  new MutationObserver(() => { if (!$('panel').classList.contains('hide')) { $('panel').scrollTop = 0; menuDraw(); } }).observe($('panel'), { attributes: true, attributeFilter: ['class'] });
+  new MutationObserver(() => { if (!$('panel').classList.contains('hide')) { $('panel').scrollTop = 0; menuDraw(); volume(.28); abbassa(1); } }).observe($('panel'), { attributes: true, attributeFilter: ['class'] });
   if (opt('via', '0') === '1') { setOpt('via', '0'); $('panel').classList.add('quick'); $('go').textContent = 'VIA!'; }   /* la moto nuova è carica: resta solo il tasto per partire */
   menuDraw(); }
 if (TAPPA2) { $('tag').textContent = $('tag').textContent.replace('TAPPA 1 · PERCORSO ENDURO', 'TAPPA 2 · SALITA INFAME'); }
@@ -586,7 +595,7 @@ function finish() { state = 'done'; if (SCHOOL) { setOpt('pista', 'g'); $('tip')
   const isRec = !best || time < best; if (isRec) { best = time; setOpt('best3' + TK, String(time)); try { setOpt('ghost3' + TK, JSON.stringify({ p: rec, s: splits })); ghost = rec.slice(); bestSplits = splits.slice(); } catch {} }
   const med = (MED.find(m => time <= m[0]) || [0, ''])[1], nb = S.beers || 0, punti = nb * 100 + (med === 'ORO' ? 1000 : med === 'ARGENTO' ? 600 : med === 'BRONZO' ? 300 : 0) - (S.falls || 0) * 50 - (S.conigli || 0) * 150;
   $('pres').textContent = (rivBuilt ? ['PRIMO!', 'SECONDO', 'TERZO', 'ULTIMO'][RIV.filter(r => r.done).length] + ' · ' : '') + 'AL RIFUGIO IN ' + fmt(time) + ' s' + (isRec ? ' · RECORD!' : '') + (med ? ' · ' + med : '') + ' — 🍺 ' + nb + '/' + tr.beers.length + ' · cadute ' + (S.falls || 0) + (S.conigli ? ' · conigliere ' + S.conigli : '') + ' — ' + Math.max(0, punti) + ' PUNTI'; $('go').textContent = 'UN ALTRO GIRO'; setTimeout(() => $('panel').classList.remove('hide'), 900); $('msg').textContent = 'ARRIVATO!'; }
-const goNow = () => { if (dirty()) { setOpt('via', '1'); $('go').textContent = 'CARICO LA MOTO…'; location.reload(); return; } $('panel').classList.remove('quick'); askTilt(); startSound().then?.(() => { if (!SCHOOL) preloadVoice(VP); }); if (!SCHOOL) setTimeout(() => preloadVoice(VP), 600); restart(); }; $('go').onclick = goNow; $('again').onclick = goNow;
+const goNow = () => { if (dirty()) { setOpt('via', '1'); $('go').textContent = 'CARICO LA MOTO…'; location.reload(); return; } $('panel').classList.remove('quick'); { const f = canzoneGara(); suona(f, SCHOOL ? .16 : .5); const e = $('song'); e.textContent = musOn ? '♪ ' + titolo(f) + ' · Il GaBbAH' : ''; e.classList.add('show'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('show'), 5000); } askTilt(); startSound().then?.(() => { if (!SCHOOL) preloadVoice(VP); }); if (!SCHOOL) setTimeout(() => preloadVoice(VP), 600); restart(); }; $('go').onclick = goNow; $('again').onclick = goNow;
 $('opts').onclick = () => { state = 'menu'; $('pres').textContent = ''; $('go').textContent = 'RIPARTI'; $('panel').classList.remove('hide'); };
 setSound(O.snd); labels(); place(); hud();
 document.addEventListener('visibilitychange', () => { if (document.hidden) setSound(false); else setSound(O.snd); });

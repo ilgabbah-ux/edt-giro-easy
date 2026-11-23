@@ -80,6 +80,8 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 .grid.moto .card img{aspect-ratio:4/3;object-fit:contain;background:radial-gradient(#2a2f28,#141714)}.bars{display:grid;grid-template-columns:auto 1fr;gap:2px 6px;align-items:center;padding:0 7px 10px;font:700 9px Barlow,sans-serif;letter-spacing:.06em;color:#bbb}.bars i{display:block;height:5px;background:#333}.bars i u{display:block;height:5px;background:#ffd400}
 .grid.tr .card img{aspect-ratio:16/10}
 #panel .row{display:grid!important;grid-template-columns:repeat(2,1fr);gap:8px;max-width:none!important}#panel .row .btn{position:static;min-width:0;width:100%;height:44px;font-size:15px;padding:0 8px}.foot{font:700 14px/1.3 Barlow,sans-serif;opacity:.7;margin:12px 0 0!important;max-width:none!important}
+#song{position:fixed;z-index:3;left:50%;transform:translateX(-50%);bottom:calc(8px + env(safe-area-inset-bottom));max-width:46vw;background:#000a;color:#ffd400;font:italic 800 13px Barlow,sans-serif;letter-spacing:.06em;padding:4px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transition:opacity .5s;pointer-events:none}#song.show{opacity:1}#song:empty{display:none}
+#gMus{display:grid;grid-template-columns:1fr;gap:5px}.song{display:grid;grid-template-columns:34px 1fr;align-items:center;column-gap:8px;background:#141714;border:0;border-left:4px solid #333;color:#fff;padding:7px 10px;text-align:left;font-family:inherit;cursor:pointer}.song i{grid-row:1/3;font:italic 18px/1 Anton,Impact,sans-serif;color:#ffd400;text-align:center}.song b{font:italic 17px/1.1 Anton,Impact,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.song span{font:700 11px Barlow,sans-serif;letter-spacing:.08em;text-transform:uppercase;opacity:.7}.song.on{border-left-color:#ffd400;background:#2a2610}.song.on b{color:#ffd400}@media (min-width:640px){#gMus{grid-template-columns:repeat(3,1fr)}}
 #panel.quick{background:#0c0f0ca6!important}#panel.quick .sec,#panel.quick #chip,#panel.quick #tcard,#panel.quick #mHead{display:none}#panel.quick #toMenu{display:block}#panel.quick #mn{display:flex;min-height:100%;align-items:center}#panel.quick #hero{width:100%}
 @media (min-width:640px){.grid.tr{grid-template-columns:repeat(5,1fr)}.grid.pil{grid-template-columns:repeat(6,1fr)}.grid.moto{grid-template-columns:repeat(5,1fr)}#panel .row{grid-template-columns:repeat(3,1fr)}#hero{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}#hero .tg,#hero h1,#pres,#goW,#toMenu{grid-column:1/-1}#hero .tg{justify-self:start}#tcard{margin-top:0}#chip{align-self:stretch}#hero h1{font-size:30px!important}#panel #go{height:56px}}
 @media (orientation:landscape) and (max-height:520px){#mn{padding-top:6px}#mHead{padding:0 0 5px}#mHead img{width:26px;height:30px}#mHead b{font-size:12px}#mHead b br{display:none}#hero{margin-top:6px;padding:8px 10px 8px}#hero .tg{display:none}#hero h1{font-size:20px!important;margin:0 0 6px!important}#ptxt{display:none}#tName{font-size:22px}#tImg{max-width:78px;flex-basis:78px;width:78px}#tBody{padding:6px 4px 6px 10px}#chip{padding:6px 8px}#goW{margin-top:8px}#panel #go{height:50px;font-size:22px}#goS{margin-top:3px}}
@@ -91,13 +93,14 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v50</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v51</div>
 <div class="hud hidden" id="tip"></div>
 <div class="hud" id="msg"></div>
 <button class="btn" id="brake" type="button">FRENO</button>
 <button class="btn" id="gasb" type="button">GAS</button>
 <button class="btn dark" id="again" type="button">↺ RIPARTI</button>
 <button class="btn dark" id="opts" type="button">☰ OPZIONI</button>
+<div id="song"></div>
 <div id="panel">
  <div id="mn">
   <header id="mHead"><img src="../img/edt-shield.webp" alt=""><b>ENDURO DRINKING<br>TEAM</b><span id="mVer">PISTA VERA 3D · PROVA</span></header>
@@ -112,6 +115,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   <section class="sec"><h2><small>IL PERCORSO</small>DOVE SI VA?</h2><div id="gTr" class="grid tr"></div></section>
   <section class="sec" id="sPil"><h2><small>IL PILOTA</small>CHI APRE LA PISTA?</h2><div id="gPil" class="grid pil"></div></section>
   <section class="sec" id="sMoto"><h2><small>IL GARAGE</small>CHE MOTO PRENDI?</h2><div id="gMoto" class="grid moto"></div></section>
+  <section class="sec"><h2><small>LA MUSICA</small>COSA SI ASCOLTA?</h2><div id="gMus"></div></section>
   <section class="sec"><h2><small>I COMANDI</small>OPZIONI</h2>
    <div class="row">
     <button class="btn dark" id="oAuto" type="button"></button>
@@ -120,13 +124,14 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
     <button class="btn dark" id="oInv" type="button"></button>
     <button class="btn dark" id="oCam" type="button"></button>
     <button class="btn dark" id="oSnd" type="button"></button>
+    <button class="btn dark" id="oMus" type="button"></button>
    </div>
    <p class="foot">Si guida inclinando il telefono come un manubrio. Gas col tasto giallo, freno col tasto rosso.</p>
   </section>
  </div>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 50; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=50"></script>
+(function () { var V = 51; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=51"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@ const GEARS = [0, .42, .72, 1.02, 1.34, 1.7, 9];
 // Motore di ogni moto: due registrazioni vere a giri costanti (basso e alto regime) che si danno il cambio. f = scoppi al secondo della registrazione, len = durata del giro chiuso.
 let EP = { lo: { url: 'suoni/fakedomi-basso.mp3?v=1', f: 31, len: 2.998526 }, hi: { url: 'suoni/fakedomi-alto.mp3?v=1', f: 55, len: 2.986032 }, x0: 36, x1: 48, nz: .6 };   // Fake Domi: mono 4 tempi 650
 const mLevel = () => on ? (vSrc ? .4 : 1) : 0;   // mentre il Gabbah parla il motore si abbassa
+export const speaking = () => !!vSrc;
 export function setSound(v) { on = v; if (ctx) master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .05); if (!on) hush(); }
 // VOCE della scuola: le frasi del Gabbah, una per stazione. Si caricano alla prima richiesta; se ne parte una nuova la vecchia si zittisce
 const VB = {}; let vSrc = null, vWant = '';
