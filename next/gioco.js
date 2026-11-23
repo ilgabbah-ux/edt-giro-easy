@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=25';
+import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=26';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike } from './suono.js?v=14';
 import { MOTO, motoById } from './moto.js?v=3';
 import { PILOTI, pilotaById } from './piloti.js?v=1';
@@ -173,7 +173,7 @@ const ROCKS = [];   // i sassi grossi sono ostacoli veri: x, z, raggio, raggrupp
   let seed = 99; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, list = [];
   for (const sp of tr.spans) {
     if (sp.kind === 'p') for (let s = sp.s0 + 2; s < sp.s1 - 2; s += .9) { const hw = widthAt(tr, s) / 2, edge = rnd() < .45; const d = edge ? (rnd() < .5 ? -1 : 1) * (hw + rnd() * 5) : (rnd() - .5) * hw * 1.9; list.push([s, d, edge ? .35 + rnd() * .9 : .07 + rnd() * .13, 0]); }
-    if (sp.kind === 'm') for (let s = sp.s0 + 1; s < sp.s1 - 1; s += .75) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .25 + rnd() * .2), .3 + rnd() * .22, sg > 0 ? .25 : 0]);
+    if (sp.kind === 'm') for (let s = sp.s0 + 1; s < sp.s1 - 1; s += .75) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .3 + rnd() * .2), .28 + rnd() * .2, sg > 0 ? .25 : 0]);
     if (sp.kind === 's') for (const f of tr.feat) if (f.kind === 'gradone' && f.s > sp.s0 && f.s < sp.s1) { const hw = widthAt(tr, f.s) / 2; for (let d = -hw - .6; d < hw + .6; d += .5 + rnd() * .25) list.push([f.s + 1.9 + rnd() * .5, d, .3 + rnd() * .16, -.12]); }   // il bordo di ogni gradone è una fila di pietre: si vede dove sale
     if (sp.kind === 'g') for (let s = sp.s0; s < sp.s1; s += 1.6) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .5 + rnd() * 3), .3 + rnd() * .5, 0]);
   }
@@ -443,7 +443,8 @@ function step(dt) {
   om += S.slip * 1.7 * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt * (1 - clamp((S.wh || 0) / .5, 0, 1) * .75);   // su una ruota la moto gira poco
   const gas = thr, vTop = vTop0 * (S.soft ? .5 : 1);
-  let acc = Math.min(push, hold) * (1 - S.spin * .3) - (brk ? 4.5 + 8 * S.brkAmt : 0) - G * Math.sin(Math.atan(S.grade)) * (S.grade > 0 ? 2.3 / BK.climb : 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (1 - thr) * (S.v > 2 ? 1.5 : .4) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
+  let acc = Math.min(push, hold) * (1 - S.spin * .3) - (brk ? 4.5 + 8 * S.brkAmt : 0) - (S.grade > 0 ? Math.min(G * Math.sin(Math.atan(S.grade)) * 2.3, 5.6) / BK.climb : G * Math.sin(Math.atan(S.grade)) * 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (1 - thr) * (S.v > 2 ? 1.5 : .4) - Math.abs(Math.sin(S.lean)) * 1.1 - over * 3.5 - Math.abs(S.slip) * 2.2 - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
+  if (S.grade > .1 && thr > .8 && S.v < 2.5 && !brk && S.fall <= 0 && acc < 1) acc = 1;   /* prima corta: da fermi sul ripido, a gas aperto, qualsiasi moto riparte. Piano, ma riparte */
   acc -= G * clamp(Math.tan(S.pitch) - S.grade, 0, .5) * 1.2 * (S.air > 0 ? 0 : 1) * (1 - clamp((S.wh || 0) / .3, 0, 1) * .8);   // gradoni e gobbe in salita mangiano velocità: se molli il gas ti fermi
   if (S.soft) acc -= 3.2 * clamp(S.v / 7, 0, 1.6);   // conigliera: fondo molle, si va piano
   if (down) acc = -9;
@@ -463,10 +464,10 @@ function step(dt) {
   if (!down && S.air <= 0) { const b0 = Math.floor(S.s / 8); for (let b = b0 - 1; b <= b0 + 1; b++) { const a = ROCKS[b]; if (!a) continue; for (let q = 0; q < a.length; q += 3) { const dx = S.x - a[q], dz = S.z - a[q + 1], rr = a[q + 2] + .25, dd = dx * dx + dz * dz; if (dd < rr * rr) { const dist = Math.sqrt(dd) || .01;
     S.x = a[q] + dx / dist * rr; S.z = a[q + 1] + dz / dist * rr; if (S.v > 7) crash(Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1); else glance(dx / dist, dz / dist, dt); } } } }
   // bordi: dopo qualche metro di prato c'è la scarpata, si rimbalza dentro perdendo velocità
-  const wall = KD.name === 'mulattiera', lim = wall ? HW - .12 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
+  const wall = KD.name === 'mulattiera', lim = wall ? HW - .05 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
   const limF = lim + laneOff(tr, S.s, Math.sign(S.d) || 1); if (Math.abs(S.d) > limF) { const sg = Math.sign(S.d), push = Math.abs(S.d) - limF; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push;
     let rel = S.psi - pr.h; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
-    if (rel * sg > 0) { const imp = Math.abs(Math.sin(rel)); if (!S.wall && imp > .5 && S.v > 9) crash(-sg); else if (!S.wall && imp > .3) { S.v *= 1 - imp * .3; S.hit = Math.max(S.hit, imp * .8); thud(imp * .6); }   // botta solo se ci arrivi storto
+    if (rel * sg > 0) { const imp = Math.abs(Math.sin(rel)); if (!S.wall && imp > (wall ? .75 : .5) && S.v > (wall ? 14 : 9)) crash(-sg); else if (!S.wall && imp > .3) { S.v *= 1 - imp * (wall ? .15 : .3);   /* il muretto della mulattiera perdona: ci si striscia contro, si cade solo arrivandoci dritti e forte */ S.hit = Math.max(S.hit, imp * .8); thud(imp * .6); }   // botta solo se ci arrivi storto
       S.psi -= rel * Math.min(1, dt * 9); S.v = Math.max(0, S.v - S.v * imp * 2.2 * dt - 1.5 * dt); S.lean *= 1 - Math.min(1, dt * 4); }   // poi la moto si raddrizza lungo il bordo e striscia, senza fermarsi
     S.wall = .15; } else S.wall = Math.max(0, (S.wall || 0) - dt);
   // altezza: le ruote seguono il fondo (profilo morbido), sui dossi presi forte la moto si stacca
