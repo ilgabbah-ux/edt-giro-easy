@@ -234,6 +234,14 @@ function barkTex() {   /* corteccia disegnata: solchi verticali scuri, creste ch
 
 if (ICE) { const list = []; let acc = 0; for (let i = 0; i < tr.n - 1; i++) { acc += DS * (Math.abs(tr.k[i]) > .012 ? 2 : 1); if (acc < 9) continue; acc = 0; for (const sg of [-1, 1]) { const s = i * DS, d = sg * (widthAt(tr, s) / 2 + .55); at(tr, s, d, P); list.push(P.x, groundY(tr, s, d, true), P.z); } }
   const g = new T.CylinderGeometry(.045, .045, 1.25, 6), im = new T.InstancedMesh(g, new T.MeshLambertMaterial({ color: 0xff5a14, emissive: 0x5a1c00 }), list.length / 3), m = new T.Matrix4(); for (let i = 0; i < list.length / 3; i++) { m.makeTranslation(list[i * 3], list[i * 3 + 1] + .55, list[i * 3 + 2]); im.setMatrixAt(i, m); } im.castShadow = true; scene.add(im); }
+if (ICE) { const lapL = tr.n * DS, A = new T.Vector3(), B = new T.Vector3();   /* i cartelli veri di Ice Scrofy, grandi e a bordo pista, girati verso chi arriva */
+  const SG = [['trenta', .06, 1, 1.5, 2.25, 0], ['chiodi', .115, -1, 2.3, 1.52, 1], ['trenta', .245, -1, 1.5, 2.25, 0], ['gusta', .385, 1, 1.5, 2.27, 1], ['chiodi', .52, 1, 2.3, 1.52, 1], ['gusta', .64, -1, 1.5, 2.27, 1], ['chiodi', .75, -1, 2.3, 1.52, 1], ['gusta', .86, 1, 1.5, 2.27, 1], ['trenta', .95, -1, 1.5, 2.25, 0]];
+  const poleM = new T.MeshLambertMaterial({ color: 0x8a9096 });
+  for (const [img, f, sg, w, h, pole] of SG) { const s = f * lapL, d = sg * (widthAt(tr, s) / 2 + 1.25); at(tr, s, d, A); const gy = groundY(tr, s, d, true); at(tr, Math.max(0, s - 6), d * .2, B);
+    const t = tl.load('cartelli/' + img + '.webp'); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; const g = new T.Group(), y0 = pole ? 1.15 : 0;
+    const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: t, transparent: !pole, alphaTest: .5, side: T.DoubleSide, fog: true, color: 0xe6e6e6 })); m.position.y = y0 + h / 2; g.add(m);
+    if (pole) { const p = new T.Mesh(new T.CylinderGeometry(.05, .05, y0 + h, 6), poleM); p.position.set(0, (y0 + h) / 2, -.06); g.add(p); }
+    g.position.set(A.x, gy - .05, A.z); g.lookAt(B.x, gy - .05, B.z); scene.add(g); } }
 unroll(tr);   /* il circuito è stato disegnato lungo un giro: da qui in poi vale per tutti i giri */
 // ---------- moto e pilota ----------
 const bike = new T.Group(), leanG = new T.Group(), pitchG = new T.Group(); bike.add(leanG); leanG.add(pitchG); scene.add(bike);
@@ -451,10 +459,11 @@ function step(dt) {
   S.spin = (S.spin || 0) + (spin - (S.spin || 0)) * Math.min(1, dt * 9);
   const powerSlide = gasOn ? Math.sign(S.lean || steerIn) * (Math.max(0, Math.abs(S.lean) - .5) * .7 * thr * clamp(1.3 - S.v / 14, 0, 1) + S.spin * (.12 + Math.abs(S.lean) * .5)) : 0;   // in uscita, col gas e piegato, il posteriore scappa un po'
   const iceSlide = ICE && S.air <= 0 ? Math.sign(S.lean) * clamp((Math.abs(S.lean) - .26) * .85, 0, .34) * clamp((S.v - 4) / 7, 0, 1) * (.55 + .45 * thr) : 0;   /* ICE SCROFY: in curva si va solo di traverso. Più pieghi e più gas dai, più il posteriore esce, e la moto gira col traverso */
-  let slipT = brakeSlide + powerSlide + iceSlide + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0); if (ICE) slipT = clamp(slipT, -.42, .42);   /* traverso sempre dolce e governabile: mai la moto messa di traverso alla pista */
+  const curvone = ICE && S.air <= 0 && zoneAt(tr, S.s) === 'CURVONE DERAPAGE', bigSlide = curvone && Math.abs(S.lean) > .07 ? Math.sign(S.lean) * .78 * clamp((S.v - 2) / 5, 0, 1) : 0;   /* il Curvone Derapage si fa tutto di traverso: appena pieghi la moto si mette a 45 gradi e ci resta finché tieni la curva */
+  let slipT = (curvone ? bigSlide : brakeSlide + powerSlide + iceSlide) + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0); if (ICE) slipT = curvone ? clamp(slipT, -.8, .8) : clamp(slipT, -.42, .42);   /* traverso sempre dolce e governabile: mai la moto messa di traverso alla pista */
   S.slip += (slipT - S.slip) * Math.min(1, dt * (Math.abs(slipT) > Math.abs(S.slip) ? 6.5 : 3.2));
   if (ICE && state === 'play' && !(S.fall > 0) && Math.abs(S.slip) > .12 && S.v > 5 && S.off < .3) S.drift = (S.drift || 0) + Math.abs(S.slip) * S.v * dt * 2.2;   /* Ice Scrofy: la derapata fa punti, come nel gioco in uso */
-  om += S.slip * (ICE ? .75 : 1.7) * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
+  om += S.slip * (curvone ? .42 : ICE ? .75 : 1.7) * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt * (1 - clamp((S.wh || 0) / .5, 0, 1) * .75);   // su una ruota la moto gira poco
   const gas = thr, vTop = vTop0 * (S.soft ? .5 : 1);
   let acc = Math.min(push, hold) * (1 - S.spin * .3) - (brk ? 4.5 + 8 * S.brkAmt : 0) - (S.grade > 0 ? Math.min(G * Math.sin(Math.atan(S.grade)) * 2.3, 5.6) / BK.climb : G * Math.sin(Math.atan(S.grade)) * 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (1 - thr) * (S.v > 2 ? 1.5 : .4) - Math.abs(Math.sin(S.lean)) * (ICE ? .5 : 1.1) - over * (ICE ? .9 : 3.5) - Math.abs(S.slip) * (ICE ? .45 : 2.2) - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
