@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=32';
+import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=33';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=17';
 import { MOTO, motoById } from './moto.js?v=3';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
@@ -213,12 +213,12 @@ function barkTex() {   /* corteccia disegnata: solchi verticali scuri, creste ch
     for (let i = 0; i < n; i++) { const r = trunks[i * 4 + 3], h = LIFT + 2.2; sc.set(r, h, r); ps.set(trunks[i * 4], trunks[i * 4 + 1] + h / 2 - .3, trunks[i * 4 + 2]); m.compose(ps, qt, sc); tm.setMatrixAt(i, m); } tm.castShadow = true; scene.add(tm); }
 }
 { // partenza, arrivo e un cartello all'inizio di ogni tratto
-  const board = (label, col, w, h) => { const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96; const x = cv.getContext('2d'); x.fillStyle = col; x.fillRect(0, 0, 512, 96); x.fillStyle = '#111'; x.font = 'bold 60px Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 256, 52);
+  const board = (label, col, w, h) => { const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96; const x = cv.getContext('2d'); x.fillStyle = col; x.fillRect(0, 0, 512, 96); x.fillStyle = '#111'; x.font = 'bold 60px Impact, sans-serif'; { let fs = 60; while (x.measureText(label).width > 470 && fs > 20) { fs -= 2; x.font = 'bold ' + fs + 'px Impact, sans-serif'; } }   /* la scritta deve starci tutta */ x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 256, 52);
     const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace; return new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: t, side: T.DoubleSide })); };
   const gate = (s, label) => { at(tr, s, 0, P); const w = widthAt(tr, s), grp = new T.Group(); grp.position.set(P.x, P.y, P.z); grp.rotation.y = -P.h;
     const mat = new T.MeshLambertMaterial({ color: 0x2a2a2a }); for (const sx of [-1, 1]) { const p = new T.Mesh(new T.CylinderGeometry(.14, .14, 5.2, 8), mat); p.position.set(sx * (w / 2 + .6), 2.6, 0); grp.add(p); }
     const b = board(label, '#ffd400', w + 1.6, 1.5); b.position.y = 4.6; grp.add(b); scene.add(grp); };
-  gate(14, SCHOOL ? 'SCUOLA DI ENDURO' : 'ENDURO DRINKING TEAM'); gate(tr.len - 14, SCHOOL ? 'FINE SCUOLA' : 'RIFUGIO · ARRIVO');
+  if (ICE) gate(tr.len - 3, 'ICE SCROFY · EDT');   /* circuito: un solo striscione, sul traguardo */ else { gate(14, SCHOOL ? 'SCUOLA DI ENDURO' : 'ENDURO DRINKING TEAM'); gate(tr.len - 14, SCHOOL ? 'FINE SCUOLA' : 'RIFUGIO · ARRIVO'); }
   // tronchi di traverso sul sentiero
   { const bark = new T.MeshLambertMaterial({ map: tex('../img/tex/forestfloor_d.webp'), color: 0x7a5a3c }); for (const lg of tr.logs) { const hw = widthAt(tr, lg.s) / 2, w = hw * 2 + 3, dc = lg.lane ? laneOff(tr, lg.s, 1) : 0; at(tr, lg.s, dc, P); const m = new T.Mesh(new T.CylinderGeometry(.21, .24, w, 10), bark); m.rotation.set(0, -P.h, Math.PI / 2, 'YXZ'); m.position.set(P.x, groundY(tr, lg.s, dc, true) + .2, P.z); scene.add(m); } }
   // cartelli del bivio: a sinistra la CONIGLIERA con le orecchie da coniglio, a destra la EASY
@@ -466,7 +466,7 @@ function step(dt) {
   S.sPrev = S.s;
   const mu = (S.grip - S.off * .3 - Math.min(.25, S.wet * .8)), vEff = Math.max(S.v, 4.5);
   let om = G * Math.tan(S.lean) / vEff; const omMax = mu * G / vEff, over = Math.max(0, Math.abs(om) - omMax);
-  if (over > 0) om = Math.sign(om) * (omMax + over * .25);   // oltre il limite la moto allarga
+  if (over > 0) om = Math.sign(om) * (omMax + over * .25); if (ICE && S.v < 11) om *= 1 + .75 * clamp((11 - S.v) / 6, 0, 1);   /* nei tornanti stretti di Ice Scrofy, andando piano, la moto gira molto di più: piede a terra e perno sul posteriore */   // oltre il limite la moto allarga
   // troppo piegato per il fondo che c'è (fango, pietre bagnate, erba): la gomma tiene mezzo secondo, poi la moto si stende
   { const ask = Math.tan(Math.abs(S.lean)) / Math.max(.3, mu); S.overT = (ask > 1.18 || Math.abs(S.slip) > .45 && S.off > .8) && S.v > 7 && S.air <= 0 && !down ? (S.overT || 0) + dt * (ask > 1.45 ? 1.6 : 1) : Math.max(0, (S.overT || 0) - dt * 2); if (S.overT > .6 && !ICE) crash(Math.sign(S.lean)); }
   if (down) om = S.fallSide * .5 * clamp(S.v / 6, 0, 1);
@@ -491,11 +491,11 @@ function step(dt) {
   S.spin = (S.spin || 0) + (spin - (S.spin || 0)) * Math.min(1, dt * 9);
   const powerSlide = gasOn ? Math.sign(S.lean || steerIn) * (Math.max(0, Math.abs(S.lean) - .5) * .7 * thr * clamp(1.3 - S.v / 14, 0, 1) + S.spin * (.12 + Math.abs(S.lean) * .5)) : 0;   // in uscita, col gas e piegato, il posteriore scappa un po'
   const iceSlide = ICE && S.air <= 0 ? Math.sign(S.lean) * clamp((Math.abs(S.lean) - .26) * .85, 0, .34) * clamp((S.v - 4) / 7, 0, 1) * (.55 + .45 * thr) : 0;   /* ICE SCROFY: in curva si va solo di traverso. Più pieghi e più gas dai, più il posteriore esce, e la moto gira col traverso */
-  const curvone = ICE && S.air <= 0 && zoneAt(tr, S.s) === 'CURVONE DERAPAGE', bigSlide = curvone && Math.abs(S.lean) > .07 ? Math.sign(S.lean) * .78 * clamp((S.v - 2) / 5, 0, 1) : 0;   /* il Curvone Derapage si fa tutto di traverso: appena pieghi la moto si mette a 45 gradi e ci resta finché tieni la curva */
-  let slipT = (curvone ? bigSlide : brakeSlide + powerSlide + iceSlide) + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0); if (ICE) slipT = curvone ? clamp(slipT, -.8, .8) : clamp(slipT, -.42, .42);   /* traverso sempre dolce e governabile: mai la moto messa di traverso alla pista */
+  const curvone = ICE && S.air <= 0 && zoneAt(tr, S.s) === 'CURVONE DERAPAGE', bigSlide = curvone && Math.abs(S.lean) > .07 ? Math.sign(S.lean) * 1.12 * clamp((S.v - 1.5) / 4, 0, 1) : 0;   /* il Curvone Derapage si fa tutto di traverso: appena pieghi la moto si mette a 45 gradi e ci resta finché tieni la curva */
+  let slipT = (curvone ? bigSlide : brakeSlide + powerSlide + iceSlide) + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0); if (ICE) slipT = curvone ? clamp(slipT, -1.15, 1.15) : clamp(slipT, -.42, .42);   /* traverso sempre dolce e governabile: mai la moto messa di traverso alla pista */
   S.slip += (slipT - S.slip) * Math.min(1, dt * (Math.abs(slipT) > Math.abs(S.slip) ? 6.5 : 3.2));
   if (ICE && state === 'play' && !(S.fall > 0) && Math.abs(S.slip) > .12 && S.v > 5 && S.off < .3) S.drift = (S.drift || 0) + Math.abs(S.slip) * S.v * dt * 2.2;   /* Ice Scrofy: la derapata fa punti, come nel gioco in uso */
-  om += S.slip * (curvone ? .42 : ICE ? .75 : 1.7) * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
+  om += S.slip * (curvone ? .3 : ICE ? .75 : 1.7) * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt * (1 - clamp((S.wh || 0) / .5, 0, 1) * .75);   // su una ruota la moto gira poco
   const gas = thr, vTop = vTop0 * (S.soft ? .5 : 1);
   let acc = Math.min(push, hold) * (1 - S.spin * .3) - (brk ? 4.5 + 8 * S.brkAmt : 0) - (S.grade > 0 ? Math.min(G * Math.sin(Math.atan(S.grade)) * 2.3, 5.6) / BK.climb : G * Math.sin(Math.atan(S.grade)) * 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (1 - thr) * (S.v > 2 ? 1.5 : .4) - Math.abs(Math.sin(S.lean)) * (ICE ? .5 : 1.1) - over * (ICE ? .9 : 3.5) - Math.abs(S.slip) * (ICE ? .45 : 2.2) - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
