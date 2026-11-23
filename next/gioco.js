@@ -473,7 +473,7 @@ function step(dt) {
   // velocità: gas (automatico o tasto), freno, salita/discesa, attrito in piega, erba
   let kAhead = 0; { const far = Math.round(clamp(S.v * S.v / 15, 8, 64) / DS); for (let j = 2; j <= far; j += 2) { const kk = tr.k[Math.min(tr.n - 1, S.i + j)]; if (Math.abs(kk) > Math.abs(kAhead)) kAhead = kk; } }   // la curva più stretta nello spazio che serve per frenare
   const vSafe = Math.abs(kAhead) > .004 ? Math.sqrt(mu * G * .86 / Math.abs(kAhead)) : 99;
-  const autoBrake = (O.auto || ICE) && S.v > vSafe + .5 /* su Ice Scrofy la moto rallenta sempre da sola prima dei tornanti */, brk = state === 'play' && (braking || autoBrake);
+  const autoBrake = O.auto && S.v > vSafe + (ICE ? 4 : .5)   /* su Ice Scrofy niente rallentamenti forzati: frena solo chi ha scelto FRENO AUTO, e anche lì molto più tardi */, brk = state === 'play' && (braking || autoBrake);
   // quanto stai frenando: il tasto tenuto premuto sale da poco a tutto in mezzo secondo (il freno automatico pinza a metà)
   S.brkAmt += ((braking ? 1 : autoBrake ? .5 : 0) - S.brkAmt) * Math.min(1, dt * (brk ? 2.4 : 7));
   // ENDURO: frenando col posteriore la moto si mette di traverso, tanto più quanto freni e quanto sterzi; il muso entra in curva prima
