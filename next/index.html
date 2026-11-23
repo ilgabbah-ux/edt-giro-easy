@@ -71,7 +71,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #goW{margin-top:14px;text-align:center}#panel #go{position:static;display:block;width:100%;min-width:0;height:66px;font:italic 800 26px Barlow,sans-serif;letter-spacing:.1em;background:linear-gradient(100deg,#ffd400,#ffb800);color:#111;border:0;clip-path:polygon(3% 0,100% 0,97% 100%,0 100%);box-shadow:none}#goS{display:block;margin-top:5px;font:italic 800 12px Barlow,sans-serif;letter-spacing:.14em;color:#ffd400}
 #toMenu{display:none;margin:12px auto 0;background:none;border:0;color:#bbb;font:700 15px Barlow,sans-serif;text-decoration:underline}
 .sec{margin-top:22px}.sec h2{font:italic 26px/1 Anton,Impact,sans-serif;margin:0 0 10px}.sec h2 small{display:block;color:#ffd400;font:italic 800 13px Barlow,sans-serif;letter-spacing:.2em;border-top:4px solid #ffd400;width:max-content;padding-top:6px;margin-bottom:4px}
-.grid{display:grid;gap:8px;grid-template-columns:repeat(3,1fr)}.grid.tr{grid-template-columns:repeat(3,1fr)}
+.grid{display:grid;gap:8px;grid-template-columns:repeat(3,1fr)}.grid.tr{grid-template-columns:repeat(2,1fr)}
 .card{position:relative;background:#141714;border:2px solid transparent;border-bottom:3px solid #d43a2f;color:#fff;padding:0;text-align:left;font-family:inherit;cursor:pointer;overflow:hidden;clip-path:polygon(0 0,100% 0,100% 92%,90% 100%,0 100%)}.card.on{border-color:#ffd400;border-bottom-color:#ffd400}
 .card img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#222}.card .nu{position:absolute;right:5px;top:2px;font:italic 24px/1 Anton,Impact,sans-serif;color:#fff;-webkit-text-stroke:1px #111;text-shadow:0 2px 4px #000}
 .card .vo{position:absolute;left:5px;top:5px;width:22px;height:22px;border-radius:50%;background:#111c;border:1px solid #ffd400;color:#ffd400;font:12px/20px sans-serif;text-align:center}
@@ -94,7 +94,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v57</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v58</div>
 <div class="hud hidden" id="tip"></div>
 <div class="hud" id="msg"></div>
 <button class="btn" id="brake" type="button">FRENO</button>
@@ -133,7 +133,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
  </div>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 57; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=57"></script>
+(function () { var V = 58; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=58"></script>
 </body>
 </html>

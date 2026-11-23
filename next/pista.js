@@ -11,6 +11,7 @@ export const KIND = {
   g: { name: 'guado', w: 7, side: 20, grip: .8, drag: 0, rough: .01, tex: 'rock', tape: 0 },
   f: { name: 'fango', w: 7, side: 22, grip: .68, drag: 1.3, rough: .015, tex: 'mud', tape: 1 },
   m: { name: 'mulattiera', w: 5.2, side: 7.5, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },
+  i: { name: 'ghiaccio', w: 5.2, side: 3.2, grip: .56, drag: 0, rough: .006, tex: 'ice', tape: 0 },   /* Ice Scrofy: neve battuta e ghiaccio, gomme chiodate. Tiene poco: si gira di traverso */
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
 };
@@ -72,6 +73,34 @@ export const SCUOLA_EXTRA = { plain: true, logs: [860, 905], steps: [968, 976, 9
     { s0: 1050, s1: 1160, goal: 'pass', t: 'SASSI E RAMI', x: 'Vai piano. Sassi grossi e alberi si schivano; i rami in faccia ti tolgono la vista.', no: 'PIANO: SCHIVA I SASSI GROSSI' },
     { s0: 1160, s1: 1266, goal: 'pass', hl: 'brake', t: 'SINGLE TRACK', x: 'Stretto tra gli alberi: frena prima della curva, piega tutto, gas in uscita.', no: 'FRENA PRIMA DELLA CURVA' },
   ] };
+// ICE SCROFY (Pragelato): il circuito vero, ricalcato dalla foto dal drone e dal tracciato azzurro del video del Gabbah.
+// Punti in metri (x verso destra della foto, z verso il basso), nel verso di marcia: giù per il Rettilineo del Fulmine, Curvone Derapage, su per il Rettilineo della Furia,
+// tornante in alto, Esse di Gusta, Esse della Tagliola, Curva del Destino, risalita e Curva della Puntura. Scala del gioco: 1 m = 5,6 pixel della foto a metà risoluzione (la pista vera è circa 2,5 volte più piccola)
+export const ICE_PTS = [[20.71,-78.57],[25.18,-60.71],[27.86,-42.86],[30.54,-25.0],[33.21,-7.14],[36.79,10.71],[42.14,28.57],[47.5,41.07],[51.96,55.36],[53.21,69.64],[51.07,82.14],[45.71,91.07],[34.11,96.07],[15.36,97.32],[-4.29,95.54],[-20.36,90.18],[-32.86,79.46],[-42.14,64.29],[-46.25,46.43],[-47.14,28.57],[-46.25,10.71],[-45.0,-7.14],[-43.57,-25.0],[-42.14,-42.86],[-40.36,-60.71],[-38.21,-78.57],[-33.75,-92.86],[-26.61,-101.79],[-17.68,-105.71],[-10.54,-105.0],[-6.43,-100.36],[-5.54,-91.96],[-6.07,-83.57],[-8.21,-75.89],[-14.11,-69.64],[-21.25,-66.43],[-26.61,-62.5],[-29.64,-55.36],[-30.71,-42.86],[-30.18,-32.14],[-28.39,-21.43],[-24.82,-10.71],[-19.46,-0.89],[-11.43,7.14],[-3.39,13.39],[4.64,19.64],[8.21,26.79],[6.43,32.5],[-0.71,36.07],[-9.64,39.29],[-15.0,44.64],[-17.14,51.79],[-15.0,58.93],[-8.75,63.04],[-0.36,62.86],[8.21,59.82],[13.93,53.57],[17.68,45.0],[20.71,37.5],[23.39,28.57],[23.93,19.64],[21.79,10.71],[18.04,5.0],[13.57,0.0],[6.43,-8.57],[-2.14,-17.5],[-11.07,-26.43],[-18.21,-33.57],[-20.36,-40.18],[-18.21,-45.71],[-11.79,-49.64],[-4.29,-52.68],[1.96,-57.14],[5.89,-62.5],[6.79,-69.64],[5.18,-75.89],[4.11,-80.0],[6.79,-83.57],[12.14,-84.82],[17.14,-82.5]];
+export const ICE_ZONE = [[0, 'RETTILINEO DEL FULMINE'], [11, 'CURVONE DERAPAGE'], [18, 'RETTILINEO DELLA FURIA'], [27, 'TORNANTE DEL TORRENTE'], [32, 'ESSE DI GUSTA'], [41, 'ESSE DELLA TAGLIOLA'], [48, 'CURVA DEL DESTINO'], [58, 'RISALITA DELLA TAGLIOLA'], [68, 'CURVA DELLA PUNTURA']];   /* da che punto di controllo comincia ogni tratto */
+// CIRCUITO: la linea di mezzeria è una curva chiusa che passa per i punti. Il giro viene diviso in passi uguali (circa DS) e la pista nasce lunga un giro: così si disegna una volta sola.
+// Poi unroll() la srotola per il numero di giri: stessi posti, distanza che continua a crescere. Per il gioco è un percorso normale con partenza e arrivo.
+export function buildCircuit(pts, kd = 'i', laps = 2, start = 0, zones = []) {
+  const N = pts.length, cr = (a, b, c, d, t) => .5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t), D = [], own = [];
+  for (let q = 0; q < N; q++) { const i = (q + start) % N; for (let t = 0; t < 1; t += 1 / 48) { D.push([cr(pts[(i + N - 1) % N][0], pts[i][0], pts[(i + 1) % N][0], pts[(i + 2) % N][0], t), cr(pts[(i + N - 1) % N][1], pts[i][1], pts[(i + 1) % N][1], pts[(i + 2) % N][1], t)]); own.push(i); } }
+  const M = D.length, cum = [0]; for (let i = 0; i < M; i++) { const a = D[i], b = D[(i + 1) % M]; cum.push(cum[i] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
+  const L = cum[M], m = Math.round(L / DS), st = L / m, x = new Float32Array(m + 1), z = new Float32Array(m + 1), h = new Float32Array(m + 1), zi = new Int16Array(m + 1); let j = 0;
+  for (let i = 0; i < m; i++) { const t = i * st; while (cum[j + 1] < t) j++; const u = (t - cum[j]) / (cum[j + 1] - cum[j]), a = D[j], b = D[(j + 1) % M]; x[i] = (a[0] + (b[0] - a[0]) * u) * DS / st; z[i] = (a[1] + (b[1] - a[1]) * u) * DS / st; zi[i] = own[j]; }
+  x[m] = x[0]; z[m] = z[0]; zi[m] = zi[0];
+  for (let i = 0; i < m; i++) { let a = Math.atan2(x[i + 1] - x[i], -(z[i + 1] - z[i])); if (i) { while (a - h[i - 1] > Math.PI) a -= 2 * Math.PI; while (a - h[i - 1] < -Math.PI) a += 2 * Math.PI; } h[i] = a; }
+  { let d = h[0] - h[m - 1]; const turn = Math.round((h[m - 1] - h[0]) / (2 * Math.PI)) * 2 * Math.PI; h[m] = h[0] + turn; }   /* a fine giro la direzione è quella di partenza più i giri completi fatti */
+  const n = m + 1, k = new Float32Array(n), K = KIND[kd]; for (let i = 0; i < m; i++) k[i] = (h[i + 1] - h[i]) / DS; k[m] = k[0];
+  { const c = Float32Array.from(k); for (let i = 0; i < n; i++) k[i] = (c[(i + m - 1) % m] + 2 * c[i % m] + c[(i + 1) % m]) / 4; }
+  const w = new Float32Array(n), sd = new Float32Array(n), kind = []; for (let i = 0; i < n; i++) { const s = (i % m) * DS; w[i] = K.w * (1 + .1 * Math.sin(s * 2 * Math.PI / (m * DS) * 3 + 1) + .05 * Math.sin(s * 2 * Math.PI / (m * DS) * 7)); sd[i] = K.side; kind.push(kd); }
+  const tr = { n, x, z, y: new Float32Array(n), h, k, g: new Float32Array(n), w, side: sd, kind, len: m * DS, water: [], branches: [], logs: [], stations: null, forks: [], plain: false, steps: [], jumps: [], circuit: { laps, m, lap: m * DS, turn: h[m] - h[0], zi, zones } };
+  tr.spans = [{ kind: kd, s0: 0, s1: m * DS }]; addGround(tr); return tr;
+}
+export function unroll(tr) { const c = tr.circuit; if (!c || c.done) return; c.done = 1; const m = c.m, L = c.laps, n = m * L + 1, til = (a, T, add = 0) => { const o = new T(n); for (let i = 0; i < n; i++) o[i] = a[i % m] + add * Math.floor(i / m); return o; };
+  tr.x = til(tr.x, Float32Array); tr.z = til(tr.z, Float32Array); tr.y = til(tr.y, Float32Array); tr.h = til(tr.h, Float32Array, c.turn); tr.k = til(tr.k, Float32Array); tr.g = til(tr.g, Float32Array); tr.w = til(tr.w, Float32Array); tr.side = til(tr.side, Float32Array);
+  const kd = tr.kind[0]; tr.kind = Array.from({ length: n }, () => kd); c.zi = til(c.zi, Int16Array);
+  const fm = Math.round(c.lap / FS), bt = a => { const o = new Float32Array(fm * L + 2); for (let i = 0; i < o.length; i++) o[i] = a[i % fm]; return o; }; tr.bump = bt(tr.bump); tr.rough = bt(tr.rough);
+  tr.n = n; tr.len = (n - 1) * DS; tr.spans = [{ kind: kd, s0: 0, s1: tr.len }]; }
+export const zoneAt = (tr, s) => { const c = tr.circuit; if (!c) return ''; const q = c.zi[Math.min(tr.n - 1, Math.round(s / DS))]; let nm = ''; for (const [a, t] of c.zones) if (q >= a) nm = t; return nm; };
 const smooth = (a, n) => a.map((_, i) => { let s = 0, c = 0; for (let k = -n; k <= n; k++) { s += a[Math.max(0, Math.min(a.length - 1, i + k))]; c++; } return s / c; });
 export function buildTrack(segs = GIRO_EASY, extra = {}) {
   let k = [], g = [], w = [], sd = [], kind = [];
@@ -154,6 +183,7 @@ export function groundY(tr, s, d, smoothOnly) {
   // ai lati: prato che sale dolce; sulla mulattiera un lato è la scarpata a monte e l'altro scende; nel single track il sottobosco è mosso
   let side = out * out * .012 * (1 + noise(s, d) * .9) + out * .05 * noise(s * 1.7, d * 2 + 9);
   if (kd.name === 'mulattiera') side = out * (d > 0 ? .3 : -.2) + out * .08 * noise(s * 2, d * 3);
+  else if (kd.name === 'ghiaccio') side = .36 * Math.pow(Math.sin(Math.PI * Math.min(1, out / 3)), 1.2) - .1 * Math.min(1, out / 3.2);   /* sponda di neve spalata ai bordi, poi la piana */
   else if (kd.name === 'single track') side = out * .1 * noise(s * 2.3, d * 2.1 + 4) + out * out * .008;
   const fade = Math.max(0, 1 - out / 3), rg = smoothOnly ? 0 : prof(tr.rough, s) * (Math.sin(s * 7.3 + d * 5.1) + Math.sin(s * 11.7 - d * 3.3)) * .5;
   if (fkk) { const isl = Math.min(d + laneOff(tr, s, -1), laneOff(tr, s, 1) - d); if (isl > hw) side += 2.1 * sm((isl - hw - .4) / 4.5); }   // l'isola tra le due vie è un dosso di bosco: da una via non si vede l'altra
