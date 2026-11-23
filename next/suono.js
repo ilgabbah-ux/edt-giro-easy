@@ -4,7 +4,7 @@ let ctx = null, master = null, E = null, on = true, noiseBuf = null;
 const GEARS = [0, .42, .72, 1.02, 1.34, 1.7, 9];
 // Motore di ogni moto: due registrazioni vere a giri costanti (basso e alto regime) che si danno il cambio. f = scoppi al secondo della registrazione, len = durata del giro chiuso.
 let EP = { lo: { url: 'suoni/fakedomi-basso.mp3?v=1', f: 31, len: 2.998526 }, hi: { url: 'suoni/fakedomi-alto.mp3?v=1', f: 55, len: 2.986032 }, x0: 36, x1: 48, nz: .6 };   // Fake Domi: mono 4 tempi 650
-const mLevel = () => on ? (vSrc ? .4 : 1) : 0;   // mentre il Gabbah parla il motore si abbassa
+const LOUD = 2.2, mLevel = () => on ? (vSrc ? .4 : 1) * LOUD : 0;   /* il motore deve stare sopra la musica, anche dall'altoparlante del telefono */   // mentre il Gabbah parla il motore si abbassa
 export const speaking = () => !!vSrc;
 export function setSound(v) { on = v; if (ctx) master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .05); if (!on) hush(); }
 // VOCE della scuola: le frasi del Gabbah, una per stazione. Si caricano alla prima richiesta; se ne parte una nuova la vecchia si zittisce
@@ -24,7 +24,7 @@ export function setBike(p) { EP = { ...EP, fm: 1, bf: 1, pk: null, el: 0, ...p, 
 export async function startSound() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   try {
-    ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = on ? 1 : 0;
+    ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = mLevel();
     const comp = ctx.createDynamicsCompressor(); master.connect(comp); comp.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); { const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1; }
     const t = ctx.currentTime, load = async (o) => { const b = await ctx.decodeAudioData(await (await fetch(o.url)).arrayBuffer()), s = ctx.createBufferSource(), gg = ctx.createGain(); s.buffer = b; s.loop = true; s.loopStart = .2; s.loopEnd = .2 + o.len; s.playbackRate.value = .5; gg.gain.value = 0; s.connect(gg); return { s, g: gg, f: o.f }; };
@@ -53,7 +53,7 @@ export function thud(k) {   // atterraggio o botta
 }
 // p: sp = velocità 0…2 (2 = velocità massima), gas, brk 0..1, slip (rad), air, off 0..1, rough (m), play
 export function soundUpdate(dt, p) {
-  if (!E) return; const e = E, t = ctx.currentTime, speed = p.play ? p.sp : 0, gas = !!p.gas, thr = p.thr == null ? (gas ? 1 : 0) : p.thr, spin = p.spin || 0, airborne = !!p.air, f60 = dt * 60;
+  if (!E) return; if (ctx.state !== 'running' && on) { try { ctx.resume(); } catch {} } const e = E, t = ctx.currentTime, speed = p.play ? p.sp : 0, gas = !!p.gas, thr = p.thr == null ? (gas ? 1 : 0) : p.thr, spin = p.spin || 0, airborne = !!p.air, f60 = dt * 60;
   let gear = 1; while (gear < 6 && speed > GEARS[gear]) gear++;
   if (gear !== e.gear) { const up = gear > e.gear; e.gear = gear; if (up) { e.shiftT = .16; e.rpm *= .62; } }
   e.shiftT = Math.max(0, e.shiftT - dt);
