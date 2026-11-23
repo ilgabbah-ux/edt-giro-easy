@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=23';
+import { GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=24';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice } from './suono.js?v=11';
 import { makeRider } from './pilota.js?v=4';
 
@@ -320,23 +320,31 @@ function glug() { thud(.2); }
 // PILOTI EDT in pista: partono davanti a te e vanno col loro passo. Stessa moto, tuta di un altro colore, nome sopra il casco
 const RIV = [{ name: 'LINUS', col: 0x2f6fd0, skill: .86, s0: 14 }, { name: 'COSTA', col: 0xd0342f, skill: .95, s0: 28 }, { name: 'MIRCO', col: 0x2fa84a, skill: 1.03, s0: 42 }]; let rivBuilt = false;
 const KSPD = { v: 1, s: .78, d: .8, p: .68, g: .55, f: .55, m: .5, t: .5, b: .55 };
-function rivReset() { for (const r of RIV) { r.s = 20 + r.s0; r.d = (r.s0 % 28 ? 1.4 : -1.4); r.v = 0; r.done = 0; r.lane = r.skill > 1 ? 1 : -1; r.lean = 0; r.h = tr.h[10]; } }
+function rivReset() { for (const r of RIV) { r.s = 20 + r.s0; r.d = (r.s0 % 28 ? 1.4 : -1.4); r.v = 0; r.done = 0; r.lane = r.skill > 1 ? 1 : -1; r.lean = 0; r.h = tr.h[10]; r.dv = 0; r.pit = 0; r.line = r.skill > 1 ? .9 : r.skill > .9 ? -.2 : -1; } }
 function rivBuild() { if (rivBuilt || SCHOOL || !P.parts || !P.rGeo || !P.helm) return; rivBuilt = true; rivReset();
   for (const r of RIV) { const gp = new T.Group(), b = P.parts.body.clone(), wf = P.parts.wf.clone(), wr = P.parts.wr.clone(); wf.position.copy(P.parts.pf); wr.position.copy(P.parts.pr); const m = P.rMatRiv.clone(); m.color.set(r.col); const rd = new T.Mesh(P.rGeo, m); rd.position.set(0, 1.16, .27); const hm = new T.Mesh(P.helm.geometry, P.helmRiv); hm.position.set(0, 1.83, .12);
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const x = cv.getContext('2d'); x.font = 'bold 44px Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 6; x.strokeStyle = '#111'; x.strokeText(r.name, 128, 34); x.fillStyle = '#fff'; x.fillText(r.name, 128, 34); const tt = new T.CanvasTexture(cv); tt.colorSpace = T.SRGBColorSpace; const lab = new T.Sprite(new T.SpriteMaterial({ map: tt, transparent: true, depthWrite: false })); lab.scale.set(1.9, .48, 1); lab.position.y = 2.45; lab.renderOrder = 6;
-    gp.add(b, wf, wr, rd, hm, lab); gp.traverse(c => { if (c.isMesh) c.castShadow = true; }); scene.add(gp); r.g = gp; } }
+    gp.add(b, wf, wr, rd, hm, lab); gp.traverse(c => { if (c.isMesh) c.castShadow = true; }); scene.add(gp); r.g = gp; r.wf = wf; r.wr = wr; } }
 let ghostBuilt = false;   /* il fantasma è la sagoma vera di moto e pilota, bianca e trasparente */
 function ghostBuild() { if (ghostBuilt || !P.parts || !P.rGeo || !P.helm) return; ghostBuilt = true; const gm = new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .34, depthWrite: false, fog: false });
   ghostG.clear(); const b = P.parts.body.clone(), wf = P.parts.wf.clone(), wr = P.parts.wr.clone(); wf.position.copy(P.parts.pf); wr.position.copy(P.parts.pr); const rd = new T.Mesh(P.rGeo, gm); rd.position.set(0, 1.16, .27); const hm = new T.Mesh(P.helm.geometry, gm); hm.position.set(0, 1.83, .12);
   ghostG.add(b, wf, wr, rd, hm); ghostG.traverse(c => { if (c.isMesh) { c.material = gm; c.castShadow = false; c.userData.noShadow = 1; c.renderOrder = 6; } }); }
 function rivStep(dt) { if (!rivBuilt) return; for (const r of RIV) { if (state === 'play' && !r.done) { const i = Math.min(tr.n - 1, Math.round(r.s / DS)); let km = 0; for (let q = 0; q <= 14; q += 2) km = Math.max(km, Math.abs(tr.k[Math.min(tr.n - 1, i + q)]));
       const vt = Math.min(VMAX * .8 * (KSPD[tr.kind[i]] || 1), km > .004 ? Math.sqrt(8.5 / km) : 99) * r.skill * (forkAt(tr, r.s) && r.lane < 0 ? .6 : 1); r.v += clamp(vt - r.v, -7 * dt, 4.2 * dt); r.s += r.v * dt;
-      const lo = laneOff(tr, r.s, r.lane), dT = lo > .5 ? r.lane * lo : Math.sin(r.s * .05 + r.s0) * Math.min(1.2, widthAt(tr, r.s) / 2 - .8); r.d += (dT - r.d) * Math.min(1, dt * 2.2); r.lean += (clamp(-tr.k[i] * r.v * r.v / G, -.7, .7) - r.lean) * Math.min(1, dt * 5);
+      /* traiettoria: ognuno ha la sua linea, in curva stringe all'interno, e se ti trova davanti si sposta invece di venirti addosso. Di lato si muove solo quanto la velocità permette: da fermo non scarta */
+      let ka = 0; for (let q = 2; q <= 10; q += 2) ka += tr.k[Math.min(tr.n - 1, i + q)]; ka /= 5; const hwR = widthAt(tr, r.s) / 2 - .75, lo = laneOff(tr, r.s, r.lane);
+      let dT = lo > .5 ? r.lane * lo : clamp(r.line * Math.min(1, hwR) + clamp(ka * 45, -1, 1) * hwR * .7 + Math.sin(r.s * .021 + r.s0) * .3, -hwR, hwR);
+      { const ahead = S.s - r.s; if (ahead > 0 && ahead < 9 && Math.abs(S.d - dT) < 1.3 && !(lo > .5)) dT = clamp(S.d + (r.d >= S.d ? 1.5 : -1.5), -hwR, hwR); }
+      const dv = clamp((dT - r.d) * 1.6, -.22 * r.v, .22 * r.v); r.dv = (r.dv || 0) + (dv - (r.dv || 0)) * Math.min(1, dt * 4); r.d += r.dv * dt;
+      r.lean += (clamp(tr.k[i] * r.v * r.v / G + r.dv * .12, -.75, .75) - r.lean) * Math.min(1, dt * 4);
       if (r.s >= tr.len - 14) { r.done = time; r.v = 0; }
       // se gli vai addosso: una spallata, perdi un po' di velocità
       if (Math.abs(r.s - S.s) < 1.7 && Math.abs(r.d - S.d) < .85 && !(S.bumpCd > 0) && !(S.fall > 0)) { S.bumpCd = .8; S.v = Math.min(S.v, Math.max(r.v * .9, 2)); S.hit = Math.max(S.hit, .5); thud(.5); S.psi += (S.d > r.d ? 1 : -1) * .12; } }
-    at(tr, Math.min(r.s, tr.len - 1), r.d, P); const y = groundY(tr, Math.min(r.s, tr.len - 1), r.d, true), px = r.g.position.x, pz = r.g.position.z; if (state === 'play' && Math.hypot(P.x - px, P.z - pz) > .02) r.h = Math.atan2(P.x - px, -(P.z - pz)); else if (state !== 'play') r.h = P.h;
-    r.g.position.set(P.x, y, P.z); r.g.rotation.set(0, -r.h, -r.lean, 'YXZ'); } }
+    { const sc = Math.min(r.s, tr.len - 1), i = Math.min(tr.n - 2, Math.floor(sc / DS)), u = sc / DS - i; let dh = tr.h[i + 1] - tr.h[i]; at(tr, sc, r.d, P); const y = groundY(tr, sc, r.d, true);
+      /* la moto punta dove va: direzione del sentiero più lo scarto laterale, mai di traverso. Segue la pendenza e le ruote girano */
+      const hT = tr.h[i] + dh * u + Math.atan2(r.dv || 0, Math.max(r.v, 3)); r.h = state === 'play' ? (r.h ?? hT) + (hT - (r.h ?? hT)) * Math.min(1, dt * 8) : hT;
+      const yA = groundY(tr, Math.min(tr.len - 1, sc + .7), r.d, true), yB = groundY(tr, Math.max(0, sc - .7), r.d, true); r.pit = (r.pit || 0) + (Math.atan2(yA - yB, 1.4) - (r.pit || 0)) * Math.min(1, dt * 7);
+      r.g.position.set(P.x, y, P.z); r.g.rotation.set(r.pit, -r.h, -r.lean, 'YXZ'); if (r.wf) { r.wf.rotation.x -= r.v * dt / .33; r.wr.rotation.x -= r.v * dt / .33; } } } }
 const myPos = () => 1 + RIV.filter(r => r.done || r.s > S.s).length;
 function place() { const s0 = 20; at(tr, s0, 0, P); Object.assign(S, { x: P.x, z: P.z, y: P.y, psi: P.h, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: Math.round(s0 / DS), s: s0, d: 0, off: 0, hit: 0, pitch: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: P.y, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0, grip: 1.1, wet: 0 }); cam.h = P.h; cam.init = false; tiltA0 = null; tiltSteer = 0; }
 // CADUTA: la moto va giù, striscia, e dopo un paio di secondi si riparte da fermi in mezzo al sentiero. Il tempo continua a correre.
@@ -393,7 +401,7 @@ function step(dt) {
   // manopola: quanto chiedi (0..1) e quanto il motore dà davvero (apre e chiude in un attimo, ma non a scatto)
   const want = state === 'play' && !brk && !down ? (O.gas === 'a' ? (S.v < vSafe + 1.5 ? 1 : 0) : gasHeld ? gasCmd : 0) : 0;
   // IMPENNATA: colpo di gas (chiudi e riapri subito) a bassa e media velocità e la ruota davanti si alza. La tieni su col gas, scende se chiudi o freni; troppo gas da piano e ti ribalti
-  { const now = time, on = gasHeld && state === 'play'; if (!on && S.gasWas) S.relT = now; if (on && !S.gasWas && now - (S.relT ?? -9) < .4 && S.v > 1.5 && S.v < 19 && Math.abs(S.lean) < .4 && S.air <= 0 && !(S.wh > .05) && O.gas !== 'a') S.whV = 2.1; S.gasWas = on;
+  { const now = time, on = gasHeld && state === 'play'; if (on && !S.gasWas) S.prsT = now; if (!on && S.gasWas) { S.relT = now; S.heldT = now - (S.prsT ?? now); } if (on && !S.gasWas && now - (S.relT ?? -9) < .35 && (S.heldT || 0) > .5 && S.v > 3 && S.v < 19 && Math.abs(S.lean) < .4 && S.air <= 0 && !(S.wh > .05) && O.gas !== 'a') S.whV = 2.1; S.gasWas = on;
     S.wh = S.wh || 0; S.whV = S.whV || 0; if (S.wh > 0 || S.whV > 0) { S.whV += ((want > .35 ? 5 * (want - .35) * Math.max(0, 1 - S.v / 20) : -6) - 3.2 * S.wh - (brk ? 16 : 0) - S.whV * 2.4) * dt; S.wh += S.whV * dt;
       if (S.wh <= 0) { if (S.whV < -1.2) { S.hit = Math.max(S.hit, .3); thud(.3); } S.wh = 0; S.whV = 0; } if (S.wh > 1.22) { S.wh = 0; S.whV = 0; crash(0); } if (down || S.air > 0) { S.whV = Math.min(S.whV, 0) - 4 * dt; } } }
   S.thr = (S.thr || 0) + (want - (S.thr || 0)) * Math.min(1, dt * (want > (S.thr || 0) ? 14 : 20)); const thr = S.thr, gasOn = thr > .05;   // il gas automatico molla prima delle curve strette (non frena: quello lo fai tu)
