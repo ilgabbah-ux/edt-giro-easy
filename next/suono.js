@@ -3,7 +3,7 @@
 let ctx = null, master = null, E = null, on = true, noiseBuf = null;
 const GEARS = [0, .42, .72, 1.02, 1.34, 1.7, 9];
 // Motore di ogni moto: due registrazioni vere a giri costanti (basso e alto regime) che si danno il cambio. f = scoppi al secondo della registrazione, len = durata del giro chiuso.
-const EP = { lo: { url: 'suoni/fakedomi-basso.mp3?v=1', f: 31, len: 2.998526 }, hi: { url: 'suoni/fakedomi-alto.mp3?v=1', f: 55, len: 2.986032 }, x0: 36, x1: 48, nz: .6 };   // Fake Domi: mono 4 tempi 650
+let EP = { lo: { url: 'suoni/fakedomi-basso.mp3?v=1', f: 31, len: 2.998526 }, hi: { url: 'suoni/fakedomi-alto.mp3?v=1', f: 55, len: 2.986032 }, x0: 36, x1: 48, nz: .6 };   // Fake Domi: mono 4 tempi 650
 const mLevel = () => on ? (vSrc ? .4 : 1) : 0;   // mentre il Gabbah parla il motore si abbassa
 export function setSound(v) { on = v; if (ctx) master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .05); if (!on) hush(); }
 // VOCE della scuola: le frasi del Gabbah, una per stazione. Si caricano alla prima richiesta; se ne parte una nuova la vecchia si zittisce
@@ -16,6 +16,7 @@ export async function say(name) { vWant = name; hush(); if (!ctx || !on) return;
 export function preloadVoice(names) { if (ctx) for (const n of names) if (!VB[n]) VB[n] = fetch('voce/' + n + '.mp3?v=1').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).catch(() => null); }
 function burst(dur, freq, q, vol, type, when = 0) { const t = ctx.currentTime + when, s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
   const g = ctx.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * .5); s.stop(t + dur + .05); }
+export function setBike(p) { EP = { ...EP, fm: 1, bf: 1, pk: null, el: 0, ...p }; }   /* la voce della moto scelta: stessi campioni veri, ma scoppi, timbro e risonanza suoi. L'elettrica non ha scoppi: fischia */
 export async function startSound() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   try {
@@ -27,11 +28,13 @@ export async function startSound() {
     const body = ctx.createBiquadFilter(); body.type = 'lowpass'; body.frequency.value = 2500; body.Q.value = .7;
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 30;
     const g = ctx.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.2, t + .35);
-    lo.g.connect(body); hi.g.connect(body); body.connect(hp); hp.connect(g); g.connect(master);
+    const pk = ctx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = EP.pk ? EP.pk[0] : 1000; pk.gain.value = EP.pk ? EP.pk[1] : 0; pk.Q.value = EP.pk ? EP.pk[2] : 1;
+    lo.g.connect(body); hi.g.connect(body); body.connect(pk); pk.connect(hp); hp.connect(g); g.connect(master);
+    let el = null; if (EP.el) { const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), eg = ctx.createGain(), ef = ctx.createBiquadFilter(); o1.type = 'sawtooth'; o2.type = 'sine'; ef.type = 'lowpass'; ef.frequency.value = 2600; eg.gain.value = 0; o1.connect(ef); o2.connect(ef); ef.connect(eg); eg.connect(master); o1.start(); o2.start(); el = { o1, o2, eg }; }
     const loopN = (rate, type, f, q, dest) => { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; s.playbackRate.value = rate; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const gg = ctx.createGain(); gg.gain.value = 0; s.connect(fl); fl.connect(gg); gg.connect(dest); s.start(); return { f: fl, g: gg }; };
     const intake = loopN(1, 'bandpass', 1400, .9, g), tyre = loopN(.9, 'bandpass', 520, .7, master), wind = loopN(.7, 'bandpass', 700, .55, master), skid = loopN(1.1, 'bandpass', 950, 1.1, master);
     const sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = 45; const sg = ctx.createGain(); sg.gain.value = 0; sub.connect(sg); sg.connect(g); sub.start(); lo.s.start(); hi.s.start();
-    E = { lo, hi, body, g, intake, tyre, wind, skid, sub, sg, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
+    E = { el, lo, hi, body, g, intake, tyre, wind, skid, sub, sg, rpm: .3, gear: 1, shiftT: 0, lastGas: false, popT: 0 };
   } catch (e) { /* senza audio si gioca lo stesso */ }
 }
 export function whip() { if (ctx && on) { burst(.11, 2600, .7, .22, 'bandpass'); burst(.07, 900, .8, .16, 'bandpass', .03); } }   // ramo in faccia
@@ -53,12 +56,13 @@ export function soundUpdate(dt, p) {
   const load = e.shiftT > 0 ? .35 : (.5 + .5 * thr) * (airborne ? .6 : 1);
   const r = e.rpm, F = r < .8 ? 14 + Math.max(0, r - .5) / .3 * 12 : 26 + (r - .8) * 19.5;   // scoppi al secondo: 14 al minimo (1700 giri), 26 appena si parte, 65 tirata (7800 giri)
   const k = Math.max(0, Math.min(1, (F - EP.x0) / (EP.x1 - EP.x0)));
-  e.lo.s.playbackRate.setTargetAtTime(F / e.lo.f, t, .04); e.hi.s.playbackRate.setTargetAtTime(F / e.hi.f, t, .04);
+  const Fb = F * (EP.fm || 1); e.lo.s.playbackRate.setTargetAtTime(Fb / e.lo.f, t, .04); e.hi.s.playbackRate.setTargetAtTime(Fb / e.hi.f, t, .04);
+  if (e.el) { const fe = 140 + Math.min(1.5, speed) * 620 + thr * 70; e.el.o1.frequency.setTargetAtTime(fe, t, .08); e.el.o2.frequency.setTargetAtTime(fe * 2.01, t, .08); e.el.eg.gain.setTargetAtTime(speed > .02 || thr > .05 ? .012 + thr * .03 + Math.min(1, speed) * .012 : 0, t, .08); }
   e.lo.g.gain.setTargetAtTime(Math.cos(k * Math.PI / 2), t, .05); e.hi.g.gain.setTargetAtTime(Math.sin(k * Math.PI / 2), t, .05);
-  e.body.frequency.setTargetAtTime(1400 + F * 40 + load * 3200, t, .05);   // a gas aperto lo scarico si apre, in rilascio si chiude
-  e.g.gain.setTargetAtTime((.3 + load * .45) * (e.shiftT > 0 ? .55 : 1), t, .04);
+  e.body.frequency.setTargetAtTime((1400 + F * 40 + load * 3200) * (EP.bf || 1), t, .05);   // a gas aperto lo scarico si apre, in rilascio si chiude
+  e.g.gain.setTargetAtTime(EP.el ? 0 : (.3 + load * .45) * (e.shiftT > 0 ? .55 : 1), t, .04);
   e.intake.f.frequency.setTargetAtTime(900 + e.rpm * 1300, t, .1); e.intake.g.gain.setTargetAtTime((.006 + e.rpm * .008) * EP.nz, t, .1);
-  e.sub.frequency.setTargetAtTime(F, t, .06); e.sg.gain.setTargetAtTime((.02 + load * .03) * (e.shiftT > 0 ? .5 : 1), t, .06);
+  e.sub.frequency.setTargetAtTime(Fb, t, .06); e.sg.gain.setTargetAtTime((.02 + load * .03) * (e.shiftT > 0 ? .5 : 1), t, .06);
   const sp = Math.min(1.4, speed), wetK = Math.min(1, (p.wet || 0) * 5), rough = Math.min(1, p.rough * 14 + p.off * .6 + wetK * 1.2 + (p.surf === 'mud' ? .35 : 0));   // nell'acqua e nel fango si sente lo sciacquio
   e.tyre.f.frequency.setTargetAtTime((520 + rough * 700) * (.8 + sp * .25), t, .15); e.tyre.g.gain.setTargetAtTime(airborne || speed < .05 ? 0 : (.015 + rough * .045) * sp, t, airborne ? .03 : .12);
   const fast = Math.max(0, Math.min(1, (speed - .6) / .9)); e.wind.g.gain.setTargetAtTime(speed < .05 ? 0 : fast * fast * .03, t, .25); e.wind.f.frequency.setTargetAtTime(500 + fast * 900, t, .3);

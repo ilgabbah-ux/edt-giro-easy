@@ -54,7 +54,7 @@ export function makeRider(geo, mat) {
     root.updateMatrixWorld(true);
     for (const [n, sd] of [['R', 1], ['L', -1]]) {
       const outer = Math.max(0, -sd * p.dab), vib = 0;
-      tg.copy(RV('wrist' + n)); root.localToWorld(tg);
+      tg.copy(RV('wrist' + n)); tg.x += sd * (p.hx || 0); tg.y += p.hy || 0; tg.z += p.hz || 0; root.localToWorld(tg);   /* le mani vanno al manubrio della moto scelta */
       pw.copy(RV('elbow' + n)); pw.x += sd * (.5 + outer * .25); pw.y += .1 + .18 * st + outer * .3 + vib * .5; pw.z += .1; rig.mesh.localToWorld(pw);   // gomiti alti e in fuori; in curva quello esterno sale
       ik2(B['uarm' + n], B['farm' + n], R['hand' + n], tg, pw);
       B['hand' + n].rotation.set((sd > 0 ? p.gas * .4 : 0) - p.brake * .2, 0, 0);
