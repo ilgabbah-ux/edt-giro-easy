@@ -10,7 +10,7 @@ export const KIND = {
   p: { name: 'pietraia', w: 6, side: 20, grip: .86, drag: .5, rough: .075, tex: 'rock', tape: 0 },
   g: { name: 'guado', w: 7, side: 20, grip: .8, drag: 0, rough: .01, tex: 'rock', tape: 0 },
   f: { name: 'fango', w: 7, side: 22, grip: .68, drag: 1.3, rough: .015, tex: 'mud', tape: 1 },
-  m: { name: 'mulattiera', w: 5.2, side: 7.5, grip: 1.0, drag: .15, rough: .03, tex: 'cobble', tape: 0 },
+  m: { name: 'mulattiera', w: 5.2, side: 7.5, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
 };
@@ -116,6 +116,7 @@ function addGround(tr) {
       for (let s = sp.s0 + 6; s < sp.s1 - 8; s += 7 + rnd() * 6) { const a = (.06 + rnd() * .09) * (rnd() > .4 ? 1 : -1); put(s, 3.5 + rnd() * 2, (i, u, e) => { bump[i] += a * e; }); }
     } else if (sp.kind === 'm') {   // mulattiera: canalette di scolo di traverso
       for (let s = sp.s0 + 12; s < sp.s1 - 6; s += 19 + rnd() * 6) put(s, 2.4, (i, u, e) => { bump[i] += .08 * e * e; });
+      for (let s = sp.s0 + 5; s < sp.s1 - 5; s += 8 + rnd() * 6) { const a = (.05 + rnd() * .05) * (rnd() > .5 ? 1 : -1); put(s, 1.6 + rnd() * 1.4, (i, u, e) => { bump[i] += a * e; }); }   /* lastre smosse e avvallamenti: un po' di sconnesso, niente di cattivo */
     } else if (sp.kind === 'b') {   // macchia: rami bassi che sporgono, una volta da una parte e una dall'altra
       let sg = 1; for (let s = sp.s0 + 9; s < sp.s1 - 5; s += 8 + rnd() * 7) { tr.branches.push({ s, side: sg, reach: .15 + rnd() * .5 }); sg = rnd() < .75 ? -sg : sg; }
     } else if (sp.kind === 't') {   // single track: radici e piccoli dossi naturali
