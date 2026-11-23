@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=24';
+import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=25';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike } from './suono.js?v=14';
 import { MOTO, motoById } from './moto.js?v=3';
 import { PILOTI, pilotaById } from './piloti.js?v=1';
@@ -42,7 +42,8 @@ const tex = (src, rx, ry) => { const t = tl.load(src); t.colorSpace = T.SRGBColo
 
 // ---------- pista ----------
 const SCHOOL = opt('pista', 's') === 's';   // si parte dalla scuola; finita quella, il giro
-const tr = SCHOOL ? buildTrack(SCUOLA, SCUOLA_EXTRA) : buildTrack(undefined, GIRO_EXTRA);
+const TAPPA2 = opt('pista', 's') === 'i', TK = TAPPA2 ? 'i' : '';   /* tappa 2: record e fantasma suoi */
+const tr = SCHOOL ? buildTrack(SCUOLA, SCUOLA_EXTRA) : TAPPA2 ? buildTrack(SALITA_INFAME, SALITA_EXTRA) : buildTrack(undefined, GIRO_EXTRA);
 for (const f of tr.forks) tr.logs.push({ s: f.s0 + 104, lane: 1 });   // sulla via EASY, dopo i due gradoni, un tronco   // sulla via EASY due tronchi (solo nella corsia di destra)
 // BIRRE: sparse lungo il percorso fuori dalla linea più comoda, tre su ogni via EASY, nessuna in conigliera
 { let seed = 2024; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647; tr.beers = [];
@@ -180,6 +181,12 @@ const ROCKS = [];   // i sassi grossi sono ostacoli veri: x, z, raggio, raggrupp
   list.forEach(([s, d, r, up], i) => { at(tr, s, d, P); e.set(rnd() * 6, rnd() * 6, rnd() * 6); q.setFromEuler(e); sc.set(r * (.8 + rnd() * .5), r * (.55 + rnd() * .3), r * (.8 + rnd() * .5)); if (r > .5 && up === 0) (ROCKS[Math.floor(s / 8)] ||= []).push(P.x, P.z, r * .8); ps.set(P.x, P.y + r * .2 + up, P.z); m.compose(ps, q, sc); im.setMatrixAt(i, m); }); scene.add(im);
 }
 const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di percorso
+function barkTex() {   /* corteccia disegnata: solchi verticali scuri, creste chiare, qualche nodo */
+  const c = document.createElement('canvas'); c.width = 256; c.height = 512; const g = c.getContext('2d'); let sd = 11; const rn = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+  g.fillStyle = '#7b5d47'; g.fillRect(0, 0, 256, 512);
+  for (let i = 0; i < 900; i++) { const x = rn() * 256, y = rn() * 512, h = 30 + rn() * 120, w = 1.5 + rn() * 4, d = rn(); g.fillStyle = d < .55 ? `rgba(28,18,12,${.25 + rn() * .35})` : `rgba(150,118,88,${.12 + rn() * .2})`; g.fillRect(x, y, w, h); if (y + h > 512) g.fillRect(x, y - 512, w, h); if (x + w > 256) g.fillRect(x - 256, y, w, h); }
+  for (let i = 0; i < 14; i++) { const x = 20 + rn() * 216, y = 20 + rn() * 472, r = 5 + rn() * 9; const gr = g.createRadialGradient(x, y, 1, x, y, r); gr.addColorStop(0, 'rgba(20,12,8,.8)'); gr.addColorStop(1, 'rgba(20,12,8,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, r * .7, r, 0, 0, 7); g.fill(); }
+  const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(2, 2.2); t.anisotropy = 4; return t; }
 { // alberi: modelli 3D fatti in Blender, resi da 4 lati e montati su 4 piani a stella. Quelli a ridosso del sentiero hanno il fusto nudo fino a 3,4 m e la chioma sopra la testa: nel bosco si passa tra i tronchi, non dentro i rami
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647; const LIFT = 3.4, V0 = .14, trunks = [];
   for (const [file, every, asp, h0, h1, wide] of [['abete', 3.2, .561, 7, 7, 0], ['larice', 8, .64, 7, 6, 0], ['alberello', 9, 1.684, 3.2, 2.6, 1]]) {
@@ -198,7 +205,7 @@ const TREES = [];   // tronchi contro cui si sbatte, raggruppati ogni 8 m di per
         else { ps.set(P.x, P.y + hgt * .5 - .12, P.z); m.compose(ps, qt, sc); im.setMatrixAt(q++, m); } } }
     im.count = q; imH.count = qh; scene.add(im, imH);
   }
-  { const n = trunks.length / 4, tm = new T.InstancedMesh(new T.CylinderGeometry(.42, .7, 1, 7, 1, true), new T.MeshLambertMaterial({ color: 0x7a5c44 }), n), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
+  { const n = trunks.length / 4, tm = new T.InstancedMesh(new T.CylinderGeometry(.42, .7, 1, 9, 1, true), new T.MeshLambertMaterial({ color: 0xffffff, map: barkTex() }), n), m = new T.Matrix4(), qt = new T.Quaternion(), sc = new T.Vector3(), ps = new T.Vector3();
     for (let i = 0; i < n; i++) { const r = trunks[i * 4 + 3], h = LIFT + 2.2; sc.set(r, h, r); ps.set(trunks[i * 4], trunks[i * 4 + 1] + h / 2 - .3, trunks[i * 4 + 2]); m.compose(ps, qt, sc); tm.setMatrixAt(i, m); } tm.castShadow = true; scene.add(tm); }
 }
 { // partenza, arrivo e un cartello all'inizio di ogni tratto
@@ -239,6 +246,16 @@ let wheelF = null, wheelR = null, steerG = null;
     P.parts = { body: body.clone(), wf: wf.clone(), wr: wr.clone(), pf: wheelF.position.clone(), pr: wheelR.position.clone() }; wheelF.add(wf); wheelR.add(wr); steerG.add(wheelF); pitchG.add(body, steerG, wheelR); pitchG.traverse(c => { if (c.isMesh) c.castShadow = true; }); });
   gltf.load('../img/models/rider_poses.glb?t=1', g => { const o = g.scene.getObjectByName('rider_sit'), mat = o.material.clone(); P.rMatRiv = o.material.clone();   /* il pilota porta il completo EDT grigio (texture dipinta in Blender sul modello); gli avversari restano a tinta unita */
     { const tj = tl.load('modelli/pilota-edt.webp?v=1'); tj.colorSpace = T.SRGBColorSpace; tj.flipY = false; tj.anisotropy = 4; mat.map = tj; mat.color.set(0xffffff); }
+    {   /* numero e nome del pilota sulla schiena, in alto appena sotto il casco (più su non si vedrebbe mai), proiettati sul modello a riposo, quindi seguono il pilota in ogni posizione. Il Gabbah sulla schiena tiene la sua scritta */
+      const mk = () => { const c = document.createElement('canvas'); c.width = 512; c.height = 805; const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return [c, t]; } , [cb, bt] = mk(), num = String(PL.num).padStart(2, '0');
+      const draw = () => { let g = cb.getContext('2d'); g.clearRect(0, 0, 512, 805); g.textAlign = 'center'; g.textBaseline = 'middle';
+        if (PL.id !== 'gabbah') { const gr = g.createLinearGradient(0, 150, 0, 236); gr.addColorStop(0, 'rgba(150,139,133,0)'); gr.addColorStop(.18, 'rgba(150,139,133,1)'); gr.addColorStop(.82, 'rgba(152,140,134,1)'); gr.addColorStop(1, 'rgba(152,140,134,0)'); g.fillStyle = gr; g.fillRect(40, 150, 432, 86);
+          const txt = num + ' ' + PL.name; let fs = 58; do { g.font = `${fs}px Anton, Impact, sans-serif`; fs -= 2; } while (g.measureText(txt).width > 400 && fs > 20); g.fillStyle = '#f4efe6'; g.fillText(txt, 256, 194); }
+        bt.needsUpdate = true; };
+      draw(); document.fonts?.ready?.then(draw);
+      mat.onBeforeCompile = sh => { sh.uniforms.uBack = { value: bt };
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vRestP; varying float vBackN;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvRestP = position; vBackN = normal.z;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uBack; varying vec3 vRestP; varying float vBackN;').replace('#include <map_fragment>', '#include <map_fragment>\n{ vec2 buv = vec2((vRestP.x + .15) / .30, ((.89 * vRestP.y - .45 * vRestP.z) - .105) / .47); if (buv.x > 0. && buv.x < 1. && buv.y > 0. && buv.y < 1.) { if (vBackN > .2) { vec4 dc = texture2D(uBack, buv); diffuseColor.rgb = mix(diffuseColor.rgb, dc.rgb, dc.a); } } }'); }; }
     const geo = o.geometry.clone(); geo.applyMatrix4(new T.Matrix4().compose(new T.Vector3(), o.quaternion, o.scale));
     P.rGeo = geo; P.rMat = mat; P.rider = makeRider(geo, mat); P.rider.root.position.set(0, FIT.y, FIT.z); pitchG.add(P.rider.root); P.rider.root.traverse(c => { if (c.isMesh) c.castShadow = true; });
     gltf.load('../img/models/helmet.glb?t=1', h => { let src = null; h.scene.traverse(c => { if (c.isMesh && !src) src = c; }); const hg = src.geometry.clone(); hg.applyMatrix4(src.matrixWorld); hg.rotateY(-Math.PI / 2); hg.computeBoundingBox();
@@ -314,18 +331,18 @@ hold($('brake'), v => braking = v);
 // ---------- fisica ----------
 const G = 9.81, VMAX = 30 * BK.top;   // 108 km/h
 const S = { x: 0, z: 0, y: 0, psi: 0, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: 0, s: 0, d: 0, off: 0, hit: 0, pitch: 0, grade: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: 0, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0, grip: 1.1, wet: 0, kd: KIND.v };
-let state = 'menu', t0 = 0, time = 0, cd = 0, best = parseFloat(opt('best3', '0')) || 0, wrong = 0;
+let state = 'menu', t0 = 0, time = 0, cd = 0, best = parseFloat(opt('best3' + TK, '0')) || 0, wrong = 0;
 // FANTASMA del giro migliore: posizione ogni decimo di secondo, salvata sul telefono insieme agli intertempi
-const MED = [[108, 'ORO'], [122, 'ARGENTO'], [140, 'BRONZO']];
-let ghost = null, rec = [], recT = 0, splits = [], bestSplits = []; try { const j = JSON.parse(opt('ghost3', 'null')); if (j && j.p) { ghost = j.p; bestSplits = j.s || []; } } catch {}
+const MED = TAPPA2 ? [[136, 'ORO'], [150, 'ARGENTO'], [166, 'BRONZO']] : [[122, 'ORO'], [135, 'ARGENTO'], [150, 'BRONZO']];   /* tarate sui giri veri: l'oro vuol dire stare davanti a Mirco */
+let ghost = null, rec = [], recT = 0, splits = [], bestSplits = []; try { const j = JSON.parse(opt('ghost3' + TK, 'null')); if (j && j.p) { ghost = j.p; bestSplits = j.s || []; } } catch {}
 const ghostG = new T.Group(); ghostG.visible = false; scene.add(ghostG); { const gm = new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .32, depthWrite: false }); const b = new T.Mesh(new T.BoxGeometry(.34, .75, 1.7), gm); b.position.y = .75; const r = new T.Mesh(new T.CapsuleGeometry(.2, .6, 4, 8), gm); r.position.set(0, 1.45, .1); for (const z of [-.72, .72]) { const w = new T.Mesh(new T.CylinderGeometry(.32, .32, .12, 14), gm); w.rotation.z = Math.PI / 2; w.position.set(0, .32, z); ghostG.add(w); } ghostG.add(b, r); ghostG.traverse(o => { o.userData.noShadow = 1; o.renderOrder = 6; }); }   // dopo il sentiero, sennò il sentiero lo copre (era per questo che non si vedeva)
 function ghostDraw() { ghostBuild(); if (state === 'play' && !SCHOOL) { if (time >= recT) { recT += .1; rec.push(+S.x.toFixed(2), +S.y.toFixed(2), +S.z.toFixed(2), +S.psi.toFixed(3), +S.lean.toFixed(2)); } }
   const on = ghost && state === 'play' && !SCHOOL; ghostG.visible = !!on; if (!on) return; const f = time * 10, i = Math.min(Math.floor(f), ghost.length / 5 - 2), u = Math.min(1, f - i), a = i * 5, b = a + 5; if (i < 0 || b + 4 >= ghost.length) { ghostG.visible = false; return; }
   ghostG.position.set(ghost[a] + (ghost[b] - ghost[a]) * u, ghost[a + 1] + (ghost[b + 1] - ghost[a + 1]) * u, ghost[a + 2] + (ghost[b + 2] - ghost[a + 2]) * u); ghostG.rotation.set(0, -(ghost[a + 3] + (ghost[b + 3] - ghost[a + 3]) * u), 0); ghostG.rotation.z = -(ghost[a + 4] || 0); ghostG.rotation.order = 'YXZ'; }
 function glug() { thud(.2); }
 // PILOTI EDT in pista: partono davanti a te e vanno col loro passo. Stessa moto, tuta di un altro colore, nome sopra il casco
-const RIV = [{ name: 'LINUS', col: 0x2f6fd0, skill: .86, s0: 14 }, { name: 'COSTA', col: 0xd0342f, skill: .95, s0: 28 }, { name: 'MIRCO', col: 0x2fa84a, skill: 1.03, s0: 42 }]; let rivBuilt = false;
-{ const me = RIV.find(r => r.name === PL.name); if (me) me.name = 'IL GABBAH'; for (const r of RIV) r.v = r.name === 'IL GABBAH' ? 'gabbah' : r.name.toLowerCase(); }   /* se scegli Linus, Costa o Mirco, al suo posto corre il Gabbah */
+const RIV = [{ name: 'LINUS', col: 0x2f6fd0, skill: .86, s0: 5 }, { name: 'COSTA', col: 0xd0342f, skill: .95, s0: 10 }, { name: 'MIRCO', col: 0x2fa84a, skill: 1.03, s0: 15 }]; let rivBuilt = false;
+{ const me = RIV.find(r => r.name === PL.name); if (me) me.name = 'IL GABBAH'; for (const r of RIV) r.vo = r.name === 'IL GABBAH' ? 'gabbah' : r.name.toLowerCase(); }   /* se scegli Linus, Costa o Mirco, al suo posto corre il Gabbah */
 const KSPD = { v: 1, s: .78, d: .8, p: .68, g: .55, f: .55, m: .5, t: .5, b: .55 };
 function rivReset() { for (const r of RIV) { r.s = 20 + r.s0; r.d = (r.s0 % 28 ? 1.4 : -1.4); r.v = 0; r.done = 0; r.lane = r.skill > 1 ? 1 : -1; r.lean = 0; r.h = tr.h[10]; r.dv = 0; r.pit = 0; r.line = r.skill > 1 ? .9 : r.skill > .9 ? -.2 : -1; } }
 function rivBuild() { if (rivBuilt || SCHOOL || !P.parts || !P.rGeo || !P.helm) return; rivBuilt = true; rivReset();
@@ -353,10 +370,10 @@ function rivStep(dt) { if (!rivBuilt) return; for (const r of RIV) { if (state =
       const yA = groundY(tr, Math.min(tr.len - 1, sc + .7), r.d, true), yB = groundY(tr, Math.max(0, sc - .7), r.d, true); r.pit = (r.pit || 0) + (Math.atan2(yA - yB, 1.4) - (r.pit || 0)) * Math.min(1, dt * 7);
       r.g.position.set(P.x, y, P.z); r.g.rotation.set(r.pit, -r.h, -r.lean, 'YXZ'); if (r.wf) { r.wf.rotation.x -= r.v * dt / .33; r.wr.rotation.x -= r.v * dt / .33; } } } }
 /* voci dei piloti, quelle vere del gioco: il Gabbah alla partenza, quando cade e quando vince; gli altri ti sfottono quando ti passano, si lamentano quando li passi e festeggiano se arrivano primi */
-const VP = [...(PL.voce ? PL.v.split(' ').map(k => PL.voce + '_' + k) : []), 'suka', 'mirco_suka', ...RIV.flatMap(r => [r.v + '_start', r.v + '_hit', r.v + '_win'])].map(k => 'p/' + k); let vpT = -9;
+const VP = [...(PL.voce ? PL.v.split(' ').map(k => PL.voce + '_' + k) : []), 'suka', 'mirco_suka', ...RIV.flatMap(r => [r.vo + '_start', r.vo + '_hit', r.vo + '_win'])].map(k => 'p/' + k); let vpT = -9;
 const pv = (k, gap = 3.5) => { if (SCHOOL || !k || time - vpT < gap) return false; vpT = time; say('p/' + k); return true; }, mine = k => plHas(k) ? PL.voce + '_' + k : '';
-function vociGara() { if (SCHOOL || state !== 'play' || !rivBuilt) return; if (!S.vStart) { S.vStart = 1; vpT = -9; const me = pv(mine('start')), r = RIV[Math.floor(Math.random() * RIV.length)]; setTimeout(() => { if (state === 'play' && time < 6) { vpT = -9; pv(r.v + '_start'); } }, me ? 2400 : 300); }
-  for (const r of RIV) { const ah = r.done || r.s > S.s; if (r.ah !== undefined && ah !== r.ah && time > 5) { if (ah) { if (pv(r.v === 'mirco' ? 'mirco_suka' : 'suka')) flash('SUKA! · ' + r.name, 1.2); } else if (S.fall <= 0 && pv(plHas('suka') && Math.random() < .5 ? mine('suka') : r.v + '_hit')) flash('PASSATO ' + r.name + '!', 1.2); } r.ah = ah; } }
+function vociGara() { if (SCHOOL || state !== 'play' || !rivBuilt) return; if (!S.vStart) { S.vStart = 1; vpT = -9; const me = pv(mine('start')), r = RIV[Math.floor(Math.random() * RIV.length)]; setTimeout(() => { if (state === 'play' && time < 6) { vpT = -9; pv(r.vo + '_start'); } }, me ? 2400 : 300); }
+  for (const r of RIV) { const ah = r.done || r.s > S.s; if (r.ah !== undefined && ah !== r.ah && time > 5) { if (ah) { if (pv(r.vo === 'mirco' ? 'mirco_suka' : 'suka')) flash('SUKA! · ' + r.name, 1.2); } else if (S.fall <= 0 && pv(plHas('suka') && Math.random() < .5 ? mine('suka') : r.vo + '_hit')) flash('PASSATO ' + r.name + '!', 1.2); } r.ah = ah; } }
 const myPos = () => 1 + RIV.filter(r => r.done || r.s > S.s).length;
 function place() { const s0 = 20; at(tr, s0, 0, P); Object.assign(S, { x: P.x, z: P.z, y: P.y, psi: P.h, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: Math.round(s0 / DS), s: s0, d: 0, off: 0, hit: 0, pitch: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: P.y, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0, grip: 1.1, wet: 0 }); cam.h = P.h; cam.init = false; tiltA0 = null; tiltSteer = 0; }
 // CADUTA: la moto va giù, striscia, e dopo un paio di secondi si riparte da fermi in mezzo al sentiero. Il tempo continua a correre.
@@ -533,7 +550,8 @@ function labels() { $('oAuto').textContent = 'FRENO AUTO: ' + (O.auto ? 'SÌ' : 
 { const i0 = PILOTI.indexOf(PL), go = k => { setOpt('pilota', PILOTI[(i0 + k + PILOTI.length) % PILOTI.length].id); location.reload(); }; $('pName').textContent = '#' + String(PL.num).padStart(2, '0') + ' ' + PL.name; $('pTxt').textContent = PL.voce ? 'Parla con la sua voce.' : 'Non ha ancora la voce: in gara parlano solo gli altri.'; $('pFoto').src = 'piloti/' + PL.id + '.webp?v=1'; $('pPrev').onclick = () => go(-1); $('pNext').onclick = () => go(1); if (SCHOOL) $('pil').classList.add('hidden'); }
 { const i0 = MOTO.indexOf(BK), go = k => { setOpt('moto', MOTO[(i0 + k + MOTO.length) % MOTO.length].id); location.reload(); }; $('mName').textContent = BK.name; $('mTxt').textContent = BK.txt; $('mPrev').onclick = () => go(-1); $('mNext').onclick = () => go(1);
   const bar = (n, v) => `<span>${n}</span><i><b style="width:${Math.round(clamp((v - .6) / .9, .08, 1) * 100)}%"></b></i>`; $('mStat').innerHTML = bar('VELOCITÀ', BK.top + .15) + bar('SPINTA', BK.acc) + bar('AGILITÀ', BK.agile) + bar('SALITA', BK.climb - .1) + bar('IMPENNATA', .55 + BK.wh * .5); if (SCHOOL) $('moto').classList.add('hidden'); }
-$('oPista').textContent = 'PERCORSO: ' + (SCHOOL ? 'SCUOLA' : 'GIRO EASY'); $('oPista').onclick = () => { setOpt('pista', SCHOOL ? 'g' : 's'); location.reload(); };
+$('oPista').textContent = 'PERCORSO: ' + (SCHOOL ? 'SCUOLA' : TAPPA2 ? 'SALITA INFAME' : 'GIRO EASY'); $('oPista').onclick = () => { setOpt('pista', SCHOOL ? 'g' : TAPPA2 ? 's' : 'i'); location.reload(); };
+if (TAPPA2) { $('tag').textContent = $('tag').textContent.replace('TAPPA 1 · PERCORSO ENDURO', 'TAPPA 2 · SALITA INFAME'); $('ptxt').textContent = 'Tappa 2, Salita Infame: il muro coi gradoni, la pietraia, i tornanti della mulattiera, la cresta e poi giù fino al guado.'; }
 if (SCHOOL) { $('ptxt').textContent = 'Scuola di enduro: si parte dalle basi, una cosa per volta. In basso leggi cosa fare. Se sbagli riparti da quel punto.'; $('tag').textContent = $('tag').textContent.replace('PERCORSO ENDURO', 'SCUOLA DI ENDURO'); }
 $('oAuto').onclick = () => { O.auto = !O.auto; setOpt('auto', O.auto ? '1' : '0'); labels(); };
 $('oGas').onclick = () => { O.gas = O.gas === 'a' ? 'm' : 'a'; setOpt('gas', O.gas); labels(); hud(); };
@@ -543,8 +561,8 @@ $('oInv').onclick = () => { O.inv = !O.inv; setOpt('inv', O.inv ? '1' : '0'); la
 $('oCam').onclick = () => { O.cam = { c: 'm', m: 'l', l: 'c' }[O.cam]; setOpt('cam', O.cam); labels(); };
 function restart() { S.vStart = 0; for (const r of RIV) r.ah = undefined; stI = null; stM = {}; vLast = -1; rec = []; recT = 0; splits = []; if (rivBuilt) rivReset(); S.beers = 0; S.falls = 0; S.conigli = 0; S.bunny = 0; S.spanI = 0; for (const b of tr.beers) { b.got = 0; b.m.visible = true; } for (const f of tr.forks) f.pick = undefined; if (SCHOOL) setTimeout(() => preloadVoice(['v1', 'v2', 'v3', 'v4', 'si', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'fine']), 300); if (SCHOOL) { O.gas = 't'; O.auto = false; $('tip').classList.add('hidden'); } place(); time = 0; state = 'count'; cd = 2.4; $('panel').classList.add('hide'); $('msg').textContent = '3'; }
 function finish() { state = 'done'; if (SCHOOL) { setOpt('pista', 'g'); $('tip').classList.add('hidden'); $('pres').textContent = 'SCUOLA FINITA! Adesso il giro vero. Se vuoi una mano, nelle OPZIONI trovi freno automatico, gas automatico, sensibilità e verso dello sterzo, distanza della camera.'; $('go').textContent = 'VAI AL GIRO'; say('fine'); $('go').onclick = () => location.reload(); setTimeout(() => $('panel').classList.remove('hide'), 900); $('msg').textContent = 'PROMOSSO!'; return; }
-  if (rivBuilt) { const w = RIV.filter(r => r.done).sort((a, b) => a.done - b.done)[0]; vpT = -9; pv(w ? w.v + '_win' : mine('win')); }
-  const isRec = !best || time < best; if (isRec) { best = time; setOpt('best3', String(time)); try { setOpt('ghost3', JSON.stringify({ p: rec, s: splits })); ghost = rec.slice(); bestSplits = splits.slice(); } catch {} }
+  if (rivBuilt) { const w = RIV.filter(r => r.done).sort((a, b) => a.done - b.done)[0]; vpT = -9; pv(w ? w.vo + '_win' : mine('win')); }
+  const isRec = !best || time < best; if (isRec) { best = time; setOpt('best3' + TK, String(time)); try { setOpt('ghost3' + TK, JSON.stringify({ p: rec, s: splits })); ghost = rec.slice(); bestSplits = splits.slice(); } catch {} }
   const med = (MED.find(m => time <= m[0]) || [0, ''])[1], nb = S.beers || 0, punti = nb * 100 + (med === 'ORO' ? 1000 : med === 'ARGENTO' ? 600 : med === 'BRONZO' ? 300 : 0) - (S.falls || 0) * 50 - (S.conigli || 0) * 150;
   $('pres').textContent = (rivBuilt ? ['PRIMO!', 'SECONDO', 'TERZO', 'ULTIMO'][RIV.filter(r => r.done).length] + ' · ' : '') + 'AL RIFUGIO IN ' + fmt(time) + ' s' + (isRec ? ' · RECORD!' : '') + (med ? ' · ' + med : '') + ' — 🍺 ' + nb + '/' + tr.beers.length + ' · cadute ' + (S.falls || 0) + (S.conigli ? ' · conigliere ' + S.conigli : '') + ' — ' + Math.max(0, punti) + ' PUNTI'; $('go').textContent = 'UN ALTRO GIRO'; setTimeout(() => $('panel').classList.remove('hide'), 900); $('msg').textContent = 'ARRIVATO!'; }
 const goNow = () => { askTilt(); startSound().then?.(() => { if (!SCHOOL) preloadVoice(VP); }); if (!SCHOOL) setTimeout(() => preloadVoice(VP), 600); restart(); }; $('go').onclick = goNow; $('again').onclick = goNow;
