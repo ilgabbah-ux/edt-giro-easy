@@ -83,6 +83,9 @@ export const ICE_ZONE = [[0, 'RETTILINEO DEL FULMINE'], [11, 'CURVONE DERAPAGE']
 export function buildCircuit(pts, kd = 'i', laps = 2, start = 0, zones = []) {
   const N = pts.length, cr = (a, b, c, d, t) => .5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t), D = [], own = [];
   for (let q = 0; q < N; q++) { const i = (q + start) % N; for (let t = 0; t < 1; t += 1 / 48) { D.push([cr(pts[(i + N - 1) % N][0], pts[i][0], pts[(i + 1) % N][0], pts[(i + 2) % N][0], t), cr(pts[(i + N - 1) % N][1], pts[i][1], pts[(i + 1) % N][1], pts[(i + 2) % N][1], t)]); own.push(i); } }
+  if (kd === 'i') { const M0 = D.length, O = 9, RMIN = 7.2;   /* tornanti un po più aperti: dove il raggio scende sotto i 7 metri la linea si rilassa verso la corda, il resto del disegno non si tocca */
+    for (let it = 0; it < 500; it++) for (let i = 0; i < M0; i++) { const a = D[(i - O + M0) % M0], b = D[i], c = D[(i + O) % M0], ab = Math.hypot(b[0] - a[0], b[1] - a[1]), bc = Math.hypot(c[0] - b[0], c[1] - b[1]), ca = Math.hypot(a[0] - c[0], a[1] - c[1]), ar = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
+      if (ar > 1e-6 && ab * bc * ca / (4 * ar) < RMIN) { b[0] += ((a[0] + c[0]) / 2 - b[0]) * .25; b[1] += ((a[1] + c[1]) / 2 - b[1]) * .25; } } }
   const M = D.length, cum = [0]; for (let i = 0; i < M; i++) { const a = D[i], b = D[(i + 1) % M]; cum.push(cum[i] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
   const L = cum[M], m = Math.round(L / DS), st = L / m, x = new Float32Array(m + 1), z = new Float32Array(m + 1), h = new Float32Array(m + 1), zi = new Int16Array(m + 1); let j = 0;
   for (let i = 0; i < m; i++) { const t = i * st; while (cum[j + 1] < t) j++; const u = (t - cum[j]) / (cum[j + 1] - cum[j]), a = D[j], b = D[(j + 1) % M]; x[i] = (a[0] + (b[0] - a[0]) * u) * DS / st; z[i] = (a[1] + (b[1] - a[1]) * u) * DS / st; zi[i] = own[j]; }

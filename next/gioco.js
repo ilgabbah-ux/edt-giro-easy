@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=33';
+import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=34';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=17';
 import { MOTO, motoById } from './moto.js?v=3';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
@@ -491,14 +491,16 @@ function step(dt) {
   S.spin = (S.spin || 0) + (spin - (S.spin || 0)) * Math.min(1, dt * 9);
   const powerSlide = gasOn ? Math.sign(S.lean || steerIn) * (Math.max(0, Math.abs(S.lean) - .5) * .7 * thr * clamp(1.3 - S.v / 14, 0, 1) + S.spin * (.12 + Math.abs(S.lean) * .5)) : 0;   // in uscita, col gas e piegato, il posteriore scappa un po'
   const iceSlide = ICE && S.air <= 0 ? Math.sign(S.lean) * clamp((Math.abs(S.lean) - .26) * .85, 0, .34) * clamp((S.v - 4) / 7, 0, 1) * (.55 + .45 * thr) : 0;   /* ICE SCROFY: in curva si va solo di traverso. Più pieghi e più gas dai, più il posteriore esce, e la moto gira col traverso */
+  const pivot = ICE && brk && S.air <= 0 && Math.abs(steerIn) > .12 && S.v > 1.5 ? Math.sign(steerIn) * clamp(Math.abs(steerIn) * 1.6, .5, 1) : 0;   /* PERNO COL FRENO: sul ghiaccio, freno e sterzo insieme fanno girare la moto sul posto col posteriore di traverso, come col piede a terra nei tornanti */
+  if (pivot) { om += pivot * (1.0 + clamp(S.v / 6, 0, 1) * .6); S.pivT = .25; } else S.pivT = Math.max(0, (S.pivT || 0) - dt);
   const curvone = ICE && S.air <= 0 && zoneAt(tr, S.s) === 'CURVONE DERAPAGE', bigSlide = curvone && Math.abs(S.lean) > .07 ? Math.sign(S.lean) * 1.12 * clamp((S.v - 1.5) / 4, 0, 1) : 0;   /* il Curvone Derapage si fa tutto di traverso: appena pieghi la moto si mette a 45 gradi e ci resta finché tieni la curva */
-  let slipT = (curvone ? bigSlide : brakeSlide + powerSlide + iceSlide) + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0); if (ICE) slipT = curvone ? clamp(slipT, -1.15, 1.15) : clamp(slipT, -.42, .42);   /* traverso sempre dolce e governabile: mai la moto messa di traverso alla pista */
+  let slipT = (pivot ? pivot * .85 : curvone ? bigSlide : brakeSlide + powerSlide + iceSlide) + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0); if (ICE) slipT = curvone ? clamp(slipT, -1.15, 1.15) : pivot ? clamp(slipT, -.9, .9) : clamp(slipT, -.42, .42);   /* traverso sempre dolce e governabile: mai la moto messa di traverso alla pista */
   S.slip += (slipT - S.slip) * Math.min(1, dt * (Math.abs(slipT) > Math.abs(S.slip) ? 6.5 : 3.2));
   if (ICE && state === 'play' && !(S.fall > 0) && Math.abs(S.slip) > .12 && S.v > 5 && S.off < .3) S.drift = (S.drift || 0) + Math.abs(S.slip) * S.v * dt * 2.2;   /* Ice Scrofy: la derapata fa punti, come nel gioco in uso */
   om += S.slip * (curvone ? .3 : ICE ? .75 : 1.7) * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt * (1 - clamp((S.wh || 0) / .5, 0, 1) * .75);   // su una ruota la moto gira poco
   const gas = thr, vTop = vTop0 * (S.soft ? .5 : 1);
-  let acc = Math.min(push, hold) * (1 - S.spin * .3) - (brk ? 4.5 + 8 * S.brkAmt : 0) - (S.grade > 0 ? Math.min(G * Math.sin(Math.atan(S.grade)) * 2.3, 5.6) / BK.climb : G * Math.sin(Math.atan(S.grade)) * 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (1 - thr) * (S.v > 2 ? 1.5 : .4) - Math.abs(Math.sin(S.lean)) * (ICE ? .5 : 1.1) - over * (ICE ? .9 : 3.5) - Math.abs(S.slip) * (ICE ? .45 : 2.2) - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
+  let acc = Math.min(push, hold) * (1 - S.spin * .3) - (brk ? (pivot ? (S.v > 5.5 ? 3.5 + 4 * S.brkAmt : 0) : 4.5 + 8 * S.brkAmt) : 0)   /* nel perno il freno non ferma la moto: la tiene sui 20 all ora mentre gira */ - (S.grade > 0 ? Math.min(G * Math.sin(Math.atan(S.grade)) * 2.3, 5.6) / BK.climb : G * Math.sin(Math.atan(S.grade)) * 1.25) - .0035 * S.v * S.v * (1 + S.off * 8) - (1 - thr) * (S.v > 2 ? 1.5 : .4) - Math.abs(Math.sin(S.lean)) * (ICE ? .5 : 1.1) - over * (ICE ? .9 : 3.5) - Math.abs(S.slip) * (ICE ? .45 : 2.2) - KD.drag * (1 - S.off) * clamp(S.v / 8, 0, 1.5) - S.off * (KD.tex === 'forest' || KD.name === 'macchia' ? 5 : 2.2) * clamp(S.v / 6, 0, 1) - S.wet * S.v * S.v * .055;   // fango e pietre frenano, l'acqua tanto più quanto è fonda e vai forte
   if (S.grade > .1 && thr > .8 && S.v < 2.5 && !brk && S.fall <= 0 && acc < 1) acc = 1;   /* prima corta: da fermi sul ripido, a gas aperto, qualsiasi moto riparte. Piano, ma riparte */
   acc -= G * clamp(Math.tan(S.pitch) - S.grade, 0, .5) * 1.2 * (S.air > 0 ? 0 : 1) * (1 - clamp((S.wh || 0) / .3, 0, 1) * .8);   // gradoni e gobbe in salita mangiano velocità: se molli il gas ti fermi
   if (S.soft) acc -= 3.2 * clamp(S.v / 7, 0, 1.6);   // conigliera: fondo molle, si va piano
