@@ -96,6 +96,11 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #fine li.tot{border:0;font-size:20px}#fine li.tot span{color:#fff}#fine li.me span{color:#ffd400}#fOrd li i{color:#fff}
 #fine .frow{display:flex;gap:8px;margin-top:12px}#fine .frow button{flex:1;height:48px;border:0;font:700 16px Barlow,sans-serif;letter-spacing:.04em;background:#2b2b2b;color:#fff;transform:skewX(-8deg)}#fAgain{background:#ffd400!important;color:#111!important;flex:1.4!important}
 @media (max-width:520px){#fine .fc{grid-template-columns:1fr}}
+
+#prof,#fProf{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font:700 13px Barlow,sans-serif;color:#fff;margin:0 0 8px}#prof b,#fProf b{color:#ffd400;letter-spacing:.04em}#prof i,#fProf i{flex:1 1 80px;height:8px;background:#333;display:block;min-width:60px}#prof u,#fProf u{display:block;height:100%;background:#ffd400}#prof span,#fProf span{color:#bbb}#fProf{margin:0 0 10px}#fProf b{flex:1 1 100%}
+#gUp{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}#gUp .up{background:#1c1c1c;padding:10px;display:flex;flex-direction:column;gap:4px;border-bottom:3px solid #e2261c}#gUp b{font:700 16px Barlow,sans-serif;color:#fff}#gUp em{font-style:normal;color:#ffd400;letter-spacing:2px}#gUp span{font:600 13px Barlow,sans-serif;color:#bbb}
+#gUp button{margin-top:4px;height:38px;border:0;background:#ffd400;color:#111;font:700 14px Barlow,sans-serif}#gUp button:disabled{background:#333;color:#888}#gUp .upn{grid-column:1/-1;font:600 12px Barlow,sans-serif;color:#999;margin:2px 0 0}
+@media (max-height:430px){#fine{padding:4px}#fine .fb{padding:8px 14px}#fPos{font-size:28px}#fTime{font-size:22px;display:inline-block}#fMed{margin:0 0 4px;font-size:13px}#fProf{margin:0 0 4px;font-size:12px}#fine li{padding:2px 0;font-size:13px}#fine li.tot{font-size:16px}#fine .frow{margin-top:6px}#fine .frow button{height:38px;font-size:14px}}
 </style>
 </head>
 <body>
@@ -104,10 +109,10 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v74</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v75</div>
 <div class="hud hidden" id="tip"></div>
 <div class="hud" id="msg"></div>
-<div id="fine" class="hide"><div class="fb"><small id="fTr"></small><h2 id="fPos"></h2><div id="fTime"></div><div id="fMed"></div><div class="fc"><ul id="fRows"></ul><ol id="fOrd"></ol></div><div class="frow"><button id="fAgain" type="button">RIPROVA</button><button id="fShare" type="button">SFIDA UN AMICO</button><button id="fMenu" type="button">MENU</button></div></div></div>
+<div id="fine" class="hide"><div class="fb"><small id="fTr"></small><h2 id="fPos"></h2><div id="fTime"></div><div id="fMed"></div><div id="fProf"></div><div class="fc"><ul id="fRows"></ul><ol id="fOrd"></ol></div><div class="frow"><button id="fAgain" type="button">RIPROVA</button><button id="fShare" type="button">SFIDA UN AMICO</button><button id="fMenu" type="button">MENU</button></div></div></div>
 <div id="combo" style="position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top));transform:translateX(-50%) skewX(-8deg);font:34px/1 Anton,Impact,sans-serif;color:#ffd400;text-shadow:0 2px 0 #111,0 0 10px #000;letter-spacing:1px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:6"></div>
 <button class="btn" id="brake" type="button">FRENO</button>
 <button class="btn" id="gasb" type="button">GAS</button>
@@ -145,7 +150,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
  </div>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 74; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=74"></script>
+(function () { var V = 75; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=75"></script>
 </body>
 </html>
