@@ -4,7 +4,7 @@ import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
 import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=26';
-import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=15';
+import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=16';
 import { MOTO, motoById } from './moto.js?v=3';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
 import { CANZONI, titolo, suona, volume, abbassa, ferma, musicaOn, inOnda } from './musica.js?v=1';
@@ -495,15 +495,16 @@ const cam = { h: 0, x: 0, y: 0, z: 0, roll: 0, fov: 66, init: false, dist: 0 };
 function camUpdate(dt) {
   let dh = S.psi + S.slip * .12 - cam.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); cam.h += dh * Math.min(1, dt * 3.4);   // gira in ritardo: la moto entra in curva prima della camera
   const portrait = camera.aspect < .8, kc = { c: .8, m: 1, l: 1.3 }[O.cam] || 1, sp = S.v / VMAX;
-  const distT = ((portrait ? 6.2 : 5.2) + sp * 2.1 - (S.brk ? .8 : 0)) * kc; cam.dist += (distT - cam.dist) * Math.min(1, dt * 2.2);
+  const distT = ((portrait ? 6.2 : 5.2) * (1 - sp * .3) - (S.brk ? .8 : 0)) * kc;   /* in velocità la camera non scappa più indietro: resta addosso alla moto e scende, così il terreno corre */ cam.dist += (distT - cam.dist) * Math.min(1, dt * 2.2);
   const tx = S.x - Math.sin(cam.h) * cam.dist, tz = S.z + Math.cos(cam.h) * cam.dist;
-  const pc = project(tr, tx, tz, S.i), ty = Math.max(groundY(tr, pc.s, pc.d) + 1.1, S.y + (portrait ? 2.9 : 2.15) * kc - S.pitch * 1.1);
+  const pc = project(tr, tx, tz, S.i), ty = Math.max(groundY(tr, pc.s, pc.d) + 1.1, S.y + ((portrait ? 2.9 : 2.15) - sp * sp * .45) * kc - S.pitch * 1.1);
   if (!cam.init) { cam.x = tx; cam.y = ty; cam.z = tz; cam.init = true; cam.dist = distT; }
   cam.x = tx; cam.z = tz; cam.y += (ty - cam.y) * Math.min(1, dt * 5);
-  const sh = S.hit * .1 + S.off * .012 * sp; camera.position.set(cam.x + (Math.random() - .5) * sh, cam.y + (Math.random() - .5) * sh, cam.z);
+  const sh = S.hit * .1 + S.off * .012 * sp + Math.max(0, sp - .55) * .05; camera.position.set(cam.x + (Math.random() - .5) * sh, cam.y + (Math.random() - .5) * sh, cam.z);
   const la = 7 + sp * 6; camera.lookAt(S.x + Math.sin(S.psi) * la, S.y + 1.25 + S.pitch * la * .22, S.z - Math.cos(S.psi) * la);
   cam.roll += (-clamp(S.lean, -.82, .82) * .2 - cam.roll) * Math.min(1, dt * 5); camera.rotateZ(cam.roll);
-  const fovT = (portrait ? 72 : 58) + sp * sp * 24; cam.fov += (fovT - cam.fov) * Math.min(1, dt * 3); if (Math.abs(camera.fov - cam.fov) > .05) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
+  const fovT = (portrait ? 72 : 58) + Math.pow(sp, 1.5) * 30;
+  { const o = state === 'play' && !(S.fall > 0) ? clamp((sp - .45) * 1.7, 0, .85) : 0, e = cam.fx || (cam.fx = $('spfx')); if (Math.abs(o - (cam.fxo || 0)) > .02) { cam.fxo = o; e.style.opacity = o.toFixed(2); e.classList.toggle('on', o > .05); } }   /* scie di velocità ai bordi, le stesse del turbo del gioco in uso */ cam.fov += (fovT - cam.fov) * Math.min(1, dt * 3); if (Math.abs(camera.fov - cam.fov) > .05) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
   if (cam.dbg) { const a = S.psi + cam.dbg; camera.position.set(S.x + Math.sin(a) * 4.4, S.y + 1.7, S.z - Math.cos(a) * 4.4); camera.lookAt(S.x, S.y + .95, S.z); }   // solo per le prove: vista da davanti
   P.sky.position.x = camera.position.x; P.sky.position.z = camera.position.z;
 }
