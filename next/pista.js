@@ -27,7 +27,7 @@ export const GIRO_EASY = [
   [60, 0, -2, 'v'], [90, -75, -1, 'v'], [110, 0, 0, 'v'],
 ];
 // BIVI del Giro Easy: il sentiero si allarga e in mezzo c'è una fila di sassi. A sinistra la CONIGLIERA (molle, lenta, zero rischi), a destra la EASY (tronchi e sassi, ma veloce e con le birre)
-export const GIRO_EXTRA = { forks: [[262, 412, 15, 9], [1822, 1962, 15, 9]], jumps: [178, 692, 1765, 1966] };   // da, a, quanto si allontana la conigliera (a sinistra), quanto la Easy (a destra)
+export const GIRO_EXTRA = { forks: [[262, 412, 15, 9], [1822, 1962, 15, 9]] };   // da, a, quanto si allontana la conigliera (a sinistra), quanto la Easy (a destra)
 // TAPPA 2 · SALITA INFAME: dal fondovalle su per il muro coi gradoni, pietraia in salita, i tornanti della mulattiera, la cresta in single track, poi giù a rotta di collo fino al guado e alla volata
 export const SALITA_INFAME = [
   [70, 0, 0, 'v'], [80, -70, 2, 'v'], [70, 0, 4, 'v'], [60, 55, 5, 'v'],
@@ -42,7 +42,7 @@ export const SALITA_INFAME = [
   [40, 0, -8, 'd'], [30, 22, -12, 'd'], [35, 0, -9, 'd'],
   [70, 0, -2, 'v'], [90, -70, -1, 'v'], [120, 0, 0, 'v'],
 ];
-export const SALITA_EXTRA = { forks: [[100, 240, 15, 9], [1935, 2075, 15, 9]], jumps: [40, 492, 1118, 1888, 2085] };
+export const SALITA_EXTRA = { forks: [[100, 240, 15, 9], [1935, 2075, 15, 9]] };
 // SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
 export const SCUOLA = [
   [150, 0, 0, 'v'], [140, 0, 0, 'v'], [140, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
