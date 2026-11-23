@@ -86,6 +86,16 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #panel.quick{background:#0c0f0ca6!important}#panel.quick .sec,#panel.quick #chip,#panel.quick #tcard,#panel.quick #mHead{display:none}#panel.quick #toMenu{display:block}#panel.quick #mn{display:flex;min-height:100%;align-items:center}#panel.quick #hero{width:100%}
 @media (min-width:640px){.grid.tr{grid-template-columns:repeat(5,1fr)}.grid.pil{grid-template-columns:repeat(6,1fr)}.grid.moto{grid-template-columns:repeat(5,1fr)}#panel .row{grid-template-columns:repeat(3,1fr)}#hero{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}#hero .tg,#hero h1,#pres,#goW,#toMenu{grid-column:1/-1}#hero .tg{justify-self:start}#tcard{margin-top:0}#chip{align-self:stretch}#hero h1{font-size:30px!important}#panel #go{height:56px}}
 @media (orientation:landscape) and (max-height:520px){#mn{padding-top:6px}#mHead{padding:0 0 5px}#mHead img{width:26px;height:30px}#mHead b{font-size:12px}#mHead b br{display:none}#hero{margin-top:6px;padding:8px 10px 8px}#hero .tg{display:none}#hero h1{font-size:20px!important;margin:0 0 6px!important}#ptxt{display:none}#tName{font-size:22px}#tImg{max-width:78px;flex-basis:78px;width:78px}#tBody{padding:6px 4px 6px 10px}#chip{padding:6px 8px}#goW{margin-top:8px}#panel #go{height:50px;font-size:22px}#goS{margin-top:3px}}
+
+#fine{position:fixed;inset:0;z-index:20;background:#000d;display:flex;align-items:center;justify-content:center;overflow:auto;padding:10px;pointer-events:auto}#fine.hide{display:none}
+#fine .fb{width:min(680px,100%);background:#161616;border-top:5px solid #ffd400;padding:14px 16px;color:#fff;font-family:Barlow,sans-serif;max-height:100%;overflow:auto}
+#fTr{color:#bbb;font-weight:700;letter-spacing:.06em;font-size:12px}#fPos{font:44px/1 Anton,Impact,sans-serif;color:#ffd400;margin:4px 0 0}#fTime{font:34px/1.1 Anton,Impact,sans-serif}
+#fMed{font-weight:700;font-size:15px;color:#bbb;margin:2px 0 10px}#fMed.mO{color:#ffd400}#fMed.mA{color:#d9dde2}#fMed.mB{color:#d6935a}
+#fine .fc{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}#fine ul,#fine ol{list-style:none;margin:0;padding:0}
+#fine li{display:flex;gap:8px;justify-content:space-between;padding:5px 0;border-bottom:1px solid #2a2a2a;font-weight:700;font-size:15px}#fine li span{flex:1;color:#ccc}#fine li i{font-style:normal;color:#ffd400;min-width:64px;text-align:right}
+#fine li.tot{border:0;font-size:20px}#fine li.tot span{color:#fff}#fine li.me span{color:#ffd400}#fOrd li i{color:#fff}
+#fine .frow{display:flex;gap:8px;margin-top:12px}#fine .frow button{flex:1;height:48px;border:0;font:700 16px Barlow,sans-serif;letter-spacing:.04em;background:#2b2b2b;color:#fff;transform:skewX(-8deg)}#fAgain{background:#ffd400!important;color:#111!important;flex:1.4!important}
+@media (max-width:520px){#fine .fc{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -94,9 +104,10 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v73</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v74</div>
 <div class="hud hidden" id="tip"></div>
 <div class="hud" id="msg"></div>
+<div id="fine" class="hide"><div class="fb"><small id="fTr"></small><h2 id="fPos"></h2><div id="fTime"></div><div id="fMed"></div><div class="fc"><ul id="fRows"></ul><ol id="fOrd"></ol></div><div class="frow"><button id="fAgain" type="button">RIPROVA</button><button id="fShare" type="button">SFIDA UN AMICO</button><button id="fMenu" type="button">MENU</button></div></div></div>
 <div id="combo" style="position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top));transform:translateX(-50%) skewX(-8deg);font:34px/1 Anton,Impact,sans-serif;color:#ffd400;text-shadow:0 2px 0 #111,0 0 10px #000;letter-spacing:1px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:6"></div>
 <button class="btn" id="brake" type="button">FRENO</button>
 <button class="btn" id="gasb" type="button">GAS</button>
@@ -134,7 +145,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
  </div>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 73; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=73"></script>
+(function () { var V = 74; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=74"></script>
 </body>
 </html>
