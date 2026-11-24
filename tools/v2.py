@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 14   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 15   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -105,10 +105,28 @@ for old, new, what in [("fakedomi: 'fakedomi', electric: 'electric',", "fakedomi
 sh = hashlib.sha1(sc.encode()).hexdigest()[:8]
 open(os.path.join(ROOT, 'v2', 'scene3d.js'), 'w', encoding='utf-8').write(sc)
 g = re.sub(r"import\('\./scene3d\.js\?v=[0-9a-z]+'\)", "import('./scene3d.js?v=" + sh + "')", g)
+# progress.js: copia con le missioni adattate alla guida nuova (lo importa solo game.js)
+pr = open(os.path.join(ROOT, 'progress.js'), encoding='utf-8').read()
+for old, new, what in [
+    ("{ id: 'jumps', kind: 'run', stat: 'jumps', tiers: [6, 10, 14], xp: 140, text: n => `Supera ${n} ostacoli saltando` },", "{ id: 'jumps', kind: 'run', stat: 'jumps', tiers: [2, 3, 4], xp: 140, text: n => `Passa ${n} tronchi in impennata` },   // v2 · i tronchi al posto dei salti", 'missione salti'),
+    ("  { id: 'perfect', kind: 'run', stat: 'perfect', tiers: [2, 4, 6], xp: 160, text: n => `Fai ${n} salti perfetti` },\n", "", 'missione perfetti'),
+    ("  { id: 'combo', kind: 'run', stat: 'maxMult', tiers: [3, 4, 4], xp: 150, text: n => `Arriva alla combo ×${n}` },\n", "", 'missione combo'),
+    ("{ id: 'perfect', name: 'Fai 3 salti perfetti in un giro', icon: 'star' },", "{ id: 'perfect', name: 'Passa 2 tronchi in impennata in un giro', icon: 'star' },", 'missione pilota nuovo'),
+]:
+    if old not in pr: sys.exit('v2.py: non trovo %s in progress.js' % what)
+    pr = pr.replace(old, new, 1)
+ph = hashlib.sha1(pr.encode()).hexdigest()[:8]
+open(os.path.join(ROOT, 'v2', 'progress.js'), 'w', encoding='utf-8').write(pr)
+g, n = re.subn(r"from '\.\./progress\.js\?v=[0-9a-z]+'", "from './progress.js?v=" + ph + "'", g)
+assert n == 1, n
+g = rep(g, "if (run.perfect >= 3) starterTick('perfect');", "if (run.jumps >= 2) starterTick('perfect');", 'starter tronchi')
+g = rep(g, "<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>", "${NEXT_PISTA[mode] !== undefined ? '' : `<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>`}", 'via perfetti')
+g = rep(g, "<div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>", "${NEXT_PISTA[mode] !== undefined ? '' : `<div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>`}", 'via combo')
 gh = hashlib.sha1(g.encode()).hexdigest()[:8]
 open(os.path.join(ROOT, 'v2', 'game.js'), 'w', encoding='utf-8').write(g)
 
 h = open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+h, n = re.subn(r'href="progress\.js\?v=[0-9a-z]+"', 'href="v2/progress.js?v=' + ph + '"', h); assert n == 1, n
 m = re.search(r'game\.js\?v=([0-9a-z]+)', h)
 h = h.replace('game.js?v=' + m.group(1), 'v2/game.js?v=' + gh)
 head = """<base href="../">

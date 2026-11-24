@@ -1,7 +1,7 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from '../physics.js?v=b9c35116';
 import * as A from '../audio.js?v=3afc3a91';
-import * as P from '../progress.js?v=e3cdd55e';
+import * as P from './progress.js?v=7c679678';
 import { createMud } from '../mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from '../percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from '../icons.js?v=fcc14503';
@@ -879,7 +879,7 @@ function finish(win, reason = '') {
   if (win && mode === 20) setTimeout(() => bigCall('TANTI AUGURI!'), 600);
   if (win && mode === 20 && run.position === 1 && P.markFestWin()) setTimeout(() => toast('👑 MAGLIE «SUPER GABBAH» E «SUPER MIRCO» SBLOCCATE: LE TROVI NEL GARAGE', 'gold'), 2500);   // v132
   if (win && mode === 18 && run.position === 1 && P.markLevWin()) setTimeout(() => toast('💖 MAGLIA «LEVENTINO GIRL» SBLOCCATA: PARRUCCA ROSA COMPRESA, LA TROVI NEL GARAGE', 'gold'), 2500);   // v132
-  setTimeout(() => { if (win && mode === 0) starterTick('easy'); if (run.perfect >= 3) starterTick('perfect'); P.starterAuto().forEach(starterTick); }, 1800);   // v129
+  setTimeout(() => { if (win && mode === 0) starterTick('easy'); if (run.jumps >= 2) starterTick('perfect'); P.starterAuto().forEach(starterTick); }, 1800);   // v129
   setTimeout(() => P.radioNew().forEach((id, k) => setTimeout(() => toast('📻 NUOVA CANZONE IN RADIO EDT: ' + songName(id).split(' · ')[0].toUpperCase(), 'gold'), k * 2600)), 3400);   // v131
   if (win && mode === 17 && P.markXmasWin()) setTimeout(() => toast('🎅 MAGLIA «BABBO NATALE» SBLOCCATA: LA TROVI NEL GARAGE', 'gold'), 2500);   // v127 · Christmas Madness: fuochi d'artificio all'arrivo
   if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => { if (!riderLine('win')) voice('Sììì, così si fa!', true); }, 900); }
@@ -3771,8 +3771,8 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
       ${ice ? `<div><b>${driftCount}</b><small>DERAPATE</small></div><div><b>${driftBest.toLocaleString('it-IT')}</b><small>LA PIÙ BELLA</small></div><div><b>${Math.round(driftM)} m</b><small>DI TRAVERSO</small></div>` : `<div><b>${run.jumps}</b><small>${NEXT_PISTA[mode] !== undefined ? 'TRONCHI' : 'SALTI'}</small></div>`}
-      <div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>
-      <div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>
+      ${NEXT_PISTA[mode] !== undefined ? '' : `<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>`}
+      ${NEXT_PISTA[mode] !== undefined ? '' : `<div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>`}
       ${leap || ice ? '' : `<div><b>${run.hits}</b><small>CADUTE</small></div>`}
       <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
     </div>
@@ -5027,7 +5027,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-14' }).toString();
+  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-15' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
