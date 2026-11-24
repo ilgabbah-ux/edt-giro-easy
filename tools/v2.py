@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 18   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 19   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -28,7 +28,7 @@ assert n >= 10, n
 
 # 2) solo i tre percorsi rifatti (piu' la scuola), e la Salita Infame al posto di Dopo migliora
 g = rep(g, "import * as D from '../duel.js", """for (const m of P.MODES) if (![0, 1, 9, 14, 18, 22].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
-{ const L = { 0: 150, 1: 172, 9: 128, 14: 155, 18: 190 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
+{ const L = { 0: 150, 1: 172, 9: 128, 14: 145, 18: 190 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
 { const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
 import * as D from '../duel.js""", 'import duel')
 
@@ -58,7 +58,7 @@ g += r"""
 // ================= v2 · INCASTRO DELLA GUIDA NUOVA =================
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
-const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 14: 'r', 18: 'l', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 9: 128, 14: 155, 18: 190, 22: 900 };
+const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 14: 'r', 18: 'l', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 9: 128, 14: 145, 18: 190, 22: 900 };
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 function startNext() {
