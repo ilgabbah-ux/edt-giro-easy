@@ -13,6 +13,7 @@ export const KIND = {
   m: { name: 'mulattiera', w: 5.2, side: 7.5, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },
   i: { name: 'ghiaccio', w: 9, side: 3.2, grip: .85, drag: 0, rough: .006, tex: 'ice', tape: 0 },   /* Ice Scrofy: neve battuta e ghiaccio, gomme chiodate. Tiene poco: si gira di traverso */
   r: { name: 'risaia', w: 6.5, side: 7, grip: 1.05, drag: 0, rough: .01, tex: 'trail', tape: 0 },   /* Leventino: l'argine di terra battuta tra due camere di risaia allagate */
+  q: { name: 'ranch', w: 7, side: 3.4, grip: 1.0, drag: .12, rough: .014, tex: 'mud', tape: 1 },   /* Gusta Ranch: anello di terra smossa e fango in mezzo al prato */
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
 };
@@ -97,6 +98,8 @@ export const ICE_PTS = [[20.71,-78.57],[25.18,-60.71],[27.86,-42.86],[30.54,-25.
 export const ICE_ZONE = [[0, 'RETTILINEO DEL FULMINE'], [11, 'CURVONE DERAPAGE'], [18, 'RETTILINEO DELLA FURIA'], [27, 'TORNANTE DEL TORRENTE'], [32, 'ESSE DI GUSTA'], [41, 'ESSE DELLA TAGLIOLA'], [48, 'CURVA DEL DESTINO'], [58, 'RISALITA DELLA TAGLIOLA'], [68, 'CURVA DELLA PUNTURA']];   /* da che punto di controllo comincia ogni tratto */
 // CIRCUITO: la linea di mezzeria è una curva chiusa che passa per i punti. Il giro viene diviso in passi uguali (circa DS) e la pista nasce lunga un giro: così si disegna una volta sola.
 // Poi unroll() la srotola per il numero di giri: stessi posti, distanza che continua a crescere. Per il gioco è un percorso normale con partenza e arrivo.
+// GUSTA RANCH: il circuito vero, ricalcato dalla mappa del Gabbah (linea blu). Un giro e circa 1030 m; si parte dalla PARTENZA A verso destra, la PARTENZA B e a un quarto di giro.
+export const GUSTA_PTS = [[-93.9,32.0],[-81.4,34.2],[-68.9,38.8],[-57.2,45.2],[-46.0,53.0],[-34.6,60.2],[-21.5,63.1],[-8.0,61.6],[3.6,55.4],[5.1,44.6],[-6.0,38.7],[-19.6,39.3],[-32.5,40.3],[-35.6,32.6],[-44.0,26.2],[-57.8,24.6],[-70.8,21.7],[-71.8,15.1],[-58.8,12.6],[-44.9,13.2],[-32.1,15.4],[-19.6,19.5],[-7.0,23.8],[5.7,28.0],[18.4,32.0],[31.5,35.1],[44.8,38.0],[58.0,40.8],[71.7,42.4],[86.0,42.7],[100.3,42.9],[114.5,42.6],[128.7,42.1],[143.0,41.9],[157.1,41.3],[169.9,37.8],[171.6,28.0],[161.7,18.6],[149.8,13.6],[137.9,18.3],[125.6,23.2],[111.6,23.6],[98.0,21.8],[84.5,19.5],[70.9,17.6],[59.2,13.6],[60.7,3.3],[67.8,-8.2],[72.3,-20.7],[74.1,-34.4],[74.9,-48.4],[75.8,-62.4],[72.4,-74.8],[61.1,-80.6],[48.2,-84.3],[35.6,-88.6],[22.6,-91.9],[9.1,-94.2],[-4.5,-96.0],[-18.4,-97.2],[-32.5,-97.9],[-46.4,-97.0],[-58.5,-91.6],[-68.4,-81.9],[-78.8,-72.4],[-91.1,-67.9],[-104.3,-65.6],[-111.1,-55.4],[-118.8,-45.8],[-131.1,-40.8],[-142.2,-32.8],[-150.6,-22.1],[-153.0,-8.9],[-151.0,4.7],[-145.6,16.8],[-135.9,26.3],[-123.4,30.8],[-109.5,31.7],[-96.4,31.8]];
 export function buildCircuit(pts, kd = 'i', laps = 2, start = 0, zones = []) {
   if (kd === 'i') pts = pts.map(q => [q[0] * 1.3, q[1] * 1.3]);   /* Ice Scrofy ingrandita del 30%: pista e tornanti più larghi senza che i rami si tocchino */
   const N = pts.length, cr = (a, b, c, d, t) => .5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t), D = [], own = [];
@@ -113,7 +116,7 @@ export function buildCircuit(pts, kd = 'i', laps = 2, start = 0, zones = []) {
   const n = m + 1, k = new Float32Array(n), K = KIND[kd]; for (let i = 0; i < m; i++) k[i] = (h[i + 1] - h[i]) / DS; k[m] = k[0];
   { const c = Float32Array.from(k); for (let i = 0; i < n; i++) k[i] = (c[(i + m - 1) % m] + 2 * c[i % m] + c[(i + 1) % m]) / 4; }
   const kAbs = i => { let a = 0; for (let j = -5; j <= 5; j++) a += Math.abs(k[((i + j) % m + m) % m]); return a / 11; };   /* nelle curve strette la pista si allarga fino a una volta e mezza: spazio per girare */
-  const w = new Float32Array(n), sd = new Float32Array(n), kind = []; for (let i = 0; i < n; i++) { const s = (i % m) * DS; const q = zi[i % m], big = q >= 10 && q <= 18 ? Math.min(1, Math.min(q - 9.5, 18.5 - q) / 2.5) : 0; w[i] = K.w * (1 + .1 * Math.sin(s * 2 * Math.PI / (m * DS) * 3 + 1) + .05 * Math.sin(s * 2 * Math.PI / (m * DS) * 7)) * (1 + .45 * big) * (1 + .25 * Math.min(1, Math.max(0, (kAbs(i) - .05) / .08))); sd[i] = K.side;   /* il Curvone Derapage è largo quasi il doppio: è lo spiazzo dove si gira di traverso */ kind.push(kd); }
+  const w = new Float32Array(n), sd = new Float32Array(n), kind = []; for (let i = 0; i < n; i++) { const s = (i % m) * DS; const q = zi[i % m], big = kd === 'i' && q >= 10 && q <= 18 ? Math.min(1, Math.min(q - 9.5, 18.5 - q) / 2.5) : 0; w[i] = K.w * (1 + .1 * Math.sin(s * 2 * Math.PI / (m * DS) * 3 + 1) + .05 * Math.sin(s * 2 * Math.PI / (m * DS) * 7)) * (1 + .45 * big) * (1 + .25 * Math.min(1, Math.max(0, (kAbs(i) - .05) / .08))); sd[i] = K.side;   /* il Curvone Derapage è largo quasi il doppio: è lo spiazzo dove si gira di traverso */ kind.push(kd); }
   const tr = { n, x, z, y: new Float32Array(n), h, k, g: new Float32Array(n), w, side: sd, kind, len: m * DS, water: [], branches: [], logs: [], stations: null, forks: [], plain: false, steps: [], jumps: [], circuit: { laps, m, lap: m * DS, turn: h[m] - h[0], zi, zones } };
   tr.spans = [{ kind: kd, s0: 0, s1: m * DS }]; addGround(tr); return tr;
 }
@@ -165,6 +168,9 @@ function addGround(tr) {
         else if (kd === 'gradino') put(s, 5, (i, u, e) => { bump[i] += .28 * tight * e * e * (u < .5 ? 1 : .5); });
         else put(s, 15, (i, u, e) => { bump[i] += .2 * tight * Math.pow(Math.sin(Math.PI * u * 3), 2) * Math.min(1, e * 3); });
       }
+    } else if (sp.kind === 'q') {   // ranch: dossi di terra e tre pozze di fango a giro
+      for (let s = sp.s0 + 46; s < sp.s1 - 40; s += 58 + rnd() * 34) { const tight = Math.abs(tr.k[Math.min(tr.n - 1, Math.round(s / DS))]) > .025 ? .5 : 1; put(s, 6.5, (i, u, e) => { bump[i] += .34 * tight * e * e; }); }
+      for (const s of [150, 480, 860]) { put(s, 8, (i, u, e) => { bump[i] -= .2 * e * e; }); tr.water.push({ s0: s + 1.2, s1: s + 6.8, half: 2.3, off: (rnd() - .5) * 2, depth: .2, kind: 'pozza' }); }
     } else if (sp.kind === 'r') {   // risaia: ogni tanto il ponticello di terra sopra un fosso
       for (let s = sp.s0 + 26; s < sp.s1 - 16; s += 38 + rnd() * 16) put(s, 5, (i, u, e) => { bump[i] += .13 * e * e; });
     } else if (sp.kind === 'p') {   // pietraia: lastre e scalini

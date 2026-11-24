@@ -11,6 +11,7 @@ window.EDT_BOARD_URL = 'https://invalid.invalid/exec';
   try { if (!g.call(localStorage, P + '__copiato')) { var ks = []; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k.indexOf(P) !== 0 && k.indexOf('edt-next-') !== 0) ks.push(k); }
       ks.forEach(function (k) { if (g.call(localStorage, P + k) === null) s.call(localStorage, P + k, g.call(localStorage, k)); }); s.call(localStorage, P + '__copiato', '1'); } } catch (e) {}
   try { if (!g.call(localStorage, P + '__rec0')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['0', '1', '9', '18'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec0', '1'); } } catch (e) {}   /* con la guida nuova record, classifica del telefono e stelle dei percorsi rifatti ripartono da zero (una volta sola) */
+  try { if (!g.call(localStorage, P + '__rec14')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['14'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec14', '1'); } } catch (e) {}
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
 </script>
 
@@ -41,7 +42,7 @@ window.EDT_BOARD_URL = 'https://invalid.invalid/exec';
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css?v=48f0280c">
 <!-- v109.3 · il telefono scarica subito tutti i pezzi del gioco in parallelo, invece che uno dopo l'altro -->
-<link rel="modulepreload" href="v2/game.js?v=26050499">
+<link rel="modulepreload" href="v2/game.js?v=19c8c920">
 <link rel="modulepreload" href="physics.js?v=b9c35116">
 <link rel="modulepreload" href="audio.js?v=3afc3a91">
 <link rel="modulepreload" href="v2/progress.js?v=e9119fed">
@@ -198,6 +199,6 @@ window.EDT_BOARD_URL = 'https://invalid.invalid/exec';
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="v2/game.js?v=26050499"></script>
+<script type="module" src="v2/game.js?v=19c8c920"></script>
 </body>
 </html>
