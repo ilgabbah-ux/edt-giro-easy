@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=36';
+import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=37';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=17';
 import { MOTO, motoById } from './moto.js?v=4';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
@@ -72,13 +72,13 @@ const tex = (src, rx, ry) => { const t = tl.load(src); t.colorSpace = T.SRGBColo
 const SCHOOL = opt('pista', 's') === 's';   // si parte dalla scuola; finita quella, il giro
 const TAPPA2 = opt('pista', 's') === 'i', ICE = opt('pista', 's') === 'x', TK = TAPPA2 ? 'i2' : ICE ? 'x3' : '';   /* x2: partenza spostata, record e fantasma del vecchio giro non valgono più */   /* tappa 2 e Ice Scrofy: record e fantasma loro */
 const tr = SCHOOL ? buildTrack(SCUOLA, SCUOLA_EXTRA) : ICE ? buildCircuit(ICE_PTS, 'i', 2, 19, ICE_ZONE)   /* partenza e traguardo sul rettilineo più lungo, il Rettilineo della Furia */ : TAPPA2 ? buildTrack(SALITA_INFAME, SALITA_EXTRA) : buildTrack(undefined, GIRO_EXTRA);
-/* I BIVI NON SONO TUTTI UGUALI: ogni via Easy ha la sua prova (un tronco, tre tronchi in fila, due tronchi lontani) e a ogni partita si rimescolano */
-{ const TIPI = [{ logs: [104], birre: [50, 74, 96, 118], txt: 'un tronco, birre →' }, { logs: [46, 76, 106], birre: [34, 61, 91, 120], txt: 'tre tronchi: impenna! →' }, { logs: [40, 118], birre: [58, 72, 86, 100, 130], txt: 'due tronchi, 5 birre →' }], ord = [0, 1, 2].sort(() => Math.random() - .5);
-  tr.forks.forEach((f, i) => { f.tipo = TIPI[ord[i % 3]]; for (const o of f.tipo.logs) tr.logs.push({ s: f.s0 + o, lane: 1 }); }); }   // sulla via EASY, dopo i due gradoni, un tronco   // sulla via EASY due tronchi (solo nella corsia di destra)
+/* I BIVI NON SONO TUTTI UGUALI, e non hanno tronchi: sono nei pezzi veloci e lì un tronco obbliga a frenare. La via Easy si distingue per come sono messe le birre (in fila, a slalom, fitte sul bordo) e a ogni partita si rimescolano. I tronchi stanno solo nel single track, dove si va piano */
+{ const TIPI = [{ birre: [[46, 0], [66, 0], [86, 0], [106, 0], [126, 0]], txt: 'veloce, 5 birre in fila →' }, { birre: [[40, -1.2], [58, 1.2], [76, -1.2], [94, 1.2], [112, -1.2], [130, 1.2]], txt: 'slalom di 6 birre →' }, { birre: [[50, 1.5], [62, 1.5], [74, 1.5], [98, -1.5], [110, -1.5], [122, -1.5]], txt: 'birre sui bordi →' }], ord = [0, 1, 2].sort(() => Math.random() - .5);
+  tr.forks.forEach((f, i) => { f.tipo = TIPI[ord[i % 3]]; }); }   // sulla via EASY, dopo i due gradoni, un tronco   // sulla via EASY due tronchi (solo nella corsia di destra)
 // BIRRE: sparse lungo il percorso fuori dalla linea più comoda, tre su ogni via EASY, nessuna in conigliera
 { let seed = 2024; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647; tr.beers = [];
   if (!SCHOOL) { for (let s = 70; s < tr.len - 40; s += 55 + rnd() * 45) { if (tr.forks.some(f => s > f.s0 - 5 && s < f.s1 + 5)) continue; const hw = widthAt(tr, s) / 2; tr.beers.push({ s, d: (rnd() < .5 ? -1 : 1) * hw * (.35 + rnd() * .4) }); }
-    for (const f of tr.forks) for (const o of f.tipo.birre) tr.beers.push({ s: f.s0 + o, d: laneOff(tr, f.s0 + o, 1) }); } }
+    for (const f of tr.forks) for (const [o, dx] of f.tipo.birre) tr.beers.push({ s: f.s0 + o, d: laneOff(tr, f.s0 + o, 1) + dx }); } }
 const P = {};
 const TEXF = { trail: 'trail_d', rock: 'mossrock_d', mud: 'mudtrack_d', cobble: 'rockwall_d', forest: 'forestfloor_d', ice: 'mudtrack_d' }, TEXN = Object.keys(TEXF);
 // rumore morbido (0..1) per rompere l'uniformità: chiazze, bordi frastagliati, ciuffi a gruppi
@@ -204,7 +204,7 @@ const ROCKS = [];   // i sassi grossi sono ostacoli veri: x, z, raggio, raggrupp
 { // sassi: tanti nella pietraia (anche sul sentiero, piccoli), muretti a secco lungo la mulattiera, qualcuno nel guado
   let seed = 99; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, list = [];
   for (const sp of tr.spans) {
-    if (sp.kind === 'p') for (let s = sp.s0 + 2; s < sp.s1 - 2; s += .9) { const hw = widthAt(tr, s) / 2, edge = rnd() < .45; const d = edge ? (rnd() < .5 ? -1 : 1) * (hw + rnd() * 5) : (rnd() - .5) * hw * 1.9; list.push([s, d, edge ? .35 + rnd() * .9 : .07 + rnd() * .13, 0]); }
+    if (sp.kind === 'p') for (let s = sp.s0 + 2; s < sp.s1 - 2; s += .9) { const hw = widthAt(tr, s) / 2, edge = rnd() < .45; const d = edge ? (rnd() < .5 ? -1 : 1) * (hw + rnd() * 5) : (rnd() - .5) * hw * 1.9; const big = !edge && rnd() < .07 && Math.abs(d) > .8; list.push([s, d, edge ? .35 + rnd() * .9 : big ? .26 + rnd() * .16 : .07 + rnd() * .15, 0]); }   /* in mezzo alla pietraia ogni tanto un sasso grosso da evitare */
     if (sp.kind === 's') for (const f of tr.feat) if (f.kind === 'gradone' && f.s > sp.s0 && f.s < sp.s1) { const hw = widthAt(tr, f.s) / 2; for (let d = -hw - .6; d < hw + .6; d += .5 + rnd() * .25) list.push([f.s + 1.9 + rnd() * .5, d, .3 + rnd() * .16, -.12]); }   // il bordo di ogni gradone è una fila di pietre: si vede dove sale
     if (sp.kind === 'g') for (let s = sp.s0; s < sp.s1; s += 1.6) for (const sg of [-1, 1]) list.push([s, sg * (widthAt(tr, s) / 2 + .5 + rnd() * 3), .3 + rnd() * .5, 0]);
   }
@@ -525,7 +525,9 @@ function step(dt) {
   const kHere = ICE ? tr.k[Math.min(tr.n - 1, S.i + 1)] : 0, tightK = ICE && kHere * S.lean > 0 ? clamp((Math.abs(kHere) - .03) / .06, 0, 1) * clamp((S.v - 3) / 5, 0, 1) * clamp(Math.abs(S.lean) / .3, 0, 1) : 0;   /* tornanti: più la curva è stretta e più pieghi, più il posteriore esce. Si derapa anche nello stretto, col gas */
   const curvone = ICE && S.air <= 0 && zoneAt(tr, S.s) === 'CURVONE DERAPAGE', bigSlide = curvone && Math.abs(S.lean) > .07 ? Math.sign(S.lean) * 1.12 * clamp((S.v - 1.5) / 4, 0, 1) : 0;   /* il Curvone Derapage si fa tutto di traverso: appena pieghi la moto si mette a 45 gradi e ci resta finché tieni la curva */
   let slipT = (pivot ? S.pv * .65 : curvone ? bigSlide : brakeSlide + powerSlide + iceSlide + Math.sign(S.lean) * tightK * .55 * (.5 + .5 * thr)) + (over > 0 ? Math.sign(om) * Math.min(.4, over * .9) : 0); if (ICE) slipT = curvone ? clamp(slipT, -1.15, 1.15) : pivot ? clamp(slipT, -.9, .9) : clamp(slipT, -.42 - tightK * .5, .42 + tightK * .5);   /* traverso sempre dolce e governabile: mai la moto messa di traverso alla pista */
-  S.slip += (slipT - S.slip) * Math.min(1, dt * (Math.abs(slipT) > Math.abs(S.slip) ? 6.5 : 3.2));
+  S.slip += (slipT - S.slip) * Math.min(1, dt * (Math.abs(slipT) > Math.abs(S.slip) ? (ICE ? 5 : 6.5) : ICE ? (gasOn ? 1.5 : 4.5) : 3.2));   /* sul ghiaccio il traverso si tiene col gas: finché dai gas la moto resta di traverso anche in uscita, se chiudi si raddrizza */
+  if (ICE && S.air <= 0 && Math.abs(S.slip) > .1 && !(S.fall > 0)) { const out = Math.sign(S.slip) * (Math.abs(S.slip) - .1) * S.v * .085 * dt; S.x -= Math.cos(S.psi) * out; S.z -= Math.sin(S.psi) * out;   /* e scivola davvero: di traverso la moto allarga verso l esterno, come sul ghiaccio vero. La curva va presa prima */
+    if (Math.abs(S.slip) > .45 && state === 'play' && (S.vibT = (S.vibT || 0) - dt) <= 0) { S.vibT = .11; try { navigator.vibrate?.(7); } catch {} } }
   if (ICE && state === 'play' && !(S.fall > 0) && Math.abs(S.slip) > .12 && S.v > 5 && S.off < .3) S.drift = (S.drift || 0) + Math.abs(S.slip) * S.v * dt * 2.2 * (S.combo || 1) * (ab('drifter') ? 1.5 : 1) * (1 + (ST.drift || 0) + (BK.ice ? .3 : 0));   /* Ice Scrofy: la derapata fa punti, come nel gioco in uso */
   om += S.slip * (curvone ? .3 : ICE ? .75 - tightK * .4 : 1.7) * clamp(S.v / 11, .3, 1);   // di traverso la moto chiude la curva: è così che si imposta
   S.psi += om * dt * (1 - clamp((S.wh || 0) / .5, 0, 1) * .75);   // su una ruota la moto gira poco

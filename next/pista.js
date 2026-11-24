@@ -7,7 +7,7 @@ export const KIND = {
   v: { name: 'veloce', w: 10, side: 26, grip: 1.12, drag: 0, rough: 0, tex: 'trail', tape: 1 },
   s: { name: 'salita', w: 6.5, side: 22, grip: 1.05, drag: 0, rough: .012, tex: 'trail', tape: 1 },
   d: { name: 'discesa', w: 6.5, side: 22, grip: 1.0, drag: 0, rough: .014, tex: 'trail', tape: 1 },
-  p: { name: 'pietraia', w: 6, side: 20, grip: .86, drag: .5, rough: .075, tex: 'rock', tape: 0 },
+  p: { name: 'pietraia', w: 5.4, side: 20, grip: .78, drag: .72, rough: .115, tex: 'rock', tape: 0 },
   g: { name: 'guado', w: 7, side: 20, grip: .8, drag: 0, rough: .01, tex: 'rock', tape: 0 },
   f: { name: 'fango', w: 7, side: 22, grip: .68, drag: 1.3, rough: .015, tex: 'mud', tape: 1 },
   m: { name: 'mulattiera', w: 5.2, side: 7.5, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },
@@ -28,7 +28,7 @@ export const GIRO_EASY = [
   [60, 0, -2, 'v'], [90, -75, -1, 'v'], [110, 0, 0, 'v'],
 ];
 // BIVI del Giro Easy: il sentiero si allarga e in mezzo c'è una fila di sassi. A sinistra la CONIGLIERA (molle, lenta, zero rischi), a destra la EASY (tronchi e sassi, ma veloce e con le birre)
-export const GIRO_EXTRA = { forks: [[262, 412, 15, 9], [1822, 1962, 8, 18]] };   // da, a, quanto si allontana la conigliera (a sinistra), quanto la Easy (a destra)
+export const GIRO_EXTRA = { forks: [[262, 412, 15, 9], [1822, 1962, 8, 18]], logs: [1420, 1540] };   // da, a, quanto si allontana la conigliera (a sinistra), quanto la Easy (a destra)
 // TAPPA 2 · SALITA INFAME: dal fondovalle su per il muro coi gradoni, pietraia in salita, i tornanti della mulattiera, la cresta in single track, poi giù a rotta di collo fino al guado e alla volata
 export const SALITA_INFAME = [   // si sale quasi sempre: 1,2 km di salita vera, col muro al 40%
   [70, 0, 3, 'v'], [80, -70, 7, 'v'], [70, 0, 10, 'v'], [60, 55, 12, 'v'],
@@ -43,7 +43,7 @@ export const SALITA_INFAME = [   // si sale quasi sempre: 1,2 km di salita vera,
   [40, 0, -8, 'd'], [30, 22, -12, 'd'], [35, 0, -9, 'd'],
   [70, 0, -2, 'v'], [90, -70, -1, 'v'], [120, 0, 0, 'v'],
 ];
-export const SALITA_EXTRA = { forks: [[100, 240, 10, 15], [2010, 2150, 19, 8]] };
+export const SALITA_EXTRA = { forks: [[100, 240, 10, 15], [2010, 2150, 19, 8]], logs: [1030, 1110] };
 // SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
 export const SCUOLA = [
   [150, 0, 0, 'v'], [140, 0, 0, 'v'], [140, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
@@ -147,7 +147,7 @@ function addGround(tr) {
         else put(s, 15, (i, u, e) => { bump[i] += .2 * tight * Math.pow(Math.sin(Math.PI * u * 3), 2) * Math.min(1, e * 3); });
       }
     } else if (sp.kind === 'p') {   // pietraia: lastre e scalini
-      for (let s = sp.s0 + 6; s < sp.s1 - 8; s += 7 + rnd() * 6) { const a = (.06 + rnd() * .09) * (rnd() > .4 ? 1 : -1); put(s, 3.5 + rnd() * 2, (i, u, e) => { bump[i] += a * e; }); }
+      for (let s = sp.s0 + 6; s < sp.s1 - 8; s += 4.5 + rnd() * 4.5) { const a = (.1 + rnd() * .14) * (rnd() > .4 ? 1 : -1); put(s, 2.8 + rnd() * 2, (i, u, e) => { bump[i] += a * e; }); }
     } else if (sp.kind === 'm') {   // mulattiera: canalette di scolo di traverso
       for (let s = sp.s0 + 12; s < sp.s1 - 6; s += 19 + rnd() * 6) put(s, 2.4, (i, u, e) => { bump[i] += .08 * e * e; });
       for (let s = sp.s0 + 5; s < sp.s1 - 5; s += 8 + rnd() * 6) { const a = (.05 + rnd() * .05) * (rnd() > .5 ? 1 : -1); put(s, 1.6 + rnd() * 1.4, (i, u, e) => { bump[i] += a * e; }); }   /* lastre smosse e avvallamenti: un po' di sconnesso, niente di cattivo */
