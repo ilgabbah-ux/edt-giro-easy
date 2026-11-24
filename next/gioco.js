@@ -657,6 +657,7 @@ function step(dt) {
     S.x = a[q] + dx / dist * rr; S.z = a[q + 1] + dz / dist * rr; if (S.v > 7 && !ab('stones')) crash(Math.sign(dx * Math.cos(S.psi) + dz * Math.sin(S.psi)) || 1); else glance(dx / dist, dz / dist, dt); } } } }
   // bordi: dopo qualche metro di prato c'è la scarpata, si rimbalza dentro perdendo velocità
   const wall = false /* niente più muretti di sassi ai bordi della mulattiera: è un sentiero lastricato largo, col suo prato ai lati */, lim = wall ? HW - .05 : Math.max(HW + .6, Math.min(sideLimit(S.s, Math.sign(S.d) || 1) - 1.5, HW + (KD.name === 'single track' ? 4 : 9)));   // sulla mulattiera il muretto è il bordo
+  if (PAD && state === 'play' && S.air <= 0 && !(S.fall > 0) && PAD[Math.max(0, Math.min(tr.n - 1, Math.round(S.s / DS)))] > .6 && Math.abs(S.d) > HW + 1.1) { const f0 = S.falls || 0; crash(Math.sign(S.d)); if ((S.fall > 0)) { splash(1); if ((S.falls || 0) > f0) flash('NELLA RISAIA!', 1.4); } }   /* fuori dall'argine c'e' l'acqua della risaia: non ci si guida, si finisce a bagno e si riparte dal sentiero */
   const limF = lim + laneOff(tr, S.s, Math.sign(S.d) || 1); if (Math.abs(S.d) > limF) { const sg = Math.sign(S.d), push = Math.abs(S.d) - limF; S.x -= Math.cos(pr.h) * sg * push; S.z -= Math.sin(pr.h) * sg * push;
     let rel = S.psi - pr.h; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
     if (rel * sg > 0) { const imp = Math.abs(Math.sin(rel)); if (!ICE && !S.wall && imp > (wall ? .75 : .5) && S.v > (wall ? 14 : 9)) crash(-sg);   /* sul ghiaccio il bordo è un cumulo di neve: ci si pianta e si perde velocità, non si cade */ else if (!S.wall && imp > .3) { S.v *= 1 - imp * (wall ? .15 : ICE ? .1 : .3) * (ab('tank') ? .5 : 1);   /* il muretto della mulattiera perdona: ci si striscia contro, si cade solo arrivandoci dritti e forte */ S.hit = Math.max(S.hit, imp * .8); thud(imp * .6); }   // botta solo se ci arrivi storto
@@ -851,7 +852,7 @@ let last = performance.now(), slow = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const fdt = Math.min(.05, (now - last) / 1000); last = now; if (fdt <= 0) return;
-  { const tv = state === 'play' ? 'hidden' : 'visible', tg = $('tag'); if (tg.style.visibility !== tv) tg.style.visibility = tv; }   /* in gara la scritta in mezzo allo schermo sparisce: resta solo al conto alla rovescia e a fine gara */
+  { const tv = state === 'play' || state === 'count' ? 'hidden' : 'visible', tg = $('tag'); if (tg.style.visibility !== tv) tg.style.visibility = tv; }   /* in gara la scritta in mezzo allo schermo sparisce: dalla partenza all'arrivo non si vede */
   if (state === 'count' && S.spiega > 0) { S.spiega -= fdt; if (speaking()) S.spSeen = 1; else if (S.spSeen || !O.snd) S.spiega = 0; $('msg').textContent = 'ASCOLTA…'; }   /* Fest, prima volta: il conto alla rovescia parte solo quando il Gabbah ha finito di spiegare */
   else if (state === 'count') { cd -= fdt; $('msg').textContent = cd > 1.6 ? '3' : cd > .8 ? '2' : cd > 0 ? '1' : 'VIA!'; if (cd <= 0) { state = 'play'; time = 0; } }
   const n = Math.max(1, Math.round(fdt / (1 / 120))); for (let i = 0; i < n; i++) step(fdt / n);
