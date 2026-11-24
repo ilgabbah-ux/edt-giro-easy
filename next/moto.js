@@ -13,5 +13,6 @@ export const MOTO = [
   { id: 'bestia', name: 'LA BESTIA 690', glb: 'bestia', fit: [.5, 1.49, -.34, 1.173], txt: "La più potente: sul dritto non la prende nessuno, poi bisogna fermarla.", top: 1.18, acc: 1.2, agile: .8, wh: 1, climb: 1.15, snd: { fm: .88, bf: .85, nz: .7 } },
   { id: 'vintage', name: "VECCHIA GLORIA '89", glb: 'vintage', fit: [.47, 1.39, -.26, .921], txt: "Due tempi di una volta: fuma, vibra e va piano. Ma che stile.", top: .9, acc: .88, agile: .95, wh: .8, climb: .9, snd: { smp: '2t', fm: 1.5, bf: .7, nz: 1.5, pk: [1300, 5, 2] } },
   { id: 'electric', name: 'LA SILENZIOSA', glb: 'electric', fit: [.46, 1.43, -.29, 1.133], txt: "Elettrica: niente marce e niente rumore, scatta subito.", top: 1.05, acc: 1.3, agile: 1.05, wh: 1.2, climb: 1.2, snd: { el: 1, nz: .3 } },
+  { id: 'shadow', name: 'SHADOW CHIODATA', glb: 'shadow', lock: 'ice', ice: 1, fit: [.47, 1.22, -.32, .8], txt: "La Shadow chiodata dell EDT: bobber bicilindrico con le gomme piene di viti. Pesante e lenta a girare, ma sul ghiaccio morde come nessuna. Si sblocca con una medaglia su Ice Scrofy.", top: 1.02, acc: 1, agile: .82, wh: .55, climb: .85, snd: { smp: 'tw', fm: 1.2, bf: .8, nz: 1 } },
 ];
 export const motoById = id => MOTO.find(m => m.id === id) || MOTO[0];
