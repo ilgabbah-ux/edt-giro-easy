@@ -8,7 +8,7 @@ import { icon, iconize, iconizeEl, hasEmoji } from '../icons.js?v=fcc14503';
 import * as C from '../classifica.js?v=05f95d02';
 import * as N from '../push.js?v=13d13cf1';   // v154 · notifiche "ti hanno superato"
 for (const m of P.MODES) if (![0, 1, 9, 14, 17, 18, 20, 21, 22].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
-{ const L = { 0: 150, 1: 172, 9: 128, 14: 145, 17: 165, 18: 190, 20: 145, 21: 222 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
+{ const L = { 0: 150, 1: 172, 9: 128, 14: 145, 17: 165, 18: 190, 20: 145, 21: 206 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
 { const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
 if (!P.BIKES.some(b => b.id === 'shadow')) P.BIKES.push({ id: 'shadow', name: 'Shadow chiodata', price: 0, level: 99, icon: '❄', top: true, shadow: true, desc: 'La Shadow chiodata dell’EDT: bobber bicilindrico con l’estintore al posto del serbatoio e le gomme piene di viti. Pesante e lenta a girare, ma sul ghiaccio morde come nessuna. Si sblocca con una medaglia su Ice Scrofy.', ideal: 'Ice Scrofy', stats: { speed: .02, steer: -.15, climb: -.1, grip: .14, drift: .3 }, look: { paint: { plastic: '#b3221b', accent: '#e8eef0', side: '#b3221b', frame: '#b3221b', seat: '#151515', ink: '#e8eef0' }, scale: 1, big: true } });
 import * as D from '../duel.js?v=db2f059d';
@@ -5015,7 +5015,7 @@ setTimeout(() => { const n = C.getNick(); if (n && cloudOkFor() !== n.toLowerCas
 // ================= v2 · INCASTRO DELLA GUIDA NUOVA =================
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
-const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 14: 'r', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 9: 128, 14: 145, 17: 165, 18: 190, 20: 145, 21: 222, 22: 900 };
+const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 14: 'r', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 9: 128, 14: 145, 17: 165, 18: 190, 20: 145, 21: 206, 22: 900 };
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 function startNext() {
@@ -5027,7 +5027,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-20' }).toString();
+  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-21' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
