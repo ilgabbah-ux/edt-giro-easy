@@ -127,12 +127,12 @@ export const ANTIGEV = [
   [90, 0, 0, 'v'], [70, -60, 1, 'v'], [120, 0, 0, 'v'],
 ];
 export const ANTIGEV_EXTRA = { logs: [330, 372, 1338, 1376] };
-// ANGELO POTTER: la mulattiera del dirupo. Sei rampe e cinque tornanti su per il fianco della montagna; a meta' il punto di Angelo
+// ANGELO POTTER: la mulattiera del dirupo. Una lunga traversata a mezza costa: la parete sempre a sinistra, il vuoto sempre a destra. Niente tornanti sovrapposti: la montagna e' una sola e si legge bene. A meta' il punto di Angelo
 export const POTTER = [
-  [50, 0, 2, 'm'], [60, 0, 8, 'e'], [30, 40, 10, 'e'], [50, 0, 12, 'e'], [26, -8.5, 5, 'm'],
-  [60, 0, 12, 'e'], [30, -35, 10, 'e'], [26, 8.5, 5, 'm'], [70, 0, 13, 'e'], [25, 30, 10, 'e'], [26, -8.5, 5, 'm'],
-  [45, 0, 12, 'e'], [40, 0, 9, 'a'], [26, 8.5, 5, 'm'], [60, 0, 10, 'e'], [30, -40, 8, 'e'], [26, -8.5, 5, 'm'],
-  [70, 0, 12, 'e'], [40, 50, 6, 'e'], [60, 0, 2, 'm'],
+  [50, 0, 2, 'm'], [60, 0, 8, 'e'], [35, -30, 10, 'e'], [45, 0, 12, 'e'], [40, 28, 10, 'e'],
+  [55, 0, 12, 'e'], [30, 24, 9, 'e'], [50, 0, 11, 'e'], [38, -26, 10, 'e'], [40, 0, 12, 'e'],
+  [40, 0, 9, 'a'], [30, -22, 10, 'e'], [55, 0, 12, 'e'], [42, 26, 9, 'e'], [50, 0, 12, 'e'],
+  [30, 22, 8, 'e'], [45, 0, 10, 'e'], [36, -24, 8, 'e'], [50, 0, 6, 'e'], [60, 0, 2, 'm'],
 ];
 export const POTTER_CLIFF = (() => { const out = []; let c = 0, side = 1; for (const [l, r, g, k] of POTTER) { if (k === 'e' || k === 'a') out.push([c, c + l, side]); c += l; if (r && Math.abs(r) <= 9) side = -side; } return out; })();   /* da che parte e' il vuoto, pezzo per pezzo: a ogni tornante cambia lato */
 export const GUSTA_PTS_R = [GUSTA_PTS[0], ...GUSTA_PTS.slice(1).reverse()];
