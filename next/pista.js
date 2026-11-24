@@ -134,7 +134,7 @@ export const POTTER = [
   [45, 0, 12, 'e'], [40, 0, 9, 'a'], [26, 8.5, 5, 'm'], [60, 0, 10, 'e'], [30, -40, 8, 'e'], [26, -8.5, 5, 'm'],
   [70, 0, 12, 'e'], [40, 50, 6, 'e'], [60, 0, 2, 'm'],
 ];
-export const POTTER_CLIFF = (() => { const out = []; let c = 0, side = 1; for (const [l, r, g, k] of POTTER) { if (k === 'e' || k === 'a') out.push([c, c + l, side]); c += l; if (r && Math.abs(r) <= 8) side = -side; } return out; })();   /* da che parte e' il vuoto, pezzo per pezzo: a ogni tornante cambia lato */
+export const POTTER_CLIFF = (() => { const out = []; let c = 0, side = 1; for (const [l, r, g, k] of POTTER) { if (k === 'e' || k === 'a') out.push([c, c + l, side]); c += l; if (r && Math.abs(r) <= 9) side = -side; } return out; })();   /* da che parte e' il vuoto, pezzo per pezzo: a ogni tornante cambia lato */
 export const GUSTA_PTS_R = [GUSTA_PTS[0], ...GUSTA_PTS.slice(1).reverse()];
 export const GUSTA_ELEV_R = [[0, 0], [348, 2], [568, 6], [688, 26], [773, 26], [968, 0], [988, 0]];
 export const GUSTA_KINDS_XMAS = [[0, 't'], [238, 'q'], [298, 'j'], [388, 'q'], [483, 'j'], [533, 'q'], [573, 's'], [692, 'j'], [766, 'q']];
