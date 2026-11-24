@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 26   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 27   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -27,8 +27,8 @@ g, n = re.subn(r"(from |import\()'\./", r"\1'../", g)
 assert n >= 10, n
 
 # 2) solo i tre percorsi rifatti (piu' la scuola), e la Salita Infame al posto di Dopo migliora
-g = rep(g, "import * as D from '../duel.js", """for (const m of P.MODES) if (![0, 1, 9, 14, 16, 17, 18, 20, 21, 22].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
-{ const L = { 0: 150, 1: 172, 9: 136, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
+g = rep(g, "import * as D from '../duel.js", """for (const m of P.MODES) if (![0, 1, 9, 13, 14, 16, 17, 18, 20, 21, 22].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
+{ const L = { 0: 150, 1: 172, 9: 136, 13: 215, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
 { const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
 import * as D from '../duel.js""", 'import duel')
 
@@ -59,7 +59,7 @@ g += r"""
 // ================= v2 · INCASTRO DELLA GUIDA NUOVA =================
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
-const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 9: 136, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220, 22: 900 };
+const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 9: 136, 13: 215, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220, 22: 900 };
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 function startNext() {
@@ -80,7 +80,7 @@ function startNext() {
   nextFrame.src = 'next/index.html?' + q; host.appendChild(nextFrame); nextFrame.focus();
 }
 function endNext(d) {
-  const win = d.t === 'edt-next-run';
+  const win = d.t === 'edt-next-run' && !d.fermato;   // Anti-GEV: fermato dalle guardie = giro perso, con verbale e multa
   nextRes = { pos: win ? d.pos | 0 : 0 };
   elapsed = +d.time || 0; roadTime = elapsed;
   run.caps += d.beers | 0; run.hits = d.falls | 0;
@@ -92,7 +92,7 @@ function endNext(d) {
   if (nextFrame) { nextFrame.style.display = 'none'; nextFrame.contentWindow?.postMessage({ t: 'edt-next-sleep' }, location.origin); }
   if (win && mode === 9 && elapsed <= NEXT_LIMIT[9] && !P.ownsBike('shadow')) { P.profile.owned['bike:shadow'] = true; P.save(); setTimeout(() => toast('🔓 SBLOCCATA LA SHADOW CHIODATA: È IN GARAGE', 'gold'), 2600); }   // medaglia su Ice Scrofy = Shadow chiodata
   state = 'playing';
-  try { finish(win, win ? '' : 'RITIRATO'); } finally { nextRes = null; }
+  try { finish(win, win ? '' : d.fermato ? 'FERMATO DALLE GEV' : 'RITIRATO'); } finally { nextRes = null; }
 }
 addEventListener('message', e => { if (e.origin !== location.origin || state !== 'next') return; const d = e.data || {}; if (d.t === 'edt-next-run' || d.t === 'edt-next-quit') endNext(d); });
 """ % V2
@@ -163,6 +163,7 @@ window.EDT_BOARD_URL = 'https://invalid.invalid/exec';
   try { if (!g.call(localStorage, P + '__rec3')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['17', '20', '21'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec3', '1'); } } catch (e) {}
   try { if (!g.call(localStorage, P + '__rec9')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['9'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec9', '1'); } } catch (e) {}   /* Ice Scrofy rallentata: i tempi vecchi non valgono piu' */
   try { if (!g.call(localStorage, P + '__rec16')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['16'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec16', '1'); } } catch (e) {}   /* Desertone rifatto in 3D: tempi vecchi azzerati */
+  try { if (!g.call(localStorage, P + '__rec13')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['13'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec13', '1'); } } catch (e) {}   /* Anti-GEV rifatto in 3D: tempi vecchi azzerati */
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
 </script>
 """
