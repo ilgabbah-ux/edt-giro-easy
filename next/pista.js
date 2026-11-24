@@ -16,6 +16,7 @@ export const KIND = {
   j: { name: 'ghiaccio vivo', w: 7, side: 3.4, grip: .55, drag: 0, rough: .004, tex: 'ice', tape: 1 },   /* Christmas Madness: lastre di ghiaccio senza chiodi, si va dritti e piano */
   q: { name: 'ranch', w: 7, side: 3.4, grip: 1.0, drag: .12, rough: .014, tex: 'mud', tape: 1 },   /* Gusta Ranch: anello di terra smossa e fango in mezzo al prato */
   u: { name: 'duna', w: 13, side: 3.4, grip: .8, drag: .55, rough: .008, tex: 'sand', tape: 0 },   /* Desertone: sabbia molle delle dune, la moto galleggia solo col gas aperto */
+  h: { name: 'sabbia molle', w: 9.5, side: 3.4, grip: .78, drag: .75, rough: .006, tex: 'sand', tape: 0 },   /* Desertone: chiazze di sabbia molle in mezzo alla pista battuta. Larghe come la pista, ma la moto ci affonda: si passano col gas aperto */
   k: { name: 'pista sabbiosa', w: 9.5, side: 3.4, grip: .92, drag: .16, rough: .012, tex: 'sand', tape: 0 },   /* Desertone: la pista battuta tra una duna e l'altra */
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
