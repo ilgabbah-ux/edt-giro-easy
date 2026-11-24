@@ -1,14 +1,16 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from '../physics.js?v=b9c35116';
 import * as A from '../audio.js?v=3afc3a91';
-import * as P from './progress.js?v=773aa6ef';
+import * as P from './progress.js?v=c7b4c6ea';
 import { createMud } from '../mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from '../percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from '../icons.js?v=fcc14503';
 import * as C from '../classifica.js?v=05f95d02';
 import * as N from '../push.js?v=13d13cf1';   // v154 · notifiche "ti hanno superato"
-for (const m of P.MODES) if (![0, 1, 2, 9, 13, 14, 16, 17, 18, 20, 21, 22].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
+for (const m of P.MODES) if (![0, 1, 2, 3, 9, 13, 14, 16, 17, 18, 20, 21, 22].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
 { const L = { 0: 150, 1: 172, 2: 170, 9: 136, 13: 215, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
+const V2_DAILY = (() => { const k = +P.todayKey() || 0, T = [[0, 'g'], [1, 'i'], [18, 'l'], [14, 'r'], [16, 'd'], [13, 'a']], R = ['rain', 'fog', 'night', 'rush'], t = T[(k * 5 + Math.floor(k / 4)) % T.length]; return { m: t[0], p: t[1], r: R[k % R.length] }; })();   // v2 · SFIDA DEL GIORNO sulla pista 3D: ogni giorno un percorso diverso con la regola del giorno (diluvio, nebbia, notturna, di corsa), uguale per tutti
+{ const m3 = P.MODES.find(x => x.id === 3); if (m3) m3.limit = P.MODES.find(x => x.id === V2_DAILY.m).limit - (V2_DAILY.r === 'rush' ? 6 : 0); }
 { const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
 if (!P.BIKES.some(b => b.id === 'shadow')) P.BIKES.push({ id: 'shadow', name: 'Shadow chiodata', price: 0, level: 99, icon: '❄', top: true, shadow: true, desc: 'La Shadow chiodata dell’EDT: bobber bicilindrico con l’estintore al posto del serbatoio e le gomme piene di viti. Pesante e lenta a girare, ma sul ghiaccio morde come nessuna. Si sblocca con una medaglia su Ice Scrofy.', ideal: 'Ice Scrofy', stats: { speed: .02, steer: -.15, climb: -.1, grip: .14, drift: .3 }, look: { paint: { plastic: '#b3221b', accent: '#e8eef0', side: '#b3221b', frame: '#b3221b', seat: '#151515', ink: '#e8eef0' }, scale: 1, big: true } });
 import * as D from '../duel.js?v=db2f059d';
@@ -252,7 +254,7 @@ let tutDoneAt = -99, easyRun = false, tutRunNow = false, rookieT = 0, xgAt = [];
    // easyRun · v109.4 primo giro di chi arriva da fuori: ostacoli più radi nella prima parte   // v109.4 · quando è finito il giro guidato (per non coprirne l'ultimo messaggio)   // v106.7 · Desertone: sabbia sulle dune e gomma bucata
 let wasTract = false, lastWaveFlash = -9, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
 // v84 · Sfida del giorno: una regola diversa ogni giorno, uguale per tutti
-const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RULES.length];
+const dailyRule = () => { const r = DAILY_RULES.find(x => x.id === V2_DAILY.r); return { ...r, desc: 'Oggi si corre su «' + P.MODES.find(x => x.id === V2_DAILY.m).name + '». ' + (r.id === 'rush' ? 'Tempo limite 6 secondi più corto.' : r.id === 'fog' ? 'Nebbia per tutto il giro: si vede poco davanti.' : r.desc) }; };
 const rule = id => mode === 3 && dailyRule().id === id;
 const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
@@ -3313,7 +3315,7 @@ function champTable(c, before) {
 function champFinish(win) {
   const c0 = P.champ(); if (!c0) return null;
   const before = { ...c0.pts }, ent = rivals.map(r => ({ n: r.name, g: r.gap })).concat({ n: '__me', g: 0 }).sort((a, b) => b.g - a.g);
-  let order = ent.map(e => e.n); if (!win) order = order.filter(n => n !== '__me').concat('__me');
+  let order = nextRes?.ord ? v2Order(c0, nextRes.ord) : ent.map(e => e.n); if (!win) order = order.filter(n => n !== '__me').concat('__me');
   const c = P.champRecord(order, !win);
   return { c, before, race: c.i, pos: order.indexOf('__me') + 1, dnf: !win };
 }
@@ -3362,7 +3364,7 @@ function renderChamp() {
   if ($('champquit')) $('champquit').onclick = e => { const b = e.currentTarget; if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'SICURO? TOCCA ANCORA E PERDI I PUNTI'; return; } P.champQuit(); renderChamp(); };
   if ($('champgo')) $('champgo').onclick = () => {
     A.unlock(); A.sfx.click();
-    let cc = P.champ(); if (!cc) { cc = P.champStart(RIDERS, profile.rider); renderChamp(); return; }
+    let cc = P.champ(); if (!cc) { cc = P.champStart(['Linus', 'Costa', 'Mirco'].map(n => n === profile.rider ? 'Il Gabbah' : n), profile.rider);   /* v2 · sulla pista 3D i compagni di gara sono loro tre (il Gabbah se uno dei tre sei tu) */ renderChamp(); return; }
     mode = cc.tracks[cc.i]; profile.mode = mode; P.save();
     if (duel) duel.racing = false;
     renderReady(); champRun = true; start();
@@ -5015,7 +5017,8 @@ setTimeout(() => { const n = C.getNick(); if (n && cloudOkFor() !== n.toLowerCas
 // ================= v2 · INCASTRO DELLA GUIDA NUOVA =================
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
-const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 2: 170, 9: 136, 13: 215, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220, 22: 900 };
+const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 3: V2_DAILY.p, 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 2: 170, 9: 136, 13: 215, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220, 22: 900 }; NEXT_LIMIT[3] = P.MODES.find(x => x.id === 3).limit;
+function v2Order(c0, ord) { const free = c0.rivals.slice(), mp = {}; for (const n of ord) if (n !== '__me') { const k = free.findIndex(x => x.toUpperCase() === n); if (k >= 0) mp[n] = free.splice(k, 1)[0]; } for (const n of ord) if (n !== '__me' && !mp[n] && free.length) mp[n] = free.shift(); const out = ord.map(n => n === '__me' ? n : mp[n]).filter(Boolean); for (const n of free) out.push(n); if (!out.includes('__me')) out.push('__me'); return out; }   // v2 · campionato: l'ordine d'arrivo vero della pista 3D
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 function startNext() {
@@ -5027,7 +5030,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-29' }).toString();
+  const q = new URLSearchParams({ embed: '1', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-30' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
@@ -5037,7 +5040,7 @@ function startNext() {
 }
 function endNext(d) {
   const win = d.t === 'edt-next-run' && !d.fermato;   // Anti-GEV: fermato dalle guardie = giro perso, con verbale e multa
-  nextRes = { pos: win ? d.pos | 0 : 0 };
+  nextRes = { pos: win ? d.pos | 0 : 0, ord: Array.isArray(d.ord) && d.ord.length > 1 ? d.ord : null };
   elapsed = +d.time || 0; roadTime = elapsed;
   run.caps += d.beers | 0; run.hits = d.falls | 0;
   lives = Math.max(0, maxLives - (d.falls | 0));

@@ -127,6 +127,7 @@ const TEMPLATES = [
   { id: 'clean', kind: 'run', stat: 'clean', tiers: [1, 1, 1], xp: 200, text: () => 'Arriva al rifugio senza perdere moto' },
   { id: 'dry', kind: 'run', stat: 'dry', tiers: [1, 1, 1], xp: 150, text: () => 'Arriva al rifugio senza finire in pozzanghera' },
   { id: 'score', kind: 'run', stat: 'score', tiers: [8000, 15000, 25000], xp: 180, text: n => `Fai ${n.toLocaleString('it-IT')} punti in un giro` },
+  { id: 'daily', kind: 'run', stat: 'dailyFinish', tiers: [1, 1, 1], xp: 220, text: () => 'Completa la Sfida del giorno' },
   { id: 'margin', kind: 'run', stat: 'timeLeft', tiers: [4, 7, 10], xp: 170, text: n => `Arriva al rifugio con ${n} secondi di margine` },
   { id: 'wheelie', kind: 'run', stat: 'wheelieMax', tiers: [1.5, 2.5, 3], xp: 150, text: n => `Fai un'impennata di ${String(n).replace('.', ',')} secondi` },
   { id: 'sectors', kind: 'run', stat: 'cleanSectors', tiers: [4, 7, 10], xp: 160, text: n => `Chiudi ${n} settori puliti (senza errori) in un giro` },
@@ -343,8 +344,9 @@ export function pendingBoosts() { return Object.keys(data.boosts).filter(k => da
 
 // v130 · TRE STELLE PER PERCORSO: ★ arrivi al rifugio · ★★ tempo d'argento (6 s sotto il massimo) · ★★★ tempo d'oro (12 s sotto) senza cadute.
 // Premi a 9, 18 e 27 stelle. Valgono i percorsi "a tempo" fissi (niente Potter, Ice, Sfida del giorno ed eventi).
-export const STAR_MODES = [0, 1, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21];
-export const starTimes = m => { const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };
+export const STAR_MODES = [0, 1, 2, 9, 13, 14, 16, 18, 20, 21], CHAMP_MODES = [0, 1, 13, 14, 16, 18, 21];   // v2 · stelle solo sui percorsi rifatti; campionato solo dove si corre contro i tre compagni
+const V2_MED = { 0: [135, 122], 1: [156, 142], 2: [135, 110], 9: [124, 114], 13: [180, 160], 14: [120, 112], 16: [165, 150], 18: [170, 155], 20: [130, 118], 21: [200, 185] };   // v2 · le stelle coincidono con le medaglie della pista 3D: 2 stelle = argento, 3 stelle = oro senza cadute
+export const starTimes = m => { const q = V2_MED[m]; if (q) return { silver: q[0], gold: q[1] }; const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };
 export const starsFor = m => (data.stars || {})[m] || 0;
 export const totalStars = () => STAR_MODES.reduce((a, m) => a + starsFor(m), 0);
 export const maxStars = () => STAR_MODES.length * 3;
@@ -361,10 +363,10 @@ export function recordStars(m, win, time, hits) {
 // v130 · CAMPIONATO EDT: 5 gare di fila contro gli stessi 3 piloti, punti 10-6-4-2, coppa e birre alla fine
 export const CHAMP_POINTS = [10, 6, 4, 2];
 export const champ = () => data.champ && !data.champ.over ? data.champ : null;
-export const champOpen = () => STAR_MODES.filter(m => isUnlocked(MODES[m])).length >= 3;
-export const champLevel = () => STAR_MODES.map(m => MODES[m].unlock || 1).sort((a, b) => a - b)[2] || 1;
+export const champOpen = () => CHAMP_MODES.filter(m => isUnlocked(MODES[m])).length >= 3;
+export const champLevel = () => CHAMP_MODES.map(m => MODES[m].unlock || 1).sort((a, b) => a - b)[2] || 1;
 export function champStart(riders, me, rng = Math.random) {
-  const open = STAR_MODES.filter(m => isUnlocked(MODES[m])).sort(() => rng() - .5);
+  const open = CHAMP_MODES.filter(m => isUnlocked(MODES[m])).sort(() => rng() - .5);
   const tracks = [0, ...open.filter(m => m !== 0)].slice(0, 5); while (tracks.length < 5) tracks.push(open[tracks.length % open.length]);
   const rivals = riders.filter(r => r !== me).sort(() => rng() - .5).slice(0, 3);
   data.champ = { tracks, rivals, i: 0, pts: Object.fromEntries([...rivals, '__me'].map(n => [n, 0])), last: null, over: false }; save(); return data.champ;
