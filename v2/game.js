@@ -1,7 +1,7 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from '../physics.js?v=b9c35116';
 import * as A from '../audio.js?v=3afc3a91';
-import * as P from './progress.js?v=0d3cccdf';
+import * as P from './progress.js?v=e9119fed';
 import { createMud } from '../mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from '../percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from '../icons.js?v=fcc14503';
@@ -3771,7 +3771,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
       ${ice ? `<div><b>${driftCount}</b><small>DERAPATE</small></div><div><b>${driftBest.toLocaleString('it-IT')}</b><small>LA PIÙ BELLA</small></div><div><b>${Math.round(driftM)} m</b><small>DI TRAVERSO</small></div>` : `<div><b>${run.jumps}</b><small>${NEXT_PISTA[mode] !== undefined ? 'TRONCHI' : 'SALTI'}</small></div>`}
-      ${NEXT_PISTA[mode] !== undefined ? '' : `<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>`}
+      ${NEXT_PISTA[mode] !== undefined && !run.wheelieMax ? '' : `<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>`}
       ${NEXT_PISTA[mode] !== undefined ? '' : `<div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>`}
       ${leap || ice ? '' : `<div><b>${run.hits}</b><small>CADUTE</small></div>`}
       <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
@@ -5027,7 +5027,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-16' }).toString();
+  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-17' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
@@ -5041,6 +5041,7 @@ function endNext(d) {
   elapsed = +d.time || 0; roadTime = elapsed;
   run.caps += d.beers | 0; run.hits = d.falls | 0;
   lives = Math.max(0, maxLives - (d.falls | 0));
+  run.wheelieMax = +d.impennata || 0; run.splashes = d.pozze | 0; run.cleanSectors = d.settori | 0;   // per le missioni: impennata piu' lunga, pozzanghere prese, tratti senza cadute
   run.jumps = d.tronchi | 0;   // i tronchi passati in impennata prendono il posto dei salti (300 punti l'uno)
   score = (d.beers | 0) * 100 + (d.tronchi | 0) * 300 + (ice ? d.drift | 0 : 0); driftScore = d.drift | 0;
   course = win ? GAME_LENGTH : GAME_LENGTH * .5;

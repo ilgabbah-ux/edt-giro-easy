@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 16   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 17   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -84,6 +84,7 @@ function endNext(d) {
   elapsed = +d.time || 0; roadTime = elapsed;
   run.caps += d.beers | 0; run.hits = d.falls | 0;
   lives = Math.max(0, maxLives - (d.falls | 0));
+  run.wheelieMax = +d.impennata || 0; run.splashes = d.pozze | 0; run.cleanSectors = d.settori | 0;   // per le missioni: impennata piu' lunga, pozzanghere prese, tratti senza cadute
   run.jumps = d.tronchi | 0;   // i tronchi passati in impennata prendono il posto dei salti (300 punti l'uno)
   score = (d.beers | 0) * 100 + (d.tronchi | 0) * 300 + (ice ? d.drift | 0 : 0); driftScore = d.drift | 0;
   course = win ? GAME_LENGTH : GAME_LENGTH * .5;
@@ -113,6 +114,14 @@ for old, new, what in [
     ("  { id: 'combo', kind: 'run', stat: 'maxMult', tiers: [3, 4, 4], xp: 150, text: n => `Arriva alla combo ×${n}` },\n", "", 'missione combo'),
     ("  { id: 'scrub', kind: 'run', stat: 'scrubs', tiers: [2, 4, 7], xp: 140, text: n => `Fai ${n} scrub (sterza mentre sei in volo)` },\n", "", 'missione scrub'),
     ("  { id: 'near', kind: 'run', stat: 'near', tiers: [3, 5, 8], xp: 130, text: n => `Passa \"per un pelo\" ${n} volte` },\n", "", 'missione per un pelo'),
+    ("  { id: 'turbo', kind: 'run', stat: 'turbos', tiers: [1, 2, 3], xp: 120, text: n => n === 1 ? 'Usa il turbo' : `Usa il turbo ${n} volte in un giro` },\n", "", 'missione turbo'),
+    ("  { id: 'air', kind: 'run', stat: 'airCaps', tiers: [3, 6, 9], xp: 150, text: n => `Prendi ${n} birre al volo` },\n", "", 'missione birre al volo'),
+    ("  { id: 'angelo', kind: 'run', stat: 'angeloFinish', tiers: [1, 1, 1], xp: 250, text: () => 'Arriva al rifugio sul Taglio di Angelo' },\n", "", 'missione angelo'),
+    ("  { id: 'daily', kind: 'run', stat: 'dailyFinish', tiers: [1, 1, 1], xp: 220, text: () => 'Completa la Sfida del giorno' },\n", "", 'missione sfida del giorno'),
+    ("  { id: 'grappa', kind: 'run', stat: 'grappas', tiers: [1, 1, 2], xp: 130, text: n => n === 1 ? 'Prendi una grappa' : `Prendi ${n} grappe in un giro` },\n", "", 'missione grappa'),
+    ("  { id: 'ramps', kind: 'run', stat: 'ramps', tiers: [1, 3, 5], xp: 140, text: n => n === 1 ? 'Vola da una rampa' : `Vola da ${n} rampe in un giro` },\n", "", 'missione rampe'),
+    ("stat: 'caps', tiers: [40, 70, 100]", "stat: 'caps', tiers: [15, 25, 35]", 'birre in un giro'),
+    ("stat: 'cleanSectors', tiers: [2, 4, 6]", "stat: 'cleanSectors', tiers: [4, 7, 10]", 'settori puliti'),
     ("{ id: 'perfect', name: 'Fai 3 salti perfetti in un giro', icon: 'star' },", "{ id: 'perfect', name: 'Passa 2 tronchi in impennata in un giro', icon: 'star' },", 'missione pilota nuovo'),
 ]:
     if old not in pr: sys.exit('v2.py: non trovo %s in progress.js' % what)
@@ -122,7 +131,7 @@ open(os.path.join(ROOT, 'v2', 'progress.js'), 'w', encoding='utf-8').write(pr)
 g, n = re.subn(r"from '\.\./progress\.js\?v=[0-9a-z]+'", "from './progress.js?v=" + ph + "'", g)
 assert n == 1, n
 g = rep(g, "if (run.perfect >= 3) starterTick('perfect');", "if (run.jumps >= 2) starterTick('perfect');", 'starter tronchi')
-g = rep(g, "<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>", "${NEXT_PISTA[mode] !== undefined ? '' : `<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>`}", 'via perfetti')
+g = rep(g, "<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>", "${NEXT_PISTA[mode] !== undefined && !run.wheelieMax ? '' : `<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>`}", 'via perfetti')
 g = rep(g, "<div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>", "${NEXT_PISTA[mode] !== undefined ? '' : `<div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>`}", 'via combo')
 gh = hashlib.sha1(g.encode()).hexdigest()[:8]
 open(os.path.join(ROOT, 'v2', 'game.js'), 'w', encoding='utf-8').write(g)

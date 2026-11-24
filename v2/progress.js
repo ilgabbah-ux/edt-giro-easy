@@ -122,20 +122,14 @@ export const GRADES = ['Ruote pulite', 'Turista del sentiero', 'Sterratore', 'Fa
 
 // Missioni: "run" = in un solo giro, "total" = cumulative tra i giri.
 const TEMPLATES = [
-  { id: 'caps', kind: 'run', stat: 'caps', tiers: [40, 70, 100], xp: 120, text: n => `Raccogli ${n} birre in un giro` },
+  { id: 'caps', kind: 'run', stat: 'caps', tiers: [15, 25, 35], xp: 120, text: n => `Raccogli ${n} birre in un giro` },
   { id: 'jumps', kind: 'run', stat: 'jumps', tiers: [2, 3, 4], xp: 140, text: n => `Passa ${n} tronchi in impennata` },   // v2 · i tronchi al posto dei salti
   { id: 'clean', kind: 'run', stat: 'clean', tiers: [1, 1, 1], xp: 200, text: () => 'Arriva al rifugio senza perdere moto' },
   { id: 'dry', kind: 'run', stat: 'dry', tiers: [1, 1, 1], xp: 150, text: () => 'Arriva al rifugio senza finire in pozzanghera' },
-  { id: 'turbo', kind: 'run', stat: 'turbos', tiers: [1, 2, 3], xp: 120, text: n => n === 1 ? 'Usa il turbo' : `Usa il turbo ${n} volte in un giro` },
   { id: 'score', kind: 'run', stat: 'score', tiers: [8000, 15000, 25000], xp: 180, text: n => `Fai ${n.toLocaleString('it-IT')} punti in un giro` },
-  { id: 'air', kind: 'run', stat: 'airCaps', tiers: [3, 6, 9], xp: 150, text: n => `Prendi ${n} birre al volo` },
-  { id: 'angelo', kind: 'run', stat: 'angeloFinish', tiers: [1, 1, 1], xp: 250, text: () => 'Arriva al rifugio sul Taglio di Angelo' },
-  { id: 'daily', kind: 'run', stat: 'dailyFinish', tiers: [1, 1, 1], xp: 220, text: () => 'Completa la Sfida del giorno' },
   { id: 'margin', kind: 'run', stat: 'timeLeft', tiers: [4, 7, 10], xp: 170, text: n => `Arriva al rifugio con ${n} secondi di margine` },
   { id: 'wheelie', kind: 'run', stat: 'wheelieMax', tiers: [1.5, 2.5, 3], xp: 150, text: n => `Fai un'impennata di ${String(n).replace('.', ',')} secondi` },
-  { id: 'grappa', kind: 'run', stat: 'grappas', tiers: [1, 1, 2], xp: 130, text: n => n === 1 ? 'Prendi una grappa' : `Prendi ${n} grappe in un giro` },
-  { id: 'ramps', kind: 'run', stat: 'ramps', tiers: [1, 3, 5], xp: 140, text: n => n === 1 ? 'Vola da una rampa' : `Vola da ${n} rampe in un giro` },
-  { id: 'sectors', kind: 'run', stat: 'cleanSectors', tiers: [2, 4, 6], xp: 160, text: n => `Chiudi ${n} settori puliti (senza errori) in un giro` },
+  { id: 'sectors', kind: 'run', stat: 'cleanSectors', tiers: [4, 7, 10], xp: 160, text: n => `Chiudi ${n} settori puliti (senza errori) in un giro` },
   { id: 'capsTotal', kind: 'total', stat: 'caps', tiers: [150, 350, 700], xp: 200, text: n => `Raccogli ${n} birre in totale` },
   { id: 'runsTotal', kind: 'total', stat: 'runs', tiers: [5, 12, 25], xp: 180, text: n => `Fai ${n} giri in totale` },
 ];
