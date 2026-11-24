@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 15   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 16   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -111,6 +111,8 @@ for old, new, what in [
     ("{ id: 'jumps', kind: 'run', stat: 'jumps', tiers: [6, 10, 14], xp: 140, text: n => `Supera ${n} ostacoli saltando` },", "{ id: 'jumps', kind: 'run', stat: 'jumps', tiers: [2, 3, 4], xp: 140, text: n => `Passa ${n} tronchi in impennata` },   // v2 · i tronchi al posto dei salti", 'missione salti'),
     ("  { id: 'perfect', kind: 'run', stat: 'perfect', tiers: [2, 4, 6], xp: 160, text: n => `Fai ${n} salti perfetti` },\n", "", 'missione perfetti'),
     ("  { id: 'combo', kind: 'run', stat: 'maxMult', tiers: [3, 4, 4], xp: 150, text: n => `Arriva alla combo ×${n}` },\n", "", 'missione combo'),
+    ("  { id: 'scrub', kind: 'run', stat: 'scrubs', tiers: [2, 4, 7], xp: 140, text: n => `Fai ${n} scrub (sterza mentre sei in volo)` },\n", "", 'missione scrub'),
+    ("  { id: 'near', kind: 'run', stat: 'near', tiers: [3, 5, 8], xp: 130, text: n => `Passa \"per un pelo\" ${n} volte` },\n", "", 'missione per un pelo'),
     ("{ id: 'perfect', name: 'Fai 3 salti perfetti in un giro', icon: 'star' },", "{ id: 'perfect', name: 'Passa 2 tronchi in impennata in un giro', icon: 'star' },", 'missione pilota nuovo'),
 ]:
     if old not in pr: sys.exit('v2.py: non trovo %s in progress.js' % what)
