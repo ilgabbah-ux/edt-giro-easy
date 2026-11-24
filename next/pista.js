@@ -29,7 +29,7 @@ export const GIRO_EASY = [
   [60, 0, -2, 'v'], [90, -75, -1, 'v'], [110, 0, 0, 'v'],
 ];
 // BIVI del Giro Easy: il sentiero si allarga e in mezzo c'è una fila di sassi. A sinistra la CONIGLIERA (molle, lenta, zero rischi), a destra la EASY (tronchi e sassi, ma veloce e con le birre)
-export const GIRO_EXTRA = { forks: [[262, 412, 15, 9], [1822, 1962, 8, 18]], logs: [1420, 1540] };   // da, a, quanto si allontana la conigliera (a sinistra), quanto la Easy (a destra)
+export const GIRO_EXTRA = { forks: [[262, 412, 15, 9], [1822, 1962, 8, 18]], logs: [1370, 1420, 1540, 1590] };   // da, a, quanto si allontana la conigliera (a sinistra), quanto la Easy (a destra)
 // TAPPA 2 · SALITA INFAME: dal fondovalle su per il muro coi gradoni, pietraia in salita, i tornanti della mulattiera, la cresta in single track, poi giù a rotta di collo fino al guado e alla volata
 export const SALITA_INFAME = [   // si sale quasi sempre: 1,2 km di salita vera, col muro al 40%
   [70, 0, 3, 'v'], [80, -70, 7, 'v'], [70, 0, 10, 'v'], [60, 55, 12, 'v'],
@@ -44,7 +44,7 @@ export const SALITA_INFAME = [   // si sale quasi sempre: 1,2 km di salita vera,
   [40, 0, -8, 'd'], [30, 22, -12, 'd'], [35, 0, -9, 'd'],
   [70, 0, -2, 'v'], [90, -70, -1, 'v'], [120, 0, 0, 'v'],
 ];
-export const SALITA_EXTRA = { forks: [[100, 240, 10, 15], [2010, 2150, 19, 8]], logs: [1030, 1110] };
+export const SALITA_EXTRA = { forks: [[100, 240, 10, 15], [2010, 2150, 19, 8]], logs: [985, 1030, 1110, 1150] };
 // LEVENTINO · Sostegno (Biella). Ricavato dalla traccia vera del Leventino 2025 (77 km, GPX di Wikiloc) ristretta a 2,7 km: stesso ordine e stesse proporzioni di salite e pianura.
 // Partenza dal paese, giù al torrente, prima salita sulle Terre Rosse (612 m veri) con la mulattiera degli Alpini, giù, le risaie del fondovalle con gli argini a gomito, la collina di mezzo, altre risaie, la seconda salita (624 m veri) e l'arrivo.
 export const LEVENTINO = [[60,0,2,'v'],[45,60,3,'v'],[50,-70,-9,'d'],[45,0,-10,'b'],[36,40,-11,'b'],[22,0,0,'g'],
@@ -60,7 +60,7 @@ export const LEVENTINO = [[60,0,2,'v'],[45,60,3,'v'],[50,-70,-9,'d'],[45,0,-10,'
   [40,0,14,'s'],[34,20,24,'s'],[60,0,30,'s'],[34,-18,22,'s'],[36,0,6,'p'],[36,0,2,'p'],[30,0,0,'t'],[24,-15,0,'t'],[24,15,-2,'t'],
   [36,0,-20,'d'],[28,20,-26,'d'],[40,0,-26,'d'],[28,-22,-18,'d'],[30,0,-9,'d'],
   [50,0,-2,'v'],[100,0,0,'v']];
-export const LEVENTINO_EXTRA = { forks: [[1934, 2078, 10, 14]], logs: [528, 2362], paddy: [[1040, 1396], [1736, 1922]], ristoro: 1350 };   /* paddy: da dove a dove si corre in mezzo alle risaie (argine stretto, acqua ai lati) */
+export const LEVENTINO_EXTRA = { forks: [[1934, 2078, 10, 14]], logs: [528, 572, 2362, 2396], paddy: [[1040, 1396], [1736, 1922]], ristoro: 1350 };   /* paddy: da dove a dove si corre in mezzo alle risaie (argine stretto, acqua ai lati) */
 // SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
 export const SCUOLA = [
   [150, 0, 0, 'v'], [140, 0, 0, 'v'], [140, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
