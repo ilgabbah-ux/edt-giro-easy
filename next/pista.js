@@ -188,10 +188,6 @@ function addGround(tr) {
     } else if (sp.kind === 'q') {   // ranch: dossi di terra e tre pozze di fango a giro
       for (let s = sp.s0 + 46; s < sp.s1 - 40; s += 58 + rnd() * 34) { if (tr.g[Math.min(tr.n - 1, Math.round(s / DS))] > .05) continue; const tight = Math.abs(tr.k[Math.min(tr.n - 1, Math.round(s / DS))]) > .025 ? .5 : 1; put(s, 6.5, (i, u, e) => { bump[i] += .34 * tight * e * e; }); }
       for (const s of [470, 560, 690]) if (s > sp.s0 + 4 && s < sp.s1 - 12) { put(s, 8, (i, u, e) => { bump[i] -= .2 * e * e; }); tr.water.push({ s0: s + 1.2, s1: s + 6.8, half: 2.3, off: (rnd() - .5) * 2, depth: .2, kind: 'pozza' }); }
-    } else if (sp.kind === 'u') {   // duna: onde di sabbia larghe e morbide, da prendere col gas aperto
-      for (let s = sp.s0 + 30; s < sp.s1 - 26; s += 34 + rnd() * 22) put(s, 13, (i, u, e) => { bump[i] += .42 * e * e; });
-    } else if (sp.kind === 'k') {   // pista sabbiosa: qualche cunetta
-      for (let s = sp.s0 + 40; s < sp.s1 - 30; s += 70 + rnd() * 40) put(s, 7, (i, u, e) => { bump[i] += .2 * e * e; });
     } else if (sp.kind === 'r') {   // risaia: ogni tanto il ponticello di terra sopra un fosso
       for (let s = sp.s0 + 26; s < sp.s1 - 16; s += 38 + rnd() * 16) put(s, 5, (i, u, e) => { bump[i] += .13 * e * e; });
     } else if (sp.kind === 'p') {   // pietraia: lastre e scalini
