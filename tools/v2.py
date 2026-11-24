@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 23   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 24   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -126,6 +126,13 @@ for old, new, what in [
 ]:
     if old not in pr: sys.exit('v2.py: non trovo %s in progress.js' % what)
     pr = pr.replace(old, new, 1)
+ph = hashlib.sha1(pr.encode()).hexdigest()[:8]
+_x = "export const isUnlocked = (m, level = levelInfo().level) => (m.event !== 'xmas' || xmasOn()) && level >= (m.unlock || 1);"
+if _x not in pr: sys.exit('v2.py: non trovo isUnlocked in progress.js')
+pr = pr.replace(_x, "export const isUnlocked = (m, level = levelInfo().level) => m.event === 'xmas' || level >= (m.unlock || 1);   // v2 · prova: la Christmas Madness e' aperta subito, senza aspettare il 1 dicembre")
+_x = "export const lockText = m => m.event === 'xmas' && !xmasOn() ? 'ARRIVA IL 1° DICEMBRE' : 'LIV ' + (m.unlock || 1);"
+if _x not in pr: sys.exit('v2.py: non trovo lockText in progress.js')
+pr = pr.replace(_x, "export const lockText = m => 'LIV ' + (m.unlock || 1);")
 ph = hashlib.sha1(pr.encode()).hexdigest()[:8]
 open(os.path.join(ROOT, 'v2', 'progress.js'), 'w', encoding='utf-8').write(pr)
 g, n = re.subn(r"from '\.\./progress\.js\?v=[0-9a-z]+'", "from './progress.js?v=" + ph + "'", g)

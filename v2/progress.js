@@ -85,9 +85,9 @@ export function xmasOn(d = new Date()) {
 export const xmasDouble = (d = new Date()) => d.getMonth() === 11 && d.getDate() === 21;   // la notte della Christmas Madness vera
 export const xmasTeaser = (d = new Date()) => !xmasOn(d) && d.getMonth() === 10;   // v149 · tutto novembre si vede col lucchetto (prima dal 15)
 export const eventOn = ev => ev === 'xmas' ? xmasOn() || xmasTeaser() : true;
-export const lockText = m => m.event === 'xmas' && !xmasOn() ? 'ARRIVA IL 1° DICEMBRE' : 'LIV ' + (m.unlock || 1);
+export const lockText = m => 'LIV ' + (m.unlock || 1);
 export const SHOWN = () => MODES.filter(m => !m.hidden && (!m.event || eventOn(m.event)));
-export const isUnlocked = (m, level = levelInfo().level) => (m.event !== 'xmas' || xmasOn()) && level >= (m.unlock || 1);
+export const isUnlocked = (m, level = levelInfo().level) => m.event === 'xmas' || level >= (m.unlock || 1);   // v2 · prova: la Christmas Madness e' aperta subito, senza aspettare il 1 dicembre
 // v106.5 · percorso della settimana: cambia ogni lunedì e porta il doppio delle birre al rifugio
 export function weeklyTrack(d = new Date()) {
   const ids = SHOWN().filter(m => m.id !== 3 && !m.random).map(m => m.id);
