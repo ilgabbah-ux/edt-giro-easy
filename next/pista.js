@@ -12,6 +12,7 @@ export const KIND = {
   f: { name: 'fango', w: 7, side: 22, grip: .68, drag: 1.3, rough: .015, tex: 'mud', tape: 1 },
   m: { name: 'mulattiera', w: 5.2, side: 7.5, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },
   i: { name: 'ghiaccio', w: 9, side: 3.2, grip: .85, drag: 0, rough: .006, tex: 'ice', tape: 0 },   /* Ice Scrofy: neve battuta e ghiaccio, gomme chiodate. Tiene poco: si gira di traverso */
+  r: { name: 'risaia', w: 6.5, side: 7, grip: 1.05, drag: 0, rough: .01, tex: 'trail', tape: 0 },   /* Leventino: l'argine di terra battuta tra due camere di risaia allagate */
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
 };
@@ -44,6 +45,22 @@ export const SALITA_INFAME = [   // si sale quasi sempre: 1,2 km di salita vera,
   [70, 0, -2, 'v'], [90, -70, -1, 'v'], [120, 0, 0, 'v'],
 ];
 export const SALITA_EXTRA = { forks: [[100, 240, 10, 15], [2010, 2150, 19, 8]], logs: [1030, 1110] };
+// LEVENTINO · Sostegno (Biella). Ricavato dalla traccia vera del Leventino 2025 (77 km, GPX di Wikiloc) ristretta a 2,7 km: stesso ordine e stesse proporzioni di salite e pianura.
+// Partenza dal paese, giù al torrente, prima salita sulle Terre Rosse (612 m veri) con la mulattiera degli Alpini, giù, le risaie del fondovalle con gli argini a gomito, la collina di mezzo, altre risaie, la seconda salita (624 m veri) e l'arrivo.
+export const LEVENTINO = [[60,0,2,'v'],[45,60,3,'v'],[50,-70,-9,'d'],[45,0,-10,'b'],[36,40,-11,'b'],[22,0,0,'g'],
+  [40,0,14,'s'],[28,18,22,'s'],[45,0,28,'s'],[26,0,18,'m'],[27,-17,20,'m'],[26,0,20,'m'],[27,17,14,'m'],
+  [30,0,2,'t'],[24,-16,0,'t'],[24,15,-1,'t'],[26,0,-1,'t'],
+  [35,0,-20,'d'],[28,22,-25,'d'],[40,0,-27,'d'],[28,-20,-20,'d'],[20,0,-8,'d'],
+  [50,0,-3,'v'],[60,90,-4,'v'],[45,0,-3,'p'],[36,45,-5,'p'],[40,0,-12,'d'],[36,-30,-9,'d'],[30,0,-3,'v'],
+  [70,0,0,'r'],[22,14,0,'r'],[44,0,0,'r'],[22,-14,0,'r'],[56,0,0,'f'],[22,14,0,'r'],[36,0,0,'r'],[22,0,0,'g'],[70,0,0,'r'],
+  [34,0,12,'s'],[34,-40,-9,'d'],
+  [44,0,22,'s'],[28,18,24,'m'],[32,0,22,'m'],[24,0,2,'t'],[36,0,-22,'d'],[28,-20,-24,'d'],[36,0,-18,'d'],[36,0,-10.5,'d'],
+  [60,0,0,'r'],[22,14,0,'r'],[50,0,0,'f'],[62,0,0,'r'],
+  [50,0,4,'v'],[70,70,5,'v'],[40,0,6,'v'],
+  [40,0,14,'s'],[34,20,24,'s'],[60,0,30,'s'],[34,-18,22,'s'],[36,0,6,'p'],[36,0,2,'p'],[30,0,0,'t'],[24,-15,0,'t'],[24,15,-2,'t'],
+  [36,0,-20,'d'],[28,20,-26,'d'],[40,0,-26,'d'],[28,-22,-18,'d'],[30,0,-9,'d'],
+  [50,0,-2,'v'],[100,0,0,'v']];
+export const LEVENTINO_EXTRA = { forks: [[1934, 2078, 10, 14]], logs: [528, 2362], paddy: [[1040, 1396], [1736, 1922]], ristoro: 1350 };   /* paddy: da dove a dove si corre in mezzo alle risaie (argine stretto, acqua ai lati) */
 // SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
 export const SCUOLA = [
   [150, 0, 0, 'v'], [140, 0, 0, 'v'], [140, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
@@ -105,11 +122,13 @@ export function unroll(tr) { const c = tr.circuit; if (!c || c.done) return; c.d
   const kd = tr.kind[0]; tr.kind = Array.from({ length: n }, () => kd); c.zi = til(c.zi, Int16Array);
   const fm = Math.round(c.lap / FS), bt = a => { const o = new Float32Array(fm * L + 2); for (let i = 0; i < o.length; i++) o[i] = a[i % fm]; return o; }; tr.bump = bt(tr.bump); tr.rough = bt(tr.rough);
   tr.n = n; tr.len = (n - 1) * DS; tr.spans = [{ kind: kd, s0: 0, s1: tr.len }]; }
+export const paddyAt = (tr, s) => { let v = 0; for (const [a, b] of tr.paddy) { const t = Math.min(s - a, b - s) / 14; if (t > 0) v = Math.max(v, t >= 1 ? 1 : t * t * (3 - 2 * t)); } return v; };   /* 0 fuori dalle risaie, 1 in mezzo */
 export const zoneAt = (tr, s) => { const c = tr.circuit; if (!c) return ''; const q = c.zi[Math.min(tr.n - 1, Math.round(s / DS))]; let nm = ''; for (const [a, t] of c.zones) if (q >= a) nm = t; return nm; };
 const smooth = (a, n) => a.map((_, i) => { let s = 0, c = 0; for (let k = -n; k <= n; k++) { s += a[Math.max(0, Math.min(a.length - 1, i + k))]; c++; } return s / c; });
 export function buildTrack(segs = GIRO_EASY, extra = {}) {
   let k = [], g = [], w = [], sd = [], kind = [];
   for (const [len, r, gr, kd] of segs) for (let s = 0; s < len; s += DS) { k.push(r ? 1 / r : 0); g.push(gr / 100); w.push(KIND[kd].w); sd.push(KIND[kd].side); kind.push(kd); }
+  for (const [a, b] of (extra.paddy || [])) for (let i = Math.round(a / DS); i < Math.min(sd.length, Math.round(b / DS)); i++) sd[i] = 7;   /* in risaia anche il fango e il fosso hanno l'argine stretto */
   k = smooth(k, 4); g = smooth(g, 8); w = smooth(w, 6); sd = smooth(sd, 6);
   // mai uguale: la larghezza respira lungo tutto il percorso (strettoie e slarghi), anche dentro lo stesso tratto
   w = w.map((v, i) => { const s = i * DS, kk = kind[i] === 'm' || kind[i] === 't' || kind[i] === 'b' ? .55 : 1; return Math.max(1.9, v * (1 + kk * (.22 * Math.sin(s * .041 + 1) + .13 * Math.sin(s * .097 + 2.3) + .07 * Math.sin(s * .23)))); });
@@ -117,7 +136,7 @@ export function buildTrack(segs = GIRO_EASY, extra = {}) {
   const n = k.length, x = new Float32Array(n), z = new Float32Array(n), y = new Float32Array(n), h = new Float32Array(n);
   let px = 0, pz = 0, py = 0, ph = 0;
   for (let i = 0; i < n; i++) { x[i] = px; z[i] = pz; y[i] = py; h[i] = ph; ph += k[i] * DS; px += Math.sin(ph) * DS; pz -= Math.cos(ph) * DS; py += g[i] * DS; }
-  const tr = { n, x, z, y, h, k: Float32Array.from(k), g: Float32Array.from(g), w: Float32Array.from(w), side: Float32Array.from(sd), kind, len: (n - 1) * DS, water: [], branches: [], logs: (extra.logs || []).map(s => ({ s })), stations: extra.stations || null, forks: (extra.forks || []).map(([s0, s1, DL, DR]) => ({ s0, s1, DL, DR })), plain: !!extra.plain, steps: extra.steps || null, jumps: extra.jumps || [] };
+  const tr = { n, x, z, y, h, k: Float32Array.from(k), g: Float32Array.from(g), w: Float32Array.from(w), side: Float32Array.from(sd), kind, len: (n - 1) * DS, water: [], branches: [], logs: (extra.logs || []).map(s => ({ s })), stations: extra.stations || null, forks: (extra.forks || []).map(([s0, s1, DL, DR]) => ({ s0, s1, DL, DR })), plain: !!extra.plain, steps: extra.steps || null, jumps: extra.jumps || [], paddy: extra.paddy || [], ristoro: extra.ristoro || 0 };
   // tratti (inizio, fine, tipo) per il disegno e per i cartelli
   tr.spans = []; for (let i = 0; i < n; i++) { const L = tr.spans[tr.spans.length - 1]; if (L && L.kind === kind[i]) L.s1 = (i + 1) * DS; else tr.spans.push({ kind: kind[i], s0: i * DS, s1: (i + 1) * DS }); }
   addGround(tr); return tr;
@@ -146,6 +165,8 @@ function addGround(tr) {
         else if (kd === 'gradino') put(s, 5, (i, u, e) => { bump[i] += .28 * tight * e * e * (u < .5 ? 1 : .5); });
         else put(s, 15, (i, u, e) => { bump[i] += .2 * tight * Math.pow(Math.sin(Math.PI * u * 3), 2) * Math.min(1, e * 3); });
       }
+    } else if (sp.kind === 'r') {   // risaia: ogni tanto il ponticello di terra sopra un fosso
+      for (let s = sp.s0 + 26; s < sp.s1 - 16; s += 38 + rnd() * 16) put(s, 5, (i, u, e) => { bump[i] += .13 * e * e; });
     } else if (sp.kind === 'p') {   // pietraia: lastre e scalini
       for (let s = sp.s0 + 6; s < sp.s1 - 8; s += 4.5 + rnd() * 4.5) { const a = (.1 + rnd() * .14) * (rnd() > .4 ? 1 : -1); put(s, 2.8 + rnd() * 2, (i, u, e) => { bump[i] += a * e; }); }
     } else if (sp.kind === 'm') {   // mulattiera: canalette di scolo di traverso
@@ -190,6 +211,7 @@ export function groundY(tr, s, d, smoothOnly) {
   if (kd.name === 'mulattiera') side = out * (d > 0 ? .3 : -.2) + out * .08 * noise(s * 2, d * 3);
   else if (kd.name === 'ghiaccio') side = .55 * Math.pow(Math.sin(Math.PI * Math.min(1, out / 3)), 1.2) - .1 * Math.min(1, out / 3.2);   /* sponda di neve spalata ai bordi, poi la piana */
   else if (kd.name === 'single track') side = out * .1 * noise(s * 2.3, d * 2.1 + 4) + out * out * .008;
+  if (tr.paddy && tr.paddy.length) { const pd = paddyAt(tr, s); if (pd > 0) side = side * (1 - pd) - Math.min(out, 3.2) * .3 * pd; }   /* l'argine scende nell'acqua della risaia */
   const fade = Math.max(0, 1 - out / 3), rg = smoothOnly ? 0 : prof(tr.rough, s) * (Math.sin(s * 7.3 + d * 5.1) + Math.sin(s * 11.7 - d * 3.3)) * .5;
   if (fkk) { const isl = Math.min(d + laneOff(tr, s, -1), laneOff(tr, s, 1) - d); if (isl > hw) side += 2.1 * sm((isl - hw - .4) / 4.5); }   // l'isola tra le due vie è un dosso di bosco: da una via non si vede l'altra
   return yc + rut + bank + side + fstep + (prof(tr.bump, s) + rg) * fade;
