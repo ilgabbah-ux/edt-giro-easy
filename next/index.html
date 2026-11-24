@@ -101,6 +101,11 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #gUp{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}#gUp .up{background:#1c1c1c;padding:10px;display:flex;flex-direction:column;gap:4px;border-bottom:3px solid #e2261c}#gUp b{font:700 16px Barlow,sans-serif;color:#fff}#gUp em{font-style:normal;color:#ffd400;letter-spacing:2px}#gUp span{font:600 13px Barlow,sans-serif;color:#bbb}
 #gUp button{margin-top:4px;height:38px;border:0;background:#ffd400;color:#111;font:700 14px Barlow,sans-serif}#gUp button:disabled{background:#333;color:#888}#gUp .upn{grid-column:1/-1;font:600 12px Barlow,sans-serif;color:#999;margin:2px 0 0}
 @media (max-height:430px){#fine{padding:4px}#fine .fb{padding:8px 14px}#fPos{font-size:28px}#fTime{font-size:22px;display:inline-block}#fMed{margin:0 0 4px;font-size:13px}#fProf{margin:0 0 4px;font-size:12px}#fine li{padding:2px 0;font-size:13px}#fine li.tot{font-size:16px}#fine .frow{margin-top:6px}#fine .frow button{height:38px;font-size:14px}}
+
+.parts .slot{margin:0 0 12px}.parts .slot>b{display:block;font:700 14px Barlow,sans-serif;color:#ffd400;letter-spacing:.06em;margin:0 0 6px}.parts .its{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.parts .it{position:relative;text-align:left;background:#1c1c1c;border:0;border-bottom:3px solid #333;color:#fff;padding:8px 8px 8px 30px;display:flex;flex-direction:column;gap:2px;min-height:74px}.parts .it u{position:absolute;left:8px;top:10px;width:14px;height:14px;border-radius:50%;border:1px solid #666}
+.parts .it b{font:700 14px Barlow,sans-serif}.parts .it span{font:600 11px/1.25 Barlow,sans-serif;color:#aaa}.parts .it i{font:700 12px Barlow,sans-serif;font-style:normal;color:#ffd400;margin-top:auto}.parts .it.on{border-color:#ffd400;background:#2a2610}.parts .it.no{opacity:.5}.parts .it.no i{color:#999}
+.fst{position:absolute;pointer-events:none;animation:fstF 3.6s linear forwards;z-index:1}.fst.fu{animation:fstB 1.6s ease-out forwards;opacity:0}@keyframes fstF{to{transform:translateY(118vh) rotate(540deg)}}@keyframes fstB{0%{transform:scale(.2);opacity:0}30%{opacity:1}100%{transform:scale(2.6);opacity:0}}#fine .fb{position:relative;z-index:2}
 </style>
 </head>
 <body>
@@ -109,7 +114,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v76</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v77</div>
 <div class="hud hidden" id="tip"></div>
 <div class="hud" id="msg"></div>
 <div id="fine" class="hide"><div class="fb"><small id="fTr"></small><h2 id="fPos"></h2><div id="fTime"></div><div id="fMed"></div><div id="fProf"></div><div class="fc"><ul id="fRows"></ul><ol id="fOrd"></ol></div><div class="frow"><button id="fAgain" type="button">RIPROVA</button><button id="fShare" type="button">SFIDA UN AMICO</button><button id="fMenu" type="button">MENU</button></div></div></div>
@@ -150,7 +155,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
  </div>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 76; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=76"></script>
+(function () { var V = 77; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=77"></script>
 </body>
 </html>
