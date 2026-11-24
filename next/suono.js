@@ -47,6 +47,7 @@ export async function startSound() {
 }
 export function whip() { if (ctx && on) { burst(.11, 2600, .7, .22, 'bandpass'); burst(.07, 900, .8, .16, 'bandpass', .03); } }   // ramo in faccia
 export function splash(k) { if (ctx && on) { burst(.5, 1400, .5, Math.min(.5, .15 + k * .4), 'bandpass'); burst(.3, 300, .6, Math.min(.5, k * .5), 'lowpass'); } }   // entrata in acqua
+export function splosh(k) { if (ctx && on) { const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(45, t + .16); g.gain.setValueAtTime(Math.min(.7, .3 + k * .5), t); g.gain.exponentialRampToValueAtTime(.001, t + .22); o.connect(g); g.connect(master); o.start(t); o.stop(t + .24); burst(.32, 380, .6, Math.min(.55, .25 + k * .4), 'lowpass'); burst(.09, 750, 1.2, Math.min(.3, .1 + k * .25), 'bandpass', .02); burst(.2, 300, .7, Math.min(.3, k * .35), 'lowpass', .12); } }   // pozza di fango: una botta sorda e uno sciaf, non lo scroscio d'acqua del guado
 export function thud(k) {   // atterraggio o botta
   if (!ctx || !on || k < .12) return; const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(38, t + .18);
   g.gain.setValueAtTime(Math.min(.8, k), t); g.gain.exponentialRampToValueAtTime(.001, t + .25); o.connect(g); g.connect(master); o.start(t); o.stop(t + .27); burst(.14, 700, .7, Math.min(.4, k * .5), 'lowpass');
@@ -73,7 +74,7 @@ export function soundUpdate(dt, p) {
   e.g.gain.setTargetAtTime(EP.el ? 0 : (.3 + load * .45) * (e.shiftT > 0 ? .55 : 1), t, .04);
   e.intake.f.frequency.setTargetAtTime(900 + e.rpm * 1300, t, .1); e.intake.g.gain.setTargetAtTime((.006 + e.rpm * .008) * EP.nz, t, .1);
   e.sub.frequency.setTargetAtTime(Fb, t, .06); e.sg.gain.setTargetAtTime((.02 + load * .03) * (e.shiftT > 0 ? .5 : 1), t, .06);
-  const sp = Math.min(1.4, speed), wetK = Math.min(1, (p.wet || 0) * 5), rough = Math.min(1, p.rough * 14 + p.off * .6 + wetK * 1.2 + (p.surf === 'mud' ? .35 : 0));   // nell'acqua e nel fango si sente lo sciacquio
+  const sp = Math.min(1.4, speed), wetK = Math.min(1, (p.wet || 0) * 5) * (p.mudW ? .3 : 1), rough = Math.min(1, p.rough * 14 + p.off * .6 + wetK * 1.2 + (p.surf === 'mud' ? .35 : 0));   // nell'acqua e nel fango si sente lo sciacquio
   e.tyre.f.frequency.setTargetAtTime((520 + rough * 700) * (.8 + sp * .25), t, .15); e.tyre.g.gain.setTargetAtTime(airborne || speed < .05 ? 0 : (.015 + rough * .045) * sp, t, airborne ? .03 : .12);
   const fast = Math.max(0, Math.min(1, (speed - .45) / .9)); e.wind.g.gain.setTargetAtTime(speed < .05 ? 0 : fast * fast * .075, t, .25); e.wind.f.frequency.setTargetAtTime(500 + fast * 900, t, .3);
   e.skid.g.gain.setTargetAtTime(airborne ? 0 : Math.min(1, Math.abs(p.slip) * 2.4) * Math.min(1, speed / .6) * .13 + p.brk * .03 * Math.min(1, speed), t, .04); e.skid.f.frequency.setTargetAtTime(750 + speed * 250, t, .1);

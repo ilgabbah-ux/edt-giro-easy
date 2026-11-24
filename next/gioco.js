@@ -3,8 +3,8 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { GUSTA_PTS, GUSTA_ELEV, GUSTA_KINDS, GUSTA_KINDS_XMAS, GUSTA_PTS_R, GUSTA_ELEV_R, LEVENTINO_VIET, LEVENTINO, LEVENTINO_EXTRA, paddyAt, SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=46';
-import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=18';
+import { GUSTA_PTS, GUSTA_ELEV, GUSTA_KINDS, GUSTA_KINDS_XMAS, GUSTA_PTS_R, GUSTA_ELEV_R, LEVENTINO_VIET, LEVENTINO, LEVENTINO_EXTRA, paddyAt, SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=47';
+import { startSound, soundUpdate, thud, setSound, whip, splash, splosh, say, preloadVoice, setBike, speaking } from './suono.js?v=19';
 import { MOTO, motoById } from './moto.js?v=4';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
 import { CANZONI, titolo, suona, volume, abbassa, ferma, musicaOn, inOnda } from './musica.js?v=1';
@@ -577,7 +577,7 @@ function step(dt) {
   if (down) { S.lean += (S.fallSide * 1.45 - S.lean) * Math.min(1, dt * 8); S.leanV = 0; } else { S.leanV += ((leanT - S.lean) * (tight ? 95 : 62) * BK.agile - S.leanV * (tight ? 14.5 : 11.5)) * dt; S.lean += S.leanV * dt; }
   // la piega fa girare: velocità di imbardata = g·tan(piega)/v, fino al limite di aderenza del fondo
   if (state === 'play') {
-    if (S.wet > .03 && S.v > 4) { if (!S.inWater) { S.inWater = 1; splash(Math.min(1, S.v / 18)); splat('water', Math.round(8 + S.v * 1.6)); } S.splA = (S.splA || 0) + S.v * S.wet * 14 * dt; while (S.splA >= 1) { S.splA--; splat('water', 1); } } else if (S.wet < .01) S.inWater = 0;   // l'acqua ti arriva in faccia: più forte entri, meno vedi
+    if (S.wet > .03 && S.v > 4) { if (!S.inWater) { S.inWater = 1; S.mudW = tr.water.some(w => w.kind === 'pozza' && S.s > w.s0 - 1.5 && S.s < w.s1 + 1.5); (S.mudW ? splosh : splash)(Math.min(1, S.v / 18)); splat('water', Math.round(8 + S.v * 1.6)); } S.splA = (S.splA || 0) + S.v * S.wet * 14 * dt; while (S.splA >= 1) { S.splA--; splat('water', 1); } } else if (S.wet < .01) S.inWater = 0;   // l'acqua ti arriva in faccia: più forte entri, meno vedi
     if (KD.name === 'fango' && S.off < .5 && S.v > 6) { S.mudA = (S.mudA || 0) + (Math.abs(S.slip) * 9 + (S.gasOn ? .7 : .2)) * dt; while (S.mudA >= 1) { S.mudA--; splat('mud', 1); } }
     for (const br of tr.branches) if (br.s > S.sPrev && br.s <= S.s) { const hw = widthAt(tr, br.s) / 2; if (S.d * br.side > -br.reach - .25) { const deep = clamp((S.d * br.side + br.reach + .25) / (hw + br.reach), .2, 1); splat('leaf', Math.round(2 + deep * 4), br.side); whip(); S.v *= 1 - .07 * deep; S.hit = Math.max(S.hit, .25 * deep); S.psi -= br.side * .03 * deep; } }   // ramo in faccia: non vedi, perdi un po' di velocità, la moto scarta
   }
@@ -725,7 +725,7 @@ function draw(dt) {
   if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0, hx: FIT.hx, hy: FIT.hy, hz: FIT.hz });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
   if (P.ears) P.ears.visible = (S.bunny || 0) > 0; { const tt = performance.now() / 1000; for (const b of tr.beers) if (!b.got) b.m.position.y = b.y + Math.sin(tt * 3 + b.s) * .12; } vociGara(); abbassa(speaking() ? .45 : 1); ghostDraw(dt); rivBuild(); rivStep(dt);
-  rings(dt); WATER_N.offset.x += dt * .018; WATER_N.offset.y += dt * .03; lensDraw(dt); dust(dt); soundUpdate(dt, { thr: S.thr || 0, spin: S.spin || 0, wet: S.wet, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
+  rings(dt); WATER_N.offset.x += dt * .018; WATER_N.offset.y += dt * .03; lensDraw(dt); dust(dt); soundUpdate(dt, { thr: S.thr || 0, spin: S.spin || 0, wet: S.wet, mudW: S.inWater && S.mudW, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
   blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.visible = !renderer.shadowMap.enabled; blob.material.opacity = S.air > 0 ? .16 : .32;
   { const fx = Math.sin(S.psi), fz = -Math.cos(S.psi); sun.target.position.set(Math.round(S.x + fx * 16), S.y, Math.round(S.z + fz * 16)); sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 110); }
   camUpdate(dt); if (!window.__noRender) renderer.render(scene, camera);
@@ -851,6 +851,7 @@ let last = performance.now(), slow = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const fdt = Math.min(.05, (now - last) / 1000); last = now; if (fdt <= 0) return;
+  { const tv = state === 'play' ? 'hidden' : 'visible', tg = $('tag'); if (tg.style.visibility !== tv) tg.style.visibility = tv; }   /* in gara la scritta in mezzo allo schermo sparisce: resta solo al conto alla rovescia e a fine gara */
   if (state === 'count' && S.spiega > 0) { S.spiega -= fdt; if (speaking()) S.spSeen = 1; else if (S.spSeen || !O.snd) S.spiega = 0; $('msg').textContent = 'ASCOLTA…'; }   /* Fest, prima volta: il conto alla rovescia parte solo quando il Gabbah ha finito di spiegare */
   else if (state === 'count') { cd -= fdt; $('msg').textContent = cd > 1.6 ? '3' : cd > .8 ? '2' : cd > 0 ? '1' : 'VIA!'; if (cd <= 0) { state = 'play'; time = 0; } }
   const n = Math.max(1, Math.round(fdt / (1 / 120))); for (let i = 0; i < n; i++) step(fdt / n);

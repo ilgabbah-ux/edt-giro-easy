@@ -64,7 +64,7 @@ export const LEVENTINO = [[60,0,2,'v'],[45,60,3,'v'],[50,-70,-9,'d'],[45,0,-10,'
   [50,0,-2,'v'],[100,0,0,'v']];
 // VIETNAM EDITION: lo stesso Leventino sotto il diluvio. Gli argini dritti e i pezzi in piano diventano fango con le pozze
 export const LEVENTINO_VIET = LEVENTINO.map(([l, r, g, k], i) => [l, r, g, i > 1 && ((k === 'r' && !r) || (k === 'v' && Math.abs(g) < 5)) ? 'f' : k]);   /* i primi cento metri restano di terra buona: si parte lanciati, non nel fango */
-export const LEVENTINO_EXTRA = { forks: [[1934, 2078, 10, 14]], logs: [528, 572, 2362, 2396], paddy: [[1040, 1396], [1736, 1922]], ristoro: 1350 };   /* paddy: da dove a dove si corre in mezzo alle risaie (argine stretto, acqua ai lati) */
+export const LEVENTINO_EXTRA = { forks: [[1934, 2078, 10, 14]], logs: [182, 866, 2298, 2334]   /* tutti su rettilinei dove si vedono da lontano, mai dietro una curva */, paddy: [[1040, 1396], [1736, 1922]], ristoro: 1350 };   /* paddy: da dove a dove si corre in mezzo alle risaie (argine stretto, acqua ai lati) */
 // SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
 export const SCUOLA = [
   [150, 0, 0, 'v'], [140, 0, 0, 'v'], [140, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
