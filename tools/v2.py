@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 9   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 10   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -31,6 +31,13 @@ g = rep(g, "import * as D from '../duel.js", """for (const m of P.MODES) if (![0
 { const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
 import * as D from '../duel.js""", 'import duel')
 
+# 2b) la Shadow chiodata in garage: moto bonus, si sblocca con una medaglia su Ice Scrofy
+g = rep(g, "import * as D from '../duel.js", """if (!P.BIKES.some(b => b.id === 'shadow')) P.BIKES.push({ id: 'shadow', name: 'Shadow chiodata', price: 0, level: 99, icon: '❄', top: true, shadow: true, desc: 'La Shadow chiodata dell’EDT: bobber bicilindrico con l’estintore al posto del serbatoio e le gomme piene di viti. Pesante e lenta a girare, ma sul ghiaccio morde come nessuna. Si sblocca con una medaglia su Ice Scrofy.', ideal: 'Ice Scrofy', stats: { speed: .02, steer: -.15, climb: -.1, grip: .14, drift: .3 }, look: { paint: { plastic: '#b3221b', accent: '#e8eef0', side: '#b3221b', frame: '#b3221b', seat: '#151515', ink: '#e8eef0' }, scale: 1, big: true } });
+import * as D from '../duel.js""", 'import duel (shadow)')
+g = g.replace("locked ? '🔒 LIV ' + b.level", "b.shadow && !owned ? '🔒 MEDAGLIA SU ICE' : locked ? '🔒 LIV ' + b.level")
+g = g.replace("lv < b.level ? '🔒 LIV ' + b.level", "b.shadow ? '🔒 MEDAGLIA SU ICE' : lv < b.level ? '🔒 LIV ' + b.level")
+g = rep(g, "import('../scene3d.js", "import('./scene3d.js", 'import scene3d')
+
 # 3) la gara: parte la guida nuova
 g = rep(g, "function start() {\n", """function start() {
   if (NEXT_PISTA[mode] !== undefined && !duel?.racing) { startNext(); return; }   // v2 · questi percorsi si corrono con la guida nuova
@@ -49,7 +56,7 @@ g += r"""
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
 const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 9: 128, 22: 900 };
-const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300' };
+const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 function startNext() {
   quietMenu = false; A.unlock(); A.stopVoice();
@@ -60,7 +67,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-%d' }).toString();
+  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-%d' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
@@ -77,12 +84,23 @@ function endNext(d) {
   score = (d.beers | 0) * 100 + (ice ? d.drift | 0 : 0); driftScore = d.drift | 0;
   course = win ? GAME_LENGTH : GAME_LENGTH * .5;
   if (nextFrame) { nextFrame.style.display = 'none'; nextFrame.contentWindow?.postMessage({ t: 'edt-next-sleep' }, location.origin); }
+  if (win && mode === 9 && elapsed <= NEXT_LIMIT[9] && !P.ownsBike('shadow')) { P.profile.owned['bike:shadow'] = true; P.save(); setTimeout(() => toast('🔓 SBLOCCATA LA SHADOW CHIODATA: È IN GARAGE', 'gold'), 2600); }   // medaglia su Ice Scrofy = Shadow chiodata
   state = 'playing';
   try { finish(win, win ? '' : 'RITIRATO'); } finally { nextRes = null; }
 }
 addEventListener('message', e => { if (e.origin !== location.origin || state !== 'next') return; const d = e.data || {}; if (d.t === 'edt-next-run' || d.t === 'edt-next-quit') endNext(d); });
 """ % V2
 
+# 5) il 3D del gioco con la Shadow tra i modelli del garage
+sc = open(os.path.join(ROOT, 'scene3d.js'), encoding='utf-8').read()
+sc, n = re.subn(r"(from |import\()'\./", r"\1'../", sc)
+assert n >= 5, n
+for old, new, what in [("fakedomi: 'fakedomi', electric: 'electric',", "fakedomi: 'fakedomi', shadow: 'shadow', electric: 'electric',", 'BIKE_GLB'), ("fakedomi: [.46, 1.33, -.45, 1.11] };", "fakedomi: [.46, 1.33, -.45, 1.11], shadow: [.47, 1.22, -.32, .8] };", 'BIKE_FIT')]:
+    if old not in sc: sys.exit('v2.py: non trovo %s in scene3d.js' % what)
+    sc = sc.replace(old, new, 1)
+sh = hashlib.sha1(sc.encode()).hexdigest()[:8]
+open(os.path.join(ROOT, 'v2', 'scene3d.js'), 'w', encoding='utf-8').write(sc)
+g = re.sub(r"import\('\./scene3d\.js\?v=[0-9a-z]+'\)", "import('./scene3d.js?v=" + sh + "')", g)
 gh = hashlib.sha1(g.encode()).hexdigest()[:8]
 open(os.path.join(ROOT, 'v2', 'game.js'), 'w', encoding='utf-8').write(g)
 
