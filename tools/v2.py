@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 28   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 29   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -27,8 +27,8 @@ g, n = re.subn(r"(from |import\()'\./", r"\1'../", g)
 assert n >= 10, n
 
 # 2) solo i tre percorsi rifatti (piu' la scuola), e la Salita Infame al posto di Dopo migliora
-g = rep(g, "import * as D from '../duel.js", """for (const m of P.MODES) if (![0, 1, 9, 13, 14, 16, 17, 18, 20, 21, 22].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
-{ const L = { 0: 150, 1: 172, 9: 136, 13: 215, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
+g = rep(g, "import * as D from '../duel.js", """for (const m of P.MODES) if (![0, 1, 2, 9, 13, 14, 16, 17, 18, 20, 21, 22].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
+{ const L = { 0: 150, 1: 172, 2: 170, 9: 136, 13: 215, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
 { const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
 import * as D from '../duel.js""", 'import duel')
 
@@ -60,7 +60,7 @@ g += r"""
 // ================= v2 · INCASTRO DELLA GUIDA NUOVA =================
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
-const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 9: 136, 13: 215, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220, 22: 900 };
+const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 2: 170, 9: 136, 13: 215, 14: 132, 16: 185, 17: 148, 18: 190, 20: 145, 21: 220, 22: 900 };
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 function startNext() {
@@ -93,7 +93,7 @@ function endNext(d) {
   if (nextFrame) { nextFrame.style.display = 'none'; nextFrame.contentWindow?.postMessage({ t: 'edt-next-sleep' }, location.origin); }
   if (win && mode === 9 && elapsed <= NEXT_LIMIT[9] && !P.ownsBike('shadow')) { P.profile.owned['bike:shadow'] = true; P.save(); setTimeout(() => toast('🔓 SBLOCCATA LA SHADOW CHIODATA: È IN GARAGE', 'gold'), 2600); }   // medaglia su Ice Scrofy = Shadow chiodata
   state = 'playing';
-  try { finish(win, win ? '' : d.fermato ? 'FERMATO DALLE GEV' : 'RITIRATO'); } finally { nextRes = null; }
+  try { finish(win, win ? '' : d.motivo ? d.motivo : d.fermato ? 'FERMATO DALLE GEV' : 'RITIRATO'); } finally { nextRes = null; }
 }
 addEventListener('message', e => { if (e.origin !== location.origin || state !== 'next') return; const d = e.data || {}; if (d.t === 'edt-next-run' || d.t === 'edt-next-quit') endNext(d); });
 """ % V2
@@ -129,6 +129,12 @@ for old, new, what in [
     if old not in pr: sys.exit('v2.py: non trovo %s in progress.js' % what)
     pr = pr.replace(old, new, 1)
 ph = hashlib.sha1(pr.encode()).hexdigest()[:8]
+_m = re.search(r"\{ id: 2, short: 'POTTER', name: 'Angelo Potter', desc: '[^']*'", pr)   # v2 · Angelo Potter non e' piu' il salto nel burrone: e' la mulattiera del dirupo
+if not _m: sys.exit('v2.py: non trovo Angelo Potter in progress.js')
+pr = pr.replace(_m.group(0), "{ id: 2, short: 'POTTER', name: 'Angelo Potter', desc: 'La vera storia di Angelo: una mulattiera stretta, da una parte la roccia e dall\u2019altra il vuoto. Troppo forte voli gi\u00f9, troppo piano la moto ondeggia. Ogni volo nel dirupo \u00e8 una cicatrice: alla sesta arriva l\u2019elicottero.'")
+_a = pr.index("{ id: 2, short: 'POTTER'"); _b = pr.index("leap: true", _a)
+if _b - _a > 900: sys.exit('v2.py: leap di Angelo Potter non trovato vicino')
+pr = pr[:_b] + "leap: false" + pr[_b + len("leap: true"):]
 for _o, _n in [("short: 'MIGLIORA', name: 'Dopo migliora!'", "short: 'INFAME', name: 'Salita Infame'"), ("Dopo migliora: zona verde", "Salita Infame: zona verde"), ("'Dopo migliora: arriva primo'", "'Salita Infame: arriva primo'")]:   # v2 · il percorso 1 si chiama Salita Infame
     if _o not in pr: sys.exit('v2.py: non trovo %s in progress.js' % _o)
     pr = pr.replace(_o, _n)
@@ -169,6 +175,7 @@ window.EDT_BOARD_URL = 'https://invalid.invalid/exec';
   try { if (!g.call(localStorage, P + '__rec9')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['9'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec9', '1'); } } catch (e) {}   /* Ice Scrofy rallentata: i tempi vecchi non valgono piu' */
   try { if (!g.call(localStorage, P + '__rec16')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['16'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec16', '1'); } } catch (e) {}   /* Desertone rifatto in 3D: tempi vecchi azzerati */
   try { if (!g.call(localStorage, P + '__rec13')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['13'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec13', '1'); } } catch (e) {}   /* Anti-GEV rifatto in 3D: tempi vecchi azzerati */
+  try { if (!g.call(localStorage, P + '__rec2')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['2'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec2', '1'); } } catch (e) {}   /* Angelo Potter rifatto: punteggi vecchi (metri di salto) azzerati */
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
 </script>
 """
