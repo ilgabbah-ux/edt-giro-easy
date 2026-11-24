@@ -11,7 +11,7 @@ export const KIND = {
   g: { name: 'guado', w: 7, side: 20, grip: .8, drag: 0, rough: .01, tex: 'rock', tape: 0 },
   f: { name: 'fango', w: 7, side: 22, grip: .68, drag: 1.3, rough: .015, tex: 'mud', tape: 1 },
   m: { name: 'mulattiera', w: 5.2, side: 7.5, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },
-  i: { name: 'ghiaccio', w: 7.2, side: 3.2, grip: .85, drag: 0, rough: .006, tex: 'ice', tape: 0 },   /* Ice Scrofy: neve battuta e ghiaccio, gomme chiodate. Tiene poco: si gira di traverso */
+  i: { name: 'ghiaccio', w: 9, side: 3.2, grip: .85, drag: 0, rough: .006, tex: 'ice', tape: 0 },   /* Ice Scrofy: neve battuta e ghiaccio, gomme chiodate. Tiene poco: si gira di traverso */
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
 };
@@ -28,22 +28,22 @@ export const GIRO_EASY = [
   [60, 0, -2, 'v'], [90, -75, -1, 'v'], [110, 0, 0, 'v'],
 ];
 // BIVI del Giro Easy: il sentiero si allarga e in mezzo c'è una fila di sassi. A sinistra la CONIGLIERA (molle, lenta, zero rischi), a destra la EASY (tronchi e sassi, ma veloce e con le birre)
-export const GIRO_EXTRA = { forks: [[262, 412, 15, 9], [1822, 1962, 15, 9]] };   // da, a, quanto si allontana la conigliera (a sinistra), quanto la Easy (a destra)
+export const GIRO_EXTRA = { forks: [[262, 412, 15, 9], [1822, 1962, 8, 18]] };   // da, a, quanto si allontana la conigliera (a sinistra), quanto la Easy (a destra)
 // TAPPA 2 · SALITA INFAME: dal fondovalle su per il muro coi gradoni, pietraia in salita, i tornanti della mulattiera, la cresta in single track, poi giù a rotta di collo fino al guado e alla volata
-export const SALITA_INFAME = [
-  [70, 0, 0, 'v'], [80, -70, 2, 'v'], [70, 0, 4, 'v'], [60, 55, 5, 'v'],
-  [45, 0, 16, 's'], [30, 18, 26, 's'], [60, 0, 34, 's'], [28, -18, 28, 's'], [45, 0, 18, 's'],
-  [60, 0, 8, 'p'], [45, 35, 10, 'p'], [50, 0, 6, 'p'],
-  [32, 0, 12, 'm'], [28, 16, 15, 'm'], [30, 0, 16, 'm'], [28, -16, 15, 'm'], [30, 0, 14, 'm'], [28, 17, 13, 'm'], [30, 0, 10, 'm'], [27, -17, 8, 'm'], [30, 0, 5, 'm'],
-  [50, 0, 2, 't'], [25, -16, 1, 't'], [25, 15, 0, 't'], [30, -20, 1, 't'], [35, 24, 0, 't'], [40, 0, -1, 't'],
+export const SALITA_INFAME = [   // si sale quasi sempre: 1,2 km di salita vera, col muro al 40%
+  [70, 0, 3, 'v'], [80, -70, 7, 'v'], [70, 0, 10, 'v'], [60, 55, 12, 'v'],
+  [50, 0, 20, 's'], [36, 18, 30, 's'], [80, 0, 40, 's'], [36, -18, 33, 's'], [55, 0, 24, 's'],
+  [60, 0, 14, 'p'], [45, 35, 16, 'p'], [50, 0, 12, 'p'],
+  [32, 0, 17, 'm'], [28, 16, 20, 'm'], [30, 0, 22, 'm'], [28, -16, 20, 'm'], [30, 0, 19, 'm'], [28, 17, 18, 'm'], [30, 0, 16, 'm'], [27, -17, 13, 'm'], [30, 0, 9, 'm'],
+  [50, 0, 6, 't'], [25, -16, 5, 't'], [25, 15, 4, 't'], [30, -20, 4, 't'], [35, 24, 2, 't'], [40, 0, 0, 't'],
   [60, 0, 0, 'v'], [70, 80, -1, 'v'],
-  [45, 0, -14, 'd'], [30, -20, -20, 'd'], [40, 22, -18, 'd'], [28, -18, -21, 'd'], [36, 20, -17, 'd'], [40, 0, -12, 'd'],
+  [45, 0, -16, 'd'], [30, -20, -22, 'd'], [40, 22, -20, 'd'], [28, -18, -23, 'd'], [36, 20, -19, 'd'], [40, 0, -14, 'd'],
   [50, 0, -6, 'b'], [40, 26, -5, 'b'], [40, -24, -4, 'b'], [35, 0, -3, 'b'],
   [28, 0, 0, 'g'], [45, -50, 0, 'f'], [55, 0, 1, 'f'], [26, 0, 0, 'g'],
   [40, 0, -8, 'd'], [30, 22, -12, 'd'], [35, 0, -9, 'd'],
   [70, 0, -2, 'v'], [90, -70, -1, 'v'], [120, 0, 0, 'v'],
 ];
-export const SALITA_EXTRA = { forks: [[100, 240, 15, 9], [1935, 2075, 15, 9]] };
+export const SALITA_EXTRA = { forks: [[100, 240, 10, 15], [2010, 2150, 19, 8]] };
 // SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
 export const SCUOLA = [
   [150, 0, 0, 'v'], [140, 0, 0, 'v'], [140, 0, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [36, 30, 0, 'v'], [36, -30, 0, 'v'], [26, 0, 0, 'v'],
@@ -81,11 +81,12 @@ export const ICE_ZONE = [[0, 'RETTILINEO DEL FULMINE'], [11, 'CURVONE DERAPAGE']
 // CIRCUITO: la linea di mezzeria è una curva chiusa che passa per i punti. Il giro viene diviso in passi uguali (circa DS) e la pista nasce lunga un giro: così si disegna una volta sola.
 // Poi unroll() la srotola per il numero di giri: stessi posti, distanza che continua a crescere. Per il gioco è un percorso normale con partenza e arrivo.
 export function buildCircuit(pts, kd = 'i', laps = 2, start = 0, zones = []) {
+  if (kd === 'i') pts = pts.map(q => [q[0] * 1.3, q[1] * 1.3]);   /* Ice Scrofy ingrandita del 30%: pista e tornanti più larghi senza che i rami si tocchino */
   const N = pts.length, cr = (a, b, c, d, t) => .5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t), D = [], own = [];
   for (let q = 0; q < N; q++) { const i = (q + start) % N; for (let t = 0; t < 1; t += 1 / 48) { D.push([cr(pts[(i + N - 1) % N][0], pts[i][0], pts[(i + 1) % N][0], pts[(i + 2) % N][0], t), cr(pts[(i + N - 1) % N][1], pts[i][1], pts[(i + 1) % N][1], pts[(i + 2) % N][1], t)]); own.push(i); } }
-  if (kd === 'i') { const M0 = D.length, O = 9, RMIN = 7.2;   /* tornanti un po più aperti: dove il raggio scende sotto i 7 metri la linea si rilassa verso la corda, il resto del disegno non si tocca */
-    for (let it = 0; it < 500; it++) for (let i = 0; i < M0; i++) { const a = D[(i - O + M0) % M0], b = D[i], c = D[(i + O) % M0], ab = Math.hypot(b[0] - a[0], b[1] - a[1]), bc = Math.hypot(c[0] - b[0], c[1] - b[1]), ca = Math.hypot(a[0] - c[0], a[1] - c[1]), ar = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
-      if (ar > 1e-6 && ab * bc * ca / (4 * ar) < RMIN) { b[0] += ((a[0] + c[0]) / 2 - b[0]) * .25; b[1] += ((a[1] + c[1]) / 2 - b[1]) * .25; } } }
+  if (kd === 'i') { const M0 = D.length, O = 14, RMIN = 9;   /* tornanti un po più aperti: dove il raggio scende sotto i 7 metri la linea si rilassa verso la corda, il resto del disegno non si tocca */
+    for (let it = 0, mv = 1; it < 2500 && mv; it++) for (let i = (mv = 0); i < M0; i++) { const a = D[(i - O + M0) % M0], b = D[i], c = D[(i + O) % M0], ab = Math.hypot(b[0] - a[0], b[1] - a[1]), bc = Math.hypot(c[0] - b[0], c[1] - b[1]), ca = Math.hypot(a[0] - c[0], a[1] - c[1]), ar = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
+      if (ar > 1e-6 && ab * bc * ca / (4 * ar) < RMIN) { b[0] += ((a[0] + c[0]) / 2 - b[0]) * .25; b[1] += ((a[1] + c[1]) / 2 - b[1]) * .25; mv = 1; } } }
   const M = D.length, cum = [0]; for (let i = 0; i < M; i++) { const a = D[i], b = D[(i + 1) % M]; cum.push(cum[i] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
   const L = cum[M], m = Math.round(L / DS), st = L / m, x = new Float32Array(m + 1), z = new Float32Array(m + 1), h = new Float32Array(m + 1), zi = new Int16Array(m + 1); let j = 0;
   for (let i = 0; i < m; i++) { const t = i * st; while (cum[j + 1] < t) j++; const u = (t - cum[j]) / (cum[j + 1] - cum[j]), a = D[j], b = D[(j + 1) % M]; x[i] = (a[0] + (b[0] - a[0]) * u) * DS / st; z[i] = (a[1] + (b[1] - a[1]) * u) * DS / st; zi[i] = own[j]; }
@@ -95,7 +96,7 @@ export function buildCircuit(pts, kd = 'i', laps = 2, start = 0, zones = []) {
   const n = m + 1, k = new Float32Array(n), K = KIND[kd]; for (let i = 0; i < m; i++) k[i] = (h[i + 1] - h[i]) / DS; k[m] = k[0];
   { const c = Float32Array.from(k); for (let i = 0; i < n; i++) k[i] = (c[(i + m - 1) % m] + 2 * c[i % m] + c[(i + 1) % m]) / 4; }
   const kAbs = i => { let a = 0; for (let j = -5; j <= 5; j++) a += Math.abs(k[((i + j) % m + m) % m]); return a / 11; };   /* nelle curve strette la pista si allarga fino a una volta e mezza: spazio per girare */
-  const w = new Float32Array(n), sd = new Float32Array(n), kind = []; for (let i = 0; i < n; i++) { const s = (i % m) * DS; const q = zi[i % m], big = q >= 10 && q <= 18 ? Math.min(1, Math.min(q - 9.5, 18.5 - q) / 2.5) : 0; w[i] = K.w * (1 + .1 * Math.sin(s * 2 * Math.PI / (m * DS) * 3 + 1) + .05 * Math.sin(s * 2 * Math.PI / (m * DS) * 7)) * (1 + .6 * big) * (1 + .22 * Math.min(1, Math.max(0, (kAbs(i) - .05) / .08))); sd[i] = K.side;   /* il Curvone Derapage è largo quasi il doppio: è lo spiazzo dove si gira di traverso */ kind.push(kd); }
+  const w = new Float32Array(n), sd = new Float32Array(n), kind = []; for (let i = 0; i < n; i++) { const s = (i % m) * DS; const q = zi[i % m], big = q >= 10 && q <= 18 ? Math.min(1, Math.min(q - 9.5, 18.5 - q) / 2.5) : 0; w[i] = K.w * (1 + .1 * Math.sin(s * 2 * Math.PI / (m * DS) * 3 + 1) + .05 * Math.sin(s * 2 * Math.PI / (m * DS) * 7)) * (1 + .45 * big) * (1 + .25 * Math.min(1, Math.max(0, (kAbs(i) - .05) / .08))); sd[i] = K.side;   /* il Curvone Derapage è largo quasi il doppio: è lo spiazzo dove si gira di traverso */ kind.push(kd); }
   const tr = { n, x, z, y: new Float32Array(n), h, k, g: new Float32Array(n), w, side: sd, kind, len: m * DS, water: [], branches: [], logs: [], stations: null, forks: [], plain: false, steps: [], jumps: [], circuit: { laps, m, lap: m * DS, turn: h[m] - h[0], zi, zones } };
   tr.spans = [{ kind: kd, s0: 0, s1: m * DS }]; addGround(tr); return tr;
 }

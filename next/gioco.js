@@ -3,7 +3,7 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=35';
+import { SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=36';
 import { startSound, soundUpdate, thud, setSound, whip, splash , say, preloadVoice, setBike, speaking } from './suono.js?v=17';
 import { MOTO, motoById } from './moto.js?v=4';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
@@ -70,13 +70,15 @@ const tex = (src, rx, ry) => { const t = tl.load(src); t.colorSpace = T.SRGBColo
 
 // ---------- pista ----------
 const SCHOOL = opt('pista', 's') === 's';   // si parte dalla scuola; finita quella, il giro
-const TAPPA2 = opt('pista', 's') === 'i', ICE = opt('pista', 's') === 'x', TK = TAPPA2 ? 'i' : ICE ? 'x2' : '';   /* x2: partenza spostata, record e fantasma del vecchio giro non valgono più */   /* tappa 2 e Ice Scrofy: record e fantasma loro */
+const TAPPA2 = opt('pista', 's') === 'i', ICE = opt('pista', 's') === 'x', TK = TAPPA2 ? 'i2' : ICE ? 'x3' : '';   /* x2: partenza spostata, record e fantasma del vecchio giro non valgono più */   /* tappa 2 e Ice Scrofy: record e fantasma loro */
 const tr = SCHOOL ? buildTrack(SCUOLA, SCUOLA_EXTRA) : ICE ? buildCircuit(ICE_PTS, 'i', 2, 19, ICE_ZONE)   /* partenza e traguardo sul rettilineo più lungo, il Rettilineo della Furia */ : TAPPA2 ? buildTrack(SALITA_INFAME, SALITA_EXTRA) : buildTrack(undefined, GIRO_EXTRA);
-for (const f of tr.forks) tr.logs.push({ s: f.s0 + 104, lane: 1 });   // sulla via EASY, dopo i due gradoni, un tronco   // sulla via EASY due tronchi (solo nella corsia di destra)
+/* I BIVI NON SONO TUTTI UGUALI: ogni via Easy ha la sua prova (un tronco, tre tronchi in fila, due tronchi lontani) e a ogni partita si rimescolano */
+{ const TIPI = [{ logs: [104], birre: [50, 74, 96, 118], txt: 'un tronco, birre →' }, { logs: [46, 76, 106], birre: [34, 61, 91, 120], txt: 'tre tronchi: impenna! →' }, { logs: [40, 118], birre: [58, 72, 86, 100, 130], txt: 'due tronchi, 5 birre →' }], ord = [0, 1, 2].sort(() => Math.random() - .5);
+  tr.forks.forEach((f, i) => { f.tipo = TIPI[ord[i % 3]]; for (const o of f.tipo.logs) tr.logs.push({ s: f.s0 + o, lane: 1 }); }); }   // sulla via EASY, dopo i due gradoni, un tronco   // sulla via EASY due tronchi (solo nella corsia di destra)
 // BIRRE: sparse lungo il percorso fuori dalla linea più comoda, tre su ogni via EASY, nessuna in conigliera
 { let seed = 2024; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647; tr.beers = [];
   if (!SCHOOL) { for (let s = 70; s < tr.len - 40; s += 55 + rnd() * 45) { if (tr.forks.some(f => s > f.s0 - 5 && s < f.s1 + 5)) continue; const hw = widthAt(tr, s) / 2; tr.beers.push({ s, d: (rnd() < .5 ? -1 : 1) * hw * (.35 + rnd() * .4) }); }
-    for (const f of tr.forks) for (const o of [50, 74, 96, 118]) tr.beers.push({ s: f.s0 + o, d: laneOff(tr, f.s0 + o, 1) }); } }
+    for (const f of tr.forks) for (const o of f.tipo.birre) tr.beers.push({ s: f.s0 + o, d: laneOff(tr, f.s0 + o, 1) }); } }
 const P = {};
 const TEXF = { trail: 'trail_d', rock: 'mossrock_d', mud: 'mudtrack_d', cobble: 'rockwall_d', forest: 'forestfloor_d', ice: 'mudtrack_d' }, TEXN = Object.keys(TEXF);
 // rumore morbido (0..1) per rompere l'uniformità: chiazze, bordi frastagliati, ciuffi a gruppi
@@ -250,7 +252,7 @@ function barkTex() {   /* corteccia disegnata: solchi verticali scuri, creste ch
   { const bark = new T.MeshLambertMaterial({ map: tex('../img/tex/forestfloor_d.webp'), color: 0x7a5a3c }); for (const lg of tr.logs) { const hw = widthAt(tr, lg.s) / 2, w = hw * 2 + 3, dc = lg.lane ? laneOff(tr, lg.s, 1) : 0; at(tr, lg.s, dc, P); const m = new T.Mesh(new T.CylinderGeometry(.21, .24, w, 10), bark); m.rotation.set(0, -P.h, Math.PI / 2, 'YXZ'); m.position.set(P.x, groundY(tr, lg.s, dc, true) + .2, P.z); scene.add(m); } }
   // cartelli del bivio: a sinistra la CONIGLIERA con le orecchie da coniglio, a destra la EASY
   for (const f of tr.forks) for (const [lab, sg, col] of [['CONIGLIERA', -1, '#f4f1e8'], ['EASY', 1, '#ffd400']]) { const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const x = cv.getContext('2d');
-    x.fillStyle = col; x.fillRect(0, 96, 512, 160); x.strokeStyle = '#111'; x.lineWidth = 8; x.strokeRect(4, 100, 504, 152); x.fillStyle = '#111'; x.font = 'bold 82px Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(lab, 256, 150); x.font = 'bold 44px Impact, sans-serif'; x.fillText(sg < 0 ? '← molle e lenta' : 'hard, veloce, birre →', 256, 218);
+    x.fillStyle = col; x.fillRect(0, 96, 512, 160); x.strokeStyle = '#111'; x.lineWidth = 8; x.strokeRect(4, 100, 504, 152); x.fillStyle = '#111'; x.font = 'bold 82px Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(lab, 256, 150); x.font = 'bold 44px Impact, sans-serif'; x.fillText(sg < 0 ? '← molle e lenta' : f.tipo.txt, 256, 218);
     if (sg < 0) for (const ex of [200, 312]) { x.fillStyle = '#f4f1e8'; x.strokeStyle = '#111'; x.lineWidth = 7; x.beginPath(); x.ellipse(ex, 52, 30, 50, (ex < 256 ? -1 : 1) * .22, 0, 7); x.fill(); x.stroke(); x.fillStyle = '#f2a5b4'; x.beginPath(); x.ellipse(ex, 58, 13, 32, (ex < 256 ? -1 : 1) * .22, 0, 7); x.fill(); }
     const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace; const b = new T.Mesh(new T.PlaneGeometry(5.6, 2.8), new T.MeshBasicMaterial({ map: t, transparent: true, side: T.DoubleSide })); at(tr, f.s0 + 30, sg * 2.9 - 1.2, P); b.position.set(P.x, groundY(tr, f.s0 + 30, sg * 2.9 - 1.2, true) + 3, P.z); b.rotation.y = -P.h; scene.add(b);
     const pole = new T.Mesh(new T.CylinderGeometry(.06, .06, 2.4, 6), new T.MeshLambertMaterial({ color: 0x5a4632 })); pole.position.set(P.x, b.position.y - 1.6, P.z); scene.add(pole); }
@@ -259,8 +261,6 @@ function barkTex() {   /* corteccia disegnata: solchi verticali scuri, creste ch
     for (const b of tr.beers) { at(tr, b.s, b.d, P); b.m = new T.Sprite(sm); b.m.renderOrder = 6; b.m.scale.set(1.3, 1.3, 1); b.y = groundY(tr, b.s, b.d, true) + 1.05; b.m.position.set(P.x, b.y, P.z); scene.add(b.m); } }
 }
 
-if (ICE) { const list = []; let acc = 0; for (let i = 0; i < tr.n - 1; i++) { acc += DS * (Math.abs(tr.k[i]) > .012 ? 2.6 : 1); if (acc < 6) continue; acc = 0; for (const sg of [-1, 1]) { const s = i * DS, d = sg * (widthAt(tr, s) / 2 + .55); at(tr, s, d, P); list.push(P.x, groundY(tr, s, d, true), P.z); } }
-  const g = new T.CylinderGeometry(.06, .06, 1.4, 6), im = new T.InstancedMesh(g, new T.MeshLambertMaterial({ color: 0xff5a14, emissive: 0x5a1c00 }), list.length / 3), m = new T.Matrix4(); for (let i = 0; i < list.length / 3; i++) { m.makeTranslation(list[i * 3], list[i * 3 + 1] + .55, list[i * 3 + 2]); im.setMatrixAt(i, m); } im.castShadow = true; scene.add(im); }
 if (ICE) { const lapL = tr.n * DS, A = new T.Vector3(), B = new T.Vector3();   /* i cartelli veri di Ice Scrofy, grandi e a bordo pista, girati verso chi arriva */
   const SG = [['trenta', .706, 1, 1.5, 2.25, 0], ['chiodi', .761, -1, 2.3, 1.52, 1], ['trenta', .891, -1, 1.5, 2.25, 0], ['gusta', .031, 1, 1.5, 2.27, 1], ['chiodi', .166, 1, 2.3, 1.52, 1], ['gusta', .286, -1, 1.5, 2.27, 1], ['chiodi', .396, -1, 2.3, 1.52, 1], ['gusta', .506, 1, 1.5, 2.27, 1], ['trenta', .596, -1, 1.5, 2.25, 0]];
   const poleM = new T.MeshLambertMaterial({ color: 0x8a9096 });
@@ -408,7 +408,7 @@ const G = 9.81, VMAX = 30 * BK.top;   // 108 km/h
 const S = { x: 0, z: 0, y: 0, psi: 0, v: 0, lean: 0, leanV: 0, steer: 0, slip: 0, air: 0, vy: 0, i: 0, s: 0, d: 0, off: 0, hit: 0, pitch: 0, grade: 0, brkAmt: 0, stand: 0, dab: 0, fwd: 0, by: 0, bvy: 0, comp: 0, cF: 0, cR: 0, rough: 0, grip: 1.1, wet: 0, kd: KIND.v };
 let state = 'menu', t0 = 0, time = 0, cd = 0, best = parseFloat(opt('best3' + TK, '0')) || 0, wrong = 0;
 // FANTASMA del giro migliore: posizione ogni decimo di secondo, salvata sul telefono insieme agli intertempi
-const MED = ICE ? [[88, 'ORO'], [96, 'ARGENTO'], [106, 'BRONZO']] : TAPPA2 ? [[136, 'ORO'], [150, 'ARGENTO'], [166, 'BRONZO']] : [[122, 'ORO'], [135, 'ARGENTO'], [150, 'BRONZO']];   /* tarate sui giri veri: l'oro vuol dire stare davanti a Mirco */
+const MED = ICE ? [[106, 'ORO'], [116, 'ARGENTO'], [128, 'BRONZO']] : TAPPA2 ? [[142, 'ORO'], [156, 'ARGENTO'], [172, 'BRONZO']] : [[122, 'ORO'], [135, 'ARGENTO'], [150, 'BRONZO']];   /* tarate sui giri veri: l'oro vuol dire stare davanti a Mirco */
 let ghost = null, rec = [], recT = 0, splits = [], bestSplits = []; try { const j = JSON.parse(opt('ghost3' + TK, 'null')); if (j && j.p) { ghost = j.p; bestSplits = j.s || []; } } catch {}
 const ghostG = new T.Group(); ghostG.visible = false; scene.add(ghostG); { const gm = new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .32, depthWrite: false }); const b = new T.Mesh(new T.BoxGeometry(.34, .75, 1.7), gm); b.position.y = .75; const r = new T.Mesh(new T.CapsuleGeometry(.2, .6, 4, 8), gm); r.position.set(0, 1.45, .1); for (const z of [-.72, .72]) { const w = new T.Mesh(new T.CylinderGeometry(.32, .32, .12, 14), gm); w.rotation.z = Math.PI / 2; w.position.set(0, .32, z); ghostG.add(w); } ghostG.add(b, r); ghostG.traverse(o => { o.userData.noShadow = 1; o.renderOrder = 6; }); }   // dopo il sentiero, sennò il sentiero lo copre (era per questo che non si vedeva)
 function ghostDraw() { ghostBuild(); if (state === 'play' && !SCHOOL) { if (time >= recT) { recT += .1; rec.push(+S.x.toFixed(2), +S.y.toFixed(2), +S.z.toFixed(2), +S.psi.toFixed(3), +S.lean.toFixed(2)); } }
@@ -651,8 +651,8 @@ function labels() { if ($('oMeteo')) { $('oMeteo').textContent = 'METEO: ' + ({ 
 /* MENU come nel gioco in uso: targhetta del pilota, scheda del percorso, tasto giallo, griglie di percorsi, piloti e moto. Le scelte si fanno toccando le schede; la moto si carica quando premi ACCENDI LA MOTO */
 const PISTE = [{ id: 's', ps: 'SCUOLA · 1,3 km', name: 'SCUOLA DI ENDURO', txt: 'Si parte dalle basi, una cosa per volta, con la voce del Gabbah. Se sbagli riparti da quel punto.', short: '12 stazioni' },
   { id: 'g', ps: 'TAPPA 1 · 2,0 km', name: 'GIRO EASY', txt: 'Veloce, salita coi gradoni, pietraia, guado, fango, mulattiera, single track e macchia. Due bivi: conigliera o Easy.', short: 'il classico', med: [122, 135, 150] },
-  { id: 'i', ps: 'TAPPA 2 · 2,2 km', name: 'SALITA INFAME', txt: 'Il muro coi gradoni, la pietraia in salita, i tornanti della mulattiera, la cresta e poi giù fino al guado.', short: 'si sale davvero', med: [136, 150, 166] },
-  { id: 'x', ps: 'PRAGELATO · 2 GIRI · 1,8 km', name: 'ICE SCROFY', txt: 'Il circuito vero sul ghiaccio, ricalcato dalla foto dal drone: Rettilineo del Fulmine, Curvone Derapage, Rettilineo della Furia, Esse di Gusta, Tagliola, Curva del Destino, Curva della Puntura. La derapata fa punti.', short: 'ghiaccio e traversi', med: [158, 172, 190] }];
+  { id: 'i', ps: 'TAPPA 2 · 2,2 km', name: 'SALITA INFAME', txt: 'Il muro coi gradoni, la pietraia in salita, i tornanti della mulattiera, la cresta e poi giù fino al guado.', short: 'si sale davvero', med: [142, 156, 172] },
+  { id: 'x', ps: 'PRAGELATO · 2 GIRI · 2,3 km', name: 'ICE SCROFY', txt: 'Il circuito vero sul ghiaccio, ricalcato dalla foto dal drone: Rettilineo del Fulmine, Curvone Derapage, Rettilineo della Furia, Esse di Gusta, Tagliola, Curva del Destino, Curva della Puntura. La derapata fa punti.', short: 'ghiaccio e traversi', med: [158, 172, 190] }];
 const BIMG = { fakedomi: 'fakedomi', enduro: 'edt250', hard300: 'hard300', trial: 'trial', pitbike: 'pitbike', adventure: 'boanal', dakar: 'dakar', bestia: 'bestia', vintage: 'vintage', electric: 'electric', shadow: 'shadow' };
 /* MUSICA: tutte le canzoni del Gabbah. Di base ogni percorso ha la sua; si può scegliere una canzone fissa o farle girare a caso. Nel menu va Giro Easy dal ritornello, piano */
 const SUA = { s: 'brindisi-easy', g: 'giro-easy', i: 'salita-infame', x: 'suka-suka' }; let musSel = opt('musica', 'sua'), musOn = opt('mus', '1') === '1'; musicaOn(musOn);

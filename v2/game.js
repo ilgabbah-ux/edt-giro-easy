@@ -5013,7 +5013,7 @@ setTimeout(() => { const n = C.getNick(); if (n && cloudOkFor() !== n.toLowerCas
 // ================= v2 · INCASTRO DELLA GUIDA NUOVA =================
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
-const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 166, 9: 106, 22: 900 };
+const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 9: 128, 22: 900 };
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 function startNext() {
@@ -5025,7 +5025,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-8' }).toString();
+  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-9' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;

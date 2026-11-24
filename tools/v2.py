@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 8   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 9   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -48,7 +48,7 @@ g += r"""
 // ================= v2 · INCASTRO DELLA GUIDA NUOVA =================
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
-const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 166, 9: 106, 22: 900 };
+const NEXT_PISTA = { 0: 'g', 1: 'i', 9: 'x', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 172, 9: 128, 22: 900 };
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 function startNext() {
