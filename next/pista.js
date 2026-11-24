@@ -15,6 +15,8 @@ export const KIND = {
   r: { name: 'risaia', w: 6.5, side: 7, grip: 1.05, drag: 0, rough: .01, tex: 'trail', tape: 0 },   /* Leventino: l'argine di terra battuta tra due camere di risaia allagate */
   j: { name: 'ghiaccio vivo', w: 7, side: 3.4, grip: .55, drag: 0, rough: .004, tex: 'ice', tape: 1 },   /* Christmas Madness: lastre di ghiaccio senza chiodi, si va dritti e piano */
   q: { name: 'ranch', w: 7, side: 3.4, grip: 1.0, drag: .12, rough: .014, tex: 'mud', tape: 1 },   /* Gusta Ranch: anello di terra smossa e fango in mezzo al prato */
+  u: { name: 'duna', w: 9, side: 3.4, grip: .8, drag: .55, rough: .008, tex: 'sand', tape: 0 },   /* Desertone: sabbia molle delle dune, la moto galleggia solo col gas aperto */
+  k: { name: 'pista sabbiosa', w: 8, side: 3.4, grip: .92, drag: .16, rough: .012, tex: 'sand', tape: 0 },   /* Desertone: la pista battuta tra una duna e l'altra */
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
 };
@@ -106,6 +108,9 @@ export const GUSTA_PTS = [[-93.9,32.0],[-96.4,31.8],[-109.5,31.7],[-123.4,30.8],
 export const GUSTA_ELEV = [[0, 0], [20, 0], [215, 26], [300, 26], [420, 6], [640, 2], [1030, 0]];
 export const GUSTA_KINDS = [[0, 'q'], [303, 'd'], [415, 'q'], [750, 't']];   /* da che metro del giro comincia ogni fondo: salita e cima in terra, la discesa stretta, il giro basso, il single track nel bosco */   /* quota lungo il giro (m): il lato della cascina si fa in salita, poi si scende piano fino alla partenza */
 // CHRISTMAS MADNESS: il Gusta Ranch girato al contrario (antiorario). Si parte subito nel single track del bosco, poi il giro basso con due lastre di ghiaccio, la stretta diventa una salita, in cima la terza lastra e giu per il lato della cascina
+// IL DESERTONE: il giro tra le dune dell'Erg Chigaga ricalcato dalla traccia GPS del viaggio in Marocco del Gabbah (tolte le soste, ingrandito del 30%). Quote vere delle dune, accentuate una volta e mezza
+export const DESERTO_PTS = [[0,0],[-26,-48],[-76,-54],[-130,-57],[-176,-83],[-170,-123],[-169,-178],[-197,-217],[-241,-245],[-269,-290],[-320,-309],[-360,-293],[-357,-244],[-372,-213],[-423,-233],[-458,-275],[-504,-302],[-524,-251],[-558,-227],[-555,-173],[-546,-124],[-583,-95],[-620,-61],[-623,-27],[-569,-32],[-516,-42],[-463,-57],[-444,-41],[-475,2],[-510,45],[-521,94],[-482,133],[-443,171],[-436,216],[-430,262],[-389,233],[-400,180],[-399,126],[-390,72],[-372,21],[-352,-30],[-315,-61],[-273,-44],[-306,-5],[-320,48],[-276,66],[-228,43],[-200,31],[-175,79],[-150,128],[-125,176]];
+export const DESERTO_Y = [0.0,1.7,6.7,12.8,18.1,19.8,21.6,23.2,26.7,26.4,22.8,19.0,20.6,21.1,17.5,13.1,8.0,10.9,11.1,19.1,25.2,27.1,29.0,31.5,31.7,33.0,35.0,35.2,31.8,26.5,21.6,18.0,14.8,14.4,16.8,15.9,14.5,16.1,18.1,24.3,28.1,25.3,18.0,21.4,20.1,20.1,18.7,16.8,13.4,10.0,6.7];   /* quota di ogni punto, in metri sopra il punto piu basso */
 export const GUSTA_PTS_R = [GUSTA_PTS[0], ...GUSTA_PTS.slice(1).reverse()];
 export const GUSTA_ELEV_R = [[0, 0], [348, 2], [568, 6], [688, 26], [773, 26], [968, 0], [988, 0]];
 export const GUSTA_KINDS_XMAS = [[0, 't'], [238, 'q'], [298, 'j'], [388, 'q'], [483, 'j'], [533, 'q'], [573, 's'], [692, 'j'], [766, 'q']];
@@ -183,6 +188,10 @@ function addGround(tr) {
     } else if (sp.kind === 'q') {   // ranch: dossi di terra e tre pozze di fango a giro
       for (let s = sp.s0 + 46; s < sp.s1 - 40; s += 58 + rnd() * 34) { if (tr.g[Math.min(tr.n - 1, Math.round(s / DS))] > .05) continue; const tight = Math.abs(tr.k[Math.min(tr.n - 1, Math.round(s / DS))]) > .025 ? .5 : 1; put(s, 6.5, (i, u, e) => { bump[i] += .34 * tight * e * e; }); }
       for (const s of [470, 560, 690]) if (s > sp.s0 + 4 && s < sp.s1 - 12) { put(s, 8, (i, u, e) => { bump[i] -= .2 * e * e; }); tr.water.push({ s0: s + 1.2, s1: s + 6.8, half: 2.3, off: (rnd() - .5) * 2, depth: .2, kind: 'pozza' }); }
+    } else if (sp.kind === 'u') {   // duna: onde di sabbia larghe e morbide, da prendere col gas aperto
+      for (let s = sp.s0 + 30; s < sp.s1 - 26; s += 34 + rnd() * 22) put(s, 13, (i, u, e) => { bump[i] += .42 * e * e; });
+    } else if (sp.kind === 'k') {   // pista sabbiosa: qualche cunetta
+      for (let s = sp.s0 + 40; s < sp.s1 - 30; s += 70 + rnd() * 40) put(s, 7, (i, u, e) => { bump[i] += .2 * e * e; });
     } else if (sp.kind === 'r') {   // risaia: ogni tanto il ponticello di terra sopra un fosso
       for (let s = sp.s0 + 26; s < sp.s1 - 16; s += 38 + rnd() * 16) put(s, 5, (i, u, e) => { bump[i] += .13 * e * e; });
     } else if (sp.kind === 'p') {   // pietraia: lastre e scalini
