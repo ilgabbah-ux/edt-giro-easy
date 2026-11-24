@@ -1,7 +1,7 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from '../physics.js?v=b9c35116';
 import * as A from '../audio.js?v=3afc3a91';
-import * as P from './progress.js?v=ff55a5c0';
+import * as P from './progress.js?v=c58d9d52';
 import { createMud } from '../mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from '../percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from '../icons.js?v=fcc14503';
@@ -256,7 +256,7 @@ const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RU
 const rule = id => mode === 3 && dailyRule().id === id;
 const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
-const TRACK_ART_FILE = { 2: 'angelo-potter-card', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness', 18: 'leventino', 20: 'mirco-gabbah-fest', 21: 'leventino-vietnam-2', 22: 'track-0' };   // v160 · 22 = giro di prova: prima chiedeva un'immagine che non esiste
+const TRACK_ART_FILE = { 1: '../v2/salita-infame', 2: 'angelo-potter-card', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness', 18: 'leventino', 20: 'mirco-gabbah-fest', 21: 'leventino-vietnam-2', 22: 'track-0' };   // v160 · 22 = giro di prova: prima chiedeva un'immagine che non esiste
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
 const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
@@ -5027,7 +5027,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-27' }).toString();
+  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-28' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;

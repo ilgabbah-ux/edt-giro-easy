@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 27   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 28   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -46,6 +46,7 @@ g = rep(g, "function start() {\n", """function start() {
   if (NEXT_PISTA[mode] !== undefined && !duel?.racing) { startNext(); return; }   // v2 · questi percorsi si corrono con la guida nuova
 """, 'start()')
 g = rep(g, "${C.enabled() && !win && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}", "${C.enabled() && (!win || run.position > 1) && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}", 'tasto scusa quando non arrivi primo')
+g = rep(g, "const TRACK_ART_FILE = { 2: 'angelo-potter-card',", "const TRACK_ART_FILE = { 1: '../v2/salita-infame', 2: 'angelo-potter-card',", 'foto nuova della Salita Infame')
 g = rep(g, "  run.position = rivals.length ? racePos() : 0;", "  run.position = nextRes ? nextRes.pos : rivals.length ? racePos() : 0;", 'posizione in finish()')
 g = rep(g, "function frame(t) {\n", """function frame(t) {
   if (state === 'next') { last = t; requestAnimationFrame(frame); return; }   // v2 · mentre si corre nella guida nuova il gioco vecchio sta fermo
@@ -128,6 +129,10 @@ for old, new, what in [
     if old not in pr: sys.exit('v2.py: non trovo %s in progress.js' % what)
     pr = pr.replace(old, new, 1)
 ph = hashlib.sha1(pr.encode()).hexdigest()[:8]
+for _o, _n in [("short: 'MIGLIORA', name: 'Dopo migliora!'", "short: 'INFAME', name: 'Salita Infame'"), ("Dopo migliora: zona verde", "Salita Infame: zona verde"), ("'Dopo migliora: arriva primo'", "'Salita Infame: arriva primo'")]:   # v2 · il percorso 1 si chiama Salita Infame
+    if _o not in pr: sys.exit('v2.py: non trovo %s in progress.js' % _o)
+    pr = pr.replace(_o, _n)
+pr = pr.replace('Dopo migliora', 'Salita Infame')   # anche dove compare come percorso ideale di una moto
 _x = "export const isUnlocked = (m, level = levelInfo().level) => (m.event !== 'xmas' || xmasOn()) && level >= (m.unlock || 1);"
 if _x not in pr: sys.exit('v2.py: non trovo isUnlocked in progress.js')
 pr = pr.replace(_x, "export const isUnlocked = (m, level = levelInfo().level) => m.event === 'xmas' || level >= (m.unlock || 1);   // v2 · prova: la Christmas Madness e' aperta subito, senza aspettare il 1 dicembre")
