@@ -12,14 +12,15 @@
 html, body { margin: 0; height: 100%; background: #101410; overflow: hidden; font-family: Barlow, 'Arial Narrow', sans-serif; color: #fff; }
 canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #lens { z-index: 1; pointer-events: none; }
-.hud { position: fixed; z-index: 2; pointer-events: none; text-shadow: 0 2px 0 #000a; }
+.hud { position: fixed; z-index: 2; pointer-events: none; text-shadow: 0 2px 0 #000c, 0 0 5px #000c, 0 0 2px #000; }
 #spd { left: 14px; top: calc(12px + env(safe-area-inset-top)); font: 44px/1 Anton, Impact, sans-serif; color: #ffd400; } #spd small { font: 700 15px Barlow; color: #fff; margin-left: 4px; }
 #tim { right: 14px; top: calc(12px + env(safe-area-inset-top)); font: 34px/1 Anton, Impact, sans-serif; text-align: right; } #tim small { display: block; font: 700 14px Barlow; color: #ffd400; margin-top: 3px; }
 #bar { left: 14px; right: 14px; top: calc(66px + env(safe-area-inset-top)); height: 6px; background: #0008; border-radius: 3px; } #bar i { display: block; height: 100%; width: 0; background: #ffd400; border-radius: 3px; }
 #msg { left: 0; right: 0; top: 30%; text-align: center; font: 64px/1 Anton, Impact, sans-serif; color: #ffd400; -webkit-text-stroke: 2px #111; }
 #tip { left: 176px; right: 176px; bottom: calc(14px + env(safe-area-inset-bottom)); text-align: center; font: 600 14px/1.25 Barlow, sans-serif; color: #fff; background: #000c; padding: 6px 12px 8px; border-top: 3px solid #ffd400; border-radius: 0 0 6px 6px; } #tip b { display: block; color: #ffd400; font: 18px/1.15 Anton, Impact, sans-serif; letter-spacing: .04em; margin-bottom: 2px; }
 #msg.small { font-size: min(32px, 5vw); top: 36%; left: 20%; right: 20%; -webkit-text-stroke: 1.5px #111; }
-#tag { left: 0; right: 0; top: calc(82px + env(safe-area-inset-top)); text-align: center; font: 700 13px Barlow; letter-spacing: .08em; opacity: .75; }
+#tag { left: 50%; transform: translateX(-50%); top: calc(82px + env(safe-area-inset-top)); text-align: center; font: 700 13px Barlow; letter-spacing: .08em; background: #000b; padding: 3px 10px 4px; border-radius: 4px; white-space: nowrap; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
+#tim { background: #0009; padding: 5px 9px 6px; border-radius: 6px; }
 .btn { position: fixed; z-index: 3; pointer-events: auto; border: 0; font: 700 18px Barlow, sans-serif; letter-spacing: .04em; color: #111; background: #ffd400; padding: 0 18px; height: 54px; transform: skewX(-8deg); box-shadow: 0 4px 0 #0009; }
 .btn.dark { background: #1c1f1cdd; color: #fff; border: 2px solid #ffffff44; }
 #brake { left: 14px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 140px; height: 120px; font-size: 24px; background: #d6332bdd; color: #fff; }
@@ -49,7 +50,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 /* VERTICALE: tasti grandi in basso, spiegazione sopra i tasti a tutta larghezza, scritte più strette */
 @media (orientation: portrait) {
   #tip { left: 10px; right: 10px; bottom: calc(160px + env(safe-area-inset-bottom)); font-size: 15px; }
-  #tag { font-size: 10px; letter-spacing: .04em; padding: 0 8px; }
+  #tag { font-size: 10px; letter-spacing: .04em; }
   #msg { top: 24%; } #msg.small { font-size: min(30px, 7.4vw); top: 27%; left: 6%; right: 6%; }
   #brake { width: 42vw; max-width: 190px; height: 136px; } #gasb { width: 42vw; max-width: 190px; height: 136px; }
   #panel { padding: 18px 14px; } #panel h1 { font-size: 34px; } #panel .btn { min-width: 0; } #panel #go { min-width: 260px; } #panel .row .btn { flex: 1 1 44%; font-size: 15px; padding: 0 8px; }
@@ -115,7 +116,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v98</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v99</div>
 <div class="hud hidden" id="tip"></div>
 <div class="hud" id="msg"></div>
 <div id="fine" class="hide"><div class="fb"><small id="fTr"></small><h2 id="fPos"></h2><div id="fTime"></div><div id="fMed"></div><div id="fProf"></div><div class="fc"><ul id="fRows"></ul><ol id="fOrd"></ol></div><div class="frow"><button id="fAgain" type="button">RIPROVA</button><button id="fShare" type="button">SFIDA UN AMICO</button><button id="fMenu" type="button">MENU</button></div></div></div>
@@ -156,7 +157,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
  </div>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 98; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=98"></script>
+(function () { var V = 99; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=99"></script>
 </body>
 </html>
