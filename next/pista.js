@@ -13,6 +13,7 @@ export const KIND = {
   m: { name: 'mulattiera', w: 5.2, side: 7.5, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },
   i: { name: 'ghiaccio', w: 9, side: 3.2, grip: .85, drag: 0, rough: .006, tex: 'ice', tape: 0 },   /* Ice Scrofy: neve battuta e ghiaccio, gomme chiodate. Tiene poco: si gira di traverso */
   r: { name: 'risaia', w: 6.5, side: 7, grip: 1.05, drag: 0, rough: .01, tex: 'trail', tape: 0 },   /* Leventino: l'argine di terra battuta tra due camere di risaia allagate */
+  j: { name: 'ghiaccio vivo', w: 7, side: 3.4, grip: .55, drag: 0, rough: .004, tex: 'ice', tape: 1 },   /* Christmas Madness: lastre di ghiaccio senza chiodi, si va dritti e piano */
   q: { name: 'ranch', w: 7, side: 3.4, grip: 1.0, drag: .12, rough: .014, tex: 'mud', tape: 1 },   /* Gusta Ranch: anello di terra smossa e fango in mezzo al prato */
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
@@ -61,6 +62,8 @@ export const LEVENTINO = [[60,0,2,'v'],[45,60,3,'v'],[50,-70,-9,'d'],[45,0,-10,'
   [40,0,14,'s'],[34,20,24,'s'],[60,0,30,'s'],[34,-18,22,'s'],[36,0,6,'p'],[36,0,2,'p'],[30,0,0,'t'],[24,-15,0,'t'],[24,15,-2,'t'],
   [36,0,-20,'d'],[28,20,-26,'d'],[40,0,-26,'d'],[28,-22,-18,'d'],[30,0,-9,'d'],
   [50,0,-2,'v'],[100,0,0,'v']];
+// VIETNAM EDITION: lo stesso Leventino sotto il diluvio. Gli argini dritti e i pezzi in piano diventano fango con le pozze
+export const LEVENTINO_VIET = LEVENTINO.map(([l, r, g, k]) => [l, r, g, (k === 'r' && !r) || (k === 'v' && Math.abs(g) < 5) ? 'f' : k]);
 export const LEVENTINO_EXTRA = { forks: [[1934, 2078, 10, 14]], logs: [528, 572, 2362, 2396], paddy: [[1040, 1396], [1736, 1922]], ristoro: 1350 };   /* paddy: da dove a dove si corre in mezzo alle risaie (argine stretto, acqua ai lati) */
 // SCUOLA DI ENDURO: un percorso corto a stazioni, ognuna insegna una cosa. Ogni ostacolo nuovo si aggiunge prima qui.
 export const SCUOLA = [
@@ -102,6 +105,7 @@ export const ICE_ZONE = [[0, 'RETTILINEO DEL FULMINE'], [11, 'CURVONE DERAPAGE']
 export const GUSTA_PTS = [[-93.9,32.0],[-96.4,31.8],[-109.5,31.7],[-123.4,30.8],[-135.9,26.3],[-145.6,16.8],[-151.0,4.7],[-153.0,-8.9],[-150.6,-22.1],[-142.2,-32.8],[-131.1,-40.8],[-118.8,-45.8],[-111.1,-55.4],[-104.3,-65.6],[-91.1,-67.9],[-78.8,-72.4],[-68.4,-81.9],[-58.5,-91.6],[-46.4,-97.0],[-32.5,-97.9],[-18.4,-97.2],[-4.5,-96.0],[9.1,-94.2],[22.6,-91.9],[35.6,-88.6],[48.2,-84.3],[61.1,-80.6],[72.4,-74.8],[75.8,-62.4],[74.9,-48.4],[74.1,-34.4],[72.3,-20.7],[67.8,-8.2],[60.7,3.3],[59.2,13.6],[70.9,17.6],[84.5,19.5],[98.0,21.8],[111.6,23.6],[125.6,23.2],[137.9,18.3],[149.8,13.6],[161.7,18.6],[171.6,28.0],[169.9,37.8],[157.1,41.3],[143.0,41.9],[128.7,42.1],[114.5,42.6],[100.3,42.9],[86.0,42.7],[71.7,42.4],[58.0,40.8],[44.8,38.0],[31.5,35.1],[18.4,32.0],[5.7,28.0],[-7.0,23.8],[-19.6,19.5],[-32.1,15.4],[-44.9,13.2],[-58.8,12.6],[-71.8,15.1],[-70.8,21.7],[-57.8,24.6],[-44.0,26.2],[-35.6,32.6],[-32.5,40.3],[-19.6,39.3],[-6.0,38.7],[5.1,44.6],[3.6,55.4],[-8.0,61.6],[-21.5,63.1],[-34.6,60.2],[-46.0,53.0],[-57.2,45.2],[-68.9,38.8],[-81.4,34.2]];
 export const GUSTA_ELEV = [[0, 0], [20, 0], [215, 26], [300, 26], [420, 6], [640, 2], [1030, 0]];
 export const GUSTA_KINDS = [[0, 'q'], [303, 'd'], [415, 'q'], [750, 't']];   /* da che metro del giro comincia ogni fondo: salita e cima in terra, la discesa stretta, il giro basso, il single track nel bosco */   /* quota lungo il giro (m): il lato della cascina si fa in salita, poi si scende piano fino alla partenza */
+export const GUSTA_KINDS_XMAS = [[0, 'q'], [222, 'j'], [296, 'd'], [415, 'q'], [455, 'j'], [505, 'q'], [600, 'j'], [690, 'q'], [750, 't']];   /* Christmas Madness: fango e tre lastre di ghiaccio (in cima e sui due rettilinei bassi) */
 export function buildCircuit(pts, kd = 'i', laps = 2, start = 0, zones = [], elev = null, kinds = null) {
   if (kd === 'i') pts = pts.map(q => [q[0] * 1.3, q[1] * 1.3]);   /* Ice Scrofy ingrandita del 30%: pista e tornanti più larghi senza che i rami si tocchino */
   const N = pts.length, cr = (a, b, c, d, t) => .5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t), D = [], own = [];
