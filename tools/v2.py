@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 24   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 25   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -45,6 +45,7 @@ g = rep(g, "import('../scene3d.js", "import('./scene3d.js", 'import scene3d')
 g = rep(g, "function start() {\n", """function start() {
   if (NEXT_PISTA[mode] !== undefined && !duel?.racing) { startNext(); return; }   // v2 · questi percorsi si corrono con la guida nuova
 """, 'start()')
+g = rep(g, "${C.enabled() && !win && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}", "${C.enabled() && (!win || run.position > 1) && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}", 'tasto scusa quando non arrivi primo')
 g = rep(g, "  run.position = rivals.length ? racePos() : 0;", "  run.position = nextRes ? nextRes.pos : rivals.length ? racePos() : 0;", 'posizione in finish()')
 g = rep(g, "function frame(t) {\n", """function frame(t) {
   if (state === 'next') { last = t; requestAnimationFrame(frame); return; }   // v2 · mentre si corre nella guida nuova il gioco vecchio sta fermo
@@ -153,6 +154,7 @@ head = """<base href="../">
 // v2 · PROVA: il gioco uscito con la guida nuova. Non scrive nella classifica vera e tiene i suoi salvataggi separati
 // (alla prima apertura copia quelli del gioco vero, cosi' ritrovi pilota, moto e birre; da li' in poi non li tocca piu').
 window.EDT_BOARD_URL = 'https://invalid.invalid/exec';
+  if (!window.EDT_PUBLIC_URL) window.EDT_PUBLIC_URL = new URL('../', location.href).href;   /* i messaggi mandati dalla prova (scuse, sfide) portano al gioco vero, non alla prova nascosta */
 (function () { var P = 'v2:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   try { if (!g.call(localStorage, P + '__copiato')) { var ks = []; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k.indexOf(P) !== 0 && k.indexOf('edt-next-') !== 0) ks.push(k); }
       ks.forEach(function (k) { if (g.call(localStorage, P + k) === null) s.call(localStorage, P + k, g.call(localStorage, k)); }); s.call(localStorage, P + '__copiato', '1'); } } catch (e) {}

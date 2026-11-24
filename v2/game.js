@@ -3793,7 +3793,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${(res.trophiesNew || []).map(t => `<div class="unlock trophy"><i class="ic-holder">${t.icon}</i><span>NUOVO TROFEO: <b>${t.name}</b> · ${t.desc}</span></div>`).join('')}
     ${res.unlocked.map(l => `<div class="unlock"><i style="--a:${l.plastic};--b:${l.accent}"></i><span>NUOVA LIVREA SBLOCCATA: <b>${l.name}</b> · sceglila nel garage</span></div>`).join('')}
     ${duel?.racing ? '<div class="duelres" id="duelres"></div>' : ''}
-    ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}${C.enabled() && !win && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}
+    ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}${C.enabled() && (!win || run.position > 1) && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}
     <button class="cardprev" id="cardprev" type="button"><img alt="Cartolina del risultato" src="${cardURL || 'data:,'}"><span><b>📸 LA TUA CARTOLINA</b><small>${C.isEdt() ? 'Toccala e mandala nel gruppo WhatsApp: risultato, posizione e link per giocare.' : 'Toccala e mandala su WhatsApp: risultato e link per sfidarti.'}</small></span></button>
     <div class="sharerow"><button class="secondary" id="shareScore" type="button">📲 CARTOLINA</button><button class="secondary" id="sharestory" type="button">📸 STORIA</button></div>
     <div class="actions">
@@ -5027,7 +5027,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-24' }).toString();
+  const q = new URLSearchParams({ embed: '1', pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-25' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
