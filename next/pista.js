@@ -19,6 +19,7 @@ export const KIND = {
   h: { name: 'sabbia molle', w: 9.5, side: 3.4, grip: .78, drag: .75, rough: .006, tex: 'sand', tape: 0 },   /* Desertone: chiazze di sabbia molle in mezzo alla pista battuta. Larghe come la pista, ma la moto ci affonda: si passano col gas aperto */
   k: { name: 'pista sabbiosa', w: 9.5, side: 3.4, grip: .92, drag: .16, rough: .012, tex: 'sand', tape: 0 },   /* Desertone: la pista battuta tra una duna e l'altra */
   e: { name: 'mulattiera esposta', w: 3.0, side: 9, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },   /* Angelo Potter: mulattiera stretta scavata nel fianco della montagna, da una parte la roccia e dall'altra il vuoto */
+  z: { name: 'pietraia esposta', w: 3.0, side: 9, grip: .8, drag: .42, rough: .11, tex: 'rock', tape: 0 },   /* Angelo Potter: tratti di sassi smossi sulla mulattiera, la moto scalcia verso il vuoto */
   a: { name: 'punto di Angelo', w: 2.3, side: 9, grip: 1.0, drag: .15, rough: .04, tex: 'cobble', tape: 0 },   /* il passaggio piu stretto, col masso sotto */
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
@@ -130,11 +131,12 @@ export const ANTIGEV_EXTRA = { logs: [330, 372, 1338, 1376] };
 // ANGELO POTTER: la mulattiera del dirupo. Una lunga traversata a mezza costa: la parete sempre a sinistra, il vuoto sempre a destra. Niente tornanti sovrapposti: la montagna e' una sola e si legge bene. A meta' il punto di Angelo
 export const POTTER = [
   [50, 0, 2, 'm'], [60, 0, 8, 'e'], [35, -30, 10, 'e'], [45, 0, 12, 'e'], [40, 28, 10, 'e'],
-  [55, 0, 12, 'e'], [30, 24, 9, 'e'], [50, 0, 11, 'e'], [38, -26, 10, 'e'], [40, 0, 12, 'e'],
-  [40, 0, 9, 'a'], [30, -22, 10, 'e'], [55, 0, 12, 'e'], [42, 26, 9, 'e'], [50, 0, 12, 'e'],
+  [55, 0, 11, 'z'], [30, 24, 9, 'e'], [50, 0, 11, 'e'], [38, -26, 10, 'e'], [40, 0, 12, 'e'],
+  [40, 0, 9, 'a'], [30, -22, 10, 'e'], [55, 0, 12, 'e'], [42, 26, 9, 'e'], [50, 0, 11, 'z'],
   [30, 22, 8, 'e'], [45, 0, 10, 'e'], [36, -24, 8, 'e'], [50, 0, 6, 'e'], [60, 0, 2, 'm'],
 ];
-export const POTTER_CLIFF = (() => { const out = []; let c = 0, side = 1; for (const [l, r, g, k] of POTTER) { if (k === 'e' || k === 'a') out.push([c, c + l, side]); c += l; if (r && Math.abs(r) <= 9) side = -side; } return out; })();   /* da che parte e' il vuoto, pezzo per pezzo: a ogni tornante cambia lato */
+export const POTTER_EXTRA = { logs: [166, 340, 541, 713] };   /* quattro tronchi di traverso sui rettilinei: si saltano d'impennata */
+export const POTTER_CLIFF = (() => { const out = []; let c = 0, side = 1; for (const [l, r, g, k] of POTTER) { if (k === 'e' || k === 'a' || k === 'z') out.push([c, c + l, side]); c += l; if (r && Math.abs(r) <= 9) side = -side; } return out; })();   /* da che parte e' il vuoto, pezzo per pezzo: a ogni tornante cambia lato */
 export const GUSTA_PTS_R = [GUSTA_PTS[0], ...GUSTA_PTS.slice(1).reverse()];
 export const GUSTA_ELEV_R = [[0, 0], [348, 2], [568, 6], [688, 26], [773, 26], [968, 0], [988, 0]];
 export const GUSTA_KINDS_XMAS = [[0, 't'], [238, 'q'], [298, 'j'], [388, 'q'], [483, 'j'], [533, 'q'], [573, 's'], [692, 'j'], [766, 'q']];
@@ -212,6 +214,8 @@ function addGround(tr) {
     } else if (sp.kind === 'q') {   // ranch: dossi di terra e tre pozze di fango a giro
       for (let s = sp.s0 + 46; s < sp.s1 - 40; s += 58 + rnd() * 34) { if (tr.g[Math.min(tr.n - 1, Math.round(s / DS))] > .05) continue; const tight = Math.abs(tr.k[Math.min(tr.n - 1, Math.round(s / DS))]) > .025 ? .5 : 1; put(s, 6.5, (i, u, e) => { bump[i] += .34 * tight * e * e; }); }
       for (const s of [470, 560, 690]) if (s > sp.s0 + 4 && s < sp.s1 - 12) { put(s, 8, (i, u, e) => { bump[i] -= .2 * e * e; }); tr.water.push({ s0: s + 1.2, s1: s + 6.8, half: 2.3, off: (rnd() - .5) * 2, depth: .2, kind: 'pozza' }); }
+    } else if (sp.kind === 'z') {   // pietraia esposta: scalini fitti
+      for (let s = sp.s0 + 4; s < sp.s1 - 4; s += 4.5 + rnd() * 3) put(s, 2.4, (i, u, e) => { bump[i] += .2 * e * e; });
     } else if (sp.kind === 'e') {   // mulattiera esposta: gradini di pietra e sassi smossi
       for (let s = sp.s0 + 8; s < sp.s1 - 6; s += 9 + rnd() * 7) put(s, 2.2, (i, u, e) => { bump[i] += .1 * e * e; });
     } else if (sp.kind === 'r') {   // risaia: ogni tanto il ponticello di terra sopra un fosso
