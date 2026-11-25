@@ -1,6 +1,11 @@
 <!doctype html>
 <html lang="it">
 <head>
+<script>
+// v166 · SWITCH alla guida nuova: una volta sola si azzerano record e stelle dei percorsi rifatti (i tempi non sono confrontabili). Pilota, moto, birre e livello restano
+(function () { try { if (localStorage.getItem('edt-switch-guida3d')) return; var K = 'edt-giro-easy-v15', d = JSON.parse(localStorage.getItem(K) || 'null'); if (d) { ['0', '1', '2', '4', '9', '13', '14', '15', '16', '17', '18', '20', '21'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f] && typeof d[f] === 'object') delete d[f][m]; }); }); localStorage.setItem(K, JSON.stringify(d)); } localStorage.setItem('edt-switch-guida3d', '1'); } catch (e) {} })();
+</script>
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0c0d0b">
@@ -28,12 +33,12 @@
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css?v=48f0280c">
 <!-- v109.3 · il telefono scarica subito tutti i pezzi del gioco in parallelo, invece che uno dopo l'altro -->
-<link rel="modulepreload" href="game.js?v=2dda0d85">
+<link rel="modulepreload" href="game.js?v=144b02c6">
 <link rel="modulepreload" href="physics.js?v=b9c35116">
 <link rel="modulepreload" href="audio.js?v=3afc3a91">
-<link rel="modulepreload" href="progress.js?v=e3cdd55e">
+<link rel="modulepreload" href="progress.js?v=133d5da3">
 <link rel="modulepreload" href="icons.js?v=fcc14503">
-<link rel="modulepreload" href="classifica.js?v=05f95d02">
+<link rel="modulepreload" href="classifica.js?v=c88d9590">
 <link rel="modulepreload" href="percorsi.js?v=3b677ca8">
 <link rel="modulepreload" href="mudfx.js?v=ae45cf9e">
 <link rel="modulepreload" href="duel.js?v=db2f059d">
@@ -185,6 +190,6 @@
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="game.js?v=2dda0d85"></script>
+<script type="module" src="game.js?v=144b02c6"></script>
 </body>
 </html>

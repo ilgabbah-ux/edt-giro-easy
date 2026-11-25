@@ -16,8 +16,8 @@ export const MODES = [
   { id: 2, short: 'POTTER', name: 'Angelo Potter', desc: 'La vera storia di Angelo: una mulattiera stretta, da una parte la roccia e dall’altra il vuoto. Troppo forte voli giù, troppo piano la moto ondeggia. Ogni volo nel dirupo è una cicatrice: alla sesta arriva l’elicottero.', difficulty: 1, sky: 2, limit: 60, unlock: 1, leap: false,
     layout: [{ t: 2, len: 3, climb: 0, down: 1, name: 'PARTENZA' }, { t: 2, len: 11, climb: 0, down: 1, name: 'LA DISCESA' }, { t: 2, len: 46, climb: 0, name: 'IL BURRONE' }] },
   { id: 3, short: 'SFIDA', name: 'Sfida del giorno', desc: 'Tracciato nuovo ogni giorno, uguale per tutti.', difficulty: 1, sky: 3, limit: 58, unlock: 1, random: 'daily' },
-  { id: 4, hidden: true, short: 'ASSIETTA', name: 'Il muro dell’Assietta', desc: 'Tre salitoni uno dopo l’altro. Gas!', difficulty: 1, sky: 0, limit: 56, unlock: 2,
-    layout: [{ t: 0, len: 5 }, { t: 2, len: 12 }, { t: 3, len: 6 }, { t: 2, len: 14 }, { t: 0, len: 5, down: 1 }, { t: 2, len: 12 }, { t: 3, len: 6 }] },
+  { id: 4, short: 'CEF', name: 'Cef Adventure', desc: 'Il giro in enduro da Piacenza a Rapallo: calanchi, guadi, il pascolo in quota, il crinale e giù fino al mare. Si arriva al tramonto e si dorme in spiaggia con le tende.', difficulty: 2, sky: 0, limit: 200, unlock: 4, story: true, song: 11,
+    layout: [{ t: 0, len: 8, name: 'VIA DA PIACENZA' }, { t: 3, len: 7, name: 'I CALANCHI' }, { t: 1, len: 6, name: 'I GUADI' }, { t: 2, len: 9, climb: 1, name: 'IL PASCOLO IN QUOTA' }, { t: 3, len: 6, climb: .8, name: 'IL CRINALE' }, { t: 0, len: 12, down: 1, name: 'LA DISCESA LIGURE' }, { t: 0, len: 5, name: 'RAPALLO: SI DORME IN SPIAGGIA' }] },
   { id: 5, hidden: true, short: 'PANTANO', name: 'Il pantano', desc: 'Discese, pozze e fango fino al casco.', difficulty: 1, sky: 3, limit: 54, unlock: 2,
     layout: [{ t: 0, len: 4 }, { t: 1, len: 5, down: 1 }, { t: 1, len: 10 }, { t: 0, len: 5 }, { t: 1, len: 6, down: 1 }, { t: 1, len: 10 }, { t: 2, len: 8 }, { t: 1, len: 6, down: 1 }, { t: 1, len: 6 }] },
   { id: 6, hidden: true, short: 'MULATTIERA', name: 'Mulattiera infinita', desc: 'Sassi, capre e frane dall’inizio alla fine.', difficulty: 2, sky: 1, limit: 61, unlock: 3,
@@ -74,8 +74,7 @@ export const MODES = [
     layout: [{ t: 1, len: 6, name: 'PARTENZA SOTTO IL DILUVIO' }, { t: 1, len: 9, name: 'LE RISAIE' }, { t: 1, len: 7, down: 1, name: 'IL GUADO INFINITO' }, { t: 2, len: 8, climb: .7, wet: 1, name: 'LA SALITA DEL SUDORE' }, { t: 1, len: 6, name: 'IL RISTORO ALLAGATO' }, { t: 3, len: 9, wet: 1, name: 'FANGO FINO AL CASCO' }, { t: 1, len: 7, down: 1, name: 'ARRIVO A MOLLO' }] },
   // v140 · SCUOLA DI ENDURO EDT: giro di allenamento lento, senza tempo e senza cadute che contano: un ostacolo alla volta col suo cartello.
   { id: 22, hidden: true, school: true, short: 'PROVA', name: 'Giro di prova col Gabbah', desc: 'Il giro di allenamento: senza cronometro, un ostacolo alla volta, il Gabbah ti spiega ostacoli, punti e trucchi.', difficulty: 0, sky: 0, limit: 240, unlock: 1, story: true, song: 6,
-    layout: [{ t: 0, len: 60, name: 'GIRO DI PROVA COL GABBAH' }] },  { id: 23, short: 'CEF', name: 'Cef Adventure', desc: 'Il giro in enduro da Piacenza a Rapallo: calanchi, guadi, il pascolo in quota, il crinale e giù fino al mare. Si arriva al tramonto e si dorme in spiaggia con le tende.', difficulty: 2, sky: 0, limit: 200, unlock: 4, story: true, song: 11,
-    layout: [{ t: 0, len: 8, name: 'VIA DA PIACENZA' }, { t: 3, len: 7, name: 'I CALANCHI' }, { t: 1, len: 6, name: 'I GUADI' }, { t: 2, len: 9, climb: 1, name: 'IL PASCOLO IN QUOTA' }, { t: 3, len: 6, climb: .8, name: 'IL CRINALE' }, { t: 0, len: 12, down: 1, name: 'LA DISCESA LIGURE' }, { t: 0, len: 5, name: 'RAPALLO: SI DORME IN SPIAGGIA' }] },
+    layout: [{ t: 0, len: 60, name: 'GIRO DI PROVA COL GABBAH' }] },
 ];
 // v59 · percorsi tolti dal menu (restano nell'elenco per non mescolare record e classifiche già salvati)
 // v127 · eventi a tempo: Christmas Madness dal 1° dicembre al 6 gennaio (con ?xmas=1 si vede prima, per le prove)
@@ -345,8 +344,8 @@ export function pendingBoosts() { return Object.keys(data.boosts).filter(k => da
 
 // v130 · TRE STELLE PER PERCORSO: ★ arrivi al rifugio · ★★ tempo d'argento (6 s sotto il massimo) · ★★★ tempo d'oro (12 s sotto) senza cadute.
 // Premi a 9, 18 e 27 stelle. Valgono i percorsi "a tempo" fissi (niente Potter, Ice, Sfida del giorno ed eventi).
-export const STAR_MODES = [0, 1, 2, 9, 13, 14, 15, 16, 18, 20, 21, 23], CHAMP_MODES = [0, 1, 13, 14, 15, 16, 18, 21, 23];   // v2 · stelle solo sui percorsi rifatti; campionato solo dove si corre contro i tre compagni
-const V2_MED = { 0: [135, 122], 1: [142, 130], 2: [108, 95], 9: [106, 97], 13: [155, 140], 14: [127, 117], 15: [122, 112], 16: [140, 129], 18: [148, 136], 20: [110, 100], 21: [180, 168], 23: [182, 168] };   // v2 · le stelle coincidono con le medaglie della pista 3D: 2 stelle = argento, 3 stelle = oro senza cadute
+export const STAR_MODES = [0, 1, 2, 4, 9, 13, 14, 15, 16, 18, 20, 21], CHAMP_MODES = [0, 1, 4, 13, 14, 15, 16, 18, 21];   // v2 · stelle solo sui percorsi rifatti; campionato solo dove si corre contro i tre compagni
+const V2_MED = { 0: [135, 122], 1: [142, 130], 2: [108, 95], 9: [106, 97], 13: [155, 140], 14: [127, 117], 15: [122, 112], 16: [140, 129], 18: [148, 136], 20: [110, 100], 21: [180, 168], 4: [182, 168] };   // v2 · le stelle coincidono con le medaglie della pista 3D: 2 stelle = argento, 3 stelle = oro senza cadute
 export const starTimes = m => { const q = V2_MED[m]; if (q) return { silver: q[0], gold: q[1] }; const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };
 export const starsFor = m => (data.stars || {})[m] || 0;
 export const totalStars = () => STAR_MODES.reduce((a, m) => a + starsFor(m), 0);

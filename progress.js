@@ -9,15 +9,15 @@ const KEY = 'edt-giro-easy-v15';
 export const MODES = [
   { id: 0, short: 'EASY', name: 'Giro easy', desc: 'Su e giù tra le vigne per prendere confidenza. A metà giro c’è il bar: passaci sotto per una bionda (e poi tieni dritta la moto).', vigne: true, difficulty: 0, sky: 0, limit: 58, unlock: 1,
     layout: [{ t: 0, len: 7.5 }, { t: 0, len: 4.5, down: 1 }, { t: 1, len: 7.5 }, { t: 1, len: 5, down: 1 }, { t: 1, len: 1.5 }, { t: 2, len: 17 }, { t: 3, len: 17 }] },
-  { id: 1, short: 'MIGLIORA', name: 'Dopo migliora!', desc: 'Due salitoni da fare col gas dosato: troppo e la ruota pattina, poco e ti pianti (e spingi). Più fango.', traction: true, difficulty: 1, sky: 1, limit: 58, unlock: 1,
+  { id: 1, short: 'INFAME', name: 'Salita Infame', desc: 'Due salitoni da fare col gas dosato: troppo e la ruota pattina, poco e ti pianti (e spingi). Più fango.', traction: true, difficulty: 1, sky: 1, limit: 58, unlock: 1,
     layout: [{ t: 0, len: 6 }, { t: 1, len: 4, down: 1 }, { t: 1, len: 6 }, { t: 2, len: 10 }, { t: 3, len: 8 }, { t: 2, len: 8 }, { t: 3, len: 10 }, { t: 0, len: 4, down: 1 }, { t: 0, len: 4 }] },
   // v59 · Il taglio di Angelo: rincorsa giù dalla montagna, stacco dal trampolino e salto nel vuoto. Vince il salto più lungo atterrato in piedi.
   // v62 · Il taglio di Angelo: discesa dalla montagna senza ostacoli (frecce di spinta), stacco nel vuoto dal bordo e atterraggio tra i pietroni.
-  { id: 2, short: 'POTTER', name: 'Angelo Potter', desc: 'La vera storia del taglio di Angelo: giù dalla montagna prendendo le scope volanti (ognuna ti dà velocità), poi il burrone. Più veloce arrivi, più lontano voli. In volo tieni premuto IMPENNA per tenere dritta la moto (lancetta nel verde) e atterra sul bersaglio, lontano dai pietroni.', difficulty: 1, sky: 2, limit: 60, unlock: 1, leap: true,
+  { id: 2, short: 'POTTER', name: 'Angelo Potter', desc: 'La vera storia di Angelo: una mulattiera stretta, da una parte la roccia e dall’altra il vuoto. Troppo forte voli giù, troppo piano la moto ondeggia. Ogni volo nel dirupo è una cicatrice: alla sesta arriva l’elicottero.', difficulty: 1, sky: 2, limit: 60, unlock: 1, leap: false,
     layout: [{ t: 2, len: 3, climb: 0, down: 1, name: 'PARTENZA' }, { t: 2, len: 11, climb: 0, down: 1, name: 'LA DISCESA' }, { t: 2, len: 46, climb: 0, name: 'IL BURRONE' }] },
   { id: 3, short: 'SFIDA', name: 'Sfida del giorno', desc: 'Tracciato nuovo ogni giorno, uguale per tutti.', difficulty: 1, sky: 3, limit: 58, unlock: 1, random: 'daily' },
-  { id: 4, hidden: true, short: 'ASSIETTA', name: 'Il muro dell’Assietta', desc: 'Tre salitoni uno dopo l’altro. Gas!', difficulty: 1, sky: 0, limit: 56, unlock: 2,
-    layout: [{ t: 0, len: 5 }, { t: 2, len: 12 }, { t: 3, len: 6 }, { t: 2, len: 14 }, { t: 0, len: 5, down: 1 }, { t: 2, len: 12 }, { t: 3, len: 6 }] },
+  { id: 4, short: 'CEF', name: 'Cef Adventure', desc: 'Il giro in enduro da Piacenza a Rapallo: calanchi, guadi, il pascolo in quota, il crinale e giù fino al mare. Si arriva al tramonto e si dorme in spiaggia con le tende.', difficulty: 2, sky: 0, limit: 200, unlock: 4, story: true, song: 11,
+    layout: [{ t: 0, len: 8, name: 'VIA DA PIACENZA' }, { t: 3, len: 7, name: 'I CALANCHI' }, { t: 1, len: 6, name: 'I GUADI' }, { t: 2, len: 9, climb: 1, name: 'IL PASCOLO IN QUOTA' }, { t: 3, len: 6, climb: .8, name: 'IL CRINALE' }, { t: 0, len: 12, down: 1, name: 'LA DISCESA LIGURE' }, { t: 0, len: 5, name: 'RAPALLO: SI DORME IN SPIAGGIA' }] },
   { id: 5, hidden: true, short: 'PANTANO', name: 'Il pantano', desc: 'Discese, pozze e fango fino al casco.', difficulty: 1, sky: 3, limit: 54, unlock: 2,
     layout: [{ t: 0, len: 4 }, { t: 1, len: 5, down: 1 }, { t: 1, len: 10 }, { t: 0, len: 5 }, { t: 1, len: 6, down: 1 }, { t: 1, len: 10 }, { t: 2, len: 8 }, { t: 1, len: 6, down: 1 }, { t: 1, len: 6 }] },
   { id: 6, hidden: true, short: 'MULATTIERA', name: 'Mulattiera infinita', desc: 'Sassi, capre e frane dall’inizio alla fine.', difficulty: 2, sky: 1, limit: 61, unlock: 3,
@@ -122,24 +122,15 @@ export const GRADES = ['Ruote pulite', 'Turista del sentiero', 'Sterratore', 'Fa
 
 // Missioni: "run" = in un solo giro, "total" = cumulative tra i giri.
 const TEMPLATES = [
-  { id: 'caps', kind: 'run', stat: 'caps', tiers: [40, 70, 100], xp: 120, text: n => `Raccogli ${n} birre in un giro` },
-  { id: 'jumps', kind: 'run', stat: 'jumps', tiers: [6, 10, 14], xp: 140, text: n => `Supera ${n} ostacoli saltando` },
-  { id: 'perfect', kind: 'run', stat: 'perfect', tiers: [2, 4, 6], xp: 160, text: n => `Fai ${n} salti perfetti` },
-  { id: 'scrub', kind: 'run', stat: 'scrubs', tiers: [2, 4, 7], xp: 140, text: n => `Fai ${n} scrub (sterza mentre sei in volo)` },
-  { id: 'near', kind: 'run', stat: 'near', tiers: [3, 5, 8], xp: 130, text: n => `Passa "per un pelo" ${n} volte` },
-  { id: 'combo', kind: 'run', stat: 'maxMult', tiers: [3, 4, 4], xp: 150, text: n => `Arriva alla combo ×${n}` },
+  { id: 'caps', kind: 'run', stat: 'caps', tiers: [15, 25, 35], xp: 120, text: n => `Raccogli ${n} birre in un giro` },
+  { id: 'jumps', kind: 'run', stat: 'jumps', tiers: [2, 3, 4], xp: 140, text: n => `Passa ${n} tronchi in impennata` },   // v2 · i tronchi al posto dei salti
   { id: 'clean', kind: 'run', stat: 'clean', tiers: [1, 1, 1], xp: 200, text: () => 'Arriva al rifugio senza perdere moto' },
   { id: 'dry', kind: 'run', stat: 'dry', tiers: [1, 1, 1], xp: 150, text: () => 'Arriva al rifugio senza finire in pozzanghera' },
-  { id: 'turbo', kind: 'run', stat: 'turbos', tiers: [1, 2, 3], xp: 120, text: n => n === 1 ? 'Usa il turbo' : `Usa il turbo ${n} volte in un giro` },
   { id: 'score', kind: 'run', stat: 'score', tiers: [8000, 15000, 25000], xp: 180, text: n => `Fai ${n.toLocaleString('it-IT')} punti in un giro` },
-  { id: 'air', kind: 'run', stat: 'airCaps', tiers: [3, 6, 9], xp: 150, text: n => `Prendi ${n} birre al volo` },
-  { id: 'angelo', kind: 'run', stat: 'angeloFinish', tiers: [1, 1, 1], xp: 250, text: () => 'Arriva al rifugio sul Taglio di Angelo' },
   { id: 'daily', kind: 'run', stat: 'dailyFinish', tiers: [1, 1, 1], xp: 220, text: () => 'Completa la Sfida del giorno' },
   { id: 'margin', kind: 'run', stat: 'timeLeft', tiers: [4, 7, 10], xp: 170, text: n => `Arriva al rifugio con ${n} secondi di margine` },
   { id: 'wheelie', kind: 'run', stat: 'wheelieMax', tiers: [1.5, 2.5, 3], xp: 150, text: n => `Fai un'impennata di ${String(n).replace('.', ',')} secondi` },
-  { id: 'grappa', kind: 'run', stat: 'grappas', tiers: [1, 1, 2], xp: 130, text: n => n === 1 ? 'Prendi una grappa' : `Prendi ${n} grappe in un giro` },
-  { id: 'ramps', kind: 'run', stat: 'ramps', tiers: [1, 3, 5], xp: 140, text: n => n === 1 ? 'Vola da una rampa' : `Vola da ${n} rampe in un giro` },
-  { id: 'sectors', kind: 'run', stat: 'cleanSectors', tiers: [2, 4, 6], xp: 160, text: n => `Chiudi ${n} settori puliti (senza errori) in un giro` },
+  { id: 'sectors', kind: 'run', stat: 'cleanSectors', tiers: [4, 7, 10], xp: 160, text: n => `Chiudi ${n} settori puliti (senza errori) in un giro` },
   { id: 'capsTotal', kind: 'total', stat: 'caps', tiers: [150, 350, 700], xp: 200, text: n => `Raccogli ${n} birre in totale` },
   { id: 'runsTotal', kind: 'total', stat: 'runs', tiers: [5, 12, 25], xp: 180, text: n => `Fai ${n} giri in totale` },
 ];
@@ -181,7 +172,7 @@ export const UPGRADES = [
   { id: 'grit', group: 'PILOTA', icon: '🔥', name: 'Grinta', desc: 'La combo resiste più a lungo.', per: '+0,5 s combo' },
   // v96 · officina speciale: per chi ha già finito tutto (prezzi più alti)
   { id: 'clutch', group: 'SPECIALI', pro: true, icon: '🚀', name: 'Frizione racing', desc: 'Partenza a razzo: finestra più larga e più spinta.', per: '+0,1 s finestra · +0,3 s turbo' },
-  { id: 'ecu', group: 'SPECIALI', pro: true, icon: '🧠', name: 'Mappa centralina', desc: 'Dopo migliora: zona verde della trazione più larga, ti pianti più tardi.', per: '+3% zona verde' },
+  { id: 'ecu', group: 'SPECIALI', pro: true, icon: '🧠', name: 'Mappa centralina', desc: 'Salita Infame: zona verde della trazione più larga, ti pianti più tardi.', per: '+3% zona verde' },
   { id: 'damper', group: 'SPECIALI', pro: true, icon: '🎯', name: 'Ammortizzatore di sterzo', desc: 'Ghiaccio: meno testacoda e rimbalzi; dopo la birra al bar la moto balla meno.', per: '+5% stabilità' },
   { id: 'skid', group: 'SPECIALI', pro: true, icon: '🛡', name: 'Paramotore', desc: 'La prima botta di ogni gara non ti toglie la moto (al livello 5 le prime due).', per: 'livello 5: 2 botte' },
   { id: 'wings', group: 'SPECIALI', pro: true, icon: '🪽', name: 'Ali di Angelo', desc: 'Angelo Potter: bersaglio d’atterraggio più largo e la moto si raddrizza da sola in volo.', per: '+10% bersaglio' },
@@ -209,9 +200,9 @@ export function resetUpgrades() { let t = 0; for (const u of UPGRADES) while (up
 export const BIKES = [
   { id: 'edt250', name: 'EDT 250 4T', price: 0, level: 1, icon: '🏍', desc: 'La moto di tutti i giorni: nessun punto debole, nessun record.', ideal: 'tutti i percorsi', stats: {}, look: { paint: { plastic: '#d42a1e', accent: '#ffc61a', side: '#d42a1e', frame: '#9ea4a8', seat: '#1b1d1f', pattern: 'fiamme', ink: '#ffb000' }, scale: 1 } },
   { id: 'gp125', name: 'Due tempi 125', price: 140, level: 2, icon: '🏍', desc: 'Leggerissima: sterza al volo e salta di più. Sul dritto la passano.', ideal: 'MontaFiga, Ice', stats: { speed: -.03, jump: .1, steer: .22, turbo: .05 }, look: { paint: { plastic: '#f3f3ef', accent: '#ffd21a', side: '#f3f3ef', frame: '#b9bec1', seat: '#1b1d1f', pattern: 'mx', ink: '#2a86d6' }, scale: .93, twoStroke: true } },
-  { id: 'trial', name: 'La Trial di Giacu', price: 260, level: 3, icon: '🏍', desc: 'Senza sella, nata per saltare e arrampicarsi: salti lunghi, impennate infinite, sale ovunque. Ma è lenta.', ideal: 'Angelo Potter, Dopo migliora!', stats: { speed: -.08, jump: .18, wheelie: 2.2, climb: .45, steer: .08 }, look: { paint: { plastic: '#f2f2f0', accent: '#e02a2a', side: '#d92525', frame: '#c4c8ca', seat: '#1b1d1f', pattern: 'mx', ink: '#d92525' }, scale: .96, trial: true } },
+  { id: 'trial', name: 'La Trial di Giacu', price: 260, level: 3, icon: '🏍', desc: 'Senza sella, nata per saltare e arrampicarsi: salti lunghi, impennate infinite, sale ovunque. Ma è lenta.', ideal: 'Angelo Potter, Salita Infame!', stats: { speed: -.08, jump: .18, wheelie: 2.2, climb: .45, steer: .08 }, look: { paint: { plastic: '#f2f2f0', accent: '#e02a2a', side: '#d92525', frame: '#c4c8ca', seat: '#1b1d1f', pattern: 'mx', ink: '#d92525' }, scale: .96, trial: true } },
   { id: 'ts300', name: '300 Due tempi', price: 380, level: 4, icon: '🔥', desc: 'Cattiva: spunto da razzo e turbo che si carica in un attimo. Pesa un filo nei salti.', ideal: 'Giro easy, Anti-GEV', stats: { speed: .05, turbo: .35, jump: -.04, steer: .02 }, look: { paint: { plastic: '#ff6b00', accent: '#1a1a1a', side: '#ff6b00', frame: '#ff6b00', seat: '#1b1d1f', pattern: 'tigre', ink: '#141414' }, scale: 1.01, twoStroke: true } },
-  { id: 'mulo450', name: '450 Mulo', price: 520, level: 5, icon: '🏍', desc: 'Tanta coppia e spalle larghe: vola in salita e nel fango, regge le botte, ma è dura da girare.', ideal: 'Dopo migliora!, Gusta Ranch', stats: { speed: .06, climb: .5, steer: -.12, protect: .3 }, look: { paint: { plastic: '#1f4fd1', accent: '#ffffff', side: '#f2f2f2', frame: '#b5bbbf', seat: '#1a2b6b', pattern: 'mx', ink: '#ffffff' }, scale: 1.05, big: true } },
+  { id: 'mulo450', name: '450 Mulo', price: 520, level: 5, icon: '🏍', desc: 'Tanta coppia e spalle larghe: vola in salita e nel fango, regge le botte, ma è dura da girare.', ideal: 'Salita Infame!, Gusta Ranch', stats: { speed: .06, climb: .5, steer: -.12, protect: .3 }, look: { paint: { plastic: '#1f4fd1', accent: '#ffffff', side: '#f2f2f2', frame: '#b5bbbf', seat: '#1a2b6b', pattern: 'mx', ink: '#ffffff' }, scale: 1.05, big: true } },
   { id: 'vintage', name: 'Vecchia gloria ’89', price: 700, level: 6, icon: '🏆', desc: 'Doppio ammortizzatore e faro tondo: non è veloce, ma fa durare le combo, dà più punti e porta a casa più birre.', ideal: 'Giro easy, Sfida del giorno', stats: { speed: -.02, jump: .03, combo: 1.5, points: .06, beers: .1 }, look: { paint: { plastic: '#f4efe4', accent: '#d23a2a', side: '#f2c230', frame: '#202020', seat: '#141414', pattern: 'righina', ink: '#d23a2a' }, scale: 1, vintage: true } },
   // v46 · BO-anal Special Parts: le più care e le più forti di tutte.
   { id: 'boanal', name: 'T7 BO-anal Special', price: 1200, level: 6, icon: '💎', boanal: true, desc: 'BO-anal Special Parts: forte in tutto, senza punti deboli. Il turbo però è nella media.', ideal: 'tutti i percorsi', stats: { speed: .09, jump: .09, steer: .12, turbo: .15, climb: .25, wheelie: .8 }, look: { paint: { plastic: '#1f3fbf', accent: '#ffffff', side: '#f2f4f8', frame: '#e8ecf0', seat: '#1f3fbf', rims: '#2448c8', pattern: 'mx', ink: '#f2f4f8' }, scale: 1.02, twoStroke: true, boanal: true } },
@@ -353,8 +344,9 @@ export function pendingBoosts() { return Object.keys(data.boosts).filter(k => da
 
 // v130 · TRE STELLE PER PERCORSO: ★ arrivi al rifugio · ★★ tempo d'argento (6 s sotto il massimo) · ★★★ tempo d'oro (12 s sotto) senza cadute.
 // Premi a 9, 18 e 27 stelle. Valgono i percorsi "a tempo" fissi (niente Potter, Ice, Sfida del giorno ed eventi).
-export const STAR_MODES = [0, 1, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21];
-export const starTimes = m => { const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };
+export const STAR_MODES = [0, 1, 2, 4, 9, 13, 14, 15, 16, 18, 20, 21], CHAMP_MODES = [0, 1, 4, 13, 14, 15, 16, 18, 21];   // v2 · stelle solo sui percorsi rifatti; campionato solo dove si corre contro i tre compagni
+const V2_MED = { 0: [135, 122], 1: [142, 130], 2: [108, 95], 9: [106, 97], 13: [155, 140], 14: [127, 117], 15: [122, 112], 16: [140, 129], 18: [148, 136], 20: [110, 100], 21: [180, 168], 4: [182, 168] };   // v2 · le stelle coincidono con le medaglie della pista 3D: 2 stelle = argento, 3 stelle = oro senza cadute
+export const starTimes = m => { const q = V2_MED[m]; if (q) return { silver: q[0], gold: q[1] }; const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };
 export const starsFor = m => (data.stars || {})[m] || 0;
 export const totalStars = () => STAR_MODES.reduce((a, m) => a + starsFor(m), 0);
 export const maxStars = () => STAR_MODES.length * 3;
@@ -371,10 +363,10 @@ export function recordStars(m, win, time, hits) {
 // v130 · CAMPIONATO EDT: 5 gare di fila contro gli stessi 3 piloti, punti 10-6-4-2, coppa e birre alla fine
 export const CHAMP_POINTS = [10, 6, 4, 2];
 export const champ = () => data.champ && !data.champ.over ? data.champ : null;
-export const champOpen = () => STAR_MODES.filter(m => isUnlocked(MODES[m])).length >= 3;
-export const champLevel = () => STAR_MODES.map(m => MODES[m].unlock || 1).sort((a, b) => a - b)[2] || 1;
+export const champOpen = () => CHAMP_MODES.filter(m => isUnlocked(MODES[m])).length >= 3;
+export const champLevel = () => CHAMP_MODES.map(m => MODES[m].unlock || 1).sort((a, b) => a - b)[2] || 1;
 export function champStart(riders, me, rng = Math.random) {
-  const open = STAR_MODES.filter(m => isUnlocked(MODES[m])).sort(() => rng() - .5);
+  const open = CHAMP_MODES.filter(m => isUnlocked(MODES[m])).sort(() => rng() - .5);
   const tracks = [0, ...open.filter(m => m !== 0)].slice(0, 5); while (tracks.length < 5) tracks.push(open[tracks.length % open.length]);
   const rivals = riders.filter(r => r !== me).sort(() => rng() - .5).slice(0, 3);
   data.champ = { tracks, rivals, i: 0, pts: Object.fromEntries([...rivals, '__me'].map(n => [n, 0])), last: null, over: false }; save(); return data.champ;
@@ -409,7 +401,7 @@ export function radioNew() {   // canzoni appena sbloccate (una volta sola)
 // Partono solo per chi ha fatto meno di 12 giri quando le vede la prima volta (i veterani non le hanno).
 export const STARTER = [
   { id: 'easy', name: 'Arriva al rifugio sul Giro Easy', icon: 'flag' },
-  { id: 'perfect', name: 'Fai 3 salti perfetti in un giro', icon: 'star' },
+  { id: 'perfect', name: 'Passa 2 tronchi in impennata in un giro', icon: 'star' },
   { id: 'upgrade', name: 'Compra il primo potenziamento in Officina', icon: 'wrench' },
   { id: 'share', name: 'Sfida un amico: mandagli il tuo punteggio', icon: 'share' },
   { id: 'back', name: 'Torna a giocare un altro giorno', icon: 'calendar' },
@@ -536,7 +528,7 @@ const WEEKLY_POOL = [
   { id: 'bar1', text: 'Giro easy: passa dal bar e vinci la gara', beers: 200, ok: r => r.mode === 0 && (r.bars || 0) > 0 && r.position === 1 },
   { id: 'hole', text: 'Partenza a razzo e primo all’arrivo (qualsiasi percorso)', beers: 200, ok: r => r.holeshot && r.position === 1 },
   { id: 'gev0', text: 'Anti-GEV: arriva al rifugio senza perdere moto', beers: 250, ok: r => r.mode === 13 && r.finishTime > 0 && !r.hits },
-  { id: 'mud1', text: 'Dopo migliora: arriva primo', beers: 220, ok: r => r.mode === 1 && r.position === 1 },
+  { id: 'mud1', text: 'Salita Infame: arriva primo', beers: 220, ok: r => r.mode === 1 && r.position === 1 },
   { id: 'arg55', text: 'Valle Argentera: al rifugio in meno di 55 s', beers: 250, ok: r => r.mode === 11 && r.finishTime > 0 && r.finishTime < 55 },
   { id: 'ranch1', text: 'Gusta Ranch: vinci la gara', beers: 200, ok: r => r.mode === 14 && r.position === 1 },
 ];

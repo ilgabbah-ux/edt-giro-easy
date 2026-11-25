@@ -1,12 +1,18 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
 import * as A from './audio.js?v=3afc3a91';
-import * as P from './progress.js?v=e3cdd55e';
+import * as P from './progress.js?v=133d5da3';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
-import * as C from './classifica.js?v=05f95d02';
+import * as C from './classifica.js?v=c88d9590';
 import * as N from './push.js?v=13d13cf1';   // v154 · notifiche "ti hanno superato"
+for (const m of P.MODES) if (![0, 1, 2, 3, 4, 9, 13, 14, 15, 16, 17, 18, 20, 21, 22].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
+{ const L = { 0: 150, 1: 158, 2: 135, 9: 118, 13: 185, 14: 140, 15: 136, 16: 155, 17: 138, 18: 165, 20: 124, 21: 198, 4: 200 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
+const V2_DAILY = (() => { const k = +P.todayKey() || 0, T = [[0, 'g'], [1, 'i'], [18, 'l'], [14, 'r'], [16, 'd'], [13, 'a']], R = ['rain', 'fog', 'night', 'rush'], t = T[(k * 5 + Math.floor(k / 4)) % T.length]; return { m: t[0], p: t[1], r: R[k % R.length] }; })();   // v2 · SFIDA DEL GIORNO sulla pista 3D: ogni giorno un percorso diverso con la regola del giorno (diluvio, nebbia, notturna, di corsa), uguale per tutti
+{ const m3 = P.MODES.find(x => x.id === 3); if (m3) m3.limit = P.MODES.find(x => x.id === V2_DAILY.m).limit - (V2_DAILY.r === 'rush' ? 6 : 0); }
+{ const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
+if (!P.BIKES.some(b => b.id === 'shadow')) P.BIKES.push({ id: 'shadow', name: 'Shadow chiodata', price: 0, level: 99, icon: '❄', top: true, shadow: true, desc: 'La Shadow chiodata dell’EDT: bobber bicilindrico con l’estintore al posto del serbatoio e le gomme piene di viti. Pesante e lenta a girare, ma sul ghiaccio morde come nessuna. Si sblocca con una medaglia su Ice Scrofy.', ideal: 'Ice Scrofy', stats: { speed: .02, steer: -.15, climb: -.1, grip: .14, drift: .3 }, look: { paint: { plastic: '#b3221b', accent: '#e8eef0', side: '#b3221b', frame: '#b3221b', seat: '#151515', ink: '#e8eef0' }, scale: 1, big: true } });
 import * as D from './duel.js?v=db2f059d';
 
 const $ = id => document.getElementById(id);
@@ -21,7 +27,7 @@ import('./piloti.js?v=8bcd4edd').then(m => {
 // v151 · il 3D si carica DOPO che la home è a schermo: chi apre il link vede subito il tasto per partire
 let worldP = null;
 function bootWorld() {
-  return worldP || (worldP = import('./scene3d.js?v=6af17731').then(({ createWorld }) => {
+  return worldP || (worldP = import('./scene3d.js?v=9a66ce27').then(({ createWorld }) => {
     try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); return; }
     world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLE IMPOSTAZIONI', 'green'), 0);
     try { preview = world.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
@@ -248,13 +254,13 @@ let tutDoneAt = -99, easyRun = false, tutRunNow = false, rookieT = 0, xgAt = [];
    // easyRun · v109.4 primo giro di chi arriva da fuori: ostacoli più radi nella prima parte   // v109.4 · quando è finito il giro guidato (per non coprirne l'ultimo messaggio)   // v106.7 · Desertone: sabbia sulle dune e gomma bucata
 let wasTract = false, lastWaveFlash = -9, barT = 0, barsLeft = 0, nextBar = 0;   // v84 · sosta al bar (Giro easy)
 // v84 · Sfida del giorno: una regola diversa ogni giorno, uguale per tutti
-const dailyRule = () => DAILY_RULES[(window.__edtDay ?? P.todayKey()) % DAILY_RULES.length];
+const dailyRule = () => { const r = DAILY_RULES.find(x => x.id === V2_DAILY.r); return { ...r, desc: 'Oggi si corre su «' + P.MODES.find(x => x.id === V2_DAILY.m).name + '». ' + (r.id === 'rush' ? 'Tempo limite 6 secondi più corto.' : r.id === 'fog' ? 'Nebbia per tutto il giro: si vede poco davanti.' : r.desc) }; };
 const rule = id => mode === 3 && dailyRule().id === id;
 const feat = k => !!P.MODES[mode][k] || rule(k);
 // v58 · ogni percorso ha la sua immagine (img/track-N.webp); alcune sono illustrazioni dedicate
-const TRACK_ART_FILE = { 2: 'angelo-potter-card', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness', 18: 'leventino', 20: 'mirco-gabbah-fest', 21: 'leventino-vietnam-2', 22: 'track-0' };   // v160 · 22 = giro di prova: prima chiedeva un'immagine che non esiste
+const TRACK_ART_FILE = { 1: '../v2/salita-infame', 2: 'angelo-potter-card', 9: 'ice-scrofy', 13: 'anti-gev', 14: 'gusta-ranch', 17: 'christmas-madness', 18: 'leventino', 20: 'mirco-gabbah-fest', 21: 'leventino-vietnam-2', 22: 'track-0' };   // v160 · 22 = giro di prova: prima chiedeva un'immagine che non esiste
 const psOf = m => Math.max(1, P.SHOWN().indexOf(m) + 1);   // v59 · numero di prova speciale contando solo i percorsi in menu
-const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';
+const trackArtOf = m => m.id === 4 ? 'next/menu/t-e.webp?v=7' : 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';
 // v57 · Anti-GEV: jeep delle Guardie Ecologiche Volontarie a bordo pista (z in metri davanti alla moto, negativo = davanti)
 // v59 · salto di Angelo
 let leapMul = 1, leapZRate = .5, leapFree = 1, canyonX0 = null, canyonLen = 400, canyonLand = 0, leapTurbo = false, leapV = 10;
@@ -473,6 +479,7 @@ function pumpToast() {
 }
 const FALL_LINES = ['TRANQUILLI, È UN GIRO EASY!', 'ASSAGGIO DI STERRATO!', 'CHIAMATE MIRCO!', 'ATTERRAGGIO DI FACCIA!', 'TUTTO BENE? PIÙ O MENO.', 'BACIO ALLA TERRA!'];
 function bigCall(text) {
+  if (window.__v2Dopo) return;   // v2 · dietro i risultati della gara nuova il motore vecchio gira ancora: niente scritte come «BIVIO IN ARRIVO»
   const el = $('bigcall'); if (!el) return;
   el.textContent = text; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
 }
@@ -628,6 +635,7 @@ function setDisabled(v) {
   document.querySelectorAll('[data-rider],[data-livery]').forEach(b => b.disabled = v);
 }
 function resetRun() {
+  window.__v2Dopo = false;
   gas = false; wet = 0; routePhase = -1; lane = px = 1; jump = jumpBuffer = elapsed = score = spawn = invincible = 0; lives = 3; objects = [];
   combo = comboTime = charge = turbo = magnet = wave = 0; prevSafe = 1; lastBigLog = -9; lastCheer = -10; roadTime = 0;
   lean = bodyLean = suspension = springVelocity = wheelPhase = whip = shake = 0; scrubbed = 0;
@@ -664,6 +672,7 @@ function resetRun() {
 let startWait = false;
 function markWait() { const sb = $('start'); if (!startWait || !sb) return false; sb.disabled = true; sb.classList.add('waitpista'); sb.innerHTML = '<span class="st"><span>CARICO LA PISTA…</span><small>un attimo e si parte</small></span>'; return true; }   // v151
 function start() {
+  if (NEXT_PISTA[mode] !== undefined && !duel?.racing) { startNext(); return; }   // v2 · questi percorsi si corrono con la guida nuova
   if (!world && !worldError) {   // v151 · tocco prima che la pista sia pronta: parte appena è caricata
     if (touchDevice) goFull();
     if (!startWait) { startWait = true; if (!markWait()) toast('🏍 CARICO LA PISTA…', 'gold'); bootWorld().then(() => { startWait = false; if (world && (state === 'ready' || state === 'ended')) start(); }); }
@@ -835,7 +844,7 @@ function finish(win, reason = '') {
     try { localStorage.setItem(GHOST_KEY, JSON.stringify(ghosts)); } catch {}
     run.ghostRecord = true;
   }
-  run.position = rivals.length ? racePos() : 0;
+  run.position = nextRes ? nextRes.pos : rivals.length ? racePos() : 0;
   if (win && run.position === 1 && !leap) score += 500;
   if (mode === 17 && P.xmasDouble() && !leap) { score *= 2; run.xmasDouble = 1; }
   if (mode === 20 && P.festDouble() && !leap) { score *= 2; run.festDouble = 1; }   // v132 · 1° marzo: il compleanno vero vale doppio   // v127 · 21 dicembre: la notte della Christmas Madness vale doppio
@@ -874,7 +883,7 @@ function finish(win, reason = '') {
   if (win && mode === 20) setTimeout(() => bigCall('TANTI AUGURI!'), 600);
   if (win && mode === 20 && run.position === 1 && P.markFestWin()) setTimeout(() => toast('👑 MAGLIE «SUPER GABBAH» E «SUPER MIRCO» SBLOCCATE: LE TROVI NEL GARAGE', 'gold'), 2500);   // v132
   if (win && mode === 18 && run.position === 1 && P.markLevWin()) setTimeout(() => toast('💖 MAGLIA «LEVENTINO GIRL» SBLOCCATA: PARRUCCA ROSA COMPRESA, LA TROVI NEL GARAGE', 'gold'), 2500);   // v132
-  setTimeout(() => { if (win && mode === 0) starterTick('easy'); if (run.perfect >= 3) starterTick('perfect'); P.starterAuto().forEach(starterTick); }, 1800);   // v129
+  setTimeout(() => { if (win && mode === 0) starterTick('easy'); if (run.jumps >= 2) starterTick('perfect'); P.starterAuto().forEach(starterTick); }, 1800);   // v129
   setTimeout(() => P.radioNew().forEach((id, k) => setTimeout(() => toast('📻 NUOVA CANZONE IN RADIO EDT: ' + songName(id).split(' · ')[0].toUpperCase(), 'gold'), k * 2600)), 3400);   // v131
   if (win && mode === 17 && P.markXmasWin()) setTimeout(() => toast('🎅 MAGLIA «BABBO NATALE» SBLOCCATA: LA TROVI NEL GARAGE', 'gold'), 2500);   // v127 · Christmas Madness: fuochi d'artificio all'arrivo
   if (win || res.isRecord) { A.sfx.fanfare(); if (win) setTimeout(() => { if (!riderLine('win')) voice('Sììì, così si fa!', true); }, 900); }
@@ -3132,6 +3141,7 @@ document.addEventListener('click', e => {
 
 let capT = 0, diagStamps = null; const gameEl = $('game');
 function frame(t) {
+  if (state === 'next') { last = t; requestAnimationFrame(frame); return; }   // v2 · mentre si corre nella guida nuova il gioco vecchio sta fermo
   // v110.1 · tablet lenti: 30 fotogrammi al secondo fissi (uno ogni due aggiornamenti dello schermo) invece di un ritmo che balla
   if (world?.isUltra?.() && !replay && !clip) { if (t - capT < 25) { requestAnimationFrame(frame); return; } capT = t; }
   if (diagStamps) diagStamps.push(t);
@@ -3191,7 +3201,7 @@ function renderShop(back, tab = shopTab) {
   const cur = P.currentBike();
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
-    const label = inUse ? 'IN SELLA' : owned ? 'USA' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
+    const label = inUse ? 'IN SELLA' : owned ? 'USA' : b.shadow && !owned ? '🔒 MEDAGLIA SU ICE' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
     return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?t=1" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats, b.ideal)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
@@ -3307,7 +3317,7 @@ function champTable(c, before) {
 function champFinish(win) {
   const c0 = P.champ(); if (!c0) return null;
   const before = { ...c0.pts }, ent = rivals.map(r => ({ n: r.name, g: r.gap })).concat({ n: '__me', g: 0 }).sort((a, b) => b.g - a.g);
-  let order = ent.map(e => e.n); if (!win) order = order.filter(n => n !== '__me').concat('__me');
+  let order = nextRes?.ord ? v2Order(c0, nextRes.ord) : ent.map(e => e.n); if (!win) order = order.filter(n => n !== '__me').concat('__me');
   const c = P.champRecord(order, !win);
   return { c, before, race: c.i, pos: order.indexOf('__me') + 1, dnf: !win };
 }
@@ -3356,7 +3366,7 @@ function renderChamp() {
   if ($('champquit')) $('champquit').onclick = e => { const b = e.currentTarget; if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'SICURO? TOCCA ANCORA E PERDI I PUNTI'; return; } P.champQuit(); renderChamp(); };
   if ($('champgo')) $('champgo').onclick = () => {
     A.unlock(); A.sfx.click();
-    let cc = P.champ(); if (!cc) { cc = P.champStart(RIDERS, profile.rider); renderChamp(); return; }
+    let cc = P.champ(); if (!cc) { cc = P.champStart(['Linus', 'Costa', 'Mirco'].map(n => n === profile.rider ? 'Il Gabbah' : n), profile.rider);   /* v2 · sulla pista 3D i compagni di gara sono loro tre (il Gabbah se uno dei tre sei tu) */ renderChamp(); return; }
     mode = cc.tracks[cc.i]; profile.mode = mode; P.save();
     if (duel) duel.racing = false;
     renderReady(); champRun = true; start();
@@ -3562,7 +3572,7 @@ function xmasChipHTML() {
   const sub = P.xmasDouble() ? '<b>STASERA PUNTI DOPPI</b> · è la notte della Madness' : days > 0 ? `mancano <b>${days} ${days === 1 ? 'giorno' : 'giorni'}</b> alla notte del 21: punti doppi` : 'fino all’Epifania · Re del Natale in classifica';
   return `<button type="button" class="xmaschip" id="xmaschip">${icon('gift')}<span><small>EVENTO DI NATALE</small><b>CHRISTMAS MADNESS</b><em>${sub}</em></span>${icon('chevrons')}</button>`;
 }
-function renderReady() {
+function renderReady() { v2Photo(null);
   if (dirtShown) { dirtK = dirtShown = 0; world?.setDirt?.(0); }   // v149 · in menu la moto torna pulita
   champRun = false;   // v130
   try { P.starterAuto().forEach(starterTick); } catch {}   // v129
@@ -3764,9 +3774,9 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${pushAskHTML(win, score)}
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
-      ${ice ? `<div><b>${driftCount}</b><small>DERAPATE</small></div><div><b>${driftBest.toLocaleString('it-IT')}</b><small>LA PIÙ BELLA</small></div><div><b>${Math.round(driftM)} m</b><small>DI TRAVERSO</small></div>` : `<div><b>${run.jumps}</b><small>SALTI</small></div>`}
-      <div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>
-      <div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>
+      ${ice ? `<div><b>${driftCount}</b><small>DERAPATE</small></div><div><b>${driftBest.toLocaleString('it-IT')}</b><small>LA PIÙ BELLA</small></div><div><b>${Math.round(driftM)} m</b><small>DI TRAVERSO</small></div>` : `<div><b>${run.jumps}</b><small>${NEXT_PISTA[mode] !== undefined ? 'TRONCHI' : 'SALTI'}</small></div>`}
+      ${NEXT_PISTA[mode] !== undefined && !run.wheelieMax ? '' : `<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',') + 's' : run.perfect}</b><small>${run.wheelieMax ? 'IMPENNATA' : 'PERFETTI'}</small></div>`}
+      ${NEXT_PISTA[mode] !== undefined ? '' : `<div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>`}
       ${leap || ice ? '' : `<div><b>${run.hits}</b><small>CADUTE</small></div>`}
       <div><b>${win ? elapsed.toFixed(1).replace('.', ',') + 's' : Math.floor(course / GAME_LENGTH * 100) + '%'}</b><small>${win ? 'TEMPO' : 'PERCORSO'}</small></div>
     </div>
@@ -3787,7 +3797,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${(res.trophiesNew || []).map(t => `<div class="unlock trophy"><i class="ic-holder">${t.icon}</i><span>NUOVO TROFEO: <b>${t.name}</b> · ${t.desc}</span></div>`).join('')}
     ${res.unlocked.map(l => `<div class="unlock"><i style="--a:${l.plastic};--b:${l.accent}"></i><span>NUOVA LIVREA SBLOCCATA: <b>${l.name}</b> · sceglila nel garage</span></div>`).join('')}
     ${duel?.racing ? '<div class="duelres" id="duelres"></div>' : ''}
-    ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}${C.enabled() && !win && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}
+    ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}${C.enabled() && (!win || run.position > 1) && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}
     <button class="cardprev" id="cardprev" type="button"><img alt="Cartolina del risultato" src="${cardURL || 'data:,'}"><span><b>📸 LA TUA CARTOLINA</b><small>${C.isEdt() ? 'Toccala e mandala nel gruppo WhatsApp: risultato, posizione e link per giocare.' : 'Toccala e mandala su WhatsApp: risultato e link per sfidarti.'}</small></span></button>
     <div class="sharerow"><button class="secondary" id="shareScore" type="button">📲 CARTOLINA</button><button class="secondary" id="sharestory" type="button">📸 STORIA</button></div>
     <div class="actions">
@@ -3822,7 +3832,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   // Conteggio animato del punteggio
   const target = score, t0 = performance.now();
   const tick = now => {
-    const k = Math.min(1, (now - t0) / 1100), v = Math.floor(target * (1 - Math.pow(1 - k, 3)));
+    const k = Math.min(1, (now - t0) / 1100), v = Math.max(0, Math.floor(target * (1 - Math.pow(1 - k, 3))));
     const el = $('finalscore'); if (!el) return;
     el.textContent = v.toLocaleString('it-IT');
     if (k < 1) requestAnimationFrame(tick);
@@ -4416,7 +4426,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 165;
+const GAME_VERSION = 166;   // v166 · SWITCH: la gara si corre con la guida nuova in 3D
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -4597,7 +4607,7 @@ function renderSide() {
   if ($('bikestrip')) {   // v62 · tutte le moto del garage, quella in sella evidenziata
     const cur = P.currentBike().id, lv = P.levelInfo().level;
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
-      const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
+      const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : b.shadow ? '🔒 MEDAGLIA SU ICE' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
       const fit = P.bikeFits(b.id, mode);   // v150 · 🎯 la moto giusta per il percorso scelto
       return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}">${fit ? '<em class="bkfit">🎯 +10%</em>' : ''}<img src="img/bike-${b.id}.webp?t=1" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
@@ -5004,3 +5014,47 @@ window.__edt = { get state() { return state; }, snap() { return drawState(); }, 
   if (!DEV) { try { delete window.__edt; delete window.__world; } catch {} } }
 // v149 · all'apertura: se questo nome non è ancora stato controllato online, si guarda se ci sono progressi migliori (e se è un pilota EDT)
 setTimeout(() => { const n = C.getNick(); if (n && cloudOkFor() !== n.toLowerCase()) cloudCheck(n); }, 7000);
+
+
+// ================= v2 · INCASTRO DELLA GUIDA NUOVA =================
+// Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
+// le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
+const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 3: V2_DAILY.p, 15: 'n', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's', 4: 'e' }, NEXT_LIMIT = { 0: 150, 1: 158, 2: 135, 9: 118, 13: 185, 14: 140, 16: 155, 17: 138, 18: 165, 15: 136, 20: 124, 21: 198, 22: 900, 4: 200 }; NEXT_LIMIT[3] = P.MODES.find(x => x.id === 3).limit;
+function v2Photo(u) { const c = $('canvas'), g = $('game'); if (!c || !g) return; if (u) { c.style.visibility = 'hidden'; g.style.backgroundImage = 'url(' + u + ')'; g.style.backgroundSize = 'cover'; g.style.backgroundPosition = 'center'; } else { c.style.visibility = ''; g.style.backgroundImage = ''; } }
+function v2Order(c0, ord) { const free = c0.rivals.slice(), mp = {}; for (const n of ord) if (n !== '__me') { const k = free.findIndex(x => x.toUpperCase() === n); if (k >= 0) mp[n] = free.splice(k, 1)[0]; } for (const n of ord) if (n !== '__me' && !mp[n] && free.length) mp[n] = free.shift(); const out = ord.map(n => n === '__me' ? n : mp[n]).filter(Boolean); for (const n of free) out.push(n); if (!out.includes('__me')) out.push('__me'); return out; }   // v2 · campionato: l'ordine d'arrivo vero della pista 3D
+const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow' };
+let nextRes = null, nextFrame = null, nextCfg = '';
+function startNext() {
+  quietMenu = false; A.unlock(); A.stopVoice();
+  if (touchDevice) goFull();
+  resetRun(); perfRun = null; nextRes = null;
+  timeLimit = NEXT_LIMIT[mode]; rookieT = 0;
+  state = 'next'; v2Photo(null);
+  $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
+  startMusic();
+  const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
+  const q = new URLSearchParams({ embed: '1', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-60' }).toString();
+  const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
+  if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
+  nextFrame?.remove(); nextCfg = q;
+  nextFrame = document.createElement('iframe'); nextFrame.id = 'nextrun'; nextFrame.allow = 'autoplay; fullscreen; accelerometer; gyroscope'; nextFrame.setAttribute('allowfullscreen', '');
+  nextFrame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483000;background:#0b0c0b';
+  nextFrame.src = 'next/index.html?' + q; host.appendChild(nextFrame); nextFrame.focus();
+}
+function endNext(d) {
+  const win = d.t === 'edt-next-run' && !d.fermato;   // Anti-GEV: fermato dalle guardie = giro perso, con verbale e multa
+  nextRes = { pos: win ? d.pos | 0 : 0, ord: Array.isArray(d.ord) && d.ord.length > 1 ? d.ord : null };
+  elapsed = +d.time || 0; roadTime = elapsed;
+  run.caps += d.beers | 0; run.hits = d.falls | 0;
+  lives = Math.max(0, maxLives - (d.falls | 0));
+  run.wheelieMax = +d.impennata || 0; run.splashes = d.pozze | 0; run.cleanSectors = d.settori | 0;   // per le missioni: impennata piu' lunga, pozzanghere prese, tratti senza cadute
+  run.jumps = d.tronchi | 0;   // i tronchi passati in impennata prendono il posto dei salti (300 punti l'uno)
+  score = (d.beers | 0) * 100 + (d.tronchi | 0) * 300 + (ice ? d.drift | 0 : 0); driftScore = d.drift | 0;
+  course = win ? GAME_LENGTH : GAME_LENGTH * .5;
+  if (nextFrame) { nextFrame.style.display = 'none'; nextFrame.contentWindow?.postMessage({ t: 'edt-next-sleep' }, location.origin); }
+  v2Photo(typeof d.foto === 'string' && d.foto.startsWith('data:image/') ? d.foto : null);   // dietro i risultati resta la foto dell'arrivo sulla pista nuova, non la scena del gioco vecchio
+  if (win && mode === 9 && elapsed <= NEXT_LIMIT[9] && !P.ownsBike('shadow')) { P.profile.owned['bike:shadow'] = true; P.save(); setTimeout(() => toast('🔓 SBLOCCATA LA SHADOW CHIODATA: È IN GARAGE', 'gold'), 2600); }   // medaglia su Ice Scrofy = Shadow chiodata
+  state = 'playing'; window.__v2Dopo = true;
+  try { finish(win, win ? '' : d.motivo ? d.motivo : d.fermato ? 'FERMATO DALLE GEV' : 'RITIRATO'); } finally { nextRes = null; }
+}
+addEventListener('message', e => { if (e.origin !== location.origin || state !== 'next') return; const d = e.data || {}; if (d.t === 'edt-next-run' || d.t === 'edt-next-quit') endNext(d); });
