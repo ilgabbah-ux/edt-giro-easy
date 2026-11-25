@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 53   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 54   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
