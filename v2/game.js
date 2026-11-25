@@ -3570,7 +3570,7 @@ function xmasChipHTML() {
   const sub = P.xmasDouble() ? '<b>STASERA PUNTI DOPPI</b> · è la notte della Madness' : days > 0 ? `mancano <b>${days} ${days === 1 ? 'giorno' : 'giorni'}</b> alla notte del 21: punti doppi` : 'fino all’Epifania · Re del Natale in classifica';
   return `<button type="button" class="xmaschip" id="xmaschip">${icon('gift')}<span><small>EVENTO DI NATALE</small><b>CHRISTMAS MADNESS</b><em>${sub}</em></span>${icon('chevrons')}</button>`;
 }
-function renderReady() {
+function renderReady() { v2Photo(null);
   if (dirtShown) { dirtK = dirtShown = 0; world?.setDirt?.(0); }   // v149 · in menu la moto torna pulita
   champRun = false;   // v130
   try { P.starterAuto().forEach(starterTick); } catch {}   // v129
@@ -5018,6 +5018,7 @@ setTimeout(() => { const n = C.getNick(); if (n && cloudOkFor() !== n.toLowerCas
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
 const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 3: V2_DAILY.p, 15: 'n', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's' }, NEXT_LIMIT = { 0: 150, 1: 158, 2: 135, 9: 118, 13: 185, 14: 132, 16: 185, 17: 148, 18: 190, 15: 140, 20: 145, 21: 220, 22: 900 }; NEXT_LIMIT[3] = P.MODES.find(x => x.id === 3).limit;
+function v2Photo(u) { const c = $('canvas'), g = $('game'); if (!c || !g) return; if (u) { c.style.visibility = 'hidden'; g.style.backgroundImage = 'url(' + u + ')'; g.style.backgroundSize = 'cover'; g.style.backgroundPosition = 'center'; } else { c.style.visibility = ''; g.style.backgroundImage = ''; } }
 function v2Order(c0, ord) { const free = c0.rivals.slice(), mp = {}; for (const n of ord) if (n !== '__me') { const k = free.findIndex(x => x.toUpperCase() === n); if (k >= 0) mp[n] = free.splice(k, 1)[0]; } for (const n of ord) if (n !== '__me' && !mp[n] && free.length) mp[n] = free.shift(); const out = ord.map(n => n === '__me' ? n : mp[n]).filter(Boolean); for (const n of free) out.push(n); if (!out.includes('__me')) out.push('__me'); return out; }   // v2 · campionato: l'ordine d'arrivo vero della pista 3D
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow' };
 let nextRes = null, nextFrame = null, nextCfg = '';
@@ -5026,11 +5027,11 @@ function startNext() {
   if (touchDevice) goFull();
   resetRun(); perfRun = null; nextRes = null;
   timeLimit = NEXT_LIMIT[mode]; rookieT = 0;
-  state = 'next';
+  state = 'next'; v2Photo(null);
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-34' }).toString();
+  const q = new URLSearchParams({ embed: '1', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-35' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
@@ -5049,6 +5050,7 @@ function endNext(d) {
   score = (d.beers | 0) * 100 + (d.tronchi | 0) * 300 + (ice ? d.drift | 0 : 0); driftScore = d.drift | 0;
   course = win ? GAME_LENGTH : GAME_LENGTH * .5;
   if (nextFrame) { nextFrame.style.display = 'none'; nextFrame.contentWindow?.postMessage({ t: 'edt-next-sleep' }, location.origin); }
+  v2Photo(typeof d.foto === 'string' && d.foto.startsWith('data:image/') ? d.foto : null);   // dietro i risultati resta la foto dell'arrivo sulla pista nuova, non la scena del gioco vecchio
   if (win && mode === 9 && elapsed <= NEXT_LIMIT[9] && !P.ownsBike('shadow')) { P.profile.owned['bike:shadow'] = true; P.save(); setTimeout(() => toast('🔓 SBLOCCATA LA SHADOW CHIODATA: È IN GARAGE', 'gold'), 2600); }   // medaglia su Ice Scrofy = Shadow chiodata
   state = 'playing';
   try { finish(win, win ? '' : d.motivo ? d.motivo : d.fermato ? 'FERMATO DALLE GEV' : 'RITIRATO'); } finally { nextRes = null; }

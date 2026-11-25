@@ -128,6 +128,21 @@ export const ANTIGEV = [
   [90, 0, 0, 'v'], [70, -60, 1, 'v'], [120, 0, 0, 'v'],
 ];
 export const ANTIGEV_EXTRA = { logs: [330, 372, 1338, 1376] };
+// CEF ADVENTURE: da Piacenza a Rapallo. Ricavato dalla traccia vera (CEF ADVENTURE 19 ANDATA NEW.gpx, 183 km, dai 438 m della Val Nure ai 1405 m del crinale fino al mare): stessa pianta in piccolo, stesso profilo in scala, tornanti addolciti perche' i rami non si tocchino. Non e' un anello: si parte in collina e si arriva sulla spiaggia, dove si dorme in tenda
+export const CEF = [
+  [60, 0, 6, 'v'], [66, -44, 20, 's'], [48, 0, 14, 'v'], [59, 55, 8, 'v'], [44, 33, -6, 't'], [17, 0, -16, 'd'],
+  [58, 58, -9, 'v'], [65, 0, -2, 't'], [43, -30, 20, 'm'], [49, -34, 16, 'm'], [24, 16, -5, 't'], [41, 47, -16, 'd'],
+  [22, 0, 0, 'g'], [27, -18, 12, 't'], [34, 0, 12, 'v'], [39, 26, -2, 'b'], [26, 0, -2, 'v'], [24, -16, 16, 'm'],
+  [60, 41, -16, 'd'], [50, 45, 10, 'v'], [37, 0, 5, 't'], [64, -70, -1, 'v'], [95, 0, -4, 'f'], [44, 50, 16, 's'],
+  [32, 23, 16, 'm'], [105, 0, -8, 't'], [50, -37, 20, 's'], [27, 0, 20, 's'], [26, -17, 16, 'm'], [23, 16, 16, 'm'],
+  [42, 0, 12, 'p'], [53, -57, 18, 's'], [44, -54, -8, 'p'], [85, 0, -16, 'd'], [46, 40, -16, 'd'], [24, -16, -10, 'd'],
+  [37, -33, -5, 'b'], [26, 0, 0, 'g'], [34, 23, 16, 'm'], [44, 45, 20, 's'], [13, 0, 20, 's'], [46, 31, 13, 'v'],
+  [45, -37, -16, 'd'], [28, 0, -16, 'd'], [36, -70, -16, 'd'], [24, 16, -10, 'd'], [39, -47, -16, 'd'], [26, 0, 0, 'g'],
+  [60, -70, 10, 'v'], [95, 0, 20, 's'], [62, 55, 20, 's'], [23, 0, -11, 'v'], [47, 50, -16, 'd'], [14, 0, 13, 'v'],
+  [30, -20, 8, 't'], [33, -30, -1, 't'], [24, 16, 5, 't'], [27, -18, -10, 't'], [102, 0, -16, 'd'], [61, 70, -12, 'v'],
+  [47, -40, -16, 'd'], [71, 0, -16, 'd'], [99, 66, -4, 'v'], [177, 0, -9, 'd'], [36, -28, -6, 'k'], [95, 0, -4, 'k'],
+];
+export const CEF_EXTRA = { logs: [384, 874, 1180] };
 // NOTTURNA CON LE FRONTALI: un serpentone tutto nel bosco, fatto apposta. Dalla radura col falo' si sale in mulattiera fino alla cresta sotto la luna, si scende al guado e al fango, poi macchia stretta, pietraia e le esse finali fino al falo' d'arrivo
 export const NOTTE = [
   [60, 0, 0, 'v'], [50, 35, 1, 't'], [40, -22, 2, 't'], [40, 22, 2, 't'], [50, 0, 6, 's'],
