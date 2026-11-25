@@ -18,6 +18,7 @@ window.EDT_BOARD_URL = 'https://invalid.invalid/exec';
   try { if (!g.call(localStorage, P + '__rec16')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['16'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec16', '1'); } } catch (e) {}   /* Desertone rifatto in 3D: tempi vecchi azzerati */
   try { if (!g.call(localStorage, P + '__rec13')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['13'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec13', '1'); } } catch (e) {}   /* Anti-GEV rifatto in 3D: tempi vecchi azzerati */
   try { if (!g.call(localStorage, P + '__rec2c')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['2'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec2c', '1'); } } catch (e) {}   /* Angelo Potter rifatto: punteggi vecchi (metri di salto) azzerati */
+  try { if (!g.call(localStorage, P + '__rec15')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['15'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec15', '1'); } } catch (e) {}   /* Angelo Potter rifatto: punteggi vecchi (metri di salto) azzerati */
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
 </script>
 
@@ -48,10 +49,10 @@ window.EDT_BOARD_URL = 'https://invalid.invalid/exec';
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css?v=48f0280c">
 <!-- v109.3 · il telefono scarica subito tutti i pezzi del gioco in parallelo, invece che uno dopo l'altro -->
-<link rel="modulepreload" href="v2/game.js?v=41167d7c">
+<link rel="modulepreload" href="v2/game.js?v=67f39286">
 <link rel="modulepreload" href="physics.js?v=b9c35116">
 <link rel="modulepreload" href="audio.js?v=3afc3a91">
-<link rel="modulepreload" href="v2/progress.js?v=984a1337">
+<link rel="modulepreload" href="v2/progress.js?v=1c3810e2">
 <link rel="modulepreload" href="icons.js?v=fcc14503">
 <link rel="modulepreload" href="classifica.js?v=05f95d02">
 <link rel="modulepreload" href="percorsi.js?v=3b677ca8">
@@ -205,6 +206,6 @@ window.EDT_BOARD_URL = 'https://invalid.invalid/exec';
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="v2/game.js?v=41167d7c"></script>
+<script type="module" src="v2/game.js?v=67f39286"></script>
 </body>
 </html>

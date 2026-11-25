@@ -128,6 +128,18 @@ export const ANTIGEV = [
   [90, 0, 0, 'v'], [70, -60, 1, 'v'], [120, 0, 0, 'v'],
 ];
 export const ANTIGEV_EXTRA = { logs: [330, 372, 1338, 1376] };
+// NOTTURNA CON LE FRONTALI: un serpentone tutto nel bosco, fatto apposta. Dalla radura col falo' si sale in mulattiera fino alla cresta sotto la luna, si scende al guado e al fango, poi macchia stretta, pietraia e le esse finali fino al falo' d'arrivo
+export const NOTTE = [
+  [60, 0, 0, 'v'], [50, 35, 1, 't'], [40, -22, 2, 't'], [40, 22, 2, 't'], [50, 0, 6, 's'],
+  [45, -28, 12, 's'], [60, 0, 10, 'm'], [40, 24, 6, 'm'], [70, 0, 2, 'v'], [50, -40, 0, 'v'],
+  [50, 0, -10, 'd'], [40, 26, -14, 'd'], [40, -26, -10, 'd'], [30, 0, -2, 't'], [24, 0, 0, 'g'],
+  [50, 0, 1, 'f'], [50, 30, 0, 'f'], [40, 0, 0, 'b'], [36, -18, 0, 'b'], [36, 18, 0, 'b'],
+  [36, -18, 0, 't'], [60, 0, 3, 'v'], [60, -45, 4, 'v'], [50, 0, 8, 'p'], [40, 30, 4, 'p'],
+  [60, 0, 0, 't'], [40, -20, -4, 't'], [40, 20, -6, 'd'], [60, 0, -8, 'd'], [50, -35, -2, 'v'],
+  [40, 0, 0, 't'], [30, 16, 0, 't'], [30, -16, 0, 't'], [30, 16, 0, 't'], [80, 0, 0, 'v'],
+  [60, 50, 0, 'v'], [100, 0, 0, 'v'],
+];
+export const NOTTE_EXTRA = { logs: [648, 1172, 1414] };
 // ANGELO POTTER: la mulattiera del dirupo. Una lunga traversata a mezza costa: la parete sempre a sinistra, il vuoto sempre a destra. Niente tornanti sovrapposti: la montagna e' una sola e si legge bene. A meta' il punto di Angelo
 export const POTTER = [
   [50, 0, 2, 'm'], [60, 0, 14, 'e'], [35, -30, 20, 'e'], [45, 0, -7, 'e'], [40, 28, -11, 'e'],
