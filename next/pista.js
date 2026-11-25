@@ -18,8 +18,8 @@ export const KIND = {
   u: { name: 'duna', w: 13, side: 3.4, grip: .8, drag: .55, rough: .008, tex: 'sand', tape: 0 },   /* Desertone: sabbia molle delle dune, la moto galleggia solo col gas aperto */
   h: { name: 'sabbia molle', w: 9.5, side: 3.4, grip: .78, drag: .75, rough: .006, tex: 'sand', tape: 0 },   /* Desertone: chiazze di sabbia molle in mezzo alla pista battuta. Larghe come la pista, ma la moto ci affonda: si passano col gas aperto */
   k: { name: 'pista sabbiosa', w: 9.5, side: 3.4, grip: .92, drag: .16, rough: .012, tex: 'sand', tape: 0 },   /* Desertone: la pista battuta tra una duna e l'altra */
-  e: { name: 'mulattiera esposta', w: 3.8, side: 9, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },   /* Angelo Potter: mulattiera stretta scavata nel fianco della montagna, da una parte la roccia e dall'altra il vuoto */
-  a: { name: 'punto di Angelo', w: 2.8, side: 9, grip: 1.0, drag: .15, rough: .04, tex: 'cobble', tape: 0 },   /* il passaggio piu stretto, col masso sotto */
+  e: { name: 'mulattiera esposta', w: 3.0, side: 9, grip: 1.0, drag: .15, rough: .05, tex: 'cobble', tape: 0 },   /* Angelo Potter: mulattiera stretta scavata nel fianco della montagna, da una parte la roccia e dall'altra il vuoto */
+  a: { name: 'punto di Angelo', w: 2.3, side: 9, grip: 1.0, drag: .15, rough: .04, tex: 'cobble', tape: 0 },   /* il passaggio piu stretto, col masso sotto */
   b: { name: 'macchia', w: 3.2, side: 12, grip: .98, drag: .15, rough: .02, tex: 'forest', tape: 0 },
   t: { name: 'single track', w: 2.6, side: 13, grip: 1.38, drag: 0, rough: .018, tex: 'forest', tape: 0 },
 };
