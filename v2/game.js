@@ -3374,6 +3374,11 @@ function renderChamp() {
 }
 // v150 · NOVITÀ: alla prima apertura dopo un aggiornamento, cosa è cambiato (anche le versioni saltate)
 const NEWS = {
+  166: [['🏍', 'Guida nuova in 3D', 'piste vere, ricalcate dalle tracce GPS dei nostri giri'],
+    ['🗺', 'Cef Adventure', 'da Piacenza a Rapallo, e a fine giro si dorme in spiaggia con le tende'],
+    ['⚡', 'Piste rifatte', 'Angelo Potter con la saetta, Notturna con le frontali, Fest al tramonto coi fuochi d’artificio'],
+    ['🏆', 'Stagione 12', 'record e classifiche ripartono da zero, tutti alla pari'],
+    ['🔧', 'MotoFogna, Valle Argentera e MontaFiga', 'tornano presto, rifatte in 3D']],
   164: [['🏁', 'Primo giro più facile', 'chi comincia parte subito con un Giro easy vero; la scuola di enduro resta in Home per chi la vuole'],
     ['⏱', 'Riprova con +10 secondi', 'finché non sei arrivato tre volte al rifugio, dopo un giro perso il tasto grande ti regala 10 secondi']],
   163: [['🏍️', 'Pilota più vero', 'sposta il peso in frenata e in discesa, guarda dentro la curva, mette giù il piede nelle curve strette'],
