@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 42   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 43   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -34,7 +34,7 @@ const V2_DAILY = (() => { const k = +P.todayKey() || 0, T = [[0, 'g'], [1, 'i'],
 { const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
 import * as D from '../duel.js""", 'import duel')
 
-g = rep(g, "const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';", "const trackArtOf = m => m.id === 23 ? 'next/menu/t-e.webp?v=5' : 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';", 'copertina Cef')
+g = rep(g, "const trackArtOf = m => 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';", "const trackArtOf = m => m.id === 23 ? 'next/menu/t-e.webp?v=6' : 'img/' + (TRACK_ART_FILE[m.id] || 'track-' + m.id) + '.webp?t=1';", 'copertina Cef')
 g = rep(g, "<div><b>${run.jumps}</b><small>SALTI</small></div>", "<div><b>${run.jumps}</b><small>${NEXT_PISTA[mode] !== undefined ? 'TRONCHI' : 'SALTI'}</small></div>", 'tronchi')
 
 # 2b) la Shadow chiodata in garage: moto bonus, si sblocca con una medaglia su Ice Scrofy
