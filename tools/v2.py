@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 31   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 32   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -190,7 +190,7 @@ window.EDT_BOARD_URL = 'https://invalid.invalid/exec';
   try { if (!g.call(localStorage, P + '__rec9')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['9'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec9', '1'); } } catch (e) {}   /* Ice Scrofy rallentata: i tempi vecchi non valgono piu' */
   try { if (!g.call(localStorage, P + '__rec16')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['16'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec16', '1'); } } catch (e) {}   /* Desertone rifatto in 3D: tempi vecchi azzerati */
   try { if (!g.call(localStorage, P + '__rec13')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['13'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec13', '1'); } } catch (e) {}   /* Anti-GEV rifatto in 3D: tempi vecchi azzerati */
-  try { if (!g.call(localStorage, P + '__rec2b')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['2'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec2b', '1'); } } catch (e) {}   /* Angelo Potter rifatto: punteggi vecchi (metri di salto) azzerati */
+  try { if (!g.call(localStorage, P + '__rec2c')) { var K = P + 'edt-giro-easy-v15', d = JSON.parse(g.call(localStorage, K) || 'null'); if (d) { ['2'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f]) delete d[f][m]; }); }); s.call(localStorage, K, JSON.stringify(d)); } s.call(localStorage, P + '__rec2c', '1'); } } catch (e) {}   /* Angelo Potter rifatto: punteggi vecchi (metri di salto) azzerati */
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
 </script>
 """
