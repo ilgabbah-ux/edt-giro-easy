@@ -346,7 +346,7 @@ export function pendingBoosts() { return Object.keys(data.boosts).filter(k => da
 // v130 · TRE STELLE PER PERCORSO: ★ arrivi al rifugio · ★★ tempo d'argento (6 s sotto il massimo) · ★★★ tempo d'oro (12 s sotto) senza cadute.
 // Premi a 9, 18 e 27 stelle. Valgono i percorsi "a tempo" fissi (niente Potter, Ice, Sfida del giorno ed eventi).
 export const STAR_MODES = [0, 1, 2, 9, 13, 14, 15, 16, 18, 20, 21, 23], CHAMP_MODES = [0, 1, 13, 14, 15, 16, 18, 21, 23];   // v2 · stelle solo sui percorsi rifatti; campionato solo dove si corre contro i tre compagni
-const V2_MED = { 0: [135, 122], 1: [142, 130], 2: [108, 95], 9: [106, 97], 13: [155, 140], 14: [127, 117], 15: [122, 112], 16: [165, 150], 18: [170, 155], 20: [130, 118], 21: [200, 185], 23: [205, 185] };   // v2 · le stelle coincidono con le medaglie della pista 3D: 2 stelle = argento, 3 stelle = oro senza cadute
+const V2_MED = { 0: [135, 122], 1: [142, 130], 2: [108, 95], 9: [106, 97], 13: [155, 140], 14: [127, 117], 15: [122, 112], 16: [140, 129], 18: [170, 155], 20: [130, 118], 21: [200, 185], 23: [205, 185] };   // v2 · le stelle coincidono con le medaglie della pista 3D: 2 stelle = argento, 3 stelle = oro senza cadute
 export const starTimes = m => { const q = V2_MED[m]; if (q) return { silver: q[0], gold: q[1] }; const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };
 export const starsFor = m => (data.stars || {})[m] || 0;
 export const totalStars = () => STAR_MODES.reduce((a, m) => a + starsFor(m), 0);
