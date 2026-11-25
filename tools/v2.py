@@ -11,7 +11,7 @@ import hashlib, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(os.path.join(ROOT, 'v2'), exist_ok=True)
-V2 = 58   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 59   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -28,7 +28,7 @@ assert n >= 10, n
 
 # 2) solo i tre percorsi rifatti (piu' la scuola), e la Salita Infame al posto di Dopo migliora
 g = rep(g, "import * as D from '../duel.js", """for (const m of P.MODES) if (![0, 1, 2, 3, 9, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
-{ const L = { 0: 150, 1: 158, 2: 135, 9: 118, 13: 185, 14: 140, 15: 136, 16: 155, 17: 138, 18: 165, 20: 124, 21: 198, 23: 230 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
+{ const L = { 0: 150, 1: 158, 2: 135, 9: 118, 13: 185, 14: 140, 15: 136, 16: 155, 17: 138, 18: 165, 20: 124, 21: 198, 23: 200 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
 const V2_DAILY = (() => { const k = +P.todayKey() || 0, T = [[0, 'g'], [1, 'i'], [18, 'l'], [14, 'r'], [16, 'd'], [13, 'a']], R = ['rain', 'fog', 'night', 'rush'], t = T[(k * 5 + Math.floor(k / 4)) % T.length]; return { m: t[0], p: t[1], r: R[k % R.length] }; })();   // v2 · SFIDA DEL GIORNO sulla pista 3D: ogni giorno un percorso diverso con la regola del giorno (diluvio, nebbia, notturna, di corsa), uguale per tutti
 { const m3 = P.MODES.find(x => x.id === 3); if (m3) m3.limit = P.MODES.find(x => x.id === V2_DAILY.m).limit - (V2_DAILY.r === 'rush' ? 6 : 0); }
 { const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
@@ -71,7 +71,7 @@ g += r"""
 // ================= v2 · INCASTRO DELLA GUIDA NUOVA =================
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
-const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 3: V2_DAILY.p, 15: 'n', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's', 23: 'e' }, NEXT_LIMIT = { 0: 150, 1: 158, 2: 135, 9: 118, 13: 185, 14: 140, 16: 155, 17: 138, 18: 165, 15: 136, 20: 124, 21: 198, 22: 900, 23: 230 }; NEXT_LIMIT[3] = P.MODES.find(x => x.id === 3).limit;
+const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 3: V2_DAILY.p, 15: 'n', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's', 23: 'e' }, NEXT_LIMIT = { 0: 150, 1: 158, 2: 135, 9: 118, 13: 185, 14: 140, 16: 155, 17: 138, 18: 165, 15: 136, 20: 124, 21: 198, 22: 900, 23: 200 }; NEXT_LIMIT[3] = P.MODES.find(x => x.id === 3).limit;
 function v2Photo(u) { const c = $('canvas'), g = $('game'); if (!c || !g) return; if (u) { c.style.visibility = 'hidden'; g.style.backgroundImage = 'url(' + u + ')'; g.style.backgroundSize = 'cover'; g.style.backgroundPosition = 'center'; } else { c.style.visibility = ''; g.style.backgroundImage = ''; } }
 function v2Order(c0, ord) { const free = c0.rivals.slice(), mp = {}; for (const n of ord) if (n !== '__me') { const k = free.findIndex(x => x.toUpperCase() === n); if (k >= 0) mp[n] = free.splice(k, 1)[0]; } for (const n of ord) if (n !== '__me' && !mp[n] && free.length) mp[n] = free.shift(); const out = ord.map(n => n === '__me' ? n : mp[n]).filter(Boolean); for (const n of free) out.push(n); if (!out.includes('__me')) out.push('__me'); return out; }   // v2 · campionato: l'ordine d'arrivo vero della pista 3D
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow' };
@@ -126,7 +126,7 @@ g = re.sub(r"import\('\./scene3d\.js\?v=[0-9a-z]+'\)", "import('./scene3d.js?v="
 pr = open(os.path.join(ROOT, 'progress.js'), encoding='utf-8').read()
 _t = "    layout: [{ t: 0, len: 60, name: 'GIRO DI PROVA COL GABBAH' }] },\n];"   # v2 · percorso nuovo che nel gioco vecchio non c'e': la Cef Adventure (si corre solo con la guida nuova)
 if pr.count(_t) != 1: sys.exit('v2.py: non trovo la fine dei percorsi in progress.js')
-pr = pr.replace(_t, _t[:-3] + """  { id: 23, short: 'CEF', name: 'Cef Adventure', desc: 'Il giro in enduro da Piacenza a Rapallo: calanchi, guadi, il pascolo in quota, il crinale e gi\u00f9 fino al mare. Si arriva al tramonto e si dorme in spiaggia con le tende.', difficulty: 2, sky: 0, limit: 230, unlock: 4, story: true, song: 11,
+pr = pr.replace(_t, _t[:-3] + """  { id: 23, short: 'CEF', name: 'Cef Adventure', desc: 'Il giro in enduro da Piacenza a Rapallo: calanchi, guadi, il pascolo in quota, il crinale e gi\u00f9 fino al mare. Si arriva al tramonto e si dorme in spiaggia con le tende.', difficulty: 2, sky: 0, limit: 200, unlock: 4, story: true, song: 11,
     layout: [{ t: 0, len: 8, name: 'VIA DA PIACENZA' }, { t: 3, len: 7, name: 'I CALANCHI' }, { t: 1, len: 6, name: 'I GUADI' }, { t: 2, len: 9, climb: 1, name: 'IL PASCOLO IN QUOTA' }, { t: 3, len: 6, climb: .8, name: 'IL CRINALE' }, { t: 0, len: 12, down: 1, name: 'LA DISCESA LIGURE' }, { t: 0, len: 5, name: 'RAPALLO: SI DORME IN SPIAGGIA' }] },
 ];""")
 for old, new, what in [
@@ -159,7 +159,7 @@ for _o, _n in [("short: 'MIGLIORA', name: 'Dopo migliora!'", "short: 'INFAME', n
 pr = pr.replace('Dopo migliora', 'Salita Infame')   # anche dove compare come percorso ideale di una moto
 for _o, _n, _w in [
     ("export const STAR_MODES = [0, 1, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21];", "export const STAR_MODES = [0, 1, 2, 9, 13, 14, 15, 16, 18, 20, 21, 23], CHAMP_MODES = [0, 1, 13, 14, 15, 16, 18, 21, 23];   // v2 · stelle solo sui percorsi rifatti; campionato solo dove si corre contro i tre compagni", 'STAR_MODES'),
-    ("export const starTimes = m => { const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };", "const V2_MED = { 0: [135, 122], 1: [142, 130], 2: [108, 95], 9: [106, 97], 13: [155, 140], 14: [127, 117], 15: [122, 112], 16: [140, 129], 18: [148, 136], 20: [110, 100], 21: [180, 168], 23: [205, 185] };   // v2 · le stelle coincidono con le medaglie della pista 3D: 2 stelle = argento, 3 stelle = oro senza cadute\nexport const starTimes = m => { const q = V2_MED[m]; if (q) return { silver: q[0], gold: q[1] }; const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };", 'starTimes'),
+    ("export const starTimes = m => { const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };", "const V2_MED = { 0: [135, 122], 1: [142, 130], 2: [108, 95], 9: [106, 97], 13: [155, 140], 14: [127, 117], 15: [122, 112], 16: [140, 129], 18: [148, 136], 20: [110, 100], 21: [180, 168], 23: [182, 168] };   // v2 · le stelle coincidono con le medaglie della pista 3D: 2 stelle = argento, 3 stelle = oro senza cadute\nexport const starTimes = m => { const q = V2_MED[m]; if (q) return { silver: q[0], gold: q[1] }; const L = MODES[m]?.limit || 58; return { silver: L - 6, gold: L - 12 }; };", 'starTimes'),
     ("export const champOpen = () => STAR_MODES.filter(", "export const champOpen = () => CHAMP_MODES.filter(", 'champOpen'),
     ("export const champLevel = () => STAR_MODES.map(", "export const champLevel = () => CHAMP_MODES.map(", 'champLevel'),
     ("  const open = STAR_MODES.filter(m => isUnlocked(MODES[m])).sort(() => rng() - .5);", "  const open = CHAMP_MODES.filter(m => isUnlocked(MODES[m])).sort(() => rng() - .5);", 'champStart'),
