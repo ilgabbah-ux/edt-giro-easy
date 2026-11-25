@@ -473,3 +473,5 @@ function pushPassed_(name, mode, pn, day, before) {
 }
 // prova manuale dall'editor: manda una notifica a tutti i telefoni di un nome
 function provaNotifica() { const t = pushTokens_()['il gabbah'] || pushTokens_()['ilgabbah'] || []; t.forEach(x => console.log(fcm_(x, '🔔 Prova', 'Notifica di prova da Giro Easy', 'prova'))); }
+// v166 · notifica a tutti i telefoni iscritti: lo switch alla guida nuova in 3D (lanciata una volta dall'editor)
+function notificaNovita166() { const all = pushTokens_(), seen = {}; let n = 0, ok = 0; Object.keys(all).forEach(k => (all[k] || []).forEach(t => { if (!t || seen[t]) return; seen[t] = 1; n++; try { if (fcm_(t, '🏍 GIRO EASY 3D È ONLINE!', 'Piste vere, la Cef fino a Rapallo e stagione 12: i record sono tutti da rifare. Tranquilli, è un giro easy.', 'novita166') < 300) ok++; } catch (e) {} })); console.log('telefoni: ' + n + ' · inviate: ' + ok); }
