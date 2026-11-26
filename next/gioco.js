@@ -4,7 +4,7 @@ import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
 import { CEF, CEF_EXTRA, NOTTE, NOTTE_EXTRA, POTTER, POTTER_EXTRA, POTTER_CLIFF, ANTIGEV, ANTIGEV_EXTRA, DESERTO_PTS, DESERTO_Y, GUSTA_PTS, GUSTA_ELEV, GUSTA_KINDS, GUSTA_KINDS_XMAS, GUSTA_PTS_R, GUSTA_ELEV_R, LEVENTINO_VIET, LEVENTINO, LEVENTINO_EXTRA, paddyAt, SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=63';
-import { startSound, soundUpdate, thud, setSound, whip, whistle, splash, splosh, say, preloadVoice, setBike, speaking } from './suono.js?v=22';
+import { startSound, soundUpdate, thud, setSound, whip, whistle, splash, splosh, say, preloadVoice, setBike, speaking, sleepSound } from './suono.js?v=23';
 import { MOTO, motoById } from './moto.js?v=5';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
 import { CANZONI, titolo, suona, volume, abbassa, ferma, musicaOn, inOnda } from './musica.js?v=1';
@@ -1147,13 +1147,14 @@ $('fAgain').onclick = () => { $('fine').classList.add('hide'); goNow(); }; $('fM
 $('fShare').onclick = async () => { const url = location.href.split('?')[0], d = { title: 'Giro Easy', text: fineTxt, url }; try { if (navigator.share) await navigator.share(d); else { await navigator.clipboard.writeText(fineTxt + ' ' + url); $('fShare').textContent = 'COPIATO!'; setTimeout(() => $('fShare').textContent = 'SFIDA UN AMICO', 1500); } } catch {} };
 const goNow = () => { if (dirty()) { setOpt('via', '1'); $('go').textContent = 'CARICO LA MOTO…'; location.reload(); return; } $('panel').classList.remove('quick'); { const f = canzoneGara(); suona(f, SCHOOL ? .12 : .2); const e = $('song'); e.textContent = musOn ? '♪ ' + titolo(f) + ' · Il GaBbAH' : ''; e.classList.add('show'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('show'), 5000); } askTilt(); startSound().then?.(() => { if (!SCHOOL) preloadVoice(VP); }); if (!SCHOOL) setTimeout(() => preloadVoice(VP), 600); restart(); }; $('go').onclick = goNow;
 if (EMB) { $('panel').classList.add('hide'); document.body.classList.add('emb'); $('opts').textContent = '✕ RITIRATI';
-  addEventListener('message', e => { if (e.origin !== location.origin) return; if (e.data?.t === 'edt-next-restart') { window.__noRender = false; setSound(O.snd); goNow(); } if (e.data?.t === 'edt-next-sleep') { window.__noRender = true; ferma?.(); setSound(false); } });
-  setTimeout(() => { parent.postMessage({ t: 'edt-next-ready' }, location.origin); goNow(); }, 400); } addEventListener('pointerdown', () => { if (state === 'play' || state === 'count') startSound(); }, true);   /* se il telefono ha messo in pausa l'audio del motore, il primo tocco lo riaccende */ $('again').onclick = goNow;
+  addEventListener('message', e => { if (e.origin !== location.origin) return; if (e.data?.t === 'edt-next-restart') { window.__noRender = false; dorme = false; sleepSound(false); setSound(O.snd); goNow(); } if (e.data?.t === 'edt-next-sleep') { window.__noRender = true; dorme = true; ferma?.(); setSound(false); sleepSound(true); } });
+  setTimeout(() => { parent.postMessage({ t: 'edt-next-ready' }, location.origin); goNow(); }, 400); } addEventListener('pointerdown', () => { if (!dorme && (state === 'play' || state === 'count')) startSound(); }, true);   /* se il telefono ha messo in pausa l'audio del motore, il primo tocco lo riaccende */ $('again').onclick = goNow;
 $('opts').onclick = () => { if (EMB) { state = 'done'; parent.postMessage({ t: 'edt-next-quit', time: +time.toFixed(2) }, location.origin); return; } state = 'menu'; $('pres').textContent = ''; $('go').textContent = 'RIPARTI'; $('panel').classList.remove('hide'); };
 { const row = $('oCam').parentNode, mk = id => { const b = document.createElement('button'); b.className = 'btn dark'; b.id = id; b.type = 'button'; row.appendChild(b); return b; }, MT = ['s', 'p', 'n'], OR = ['g', 't', 'n'];
   mk('oMeteo').onclick = () => { SEL.meteo = MT[(MT.indexOf(SEL.meteo) + 1) % 3]; setOpt('meteo', SEL.meteo); labels(); menuDraw(); }; mk('oOra').onclick = () => { SEL.ora = OR[(OR.indexOf(SEL.ora) + 1) % 3]; setOpt('ora', SEL.ora); labels(); menuDraw(); }; }
 setSound(O.snd); labels(); place(); hud(); tintWorld(); { let k = 0; const iv = setInterval(() => { tintWorld(); if (++k > 12) clearInterval(iv); }, 1500); }
-document.addEventListener('visibilitychange', () => { if (document.hidden) setSound(false); else setSound(O.snd); });
+let dorme = false;   /* gara finita e nascosta dietro i risultati: il motore non deve riaccendersi quando torni nell'app */
+document.addEventListener('visibilitychange', () => { if (document.hidden) setSound(false); else if (!dorme) setSound(O.snd); });
 
 let last = performance.now(), slow = 0;
 function frame(now) {

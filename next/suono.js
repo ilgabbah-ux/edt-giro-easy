@@ -6,6 +6,8 @@ const GEARS = [0, .42, .72, 1.02, 1.34, 1.7, 9];
 let EP = { lo: { url: 'suoni/fakedomi-basso.mp3?v=1', f: 31, len: 2.998526 }, hi: { url: 'suoni/fakedomi-alto.mp3?v=1', f: 55, len: 2.986032 }, x0: 36, x1: 48, nz: .6 };   // Fake Domi: mono 4 tempi 650
 const LOUD = 2.2, mLevel = () => on ? (vSrc ? .4 : 1) * LOUD : 0;   /* il motore deve stare sopra la musica, anche dall'altoparlante del telefono */   // mentre il Gabbah parla il motore si abbassa
 export const speaking = () => !!vSrc;
+// a gara finita (pagina dei risultati del gioco) l'audio della gara si spegne del tutto: non basta abbassarlo, se no torna su quando rientri nell'app
+export function sleepSound(v) { if (!ctx) return; try { if (v) ctx.suspend(); else if (ctx.state === 'suspended') ctx.resume(); } catch {} }
 export function setSound(v) { on = v; if (ctx) master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .05); if (!on) hush(); }
 // VOCE della scuola: le frasi del Gabbah, una per stazione. Si caricano alla prima richiesta; se ne parte una nuova la vecchia si zittisce
 const VB = {}; let vSrc = null, vWant = '';
