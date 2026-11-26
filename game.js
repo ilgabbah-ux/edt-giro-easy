@@ -3375,6 +3375,7 @@ function renderChamp() {
 }
 // v150 · NOVITÀ: alla prima apertura dopo un aggiornamento, cosa è cambiato (anche le versioni saltate)
 const NEWS = {
+  170: [['🔓', 'Moto sbloccata', 'quando sblocchi una moto bonus adesso te lo dice un riquadro, e puoi salirci subito']],
   169: [['🦄', 'Anal K di Gusta', 'la KTM 450 di Gusta dopo lo scherzo: prendi una medaglia al Gusta Ranch e te la trovi in garage']],
   166: [['🏍', 'Guida nuova in 3D', 'piste vere, ricalcate dalle tracce GPS dei nostri giri'],
     ['🗺', 'Cef Adventure', 'da Piacenza a Rapallo, e a fine giro si dorme in spiaggia con le tende'],
@@ -3416,6 +3417,27 @@ function maybeNews() {
     mark(); showNews(items);
   }, 1400);
 }
+// v170 · MOTO SBLOCCATA: un riquadro vero, non una scritta che passa. Vale per le moto bonus (Shadow chiodata, Anal K di Gusta); se l'hai sbloccata e non l'hai visto, te lo dice alla prima apertura
+const UNLOCK_BIKES = { shadow: 'con la medaglia su Ice Scrofy', analk: 'con la medaglia al Gusta Ranch' };
+function maybeUnlock() {
+  if ($('unlockpop') || $('newspop')) return;
+  for (const id of Object.keys(UNLOCK_BIKES)) { let seen = '1'; try { seen = localStorage.getItem('edt-unlock-seen:' + id); } catch {} if (P.ownsBike(id) && !seen) { showUnlock(id); return; } }
+}
+function showUnlock(id) {
+  const b = P.BIKES.find(x => x.id === id); if (!b) return;
+  try { localStorage.setItem('edt-unlock-seen:' + id, '1'); } catch {}
+  const el = document.createElement('div'); el.className = 'podium chestpop newspop'; el.id = 'unlockpop';
+  el.innerHTML = `<div class="podbox chestbox"><small>🔓 ${UNLOCK_BIKES[id].toUpperCase()}</small><b class="podtitle">MOTO SBLOCCATA!</b>
+    <img src="img/bike-${b.id}.webp?t=1" alt="${b.name}" style="display:block;width:min(260px,70%);margin:6px auto 4px">
+    <b style="display:block;font:26px/1.1 var(--display);color:var(--y);margin-bottom:6px">${b.name.toUpperCase()}</b><p>${b.desc}</p>
+    <button class="primary" type="button" id="unlockgo"><span>${P.currentBike().id === id ? 'OK' : 'USALA SUBITO'}</span></button>${P.currentBike().id === id ? '' : '<button class="secondary" type="button" id="unlockclose">DOPO, È IN GARAGE</button>'}</div>`;
+  (document.fullscreenElement || document.webkitFullscreenElement || document.body).appendChild(el); requestAnimationFrame(() => el.classList.add('open'));
+  try { A.sfx.power(); } catch {}
+  const close = () => { el.remove(); setTimeout(maybeUnlock, 300); };
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+  if ($('unlockclose')) $('unlockclose').onclick = () => { A.sfx.click(); close(); };
+  $('unlockgo').onclick = () => { A.sfx.click(); if (P.currentBike().id !== id) { P.buyBike(id); toast('🏍 IN SELLA: ' + b.name.toUpperCase(), 'gold'); try { renderSide(); } catch {} } close(); };
+}
 function showNews(items) {
   $('newspop')?.remove();
   const el = document.createElement('div'); el.className = 'podium chestpop newspop'; el.id = 'newspop';
@@ -3423,7 +3445,7 @@ function showNews(items) {
     <ul class="newslist">${items.map(([ic, t, d]) => `<li><i>${ic}</i><span><b>${t}</b>${d.replace('{gift}', giftDay())}</span></li>`).join('')}</ul>
     <button class="primary" type="button" id="newsgo"><span>PROVALE SUBITO</span></button><button class="secondary" type="button" id="newsclose">DOPO</button></div>`;
   (document.fullscreenElement || document.webkitFullscreenElement || document.body).appendChild(el); iconizeEl(el); requestAnimationFrame(() => el.classList.add('open'));
-  const close = () => { el.remove(); A.sfx.click(); };
+  const close = () => { el.remove(); A.sfx.click(); setTimeout(maybeUnlock, 400); };
   el.addEventListener('click', e => { if (e.target === el) close(); });
   $('newsclose').onclick = close;
   $('newsgo').onclick = () => { close(); $('start')?.click(); };
@@ -3658,6 +3680,7 @@ function renderReady() { v2Photo(null);
   iconizeEl($('card'));
   $('start').onclick = () => { if (duel) duel.racing = false; start(); };
   maybeNews();   // v150
+  setTimeout(maybeUnlock, 900);   // v170
   $('pushmenu')?.addEventListener('click', async e => { A.sfx.click(); if (!C.getNick()) { notice('🏁 PRIMA FAI UN GIRO IN CLASSIFICA CON IL TUO NOME', 'gold'); return; } await pushToggle(e.currentTarget); renderReady(); });   // v154
   $('thfit')?.addEventListener('click', e => { e.stopPropagation(); const id = $('thfit').dataset.bike; if (P.ownsBike(id)) { P.buyBike(id); A.sfx.click(); toast('🎯 IN SELLA: ' + P.currentBike().name.toUpperCase() + ' · +10% PUNTI QUI', 'green'); renderReady(); renderSide(); } });   // v150
   $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
@@ -4433,7 +4456,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 169;   // v169 · Anal K di Gusta, moto bonus con la medaglia al Gusta Ranch · v168 · Angelo Potter piu ricco, Erika e Giacu, derapate contate · v166 · SWITCH: la gara si corre con la guida nuova in 3D · v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero
+const GAME_VERSION = 170;   // v170 · riquadro MOTO SBLOCCATA · v169 · Anal K di Gusta, moto bonus con la medaglia al Gusta Ranch · v168 · Angelo Potter piu ricco, Erika e Giacu, derapate contate · v166 · SWITCH: la gara si corre con la guida nuova in 3D · v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -5060,8 +5083,8 @@ function endNext(d) {
   course = win ? GAME_LENGTH : GAME_LENGTH * .5;
   if (nextFrame) { nextFrame.style.display = 'none'; nextFrame.contentWindow?.postMessage({ t: 'edt-next-sleep' }, location.origin); }
   v2Photo(typeof d.foto === 'string' && d.foto.startsWith('data:image/') ? d.foto : null);   // dietro i risultati resta la foto dell'arrivo sulla pista nuova, non la scena del gioco vecchio
-  if (win && mode === 14 && elapsed <= NEXT_LIMIT[14] && !P.ownsBike('analk')) { P.profile.owned['bike:analk'] = true; P.save(); setTimeout(() => toast('🔓 SBLOCCATA L’ANAL K DI GUSTA: È IN GARAGE', 'gold'), 2600); }   // medaglia al Gusta Ranch = Anal K di Gusta
-  if (win && mode === 9 && elapsed <= NEXT_LIMIT[9] && !P.ownsBike('shadow')) { P.profile.owned['bike:shadow'] = true; P.save(); setTimeout(() => toast('🔓 SBLOCCATA LA SHADOW CHIODATA: È IN GARAGE', 'gold'), 2600); }   // medaglia su Ice Scrofy = Shadow chiodata
+  if (win && mode === 14 && elapsed <= NEXT_LIMIT[14] && !P.ownsBike('analk')) { P.profile.owned['bike:analk'] = true; P.save(); setTimeout(maybeUnlock, 2600); }   // medaglia al Gusta Ranch = Anal K di Gusta
+  if (win && mode === 9 && elapsed <= NEXT_LIMIT[9] && !P.ownsBike('shadow')) { P.profile.owned['bike:shadow'] = true; P.save(); setTimeout(maybeUnlock, 2600); }   // medaglia su Ice Scrofy = Shadow chiodata
   state = 'playing'; window.__v2Dopo = true;
   try { finish(win, win ? '' : d.motivo ? d.motivo : d.fermato ? 'FERMATO DALLE GEV' : 'RITIRATO'); } finally { nextRes = null; }
 }
