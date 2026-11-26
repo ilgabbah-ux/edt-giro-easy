@@ -103,7 +103,8 @@ function valid_(r, m, minv, grp) {
   if (grp !== 'pub' && String(r[11] || '') === 'pub') return false;   // v149 · EDT = solo gli amici; TUTTI = tutti i giri, EDT compresi
   if ((Number(r[8]) || 0) < minv) return false;   // v79 · solo la stagione richiesta
   if (String(r[1]).indexOf('TEST_CLAUDE') === 0) return false;   // v57 · righe di prova ignorate
-  if (m === 2 && (Number(r[8]) || 0) < 59) return false;   // v59 · Taglio di Angelo ora è una gara di salto: contano solo i salti
+  if (m === 2 && (Number(r[8]) || 0) < 59) return false;
+  if (m === 9 && (Number(r[8]) || 0) < 167) return false;   // v167 · Ice Scrofy rifatto (piu' lento, senza turbo): contano solo i giri dalla 167   // v59 · Taglio di Angelo ora è una gara di salto: contano solo i salti
   return true;
 }
 

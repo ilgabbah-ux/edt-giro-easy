@@ -2,6 +2,10 @@
 <html lang="it">
 <head>
 <script>
+// v167 · Ice Scrofy rifatto (piu' lento, senza turbo): una volta sola si azzerano record e stelle di Ice Scrofy
+(function () { try { if (localStorage.getItem('edt-reset-ice-167')) return; var K = 'edt-giro-easy-v15', d = JSON.parse(localStorage.getItem(K) || 'null'); if (d) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f] && typeof d[f] === 'object') delete d[f]['9']; }); localStorage.setItem(K, JSON.stringify(d)); } localStorage.setItem('edt-reset-ice-167', '1'); } catch (e) {} })();
+</script>
+<script>
 // v166 · SWITCH alla guida nuova: una volta sola si azzerano record e stelle dei percorsi rifatti (i tempi non sono confrontabili). Pilota, moto, birre e livello restano
 (function () { try { if (localStorage.getItem('edt-switch-guida3d')) return; var K = 'edt-giro-easy-v15', d = JSON.parse(localStorage.getItem(K) || 'null'); if (d) { ['0', '1', '2', '4', '9', '13', '14', '15', '16', '17', '18', '20', '21'].forEach(function (m) { ['best', 'board', 'stars'].forEach(function (f) { if (d[f] && typeof d[f] === 'object') delete d[f][m]; }); }); localStorage.setItem(K, JSON.stringify(d)); } localStorage.setItem('edt-switch-guida3d', '1'); } catch (e) {} })();
 </script>
@@ -33,10 +37,10 @@
 <link rel="preload" href="anton.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css?v=48f0280c">
 <!-- v109.3 · il telefono scarica subito tutti i pezzi del gioco in parallelo, invece che uno dopo l'altro -->
-<link rel="modulepreload" href="game.js?v=44fd859f">
+<link rel="modulepreload" href="game.js?v=7ee4292c">
 <link rel="modulepreload" href="physics.js?v=b9c35116">
 <link rel="modulepreload" href="audio.js?v=3afc3a91">
-<link rel="modulepreload" href="progress.js?v=133d5da3">
+<link rel="modulepreload" href="progress.js?v=2bd93f1b">
 <link rel="modulepreload" href="icons.js?v=fcc14503">
 <link rel="modulepreload" href="classifica.js?v=c88d9590">
 <link rel="modulepreload" href="percorsi.js?v=3b677ca8">
@@ -190,6 +194,6 @@
     <span>Arriva al rifugio prima del tempo massimo.</span>
   </footer>
 </div>
-<script type="module" src="game.js?v=44fd859f"></script>
+<script type="module" src="game.js?v=7ee4292c"></script>
 </body>
 </html>

@@ -1,14 +1,14 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
 import * as A from './audio.js?v=3afc3a91';
-import * as P from './progress.js?v=133d5da3';
+import * as P from './progress.js?v=2bd93f1b';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
 import * as C from './classifica.js?v=c88d9590';
 import * as N from './push.js?v=13d13cf1';   // v154 · notifiche "ti hanno superato"
 for (const m of P.MODES) if (![0, 1, 2, 3, 4, 9, 13, 14, 15, 16, 17, 18, 20, 21, 22].includes(m.id)) m.hidden = true;   // v2 · per ora solo i percorsi gia' rifatti in 3D
-{ const L = { 0: 150, 1: 158, 2: 135, 9: 118, 13: 185, 14: 140, 15: 136, 16: 155, 17: 138, 18: 165, 20: 124, 21: 198, 4: 200 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
+{ const L = { 0: 150, 1: 158, 2: 135, 9: 150, 13: 185, 14: 140, 15: 136, 16: 155, 17: 138, 18: 165, 20: 124, 21: 198, 4: 200 }; for (const m of P.MODES) if (L[m.id]) m.limit = L[m.id]; }   // v2 · tempi dei percorsi nuovi: cosi' tempo massimo, stelle e missioni parlano dei tempi veri della pista 3D
 const V2_DAILY = (() => { const k = +P.todayKey() || 0, T = [[0, 'g'], [1, 'i'], [18, 'l'], [14, 'r'], [16, 'd'], [13, 'a']], R = ['rain', 'fog', 'night', 'rush'], t = T[(k * 5 + Math.floor(k / 4)) % T.length]; return { m: t[0], p: t[1], r: R[k % R.length] }; })();   // v2 · SFIDA DEL GIORNO sulla pista 3D: ogni giorno un percorso diverso con la regola del giorno (diluvio, nebbia, notturna, di corsa), uguale per tutti
 { const m3 = P.MODES.find(x => x.id === 3); if (m3) m3.limit = P.MODES.find(x => x.id === V2_DAILY.m).limit - (V2_DAILY.r === 'rush' ? 6 : 0); }
 { const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
@@ -3366,7 +3366,7 @@ function renderChamp() {
   if ($('champquit')) $('champquit').onclick = e => { const b = e.currentTarget; if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'SICURO? TOCCA ANCORA E PERDI I PUNTI'; return; } P.champQuit(); renderChamp(); };
   if ($('champgo')) $('champgo').onclick = () => {
     A.unlock(); A.sfx.click();
-    let cc = P.champ(); if (!cc) { cc = P.champStart(['Linus', 'Costa', 'Mirco'].map(n => n === profile.rider ? 'Il Gabbah' : n), profile.rider);   /* v2 · sulla pista 3D i compagni di gara sono loro tre (il Gabbah se uno dei tre sei tu) */ renderChamp(); return; }
+    let cc = P.champ(); if (!cc) { cc = P.champStart(['Il Gabbah', 'Angelo', 'Miti', 'Costa', 'Linus', 'Purcello', 'Mirco', 'Renard', 'Gusta', 'Alex', 'Erika', 'Maggie'], profile.rider);   /* v2 · v167: tre avversari a caso tra i piloti EDT che parlano, fissi per tutto il campionato */ renderChamp(); return; }
     mode = cc.tracks[cc.i]; profile.mode = mode; P.save();
     if (duel) duel.racing = false;
     renderReady(); champRun = true; start();
@@ -4431,7 +4431,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 166;   // v166 · SWITCH: la gara si corre con la guida nuova in 3D
+const GAME_VERSION = 167;   // v166 · SWITCH: la gara si corre con la guida nuova in 3D · v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -5024,7 +5024,7 @@ setTimeout(() => { const n = C.getNick(); if (n && cloudOkFor() !== n.toLowerCas
 // ================= v2 · INCASTRO DELLA GUIDA NUOVA =================
 // Il gioco resta questo. Per i percorsi rifatti la gara si corre nella pista 3D (cartella next/, aperta a tutto schermo con ?embed=1):
 // le passiamo pilota, moto, accessori e potenziamenti; a fine gara lei ci rimanda tempo, birre, cadute e posizione e si torna ai risultati veri.
-const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 3: V2_DAILY.p, 15: 'n', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's', 4: 'e' }, NEXT_LIMIT = { 0: 150, 1: 158, 2: 135, 9: 118, 13: 185, 14: 140, 16: 155, 17: 138, 18: 165, 15: 136, 20: 124, 21: 198, 22: 900, 4: 200 }; NEXT_LIMIT[3] = P.MODES.find(x => x.id === 3).limit;
+const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 3: V2_DAILY.p, 15: 'n', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's', 4: 'e' }, NEXT_LIMIT = { 0: 150, 1: 158, 2: 135, 9: 150, 13: 185, 14: 140, 16: 155, 17: 138, 18: 165, 15: 136, 20: 124, 21: 198, 22: 900, 4: 200 }; NEXT_LIMIT[3] = P.MODES.find(x => x.id === 3).limit;
 function v2Photo(u) { const c = $('canvas'), g = $('game'); if (!c || !g) return; if (u) { c.style.visibility = 'hidden'; g.style.backgroundImage = 'url(' + u + ')'; g.style.backgroundSize = 'cover'; g.style.backgroundPosition = 'center'; } else { c.style.visibility = ''; g.style.backgroundImage = ''; } }
 function v2Order(c0, ord) { const free = c0.rivals.slice(), mp = {}; for (const n of ord) if (n !== '__me') { const k = free.findIndex(x => x.toUpperCase() === n); if (k >= 0) mp[n] = free.splice(k, 1)[0]; } for (const n of ord) if (n !== '__me' && !mp[n] && free.length) mp[n] = free.shift(); const out = ord.map(n => n === '__me' ? n : mp[n]).filter(Boolean); for (const n of free) out.push(n); if (!out.includes('__me')) out.push('__me'); return out; }   // v2 · campionato: l'ordine d'arrivo vero della pista 3D
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow' };
@@ -5038,7 +5038,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-60' }).toString();
+  const q = new URLSearchParams({ embed: '1', camp: champRun ? '1' : '0', riv: champRun && P.champ() ? P.champ().rivals.join('|') : '', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-61' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
