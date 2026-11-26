@@ -14,7 +14,7 @@ RADICE = os.environ.get('V2_RADICE') == '1'   # SWITCH: scrive il gioco nuovo ne
 SRC = os.path.join(ROOT, 'tools', 'vecchio')   # dopo lo switch i sorgenti del gioco vecchio stanno qui (la radice ora e' il gioco nuovo)
 OUT = ROOT if RADICE else os.path.join(ROOT, 'v2')
 os.makedirs(OUT, exist_ok=True)
-V2 = 61   # versione della prova: si alza a ogni modifica dell'incastro
+V2 = 62   # versione della prova: si alza a ogni modifica dell'incastro
 
 
 def rep(s, old, new, what):
@@ -61,7 +61,7 @@ g = rep(g, "function start() {\n", """function start() {
 """, 'start()')
 g = rep(g, "${C.enabled() && !win && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}", "${C.enabled() && (!win || run.position > 1) && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}", 'tasto scusa quando non arrivi primo')
 g = rep(g, "const TRACK_ART_FILE = { 2: 'angelo-potter-card',", "const TRACK_ART_FILE = { 1: '../v2/salita-infame', 2: 'angelo-potter-card',", 'foto nuova della Salita Infame')
-g = rep(g, "  run.position = rivals.length ? racePos() : 0;", "  run.position = nextRes ? nextRes.pos : rivals.length ? racePos() : 0;", 'posizione in finish()')
+g = rep(g, "  run.position = rivals.length ? racePos() : 0;", "  run.position = nextRes ? (ice && nextRes.pos && rivals.length ? racePos() : nextRes.pos) : rivals.length ? racePos() : 0;", 'posizione in finish()')
 g = rep(g, "function frame(t) {\n", """function frame(t) {
   if (state === 'next') { last = t; requestAnimationFrame(frame); return; }   // v2 · mentre si corre nella guida nuova il gioco vecchio sta fermo
 """, 'frame()')
@@ -104,7 +104,7 @@ function endNext(d) {
   lives = Math.max(0, maxLives - (d.falls | 0));
   run.wheelieMax = +d.impennata || 0; run.splashes = d.pozze | 0; run.cleanSectors = d.settori | 0;   // per le missioni: impennata piu' lunga, pozzanghere prese, tratti senza cadute
   run.jumps = d.tronchi | 0;   // i tronchi passati in impennata prendono il posto dei salti (300 punti l'uno)
-  score = (d.beers | 0) * 100 + (d.tronchi | 0) * 300 + (ice ? d.drift | 0 : 0); driftScore = d.drift | 0;
+  score = (d.beers | 0) * 100 + (d.tronchi | 0) * 300 + (ice ? d.drift | 0 : 0); driftScore = d.drift | 0; if (ice) { driftCount = d.driftN | 0; driftBest = d.driftBest | 0; driftM = d.driftM | 0; rivals.forEach(r => { r.drift = Math.round((r.dTarget || 12000) * (.3 + Math.random() * .08)); }); }   /* v162 · i compagni della gara di derapate fanno i loro punti anche con la guida nuova */
   course = win ? GAME_LENGTH : GAME_LENGTH * .5;
   if (nextFrame) { nextFrame.style.display = 'none'; nextFrame.contentWindow?.postMessage({ t: 'edt-next-sleep' }, location.origin); }
   v2Photo(typeof d.foto === 'string' && d.foto.startsWith('data:image/') ? d.foto : null);   // dietro i risultati resta la foto dell'arrivo sulla pista nuova, non la scena del gioco vecchio
@@ -184,7 +184,7 @@ g = rep(g, "<div><b>${run.wheelieMax ? run.wheelieMax.toFixed(1).replace('.', ',
 g = rep(g, "<div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>", "${NEXT_PISTA[mode] !== undefined ? '' : `<div><b>×${run.maxMult}</b><small>COMBO MAX</small></div>`}", 'via combo')
 if RADICE:
     g = re.sub(r"(from |import\()'\.\./", r"\1'./", g)
-    g = rep(g, "const GAME_VERSION = 165;", "const GAME_VERSION = 167;   // v166 \u00b7 SWITCH: la gara si corre con la guida nuova in 3D \u00b7 v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero", 'versione')
+    g = rep(g, "const GAME_VERSION = 165;", "const GAME_VERSION = 168;   // v168 · Angelo Potter piu ricco, Erika e Giacu, derapate contate · v166 \u00b7 SWITCH: la gara si corre con la guida nuova in 3D \u00b7 v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero", 'versione')
 gh = hashlib.sha1(g.encode()).hexdigest()[:8]
 open(os.path.join(OUT, 'game.js'), 'w', encoding='utf-8').write(g)
 

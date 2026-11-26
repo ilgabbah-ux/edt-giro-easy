@@ -45,13 +45,13 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   #panel .btn { height: 40px; min-width: 0; font-size: 14px; padding: 0 12px; } #panel #go { min-width: 260px; height: 46px; font-size: 18px; } #panel .row { gap: 6px; max-width: 760px; } #panel .row .btn { flex: 1 1 22%; }
   #brake { height: 108px; } #gasb { height: 108px; }
   #tip { left: calc(var(--L) + 150px); right: calc(var(--R) + 158px); }
-  #msg { top: 26%; } #msg.small { top: 34%; }
+  #msg { top: 17%; font-size: clamp(28px, 6vw, 46px); } #msg.small { top: 24%; }   /* v162 · le scritte stanno in alto, non davanti alla moto */
 }
 /* VERTICALE: tasti grandi in basso, spiegazione sopra i tasti a tutta larghezza, scritte più strette */
 @media (orientation: portrait) {
   #tip { left: 10px; right: 10px; bottom: calc(160px + env(safe-area-inset-bottom)); font-size: 15px; }
   #tag { font-size: 10px; letter-spacing: .04em; }
-  #msg { top: 24%; } #msg.small { font-size: min(30px, 7.4vw); top: 27%; left: 6%; right: 6%; }
+  #msg { top: 19%; } #msg.small { font-size: min(30px, 7.4vw); top: 27%; left: 6%; right: 6%; }
   #brake { width: 42vw; max-width: 190px; height: 136px; } #gasb { width: 42vw; max-width: 190px; height: 136px; }
   #panel { padding: 18px 14px; } #panel h1 { font-size: 34px; } #panel .btn { min-width: 0; } #panel #go { min-width: 260px; } #panel .row .btn { flex: 1 1 44%; font-size: 15px; padding: 0 8px; }
 }
@@ -116,7 +116,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v161</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v162</div>
 <div class="hud hidden" id="tip"></div>
 <div class="hud" id="msg"></div>
 <div id="fine" class="hide"><div class="fb"><small id="fTr"></small><h2 id="fPos"></h2><div id="fTime"></div><div id="fMed"></div><div id="fProf"></div><div class="fc"><ul id="fRows"></ul><ol id="fOrd"></ol></div><div class="frow"><button id="fAgain" type="button">RIPROVA</button><button id="fShare" type="button">SFIDA UN AMICO</button><button id="fMenu" type="button">MENU</button></div></div></div>
@@ -157,7 +157,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
  </div>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 161; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=161"></script>
+(function () { var V = 162; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=162"></script>
 </body>
 </html>

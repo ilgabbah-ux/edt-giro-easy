@@ -844,7 +844,7 @@ function finish(win, reason = '') {
     try { localStorage.setItem(GHOST_KEY, JSON.stringify(ghosts)); } catch {}
     run.ghostRecord = true;
   }
-  run.position = nextRes ? nextRes.pos : rivals.length ? racePos() : 0;
+  run.position = nextRes ? (ice && nextRes.pos && rivals.length ? racePos() : nextRes.pos) : rivals.length ? racePos() : 0;
   if (win && run.position === 1 && !leap) score += 500;
   if (mode === 17 && P.xmasDouble() && !leap) { score *= 2; run.xmasDouble = 1; }
   if (mode === 20 && P.festDouble() && !leap) { score *= 2; run.festDouble = 1; }   // v132 · 1° marzo: il compleanno vero vale doppio   // v127 · 21 dicembre: la notte della Christmas Madness vale doppio
@@ -4431,7 +4431,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 167;   // v166 · SWITCH: la gara si corre con la guida nuova in 3D · v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero
+const GAME_VERSION = 168;   // v168 · Angelo Potter piu ricco, Erika e Giacu, derapate contate · v166 · SWITCH: la gara si corre con la guida nuova in 3D · v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -5038,7 +5038,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', camp: champRun ? '1' : '0', riv: champRun && P.champ() ? P.champ().rivals.join('|') : '', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-61' }).toString();
+  const q = new URLSearchParams({ embed: '1', camp: champRun ? '1' : '0', riv: champRun && P.champ() ? P.champ().rivals.join('|') : '', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-62' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
@@ -5054,7 +5054,7 @@ function endNext(d) {
   lives = Math.max(0, maxLives - (d.falls | 0));
   run.wheelieMax = +d.impennata || 0; run.splashes = d.pozze | 0; run.cleanSectors = d.settori | 0;   // per le missioni: impennata piu' lunga, pozzanghere prese, tratti senza cadute
   run.jumps = d.tronchi | 0;   // i tronchi passati in impennata prendono il posto dei salti (300 punti l'uno)
-  score = (d.beers | 0) * 100 + (d.tronchi | 0) * 300 + (ice ? d.drift | 0 : 0); driftScore = d.drift | 0;
+  score = (d.beers | 0) * 100 + (d.tronchi | 0) * 300 + (ice ? d.drift | 0 : 0); driftScore = d.drift | 0; if (ice) { driftCount = d.driftN | 0; driftBest = d.driftBest | 0; driftM = d.driftM | 0; rivals.forEach(r => { r.drift = Math.round((r.dTarget || 12000) * (.3 + Math.random() * .08)); }); }   /* v162 · i compagni della gara di derapate fanno i loro punti anche con la guida nuova */
   course = win ? GAME_LENGTH : GAME_LENGTH * .5;
   if (nextFrame) { nextFrame.style.display = 'none'; nextFrame.contentWindow?.postMessage({ t: 'edt-next-sleep' }, location.origin); }
   v2Photo(typeof d.foto === 'string' && d.foto.startsWith('data:image/') ? d.foto : null);   // dietro i risultati resta la foto dell'arrivo sulla pista nuova, non la scena del gioco vecchio
