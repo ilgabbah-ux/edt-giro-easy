@@ -64,7 +64,8 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
 { const c = sun.shadow.camera; c.left = -38; c.right = 38; c.top = 38; c.bottom = -38; c.near = 1; c.far = 220; c.updateProjectionMatrix(); }
 let pix = Math.min(2, window.devicePixelRatio || 1);
 function resize() { const w = innerWidth, h = innerHeight; renderer.setPixelRatio(pix); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
-addEventListener('resize', () => { resize(); if (typeof tiltA0 !== 'undefined') tiltA0 = null; }); resize();   // girando il telefono si ritara anche lo sterzo
+const scrAng = () => (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0; let scrAng0 = scrAng();
+addEventListener('resize', () => { resize(); const a = scrAng(); if (a !== scrAng0) { scrAng0 = a; if (typeof tiltA0 !== 'undefined') tiltA0 = null; } }); resize();   // v165: lo sterzo si ritara solo se il telefono è stato girato davvero (verticale/orizzontale). Prima bastava un qualsiasi ridimensionamento (barra del browser che sparisce, schermo intero) e lo zero veniva ripreso a metà curva: poi da dritti la moto tirava da una parte
 
 const tl = new T.TextureLoader();
 const tex = (src, rx, ry) => { const t = tl.load(src); t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; if (rx) t.repeat.set(rx, ry); t.anisotropy = 4; return t; };
@@ -673,7 +674,7 @@ addEventListener('deviceorientation', e => {
   // rotazione del telefono attorno allo schermo, misurata con la gravità (come nel gioco vero dalla v142)
   const bR = (e.beta || 0) * D2R, gR = (e.gamma || 0) * D2R, ux = -Math.sin(gR) * Math.cos(bR), uy = Math.sin(bR);
   if (Math.hypot(ux, uy) < .25) return;   // telefono piatto: la gravità non dice niente
-  const upA = Math.atan2(ux, uy) / D2R; if (tiltA0 === null) tiltA0 = upA;
+  const upA = Math.atan2(ux, uy) / D2R; if (tiltA0 === null || state === 'count') tiltA0 = upA;   // v165: lo zero dello sterzo è come tieni il telefono al VIA (durante il 3-2-1 lo segue). Prima era la posizione al primo dato del sensore, cioè mentre toccavi il menu col telefono storto
   let d = upA - tiltA0; if (d > 180) d -= 360; if (d < -180) d += 360;
   const raw = -d, dead = 2, full = { s: 26, m: 19, h: 13 }[O.sens] || 19;
   const lin = Math.abs(raw) < dead ? 0 : clamp((raw - Math.sign(raw) * dead) / (full - dead), -1, 1);
