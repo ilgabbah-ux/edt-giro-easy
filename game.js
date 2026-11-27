@@ -4458,7 +4458,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 174;   // v174 · scheda della Domi di Purcello dal modello 3D (niente erba nella ruota)
+const GAME_VERSION = 175;   // v175 · grafica: tasti di guida velati, cielo del Desertone, gocce, luna in Notturna, classifica a striscia
 // prima:   // v173 · Purcello scritto giusto nella scheda della sua moto
 // prima:   // v172 · Domi di Purcello in regalo, sabbia vera e visuale dinamica nella guida nuova
 // prima:   // v171 · avversari che aspettano chi inizia, RIPROVA col distacco, nome in alto nei risultati, si conta di nuovo 'gioca'
@@ -4621,7 +4621,7 @@ function renderSide() {
   });
 
   const bm = boardMode ?? mode;
-  $('boardtabs').innerHTML = P.SHOWN().map(m => `<button type="button" class="${m.id === bm ? 'active' : ''}" data-board="${m.id}">${m.id === 3 ? 'OGGI' : m.short}</button>`).join('');
+  $('boardtabs').innerHTML = P.SHOWN().map(m => `<button type="button" class="${m.id === bm ? 'active' : ''}" data-board="${m.id}"><img src="${trackArtOf(m)}" alt="" loading="lazy"><span>${m.id === 3 ? 'OGGI' : m.short}</span></button>`).join(''); { const ab = $('boardtabs').querySelector('.active'); if (ab) requestAnimationFrame(() => { const bx = $('boardtabs'); bx.scrollLeft = Math.max(0, ab.offsetLeft - (bx.clientWidth - ab.offsetWidth) / 2); }); }   /* v175 · le piste della classifica in una striscia da scorrere, con la foto */
   document.querySelectorAll('[data-board]').forEach(b => b.onclick = () => { boardMode = Number(b.dataset.board); renderSide(); });
   const group = boardSrc === 'group' && C.enabled();
   document.querySelectorAll('[data-src]').forEach(b => { b.classList.toggle('active', b.dataset.src === (group ? 'group' : 'local')); b.onclick = () => { boardSrc = b.dataset.src; renderSide(); }; });

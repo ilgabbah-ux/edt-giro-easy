@@ -2240,3 +2240,14 @@ button.thfit u { text-decoration: none; background: var(--y); color: #111; paddi
 .gapretry span { display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
 .gapretry small { font: 600 13px var(--ui); letter-spacing: .4px; text-transform: none; opacity: .9; margin-top: 3px; }
 .groupres.gtop { margin: 6px 0 12px; border: 2px solid var(--yellow, #ffd400); box-shadow: 0 0 0 3px rgba(255, 212, 0, .15); }
+
+/* v175 · classifica: striscia di piste con la foto, si scorre col dito */
+#boardtabs { flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding-bottom: 6px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+#boardtabs button { flex: 0 0 92px; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 0 0 6px; overflow: hidden; scroll-snap-align: start; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); background: #1e1f1c; }
+#boardtabs button img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; filter: saturate(.7) brightness(.7); }
+#boardtabs button span { display: block; padding: 5px 4px 0; font: italic 800 14px var(--ui); letter-spacing: .5px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#boardtabs button.active { background: #3b3521; box-shadow: inset 0 -3px 0 var(--y); }
+#boardtabs button.active img { filter: none; }
+/* v175 · sotto TOCCA E PARTI: scuola e pilota come tasti veri, non link piccoli */
+.welcome .wskip, .welcome .wcustom2 { display: flex; align-items: center; justify-content: center; gap: .45em; width: 100%; max-width: 360px; margin: 8px auto 0; min-height: 44px; padding: 8px 12px; text-decoration: none; color: #f2eee4; font: 700 14px var(--ui); background: #ffffff0f; border: 1px solid #ffffff2e; border-radius: 6px; }
+.welcome .wcustom2 { margin-bottom: 10px; }
