@@ -3205,7 +3205,7 @@ function renderShop(back, tab = shopTab) {
   const bikeCard = b => {
     const owned = P.ownsBike(b.id), inUse = cur.id === b.id, locked = lvlNow < b.level, can = owned || (!locked && P.profile.beers >= b.price);
     const label = inUse ? 'IN SELLA' : owned ? 'USA' : b.shadow && !owned ? '🔒 MEDAGLIA SU ICE' : b.analk && !owned ? '🔒 MEDAGLIA AL RANCH' : locked ? '🔒 LIV ' + b.level : b.price + ' 🍺';
-    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?t=1" alt="${b.name}" loading="lazy"></span>
+    return `<div class="upg bikecard ${inUse ? 'max' : ''} ${b.boanal ? 'boanal' : ''}"><span class="ui bimg"><img src="img/bike-${b.id}.webp?t=${b.id === 'purcello' ? 2 : 1}" alt="${b.name}" loading="lazy"></span>
       <span class="ut"><b>${b.name}</b><small>${b.desc}</small>${statBars(b.stats, b.ideal)}</span>
       <button type="button" class="buy" data-bike="${b.id}" ${inUse || !can ? 'disabled' : ''}>${label}</button></div>`;
   };
@@ -3430,7 +3430,7 @@ function showUnlock(id) {
   try { localStorage.setItem('edt-unlock-seen:' + id, '1'); } catch {}
   const el = document.createElement('div'); el.className = 'podium chestpop newspop'; el.id = 'unlockpop';
   el.innerHTML = `<div class="podbox chestbox"><small>🔓 ${UNLOCK_BIKES[id].toUpperCase()}</small><b class="podtitle">MOTO SBLOCCATA!</b>
-    <img src="img/bike-${b.id}.webp?t=1" alt="${b.name}" style="display:block;width:min(260px,70%);margin:6px auto 4px">
+    <img src="img/bike-${b.id}.webp?t=${b.id === 'purcello' ? 2 : 1}" alt="${b.name}" style="display:block;width:min(260px,70%);margin:6px auto 4px">
     <b style="display:block;font:26px/1.1 var(--display);color:var(--y);margin-bottom:6px">${b.name.toUpperCase()}</b><p>${b.desc}</p>
     <button class="primary" type="button" id="unlockgo"><span>${P.currentBike().id === id ? 'OK' : 'USALA SUBITO'}</span></button>${P.currentBike().id === id ? '' : '<button class="secondary" type="button" id="unlockclose">DOPO, È IN GARAGE</button>'}</div>`;
   (document.fullscreenElement || document.webkitFullscreenElement || document.body).appendChild(el); requestAnimationFrame(() => el.classList.add('open'));
@@ -3879,7 +3879,7 @@ function groupListHTML(list, me = '', m = -1) {
   if (!list?.length) return '<li class="empty">Ancora nessuno qui: il primo posto è libero.</li>';
   const mine = C.cleanNick(me).toLowerCase();
   const gh = ghostable(m);
-  return list.map((e, i) => { const canG = gh && e.g && e.g.length > 8 && !(mine && e.n.toLowerCase() === mine); return `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}${canG ? ' ghostable' : ''}"${canG ? ` data-ghostn="${e.n}" data-ghostm="${m}" title="Corri contro il suo fantasma"` : ''}><span class="pos">${i + 1}</span>${entryAv(e, 'tiny')}<span class="who">${e.n}${crownOf(e.n)}${canG ? '<em class="gsfida">👻 SFIDA</em>' : ''}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.m && P.BIKES.some(x => x.id === e.m) ? `<img class="bkm" src="img/bike-${e.m}.webp?t=1" alt="" title="${P.BIKES.find(x => x.id === e.m).name}" loading="lazy">` : ''}${e.b != null ? `<small class="bikelv" title="livello moto${e.b >= 75 ? ' · livelli Leggenda' : ''}">${e.b >= 120 ? '👑' : e.b >= 100 ? '💎' : e.b >= 76 ? '🏅' : '🔧'}${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`; }).join('');
+  return list.map((e, i) => { const canG = gh && e.g && e.g.length > 8 && !(mine && e.n.toLowerCase() === mine); return `<li class="${i < 3 ? 'top' + (i + 1) : ''} ${mine && e.n.toLowerCase() === mine ? 'me' : ''}${canG ? ' ghostable' : ''}"${canG ? ` data-ghostn="${e.n}" data-ghostm="${m}" title="Corri contro il suo fantasma"` : ''}><span class="pos">${i + 1}</span>${entryAv(e, 'tiny')}<span class="who">${e.n}${crownOf(e.n)}${canG ? '<em class="gsfida">👻 SFIDA</em>' : ''}${e.r && e.r !== e.n ? `<small>${e.r}</small>` : ''}${e.m && P.BIKES.some(x => x.id === e.m) ? `<img class="bkm" src="img/bike-${e.m}.webp?t=${e.m === 'purcello' ? 2 : 1}" alt="" title="${P.BIKES.find(x => x.id === e.m).name}" loading="lazy">` : ''}${e.b != null ? `<small class="bikelv" title="livello moto${e.b >= 75 ? ' · livelli Leggenda' : ''}">${e.b >= 120 ? '👑' : e.b >= 100 ? '💎' : e.b >= 76 ? '🏅' : '🔧'}${e.b}</small>` : ''}</span><span class="when">${m === C.ICE_MODE && e.t ? '🌀 ' + C.fmtMetres(e.t) : m === C.JUMP_MODE && e.s % 10 === 7 && e.w && e.t ? '📏 ' + C.fmtJump(e.t) : e.bt ? '⏱ ' + C.fmtTime(e.bt) : e.w && e.t ? '⏱ ' + C.fmtTime(e.t) : ''}</span><b>${e.s.toLocaleString('it-IT')}</b></li>`; }).join('');
 }
 // v122 · classifica delle cadute
 // v123 · contatore pubblico in home: telefoni che hanno aperto il gioco (dallo script); se lo script è vecchio, i piloti in classifica
@@ -4458,7 +4458,8 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 173;   // v173 · Purcello scritto giusto nella scheda della sua moto
+const GAME_VERSION = 174;   // v174 · scheda della Domi di Purcello dal modello 3D (niente erba nella ruota)
+// prima:   // v173 · Purcello scritto giusto nella scheda della sua moto
 // prima:   // v172 · Domi di Purcello in regalo, sabbia vera e visuale dinamica nella guida nuova
 // prima:   // v171 · avversari che aspettano chi inizia, RIPROVA col distacco, nome in alto nei risultati, si conta di nuovo 'gioca'
 // prima:   // v170 · riquadro MOTO SBLOCCATA · v169 · Anal K di Gusta, moto bonus con la medaglia al Gusta Ranch · v168 · Angelo Potter piu ricco, Erika e Giacu, derapate contate · v166 · SWITCH: la gara si corre con la guida nuova in 3D · v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero
@@ -4644,7 +4645,7 @@ function renderSide() {
     $('bikestrip').innerHTML = P.BIKES.map(b => { const own = P.ownsBike(b.id), on = b.id === cur;
       const tag = on ? 'IN SELLA' : own ? 'TOCCA PER USARE' : b.shadow ? '🔒 MEDAGLIA SU ICE' : b.analk ? '🔒 MEDAGLIA AL RANCH' : lv < b.level ? '🔒 LIV ' + b.level : b.price + ' 🍺';
       const fit = P.bikeFits(b.id, mode);   // v150 · 🎯 la moto giusta per il percorso scelto
-      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}">${fit ? '<em class="bkfit">🎯 +10%</em>' : ''}<img src="img/bike-${b.id}.webp?t=1" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
+      return `<button type="button" class="bk ${on ? 'on' : ''} ${own ? 'own' : 'lock'}" data-bike="${b.id}" aria-pressed="${on}">${fit ? '<em class="bkfit">🎯 +10%</em>' : ''}<img src="img/bike-${b.id}.webp?t=${b.id === 'purcello' ? 2 : 1}" alt="" loading="lazy"><b>${b.name}</b><small>${tag}</small></button>`; }).join('');
     $('bikestrip').querySelectorAll('.bk').forEach(el => el.onclick = () => {
       const id = el.dataset.bike;
       if (state === 'playing' || state === 'paused' || state === 'countdown') return;
@@ -4652,7 +4653,7 @@ function renderSide() {
       else if (state === 'ready' || state === 'ended') fromPanel(() => renderShop(renderReady, 'bikes'));
     });
   }
-  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?t=1" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
+  if ($('bikephoto')) { const bid = P.currentBike().id; if ($('bikephoto').dataset.bike !== bid) { $('bikephoto').dataset.bike = bid; $('bikephoto').innerHTML = `<img src="img/bike-${bid}.webp?t=${bid === 'purcello' ? 2 : 1}" alt="${P.currentBike().name}"><span>${P.currentBike().icon} ${P.currentBike().name}</span>`; } }
 }
 
 // ---------- v68 · Sfida 1 contro 1 dal vivo ----------
