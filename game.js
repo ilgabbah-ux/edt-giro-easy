@@ -682,7 +682,7 @@ function resetRun() {
 let startWait = false;
 function markWait() { const sb = $('start'); if (!startWait || !sb) return false; sb.disabled = true; sb.classList.add('waitpista'); sb.innerHTML = '<span class="st"><span>CARICO LA PISTA…</span><small>un attimo e si parte</small></span>'; return true; }   // v151
 function start() {
-  if (NEXT_PISTA[mode] !== undefined && !duel?.racing) { startNext(); return; }   // v2 · questi percorsi si corrono con la guida nuova
+  if (NEXT_PISTA[mode] !== undefined) { startNext(); return; }   // v172 · anche la sfida 1 contro 1 dal vivo si corre con la guida nuova   // v2 · questi percorsi si corrono con la guida nuova
   if (!world && !worldError) {   // v151 · tocco prima che la pista sia pronta: parte appena è caricata
     if (touchDevice) goFull();
     if (!startWait) { startWait = true; if (!markWait()) toast('🏍 CARICO LA PISTA…', 'gold'); bootWorld().then(() => { startWait = false; if (world && (state === 'ready' || state === 'ended')) start(); }); }
@@ -3692,7 +3692,7 @@ function renderReady() { v2Photo(null);
   setTimeout(maybeUnlock, 900);   // v170
   $('pushmenu')?.addEventListener('click', async e => { A.sfx.click(); if (!C.getNick()) { notice('🏁 PRIMA FAI UN GIRO IN CLASSIFICA CON IL TUO NOME', 'gold'); return; } await pushToggle(e.currentTarget); renderReady(); });   // v154
   $('thfit')?.addEventListener('click', e => { e.stopPropagation(); const id = $('thfit').dataset.bike; if (P.ownsBike(id)) { P.buyBike(id); A.sfx.click(); toast('🎯 IN SELLA: ' + P.currentBike().name.toUpperCase() + ' · +10% PUNTI QUI', 'green'); renderReady(); renderSide(); } });   // v150
-  $('duelbtn').onclick = () => { A.sfx.click(); renderDuel(); };
+  $('duelbtn').onclick = () => { A.sfx.click(); if (D.isOn()) D.send(duelInfo()); renderDuel(); };   // v172 · rientrando nella sfida l'altro sa con che moto corri adesso
   $('extrabox')?.addEventListener('toggle', e => { try { localStorage.setItem('edt-extra', e.target.open ? '1' : '0'); } catch {} });
   $('sensmenu')?.addEventListener('click', () => { A.sfx.click(); $('sensmenu').innerHTML = iconize(cycleSens()); toast({ s: '🎚 STERZO MORBIDO: INCLINA DI PIÙ, PIÙ PRECISO', m: '🎚 STERZO MEDIO', h: '🎚 STERZO RAPIDO: BASTA INCLINARE POCO' }[tiltSens], 'green'); });   // v149
   $('litemenu')?.addEventListener('click', () => { A.sfx.click(); const on = world?.setLite?.(!world.isLite()); const b = $('litemenu'); b.classList.toggle('on', !!on); b.innerHTML = iconize('⚙ GRAFICA LEGGERA: ' + (on ? 'SÌ' : 'NO')); toast(on ? '⚙ GRAFICA LEGGERA: MENO OMBRE E DETTAGLI, PIÙ FLUIDO' : '✨ GRAFICA PIENA', 'green'); });   // v149 · anche dal menu, non solo dalla pausa
@@ -4465,7 +4465,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 177;   // v177 · Harley di John con Zena la bassotta, in regalo per tutti
+const GAME_VERSION = 177;   // v177 · Harley di John con Zena la bassotta; sfida 1 contro 1 dal vivo sulla pista nuova
 // prima:   // v176 · nuove moto in regalo: Domi di Angelo col bauletto, KTM 990 di Miti, XR 600R, Suzuki DR 350; musica della gara ferma fuori dall'app
 // prima:   // v175 · grafica: tasti di guida velati, cielo del Desertone, gocce, luna in Notturna, classifica a striscia
 // prima:   // v174 · scheda della Domi di Purcello dal modello 3D (niente erba nella ruota)
@@ -4668,7 +4668,7 @@ function renderSide() {
 
 // ---------- v68 · Sfida 1 contro 1 dal vivo ----------
 let duel = null;
-const duelInfo = () => { const l = P.currentLivery(); return { t: 'hi', n: C.cleanNick(C.getNick() || profile.rider), r: profile.rider, num: riderNum(), liv: { plastic: l.plastic, accent: l.accent, jersey: l.jersey, pants: l.pants, helmet: l.helmet } }; };
+const duelInfo = () => { const l = P.currentLivery(); return { t: 'hi', m: NEXT_BIKE[P.currentBike().id] || 'enduro', v: RIDER_VOICE[profile.rider] || '', n: C.cleanNick(C.getNick() || profile.rider), r: profile.rider, num: riderNum(), liv: { plastic: l.plastic, accent: l.accent, jersey: l.jersey, pants: l.pants, helmet: l.helmet } }; };
 function duelNew() {
   duel = { racing: false, seed: 0, status: '', opp: { n: 'AVVERSARIO', r: '', c: 0, x: 1, l: 0, end: null }, me: null, ahead: false, lastSend: 0, lastMsg: 0,
     entry: { name: 'AVVERSARIO', duel: true, gap: 0, lane: 1, lx: 1, lean: 0, lift: 0, number: 2, livery: { plastic: '#1e7fd8', accent: '#ffffff', jersey: '#1e7fd8', pants: '#202020', helmet: '#ffffff' } } };
@@ -4676,6 +4676,7 @@ function duelNew() {
 D.on('open', () => { if (!duel) duelNew(); duel.status = 'ok'; D.send(duelInfo()); A.sfx.perfect?.(); if (state === 'ready' || state === 'ended') renderDuel(); });
 D.on('close', () => {
   if (!duel) return; duel.status = 'lost';
+  if (state === 'next') nextFrame?.contentWindow?.postMessage({ t: 'edt-duel-end', lost: 1 }, location.origin);
   if (state === 'playing') toast('⚔️ ' + duel.opp.n.toUpperCase() + ' SI È SCOLLEGATO', 'red');
   if (duel.racing && state === 'playing') { duel.entry.gap = -999; }
   if (state === 'ready' && $('duelcard')) renderDuel();
@@ -4684,18 +4685,24 @@ D.on('data', d => {
   if (!duel) duelNew();
   duel.lastMsg = performance.now();
   if (d.t === 'hi') {
-    duel.opp.n = String(d.n || 'AVVERSARIO').slice(0, 16); duel.opp.r = d.r || '';
+    duel.opp.n = String(d.n || 'AVVERSARIO').slice(0, 16); duel.opp.r = d.r || ''; duel.opp.m = typeof d.m === 'string' ? d.m.slice(0, 20) : duel.opp.m; duel.opp.v = typeof d.v === 'string' ? d.v.slice(0, 20) : duel.opp.v;
     Object.assign(duel.entry, { name: '⚔️ ' + duel.opp.n.toUpperCase(), number: Math.max(1, Math.min(99, d.num | 0)) || 2 });
     if (d.liv) duel.entry.livery = { ...duel.entry.livery, ...d.liv };
     if ($('duelcard')) renderDuel();
   } else if (d.t === 'go') {
     if (D.getRole() !== 'guest') return;
-    if (state === 'playing' || state === 'countdown') return;
+    if (state === 'playing' || state === 'countdown' || state === 'next') return;
+    if (typeof d.m === 'string') duel.opp.m = d.m.slice(0, 20);
     duelGo(d.mode, d.seed);
+  } else if (d.t === 'p2') {   // v172 · la sua posizione sulla pista nuova, girata alla gara
+    nextFrame?.contentWindow?.postMessage({ t: 'edt-duel-opp', s: d.s, d: d.d, v: d.v, l: d.l }, location.origin);
+  } else if (d.t === 'rdy') { duel.rdyOpp = 1; duelSync();
+  } else if (d.t === 'st') { duelStartFrame();
   } else if (d.t === 'p') {
     Object.assign(duel.opp, { c: +d.c || 0, x: +d.x || 1, l: +d.l || 0, k: d.k | 0 });
   } else if (d.t === 'end') {
     duel.opp.end = d;
+    nextFrame?.contentWindow?.postMessage({ t: 'edt-duel-end', w: d.w ? 1 : 0, tm: +d.tm || 0 }, location.origin);
     if (state === 'playing') toast('⚔️ ' + duel.opp.n.toUpperCase() + (d.w ? ' HA FINITO: ' + (P.MODES[mode].leap ? C.fmtJump(d.j) : (+d.tm).toFixed(1).replace('.', ',') + ' s') : ' È FUORI GARA'), d.w ? 'gold' : 'green');
     drawDuelResult();
   } else if (d.t === 'menu') {
@@ -4704,9 +4711,18 @@ D.on('data', d => {
 });
 function duelGo(m, seed) {
   if (!P.MODES[m] || !P.isUnlocked(P.MODES[m])) { toast('⚔️ QUEL PERCORSO NON È ANCORA SBLOCCATO QUI', 'red'); }
-  mode = m; profile.mode = m; P.save(); duel.racing = true; duel.seed = seed >>> 0;
+  mode = m; profile.mode = m; P.save(); duel.racing = true; duel.seed = seed >>> 0; duel.rdyMe = duel.rdyOpp = duel.started = 0; clearTimeout(duel.syncT);
   start();
 }
+// v172 · via insieme sulla pista nuova: ognuno avvisa quando la sua pista e' pronta; quando lo sono tutte e due chi ha creato la sfida da' il via.
+// Se l'altro non risponde entro 15 secondi si parte lo stesso (lui vedra' la gara partire appena pronto)
+function duelStartFrame() { if (!duel || duel.started) return; duel.started = 1; clearTimeout(duel.syncT); nextFrame?.contentWindow?.postMessage({ t: 'edt-duel-start' }, location.origin); }
+function duelSync() { if (!duel?.racing || !duel.rdyMe || duel.started) return; if (D.getRole() === 'host' && duel.rdyOpp) { D.send({ t: 'st' }); setTimeout(duelStartFrame, 120); } }
+addEventListener('message', e => {
+  if (e.origin !== location.origin || !duel?.racing || state !== 'next') return; const d = e.data || {};
+  if (d.t === 'edt-duel-me') D.send({ t: 'p2', s: d.s, d: d.d, v: d.v, l: d.l });
+  else if (d.t === 'edt-next-ready') { duel.rdyMe = 1; D.send({ t: 'rdy' }); duelSync(); clearTimeout(duel.syncT); duel.syncT = setTimeout(() => { if (D.getRole() === 'host') D.send({ t: 'st' }); duelStartFrame(); }, 15000); }
+});
 function updateDuel() {
   if (!duel?.racing) return;
   const now = performance.now(), e = duel.entry, o = duel.opp;
@@ -4749,7 +4765,7 @@ function renderDuel() {
   if (!duel) duelNew();
   const on = D.isOn(), host = D.getRole() === 'host', md = P.MODES[mode], n = duel.opp.n.toUpperCase();
   const shareURL = publicGameURL + '?sfida=' + D.getCode();
-  const modes = P.SHOWN().filter(m => P.isUnlocked(m));
+  const modes = P.SHOWN().filter(m => P.isUnlocked(m) && NEXT_PISTA[m.id] !== undefined && !['f', 'p', 's'].includes(NEXT_PISTA[m.id]) && !P.MODES[m.id]?.school);   // v172 · niente Fest (inseguimento), Angelo Potter (si sale da soli) e scuola
   $('card').innerHTML = `<div id="duelcard" class="duelcard"><div class="eyebrow">ENDURO DRINKING TEAM · DAL VIVO</div>
     <h1>SFIDA<br><em>1 CONTRO 1.</em></h1>
     ${on ? `<div class="duelvs"><span>${avatarHTML(profile.rider)}<b>TU</b></span><i>VS</i><span>${entryAv(duel.opp)}<b>${n}</b></span></div>
@@ -4786,7 +4802,7 @@ function renderDuel() {
   };
   if ($('duelgo')) $('duelgo').onclick = () => {
     const m = +$('duelmode').value, seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
-    D.send({ t: 'go', mode: m, seed }); duelGo(m, seed);
+    D.send({ t: 'go', mode: m, seed, m: NEXT_BIKE[P.currentBike().id] || 'enduro' }); duelGo(m, seed);
   };
 }
 // link d'invito: ?sfida=ABCD apre la sfida e si collega da solo
@@ -5081,7 +5097,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const v2Primi = (() => { try { return Number(localStorage.getItem('edt-v2-primi')) || 0; } catch { return 0; } })(), q = new URLSearchParams({ rk: v2Primi < 3 && (P.profile.totals?.wins || 0) < 15 ? String(v2Primi + 1) : '0',   /* v171 · chi inizia: finche' non arriva primo 3 volte gli avversari lo aspettano */ embed: '1', camp: champRun ? '1' : '0', riv: champRun && P.champ() ? P.champ().rivals.join('|') : '', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', analk: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-65' }).toString();
+  const v2Primi = (() => { try { return Number(localStorage.getItem('edt-v2-primi')) || 0; } catch { return 0; } })(), q = new URLSearchParams({ rk: v2Primi < 3 && (P.profile.totals?.wins || 0) < 15 ? String(v2Primi + 1) : '0',   /* v171 · chi inizia: finche' non arriva primo 3 volte gli avversari lo aspettano */ embed: '1', camp: champRun ? '1' : '0', riv: champRun && P.champ() ? P.champ().rivals.join('|') : '', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', analk: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-65', ...(duel?.racing ? { duel: '1', seed: String(duel.seed), dn: duel.opp.n, dm: duel.opp.m || 'enduro', dv: duel.opp.v || '', rk: '0', camp: '0', riv: '' } : {}) }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
@@ -5099,7 +5115,7 @@ function endNext(d) {
   run.wheelieMax = +d.impennata || 0; run.splashes = d.pozze | 0; run.cleanSectors = d.settori | 0;   // per le missioni: impennata piu' lunga, pozzanghere prese, tratti senza cadute
   run.jumps = d.tronchi | 0;   // i tronchi passati in impennata prendono il posto dei salti (300 punti l'uno)
   score = (d.beers | 0) * 100 + (d.tronchi | 0) * 300 + (ice ? d.drift | 0 : 0); driftScore = d.drift | 0; if (ice) { driftCount = d.driftN | 0; driftBest = d.driftBest | 0; driftM = d.driftM | 0; rivals.forEach(r => { r.drift = Math.round((r.dTarget || 12000) * (.3 + Math.random() * .08)); }); }   /* v162 · i compagni della gara di derapate fanno i loro punti anche con la guida nuova */
-  course = win ? GAME_LENGTH : GAME_LENGTH * .5;
+  course = win ? GAME_LENGTH : GAME_LENGTH * (d.prog != null ? Math.max(0, Math.min(.99, +d.prog)) : .5);   // v172 · in sfida conta fin dove sei arrivato
   if (nextFrame) { nextFrame.style.display = 'none'; nextFrame.contentWindow?.postMessage({ t: 'edt-next-sleep' }, location.origin); }
   v2Photo(typeof d.foto === 'string' && d.foto.startsWith('data:image/') ? d.foto : null);   // dietro i risultati resta la foto dell'arrivo sulla pista nuova, non la scena del gioco vecchio
   if (win && mode === 14 && elapsed <= NEXT_LIMIT[14] && !P.ownsBike('analk')) { P.profile.owned['bike:analk'] = true; P.save(); setTimeout(maybeUnlock, 2600); }   // medaglia al Gusta Ranch = Anal K di Gusta
