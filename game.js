@@ -13,6 +13,8 @@ const V2_DAILY = (() => { const k = +P.todayKey() || 0, T = [[0, 'g'], [1, 'i'],
 { const m3 = P.MODES.find(x => x.id === 3); if (m3) m3.limit = P.MODES.find(x => x.id === V2_DAILY.m).limit - (V2_DAILY.r === 'rush' ? 6 : 0); }
 { const m = P.MODES.find(x => x.id === 1); if (m) { m.name = 'Salita Infame'; m.short = 'INFAME'; m.desc = 'Il muro coi gradoni, la pietraia in salita, i tornanti di mulattiera e la cresta in single track. Poi giù a rotta di collo.'; } }
 if (!P.BIKES.some(b => b.id === 'shadow')) P.BIKES.push({ id: 'shadow', name: 'Shadow chiodata', price: 0, level: 99, icon: '❄', top: true, shadow: true, desc: 'La Shadow chiodata dell’EDT: bobber bicilindrico con l’estintore al posto del serbatoio e le gomme piene di viti. Pesante e lenta a girare, ma sul ghiaccio morde come nessuna. Si sblocca con una medaglia su Ice Scrofy.', ideal: 'Ice Scrofy', stats: { speed: .02, steer: -.15, climb: -.1, grip: .14, drift: .3 }, look: { paint: { plastic: '#b3221b', accent: '#e8eef0', side: '#b3221b', frame: '#b3221b', seat: '#151515', ink: '#e8eef0' }, scale: 1, big: true } });
+if (!P.BIKES.some(b => b.id === 'purcello')) P.BIKES.push({ id: 'purcello', name: 'Domi di Purcello', price: 0, level: 1, icon: '🐷', top: true, purcello: true, desc: 'La Dominator di Purcello: blu, nera e giallo fluo, col maialino sul parafango e «Porcello» sui paracolpi della forcella. Mono 650 con le forcelle Showa: in salita tira come un trattore e sullo sconnesso assorbe tutto, ma è pesante da buttare in curva. In regalo per tutti.', ideal: 'Leventino, Salita Infame, Cef Adventure', stats: { speed: .05, climb: .45, turbo: .1, wheelie: .9, steer: -.06 }, look: { paint: { plastic: '#1f3fa8', accent: '#d8ff1a', side: '#151515', frame: '#2a52d6', seat: '#151515', ink: '#d8ff1a' }, scale: 1, big: true } });   // v172 · la Dominator di Purcello, in regalo per tutti
+if (!P.ownsBike('purcello')) { P.profile.owned['bike:purcello'] = true; P.save(); }
 if (!P.BIKES.some(b => b.id === 'analk')) P.BIKES.push({ id: 'analk', name: 'Anal K di Gusta', price: 0, level: 99, icon: '🦄', top: true, analk: true, desc: 'La KTM 450 di Gusta dopo lo scherzo dell’EDT: carta rosa, unicorno col corno d’oro sul faro, pompon sul parafango e la sella firmata. Quattro tempi che tira forte e sale dappertutto; l’unicorno davanti non aiuta a vedere dove vai. Si sblocca con una medaglia al Gusta Ranch.', ideal: 'Gusta Ranch, Mirco e Gabbah Fest', stats: { speed: .1, climb: .4, turbo: .15, wheelie: 1.2, steer: -.04 }, look: { paint: { plastic: '#fff4f8', accent: '#ff5fa8', side: '#fff4f8', frame: '#ff6a13', seat: '#151515', ink: '#ff3d94' }, scale: 1, big: true } });
 import * as D from './duel.js?v=db2f059d';
 
@@ -28,7 +30,7 @@ import('./piloti.js?v=8bcd4edd').then(m => {
 // v151 · il 3D si carica DOPO che la home è a schermo: chi apre il link vede subito il tasto per partire
 let worldP = null;
 function bootWorld() {
-  return worldP || (worldP = import('./scene3d.js?v=5208680f').then(({ createWorld }) => {
+  return worldP || (worldP = import('./scene3d.js?v=fb362cbc').then(({ createWorld }) => {
     try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); return; }
     world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLE IMPOSTAZIONI', 'green'), 0);
     try { preview = world.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
@@ -3418,7 +3420,7 @@ function maybeNews() {
   }, 1400);
 }
 // v170 · MOTO SBLOCCATA: un riquadro vero, non una scritta che passa. Vale per le moto bonus (Shadow chiodata, Anal K di Gusta); se l'hai sbloccata e non l'hai visto, te lo dice alla prima apertura
-const UNLOCK_BIKES = { shadow: 'con la medaglia su Ice Scrofy', analk: 'con la medaglia al Gusta Ranch' };
+const UNLOCK_BIKES = { shadow: 'con la medaglia su Ice Scrofy', analk: 'con la medaglia al Gusta Ranch', purcello: 'in regalo per tutti' };
 function maybeUnlock() {
   if ($('unlockpop') || $('newspop')) return;
   for (const id of Object.keys(UNLOCK_BIKES)) { let seen = '1'; try { seen = localStorage.getItem('edt-unlock-seen:' + id); } catch {} if (P.ownsBike(id) && !seen) { showUnlock(id); return; } }
@@ -4456,7 +4458,8 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 171;   // v171 · avversari che aspettano chi inizia, RIPROVA col distacco, nome in alto nei risultati, si conta di nuovo 'gioca'
+const GAME_VERSION = 172;   // v172 · Domi di Purcello in regalo, sabbia vera e visuale dinamica nella guida nuova
+// prima:   // v171 · avversari che aspettano chi inizia, RIPROVA col distacco, nome in alto nei risultati, si conta di nuovo 'gioca'
 // prima:   // v170 · riquadro MOTO SBLOCCATA · v169 · Anal K di Gusta, moto bonus con la medaglia al Gusta Ranch · v168 · Angelo Potter piu ricco, Erika e Giacu, derapate contate · v166 · SWITCH: la gara si corre con la guida nuova in 3D · v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
@@ -5053,7 +5056,7 @@ setTimeout(() => { const n = C.getNick(); if (n && cloudOkFor() !== n.toLowerCas
 const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 3: V2_DAILY.p, 15: 'n', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's', 4: 'e' }, NEXT_LIMIT = { 0: 150, 1: 158, 2: 135, 9: 150, 13: 185, 14: 140, 16: 155, 17: 138, 18: 165, 15: 136, 20: 124, 21: 198, 22: 900, 4: 200 }; NEXT_LIMIT[3] = P.MODES.find(x => x.id === 3).limit;
 function v2Photo(u) { const c = $('canvas'), g = $('game'); if (!c || !g) return; if (u) { c.style.visibility = 'hidden'; g.style.backgroundImage = 'url(' + u + ')'; g.style.backgroundSize = 'cover'; g.style.backgroundPosition = 'center'; } else { c.style.visibility = ''; g.style.backgroundImage = ''; } }
 function v2Order(c0, ord) { const free = c0.rivals.slice(), mp = {}; for (const n of ord) if (n !== '__me') { const k = free.findIndex(x => x.toUpperCase() === n); if (k >= 0) mp[n] = free.splice(k, 1)[0]; } for (const n of ord) if (n !== '__me' && !mp[n] && free.length) mp[n] = free.shift(); const out = ord.map(n => n === '__me' ? n : mp[n]).filter(Boolean); for (const n of free) out.push(n); if (!out.includes('__me')) out.push('__me'); return out; }   // v2 · campionato: l'ordine d'arrivo vero della pista 3D
-const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow', analk: 'analk' };
+const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow', analk: 'analk', purcello: 'purcello' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 let v2Gap = null;   // v171 · quanto manca per battere chi ti e' arrivato davanti
 function startNext() {
