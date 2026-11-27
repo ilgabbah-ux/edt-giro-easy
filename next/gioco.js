@@ -7,7 +7,7 @@ import { CEF, CEF_EXTRA, NOTTE, NOTTE_EXTRA, POTTER, POTTER_EXTRA, POTTER_CLIFF,
 import { startSound, soundUpdate, thud, setSound, whip, whistle, splash, splosh, say, preloadVoice, setBike, speaking, sleepSound } from './suono.js?v=23';
 import { MOTO, motoById } from './moto.js?v=5';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
-import { CANZONI, titolo, suona, volume, abbassa, ferma, musicaOn, inOnda } from './musica.js?v=1';
+import { CANZONI, titolo, suona, volume, abbassa, ferma, musicaOn, inOnda } from './musica.js?v=2';
 import { makeRider } from './pilota.js?v=5';
 import { PARTS, statLabel } from './officina.js?v=1';
 

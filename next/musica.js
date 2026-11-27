@@ -16,6 +16,14 @@ export function suona(file, v = .5, from = 0) { base = v; if (!on || !file) retu
   vol(); a.play().catch(() => {}); }
 export function volume(v) { base = v; vol(); }
 export function abbassa(d) { if (d !== duck) { duck = d; vol(); } }   /* quando parla un pilota la musica va sotto */
-export function ferma() { if (a) a.pause(); }
+export function ferma() { sospesa = false; if (a) a.pause(); }
 export function musicaOn(v) { on = v; if (!on) ferma(); }
 export const inOnda = () => (a && !a.paused ? cur : '');
+/* v169 · app in secondo piano (tasto home, altra app, schermo spento): la canzone si ferma e riparte solo quando torni, se stava suonando.
+   Prima si fermava solo il motore e la musica continuava fuori dal gioco */
+let sospesa = false;
+const via = () => { if (a && !a.paused) { a.pause(); sospesa = true; } };
+const torna = () => { if (sospesa && on && a && !document.hidden) { sospesa = false; a.play().catch(() => {}); } };
+document.addEventListener('visibilitychange', () => { if (document.hidden) via(); else torna(); });
+addEventListener('pagehide', via); addEventListener('freeze', via);
+addEventListener('pointerdown', torna, { capture: true, passive: true });   /* se il telefono non la lascia ripartire da sola, riparte al primo tocco */
