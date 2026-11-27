@@ -3793,14 +3793,14 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
   $('overlay').classList.remove('hidden');
   setMenu(true);
   $('card').innerHTML = `
-    ${perfBox}<div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button>${win && !champRun ? '<button class="resagain" id="resagain" type="button">RIFALLO</button>' : ''}</div>${!win && !champRun ? `<button class="primary big retrybig" id="resagain" type="button"${retryOk() ? ' data-gift="1"' : ''}><span>${retryOk() ? 'RIPROVA CON +10 SECONDI' : 'RIPROVA SUBITO'}</span>${icon('chevrons')}</button>` : ''}${C.isEdt() || !win || champRun ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
+    ${perfBox}<div class="restop"><button class="resmenu" id="resmenu" type="button">⬅ MENU</button>${win && !champRun && !(run.position > 1 && v2Gap) ? '<button class="resagain" id="resagain" type="button">RIFALLO</button>' : ''}</div>${!win && !champRun ? `<button class="primary big retrybig" id="resagain" type="button"${retryOk() ? ' data-gift="1"' : ''}><span>${retryOk() ? 'RIPROVA CON +10 SECONDI' : 'RIPROVA SUBITO'}</span>${icon('chevrons')}</button>` : ''}${C.isEdt() || !win || champRun ? '' : '<button class="primary big sfidabtn" id="sfidaamico" type="button"><span>SFIDA UN AMICO</span><small>mandagli il tuo punteggio da battere</small></button>'}
     ${!C.isEdt() && !isCustom() ? `<button class="secondary rescustom" id="rescustom" type="button">${icon('helmet')} CREA IL TUO PILOTA <small>casco, nome e numero: in classifica ci vai tu</small></button>` : ''}
     <div class="eyebrow">${rank} · ${md.id === 3 ? 'SFIDA DEL ' + P.todayLabel() : md.name.toUpperCase()}</div>
     <div class="resulthead">${avatarHTML(profile.rider, 'big')}<h1>${leap ? (win ? `${leapBest.toFixed(1).replace('.', ',')} METRI<br><em>IN PIEDI!</em>` : 'SALTO<br><em>NULLO.</em>') : gev ? (win ? 'SEMINATE<br><em>LE GEV!</em>' : reason === 'time' ? 'TI HANNO<br><em>RAGGIUNTO.</em>' : 'MULTA!<br><em>VERBALE EDT.</em>') : ice && win && run.position === 1 ? 'RE DEL<br><em>GHIACCIO!</em>' : win ? 'COSÌ<br><em>SI FA!</em>' : reason === 'time' ? 'FUORI TEMPO<br><em>MASSIMO.</em>' : fresh ? 'PER UN<br><em>PELO!</em>' : 'COLPA<br><em>DI ANGELO.</em>'}</h1></div>
     <div class="scoreticket ${res.isRecord ? 'record' : ''}"><b id="finalscore">0</b><span>PUNTI EDT</span>${res.isRecord ? '<i class="stamp">NUOVO RECORD!</i>' : ''}</div>
     ${gev && !win ? gevVerbale() : ''}<p class="resulttext">${gev && win ? '<b>Niente verbali, più boccali!</b> ' : ''}${whoRan()} ${gev && !win ? `è stato fermato dalle GEV al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso.` : win ? `è arrivato al rifugio in <b>${elapsed.toFixed(1).replace('.', ',')} s</b>${timeBonus ? ` · bonus tempo +${timeBonus.toLocaleString('it-IT')}` : ''}.` : reason === 'time' ? `si è fermato al ${Math.floor(course / GAME_LENGTH * 100)}% del percorso. Al rifugio hanno già chiuso la cucina.` : fresh ? 'ci ha provato fino all’ultimo: al prossimo giro va meglio, gli ostacoli ormai li conosci.' : 'ci ha creduto fino all’ultimo. “Dopo migliora”, dicevano.'}
       ${ice ? iceTable(win) : ''}${run.position && !ice ? `<br>🏁 <b>${run.position}° su ${rivals.length + 1}</b> nel gruppo${run.position === 1 && win ? ' · primo al rifugio +500' : ''}${run.shortcuts ? ' · ' + run.shortcuts + (fresh ? (run.shortcuts > 1 ? ' scorciatoie' : ' scorciatoia') : (run.shortcuts > 1 ? ' tagli' : ' taglio') + ' di Angelo') : ''}` : ''}      ${res.position ? `<br><b>${res.position}° su questo telefono</b>` : ''}${!leap && !ice ? (run.hits ? `<br>💥 <b>${run.hits} ${run.hits > 1 ? 'cadute' : 'caduta'}</b>${run.fallLine ? ' · «' + run.fallLine + '»' : ''}` : win ? '<br>💥 <b>Zero cadute</b>: giro pulito, roba rara.' : '') : ''}${earsPermanent ? '<br>🐰 Finito con le orecchie da coniglio (più di 3 errori).' : ''}${run.ghostRecord ? '<br>👻 Miglior tempo al rifugio: ' + run.finishTime.toFixed(1).replace('.', ',') + ' s — il tuo fantasma ti aspetta al prossimo giro.' : ''}${!res.isRecord && res.previousBest ? ` · record: ${res.previousBest.toLocaleString('it-IT')}` : ''}</p>
-    ${ghostChallengeHTML(score, true)}
+    ${win && !champRun && run.position > 1 && v2Gap ? `<button class="primary big retrybig gapretry" id="resagain" type="button"><span>RIPROVA SUBITO<small>ti mancano ${v2Gap.t.toFixed(1).replace('.', ',')} s per battere ${v2Gap.n.charAt(0) + v2Gap.n.slice(1).toLowerCase()}</small></span>${icon('chevrons')}</button>` : ''}${C.enabled() && score > 0 && !C.getNick() ? '<div class="groupres gtop" id="groupres"></div>' : ''}${ghostChallengeHTML(score, true)}
     ${pushAskHTML(win, score)}
     <div class="resultstats">
       <div><b>${run.caps}</b><small>BIRRE</small></div>
@@ -3827,7 +3827,7 @@ function renderResult(win, res, reason = '', timeBonus = 0) {
     ${(res.trophiesNew || []).map(t => `<div class="unlock trophy"><i class="ic-holder">${t.icon}</i><span>NUOVO TROFEO: <b>${t.name}</b> · ${t.desc}</span></div>`).join('')}
     ${res.unlocked.map(l => `<div class="unlock"><i style="--a:${l.plastic};--b:${l.accent}"></i><span>NUOVA LIVREA SBLOCCATA: <b>${l.name}</b> · sceglila nel garage</span></div>`).join('')}
     ${duel?.racing ? '<div class="duelres" id="duelres"></div>' : ''}
-    ${C.enabled() && score > 0 ? '<div class="groupres" id="groupres"></div>' : ''}${C.enabled() && (!win || run.position > 1) && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}
+    ${C.enabled() && score > 0 && C.getNick() ? '<div class="groupres" id="groupres"></div>' : ''}${C.enabled() && (!win || run.position > 1) && !P.MODES[mode].school ? excuseBtn('', 'resexcuse') : ''}
     <button class="cardprev" id="cardprev" type="button"><img alt="Cartolina del risultato" src="${cardURL || 'data:,'}"><span><b>📸 LA TUA CARTOLINA</b><small>${C.isEdt() ? 'Toccala e mandala nel gruppo WhatsApp: risultato, posizione e link per giocare.' : 'Toccala e mandala su WhatsApp: risultato e link per sfidarti.'}</small></span></button>
     <div class="sharerow"><button class="secondary" id="shareScore" type="button">📲 CARTOLINA</button><button class="secondary" id="sharestory" type="button">📸 STORIA</button></div>
     <div class="actions">
@@ -4249,7 +4249,7 @@ function groupResult(runInfo) {
   const nick = C.getNick();
   if (!nick) {
     box.innerHTML = `<div class="ghead">🏆 ${grpLabel()}</div>
-      <p>Metti il tuo nome: il punteggio va nella ${C.isEdt() ? 'classifica dell’EDT' : 'classifica di tutti'}.</p>
+      <p><b>Metti il tuo nome</b> e il giro entra nella ${C.isEdt() ? 'classifica dell’EDT' : 'classifica di tutti'}: vedi chi ti batte e sfidi gli amici.</p>
       <form class="nickrow" id="nickform"><input id="nickin" maxlength="16" autocomplete="nickname" placeholder="Il tuo nome" value="${C.isEdt() || isCustom() ? C.cleanNick(profile.rider) : ''}"><button class="primary" type="submit"><span>INVIA</span></button></form><p class="nickerr" id="nickerr" hidden></p>`;
     // v109.4 · chi non è EDT non può firmarsi col nome di un pilota EDT (la casella parte vuota se corre con un pilota EDT)
     $('nickform').onsubmit = e => { e.preventDefault(); const n = C.cleanNick($('nickin').value); if (!n) return;
@@ -4456,7 +4456,8 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 170;   // v170 · riquadro MOTO SBLOCCATA · v169 · Anal K di Gusta, moto bonus con la medaglia al Gusta Ranch · v168 · Angelo Potter piu ricco, Erika e Giacu, derapate contate · v166 · SWITCH: la gara si corre con la guida nuova in 3D · v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero
+const GAME_VERSION = 171;   // v171 · avversari che aspettano chi inizia, RIPROVA col distacco, nome in alto nei risultati, si conta di nuovo 'gioca'
+// prima:   // v170 · riquadro MOTO SBLOCCATA · v169 · Anal K di Gusta, moto bonus con la medaglia al Gusta Ranch · v168 · Angelo Potter piu ricco, Erika e Giacu, derapate contate · v166 · SWITCH: la gara si corre con la guida nuova in 3D · v167: Ice Scrofy piu' lento e senza turbo, i suoi record ripartono da zero
 // v57 · invia i punteggi rimasti in sospeso (all'avvio, quando torna la rete e ogni 2 minuti)
 { const inv = new URLSearchParams(location.search).get('edt');   // link d'invito dell'EDT
   if (inv) C.joinFromInvite(inv).then(ok => { if (!ok) return; try { C.rememberSecret(atob(inv)); } catch {} syncShare(); setTimeout(() => toast('🏁 BENVENUTO NELL’EDT: SEI NELLA CLASSIFICA DEGLI AMICI', 'green'), 1500); C.load(true).then(() => renderSide()).catch(() => {}); }); }
@@ -5054,16 +5055,18 @@ function v2Photo(u) { const c = $('canvas'), g = $('game'); if (!c || !g) return
 function v2Order(c0, ord) { const free = c0.rivals.slice(), mp = {}; for (const n of ord) if (n !== '__me') { const k = free.findIndex(x => x.toUpperCase() === n); if (k >= 0) mp[n] = free.splice(k, 1)[0]; } for (const n of ord) if (n !== '__me' && !mp[n] && free.length) mp[n] = free.shift(); const out = ord.map(n => n === '__me' ? n : mp[n]).filter(Boolean); for (const n of free) out.push(n); if (!out.includes('__me')) out.push('__me'); return out; }   // v2 · campionato: l'ordine d'arrivo vero della pista 3D
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow', analk: 'analk' };
 let nextRes = null, nextFrame = null, nextCfg = '';
+let v2Gap = null;   // v171 · quanto manca per battere chi ti e' arrivato davanti
 function startNext() {
   quietMenu = false; A.unlock(); A.stopVoice();
   if (touchDevice) goFull();
   resetRun(); perfRun = null; nextRes = null;
   timeLimit = NEXT_LIMIT[mode]; rookieT = 0;
+  C.hit('play', String(GAME_VERSION)); if (P.MODES[mode].school) C.hit('sch', String(GAME_VERSION));   // v171 · con la guida nuova il 'gioca' non veniva piu' contato
   state = 'next'; v2Photo(null);
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const q = new URLSearchParams({ embed: '1', camp: champRun ? '1' : '0', riv: champRun && P.champ() ? P.champ().rivals.join('|') : '', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', analk: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-65' }).toString();
+  const v2Primi = (() => { try { return Number(localStorage.getItem('edt-v2-primi')) || 0; } catch { return 0; } })(), q = new URLSearchParams({ rk: v2Primi < 3 && (P.profile.totals?.wins || 0) < 15 ? String(v2Primi + 1) : '0',   /* v171 · chi inizia: finche' non arriva primo 3 volte gli avversari lo aspettano */ embed: '1', camp: champRun ? '1' : '0', riv: champRun && P.champ() ? P.champ().rivals.join('|') : '', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', analk: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-65' }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
@@ -5074,6 +5077,7 @@ function startNext() {
 function endNext(d) {
   const win = d.t === 'edt-next-run' && !d.fermato;   // Anti-GEV: fermato dalle guardie = giro perso, con verbale e multa
   nextRes = { pos: win ? d.pos | 0 : 0, ord: Array.isArray(d.ord) && d.ord.length > 1 ? d.ord : null };
+  v2Gap = win && d.gapN && +d.gapT > 0 ? { n: String(d.gapN), t: +d.gapT } : null; if (win && (d.pos | 0) === 1) { try { localStorage.setItem('edt-v2-primi', String((Number(localStorage.getItem('edt-v2-primi')) || 0) + 1)); } catch {} }   // v171
   elapsed = +d.time || 0; roadTime = elapsed;
   run.caps += d.beers | 0; run.hits = d.falls | 0;
   lives = Math.max(0, maxLives - (d.falls | 0));
