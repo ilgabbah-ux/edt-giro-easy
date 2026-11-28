@@ -13,10 +13,10 @@ export function setSound(v) { on = v; if (ctx) master.gain.setTargetAtTime(mLeve
 const VB = {}; let vSrc = null, vWant = '';
 function hush() { if (vSrc) { try { vSrc.stop(); } catch {} vSrc = null; } if (ctx) master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .15); }
 export async function say(name, onEnd) { vWant = name; hush(); if (!ctx || !on) return;
-  try { if (!VB[name]) VB[name] = fetch('voce/' + name + '.mp3?v=2').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)); const buf = await VB[name]; if (vWant !== name || !on) return;
+  try { if (!VB[name]) VB[name] = fetch('voce/' + name + '.mp3?v=3').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)); const buf = await VB[name]; if (vWant !== name || !on) return;
     const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = buf; g.gain.value = 1.7; src.connect(g); g.connect(ctx.destination); vSrc = src; master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .12);
     src.onended = () => { if (vSrc === src) { vSrc = null; master.gain.setTargetAtTime(mLevel(), ctx.currentTime, .3); if (onEnd) onEnd(); } }; src.start(); } catch {} }
-export function preloadVoice(names) { if (ctx) for (const n of names) if (!VB[n]) VB[n] = fetch('voce/' + n + '.mp3?v=2').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).catch(() => null); }
+export function preloadVoice(names) { if (ctx) for (const n of names) if (!VB[n]) VB[n] = fetch('voce/' + n + '.mp3?v=3').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).catch(() => null); }
 function burst(dur, freq, q, vol, type, when = 0) { const t = ctx.currentTime + when, s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
   const g = ctx.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * .5); s.stop(t + dur + .05); }
 const SETS = {   /* registrazioni vere: due tempi e bicilindrico, basso e alto regime, tagliate a giro chiuso */

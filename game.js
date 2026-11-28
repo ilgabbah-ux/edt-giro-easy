@@ -4466,7 +4466,7 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 182;   // v182 · sul GAS dito in su = impennata senza mollare il gas
+const GAME_VERSION = 182;   // v182 · sul GAS dito in su = impennata senza mollare il gas; tolto il tasto IMPENNA; scuola aggiornata (testi e voce)
 // prima:   // v181 · tasto IMPENNA e avviso dei tronchi sulla pista nuova; schermo bloccato in gara
 // prima:   // v180 · casco: il pilota creato corre col casco scelto anche sulla pista nuova; 10 colori di casco gratis nello Stile
 // prima:   // v179 · Suzuki V-Stronz di Alex, in regalo per tutti

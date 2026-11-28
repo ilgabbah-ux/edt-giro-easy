@@ -3,8 +3,8 @@
 import * as T from '../three.module.min.js';
 import { GLTFLoader } from '../GLTFLoader.js';
 import { DRACOLoader } from '../DRACOLoader.js';
-import { CEF, CEF_EXTRA, NOTTE, NOTTE_EXTRA, POTTER, POTTER_EXTRA, POTTER_CLIFF, ANTIGEV, ANTIGEV_EXTRA, DESERTO_PTS, DESERTO_Y, GUSTA_PTS, GUSTA_ELEV, GUSTA_KINDS, GUSTA_KINDS_XMAS, GUSTA_PTS_R, GUSTA_ELEV_R, LEVENTINO_VIET, LEVENTINO, LEVENTINO_EXTRA, paddyAt, SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=63';
-import { startSound, soundUpdate, thud, setSound, whip, whistle, splash, splosh, say, preloadVoice, setBike, speaking, sleepSound } from './suono.js?v=23';
+import { CEF, CEF_EXTRA, NOTTE, NOTTE_EXTRA, POTTER, POTTER_EXTRA, POTTER_CLIFF, ANTIGEV, ANTIGEV_EXTRA, DESERTO_PTS, DESERTO_Y, GUSTA_PTS, GUSTA_ELEV, GUSTA_KINDS, GUSTA_KINDS_XMAS, GUSTA_PTS_R, GUSTA_ELEV_R, LEVENTINO_VIET, LEVENTINO, LEVENTINO_EXTRA, paddyAt, SALITA_INFAME, SALITA_EXTRA, GIRO_EXTRA, forkAt, laneOff, laneSide, lat, SCUOLA, SCUOLA_EXTRA, DS, KIND, buildTrack, buildCircuit, unroll, zoneAt, ICE_PTS, ICE_ZONE, groundY, at, project, roughAt, widthAt, sideAt, kindAt, waterAt } from './pista.js?v=64';
+import { startSound, soundUpdate, thud, setSound, whip, whistle, splash, splosh, say, preloadVoice, setBike, speaking, sleepSound } from './suono.js?v=24';
 import { MOTO, motoById } from './moto.js?v=5';
 import { PILOTI, pilotaById } from './piloti.js?v=2';
 import { CANZONI, titolo, suona, volume, abbassa, ferma, musicaOn, inOnda } from './musica.js?v=2';
@@ -758,10 +758,9 @@ const hold = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDe
 hold($('brake'), v => braking = v);
 // GAS: tocchi il tasto dove capita ed è tutto aperto. Per dosare allontani il pollice da dove l'hai appoggiato, in qualsiasi direzione (in su, di lato: sotto c'è il bordo dello schermo); tornando indietro riapri.
 // Corsa lunga (150 px) e più fine verso il basso del gas, dove serve precisione
-/* v174 · TASTO IMPENNA: un tocco alza la ruota davanti come il colpo di gas (stesse regole: non in volo, non già impennato, non da fermo). La tieni su col gas.
+/* v174 · IMPENNA (dal v176 solo col dito in su sul GAS, il tasto è stato tolto): alza la ruota davanti come il colpo di gas (stesse regole: non in volo, non già impennato, non da fermo). La tieni su col gas.
    Prima l'impennata si faceva solo col colpo di gas (tieni, molla, ripremi) e chi non aveva fatto la scuola non la trovava */
 const impenna = () => { if (state !== 'play' || S.fall > 0 || S.air > 0 || (S.wh || 0) > .05 || S.v < 2.5) return false; S.whV = 2.35 * (.7 + .3 * BK.wh) * (S.v > 19 ? 1.15 : 1); return true; };
-$('whb').addEventListener('pointerdown', e => { e.preventDefault(); $('whb').classList.remove('hint'); impenna(); });
 /* v175 · GAS: dito in giù (o di lato) = meno gas; dito in SU = impennata senza mollare il gas (richiesta dei giocatori: «tiro su il gas e impenno»).
    Per rifarla riporta il dito giù e ritira su */
 { const el = $('gasb'); let x0 = 0, y0 = 0, up = 0; const set = e => { const dy = e.clientY - y0; if (dy < -40) { gasCmd = 1; if (!up) { up = 1; impenna(); } return; } if (dy > -15) up = 0; const r = Math.max(0, Math.hypot(e.clientX - x0, Math.max(0, dy)) - 14) / 150, k = clamp(1 - r, 0, 1); gasCmd = .15 + .85 * Math.pow(k, 1.25); };
@@ -822,7 +821,7 @@ function duelStep(r, dt) {   /* la sua moto va dove dice il suo telefono: tra un
   if (DU.end && DU.end.w) { r.done = +DU.end.tm || time; r.s = Math.max(r.s, FIN() - 14); } }
 /* v174 · TRONCO IN ARRIVO: le prime volte (6 tronchi per telefono) quando un tronco è a 35–55 m compare la scritta e il tasto IMPENNA lampeggia */
 let trAvv = (() => { try { return +localStorage.getItem('edt-v2-tronchi') || 0; } catch { return 0; } })(); const trVisti = new Set();
-function tronchiAvviso() { if (state !== 'play' || trAvv >= 6 || SCHOOL || POT) return; for (const lg of tr.logs || []) { const d = lg.s - S.s; if (d > 35 && d < 55 && !trVisti.has(lg)) { trVisti.add(lg); if (lg.lane && laneSide(tr, lg.s, S.d) <= 0) continue; trAvv++; try { localStorage.setItem('edt-v2-tronchi', trAvv); } catch {} flash('TRONCO! TOCCA ⬆ IMPENNA', 1.5); $('whb').classList.add('hint'); setTimeout(() => $('whb').classList.remove('hint'), 2600); break; } } }
+function tronchiAvviso() { if (state !== 'play' || trAvv >= 6 || SCHOOL || POT) return; for (const lg of tr.logs || []) { const d = lg.s - S.s; if (d > 35 && d < 55 && !trVisti.has(lg)) { trVisti.add(lg); if (lg.lane && laneSide(tr, lg.s, S.d) <= 0) continue; trAvv++; try { localStorage.setItem('edt-v2-tronchi', trAvv); } catch {} flash('TRONCO! DITO IN SU SUL GAS', 1.5); $('gasb').classList.add('hint'); setTimeout(() => $('gasb').classList.remove('hint'), 2600); break; } } }
 function duelSend() { if (!DUEL || state !== 'play') return; const n = performance.now(); if (n - DU.last < 90) return; DU.last = n; parent.postMessage({ t: 'edt-duel-me', s: +S.s.toFixed(2), d: +S.d.toFixed(2), v: +S.v.toFixed(2), l: +S.lean.toFixed(2) }, location.origin); }
 function rivStep(dt) { if (!rivBuilt) return; for (const r of RIV) { if (r.remote) duelStep(r, dt); else if (state === 'play' && !r.done) { const i = Math.min(tr.n - 1, Math.round(r.s / DS)); let km = 0; for (let q = 0; q <= 14; q += 2) km = Math.max(km, Math.abs(tr.k[Math.min(tr.n - 1, i + q)]));
       const vt = Math.min(24 * (KSPD[tr.kind[i]] || 1), km > .004 ? Math.sqrt(KLAT / km) : 99) * r.skill * RK_SK * (RK && !FEST && r.s > S.s && (r.s - S.s > RK_LEAD || (RK < 3 && S.s > FIN() * (RK === 1 ? .8 : .9))) ? clamp(S.v * .88 / (22 * r.skill), .25, 1) : 1) * (RANCH && !FEST && !DES ? 1.16 : 1) * (forkAt(tr, r.s) && r.lane < 0 ? .6 : 1) * (r.yld ? .74 : 1); r.v += clamp(vt - r.v, -7 * dt, (ICE ? 6 : 4.2) * dt); r.s += r.v * dt;
