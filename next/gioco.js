@@ -762,8 +762,10 @@ hold($('brake'), v => braking = v);
    Prima l'impennata si faceva solo col colpo di gas (tieni, molla, ripremi) e chi non aveva fatto la scuola non la trovava */
 const impenna = () => { if (state !== 'play' || S.fall > 0 || S.air > 0 || (S.wh || 0) > .05 || S.v < 2.5) return false; S.whV = 2.35 * (.7 + .3 * BK.wh) * (S.v > 19 ? 1.15 : 1); return true; };
 $('whb').addEventListener('pointerdown', e => { e.preventDefault(); $('whb').classList.remove('hint'); impenna(); });
-{ const el = $('gasb'); let x0 = 0, y0 = 0; const set = e => { const r = Math.max(0, Math.hypot(e.clientX - x0, e.clientY - y0) - 14) / 150, k = clamp(1 - r, 0, 1); gasCmd = .15 + .85 * Math.pow(k, 1.25); };
-  el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); gasHeld = true; x0 = e.clientX; y0 = e.clientY; gasCmd = 1; }); el.addEventListener('pointermove', e => { if (gasHeld) set(e); });
+/* v175 · GAS: dito in giù (o di lato) = meno gas; dito in SU = impennata senza mollare il gas (richiesta dei giocatori: «tiro su il gas e impenno»).
+   Per rifarla riporta il dito giù e ritira su */
+{ const el = $('gasb'); let x0 = 0, y0 = 0, up = 0; const set = e => { const dy = e.clientY - y0; if (dy < -40) { gasCmd = 1; if (!up) { up = 1; impenna(); } return; } if (dy > -15) up = 0; const r = Math.max(0, Math.hypot(e.clientX - x0, Math.max(0, dy)) - 14) / 150, k = clamp(1 - r, 0, 1); gasCmd = .15 + .85 * Math.pow(k, 1.25); };
+  el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); gasHeld = true; x0 = e.clientX; y0 = e.clientY; up = 0; gasCmd = 1; }); el.addEventListener('pointermove', e => { if (gasHeld) set(e); });
   for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, () => { gasHeld = false; gasCmd = 0; }); }
 
 // ---------- fisica ----------

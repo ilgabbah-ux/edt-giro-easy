@@ -4466,7 +4466,8 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 181;   // v181 · tasto IMPENNA e avviso dei tronchi sulla pista nuova; schermo bloccato in gara
+const GAME_VERSION = 182;   // v182 · sul GAS dito in su = impennata senza mollare il gas
+// prima:   // v181 · tasto IMPENNA e avviso dei tronchi sulla pista nuova; schermo bloccato in gara
 // prima:   // v180 · casco: il pilota creato corre col casco scelto anche sulla pista nuova; 10 colori di casco gratis nello Stile
 // prima:   // v179 · Suzuki V-Stronz di Alex, in regalo per tutti
 // prima:   // v178 · Desertone sabbia x4, stelle e luna in Notturna, spruzzi di acqua e fango, Fest coi supereroi col mantello
