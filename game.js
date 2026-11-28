@@ -4465,7 +4465,8 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 177;   // v177 · Harley di John con Zena la bassotta; sfida 1 contro 1 dal vivo sulla pista nuova
+const GAME_VERSION = 178;   // v178 · Desertone sabbia x4, stelle e luna in Notturna, spruzzi di acqua e fango, Fest coi supereroi col mantello
+// prima:   // v177 · Harley di John con Zena la bassotta; sfida 1 contro 1 dal vivo sulla pista nuova
 // prima:   // v176 · nuove moto in regalo: Domi di Angelo col bauletto, KTM 990 di Miti, XR 600R, Suzuki DR 350; musica della gara ferma fuori dall'app
 // prima:   // v175 · grafica: tasti di guida velati, cielo del Desertone, gocce, luna in Notturna, classifica a striscia
 // prima:   // v174 · scheda della Domi di Purcello dal modello 3D (niente erba nella ruota)
