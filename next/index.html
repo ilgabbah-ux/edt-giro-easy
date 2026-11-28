@@ -35,7 +35,10 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #tip.done { border-top-color: #58d05a; } #tip.done b { color: #7fe081; }
 /* bordi sicuri: tacca e angoli tondi, in orizzontale e in verticale */
 :root { --L: max(14px, env(safe-area-inset-left)); --R: max(14px, env(safe-area-inset-right)); }
-#spd, #brake, #opts { left: var(--L); } #tim, #gasb, #again { right: var(--R); } #bar { left: var(--L); right: var(--R); }
+#spd, #brake, #opts { left: var(--L); } #tim, #gasb, #again, #whb { right: var(--R); }
+/* v174 · tasto IMPENNA sopra il GAS: un tocco e la ruota davanti si alza (serve per i tronchi). Il colpo di gas resta valido */
+#whb { bottom: calc(150px + env(safe-area-inset-bottom)); width: 140px; height: 50px; font-size: 17px; touch-action: none; background: #ffd400cc; }
+#whb.hint { animation: pulse .5s infinite; background: #ffd400; } #bar { left: var(--L); right: var(--R); }
 #msg { font-size: clamp(34px, 9vw, 64px); padding: 0 12px; }
 #panel { overflow-y: auto; touch-action: pan-y; justify-content: safe center; } #panel * { touch-action: pan-y; }
 /* ORIZZONTALE (schermo basso): menu compatto su due colonne, tasti di guida un po' più bassi, spiegazione tra i due tasti */
@@ -43,7 +46,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   #panel { gap: 8px; padding: 10px calc(var(--R) + 6px) 10px calc(var(--L) + 6px); }
   #panel h1 { font-size: 26px; } #panel h1 br { display: none; } #panel p { font-size: 14px; max-width: 620px; line-height: 1.2; }
   #panel .btn { height: 40px; min-width: 0; font-size: 14px; padding: 0 12px; } #panel #go { min-width: 260px; height: 46px; font-size: 18px; } #panel .row { gap: 6px; max-width: 760px; } #panel .row .btn { flex: 1 1 22%; }
-  #brake { height: 108px; } #gasb { height: 108px; }
+  #brake { height: 108px; } #gasb { height: 108px; } #whb { bottom: calc(136px + env(safe-area-inset-bottom)); height: 44px; }
   #tip { left: calc(var(--L) + 150px); right: calc(var(--R) + 158px); }
   #msg { top: 17%; font-size: clamp(28px, 6vw, 46px); } #msg.small { top: 24%; }   /* v162 · le scritte stanno in alto, non davanti alla moto */
 }
@@ -52,7 +55,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   #tip { left: 10px; right: 10px; bottom: calc(132px + env(safe-area-inset-bottom)); font-size: 15px; }
   #tag { font-size: 10px; letter-spacing: .04em; }
   #msg { top: 19%; } #msg.small { font-size: min(30px, 7.4vw); top: 27%; left: 6%; right: 6%; }
-  #brake { width: 38vw; max-width: 170px; height: 104px; } #gasb { width: 38vw; max-width: 170px; height: 104px; }   /* v169 · tasti piu bassi e trasparenti: la strada davanti alla moto si vede */
+  #brake { width: 38vw; max-width: 170px; height: 104px; } #gasb { width: 38vw; max-width: 170px; height: 104px; } #whb { width: 38vw; max-width: 170px; bottom: calc(132px + env(safe-area-inset-bottom)); height: 46px; } #tip { bottom: calc(186px + env(safe-area-inset-bottom)); }   /* v169 · tasti piu bassi e trasparenti: la strada davanti alla moto si vede */
   #panel { padding: 18px 14px; } #panel h1 { font-size: 34px; } #panel .btn { min-width: 0; } #panel #go { min-width: 260px; } #panel .row .btn { flex: 1 1 44%; font-size: 15px; padding: 0 8px; }
 }
 /* MENU: stesso impianto del gioco in uso (scudetto, titolo, targhetta del pilota, scheda del percorso, tasto giallo, griglie di piloti e moto) */
@@ -122,13 +125,14 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <div class="hud" id="spd">0<small>KM/H</small></div>
 <div class="hud" id="tim">0.0<small id="best"></small></div>
 <div class="hud" id="bar"><i></i></div>
-<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v173</div>
+<div class="hud" id="tag">PROVA · PISTA VERA 3D · TAPPA 1 · PERCORSO ENDURO · v174</div>
 <div class="hud hidden" id="tip"></div>
 <div class="hud" id="msg"></div>
 <div id="fine" class="hide"><div class="fb"><small id="fTr"></small><h2 id="fPos"></h2><div id="fTime"></div><div id="fMed"></div><div id="fProf"></div><div class="fc"><ul id="fRows"></ul><ol id="fOrd"></ol></div><div class="frow"><button id="fAgain" type="button">RIPROVA</button><button id="fShare" type="button">SFIDA UN AMICO</button><button id="fMenu" type="button">MENU</button></div></div></div>
 <div id="combo" style="position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top));transform:translateX(-50%) skewX(-8deg);font:34px/1 Anton,Impact,sans-serif;color:#ffd400;text-shadow:0 2px 0 #111,0 0 10px #000;letter-spacing:1px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:6"></div>
 <button class="btn" id="brake" type="button">FRENO</button>
 <button class="btn" id="gasb" type="button">GAS</button>
+<button class="btn" id="whb" type="button" aria-label="Impenna">⬆ IMPENNA</button>
 <button class="btn dark" id="again" type="button" aria-label="Riparti" title="Riparti">↺</button>
 <button class="btn dark" id="opts" type="button" aria-label="Opzioni" title="Opzioni">☰</button>
 <div id="spfx"></div>
@@ -163,7 +167,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
  </div>
 </div>
 <script>/* si aggiorna da sola: se in rete c'è una versione più nuova di questa pagina, la ricarica saltando la memoria del telefono */
-(function () { var V = 173; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
-<script type="module" src="gioco.js?v=173"></script>
+(function () { var V = 174; fetch('versione.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) { var n = parseInt(t, 10); if (n > V && !new RegExp('[?&]v=' + n + '(&|$)').test(location.search)) location.replace(location.pathname + '?v=' + n); }).catch(function () {}); })();</script>
+<script type="module" src="gioco.js?v=174"></script>
 </body>
 </html>

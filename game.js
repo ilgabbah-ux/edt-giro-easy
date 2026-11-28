@@ -4466,7 +4466,8 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 180;   // v180 · casco: il pilota creato corre col casco scelto anche sulla pista nuova; 10 colori di casco gratis nello Stile
+const GAME_VERSION = 181;   // v181 · tasto IMPENNA e avviso dei tronchi sulla pista nuova; schermo bloccato in gara
+// prima:   // v180 · casco: il pilota creato corre col casco scelto anche sulla pista nuova; 10 colori di casco gratis nello Stile
 // prima:   // v179 · Suzuki V-Stronz di Alex, in regalo per tutti
 // prima:   // v178 · Desertone sabbia x4, stelle e luna in Notturna, spruzzi di acqua e fango, Fest coi supereroi col mantello
 // prima:   // v177 · Harley di John con Zena la bassotta; sfida 1 contro 1 dal vivo sulla pista nuova
@@ -5091,9 +5092,20 @@ function v2Order(c0, ord) { const free = c0.rivals.slice(), mp = {}; for (const 
 const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow', analk: 'analk', purcello: 'purcello', domiangelo: 'domiangelo', ktmmiti: 'ktmmiti', xr600: 'xr600', dr350: 'dr350', harleyjohn: 'harleyjohn', vstronz: 'vstronz' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 let v2Gap = null;   // v171 · quanto manca per battere chi ti e' arrivato davanti
+// v181 · SCHERMO BLOCCATO IN GARA: si guida inclinando il telefono, e con la rotazione automatica lo schermo girava da verticale a orizzontale.
+// Al via si blocca nella posizione in cui tieni il telefono e si sblocca all'arrivo. Funziona su Android (app e browser a schermo intero);
+// dove non si può (iPhone, browser normale) la prima volta un avviso spiega come bloccarla dal telefono
+function lockScreen() {
+  const o = screen.orientation, touch = matchMedia('(pointer: coarse)').matches; if (!touch) return;
+  const hint = () => { try { if (localStorage.getItem('edt-rot-hint')) return; localStorage.setItem('edt-rot-hint', '1'); } catch { return; } rotHint = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'SCHERMO CHE GIRA? Blocca la rotazione dal Centro di Controllo (il lucchetto)' : 'SCHERMO CHE GIRA? Gioca a schermo intero (⛶) o blocca la rotazione del telefono'; };   // l'avviso esce a fine gara: durante la gara la pista copre tutto
+  try { if (o?.lock) o.lock(o.type).catch(hint); else hint(); } catch { hint(); }
+}
+let rotHint = '';
+function unlockScreen() { if (rotHint) { const m = rotHint; rotHint = ''; setTimeout(() => toast(m, 'gold'), 1800); } try { screen.orientation?.unlock?.(); } catch {} }
 function startNext() {
   quietMenu = false; A.unlock(); A.stopVoice();
   if (touchDevice) goFull();
+  setTimeout(lockScreen, 500);   // v181 · dopo lo schermo intero, che su Android serve per bloccare la rotazione
   resetRun(); perfRun = null; nextRes = null;
   timeLimit = NEXT_LIMIT[mode]; rookieT = 0;
   C.hit('play', String(GAME_VERSION)); if (P.MODES[mode].school) C.hit('sch', String(GAME_VERSION));   // v171 · con la guida nuova il 'gioca' non veniva piu' contato
@@ -5109,7 +5121,7 @@ function startNext() {
   nextFrame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483000;background:#0b0c0b';
   nextFrame.src = 'next/index.html?' + q; host.appendChild(nextFrame); nextFrame.focus();
 }
-function endNext(d) {
+function endNext(d) { unlockScreen();
   const win = d.t === 'edt-next-run' && !d.fermato;   // Anti-GEV: fermato dalle guardie = giro perso, con verbale e multa
   nextRes = { pos: win ? d.pos | 0 : 0, ord: Array.isArray(d.ord) && d.ord.length > 1 ? d.ord : null };
   v2Gap = win && d.gapN && +d.gapT > 0 ? { n: String(d.gapN), t: +d.gapT } : null; if (win && (d.pos | 0) === 1) { try { localStorage.setItem('edt-v2-primi', String((Number(localStorage.getItem('edt-v2-primi')) || 0) + 1)); } catch {} }   // v171

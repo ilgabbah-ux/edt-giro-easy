@@ -758,6 +758,10 @@ const hold = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDe
 hold($('brake'), v => braking = v);
 // GAS: tocchi il tasto dove capita ed è tutto aperto. Per dosare allontani il pollice da dove l'hai appoggiato, in qualsiasi direzione (in su, di lato: sotto c'è il bordo dello schermo); tornando indietro riapri.
 // Corsa lunga (150 px) e più fine verso il basso del gas, dove serve precisione
+/* v174 · TASTO IMPENNA: un tocco alza la ruota davanti come il colpo di gas (stesse regole: non in volo, non già impennato, non da fermo). La tieni su col gas.
+   Prima l'impennata si faceva solo col colpo di gas (tieni, molla, ripremi) e chi non aveva fatto la scuola non la trovava */
+const impenna = () => { if (state !== 'play' || S.fall > 0 || S.air > 0 || (S.wh || 0) > .05 || S.v < 2.5) return false; S.whV = 2.35 * (.7 + .3 * BK.wh) * (S.v > 19 ? 1.15 : 1); return true; };
+$('whb').addEventListener('pointerdown', e => { e.preventDefault(); $('whb').classList.remove('hint'); impenna(); });
 { const el = $('gasb'); let x0 = 0, y0 = 0; const set = e => { const r = Math.max(0, Math.hypot(e.clientX - x0, e.clientY - y0) - 14) / 150, k = clamp(1 - r, 0, 1); gasCmd = .15 + .85 * Math.pow(k, 1.25); };
   el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); gasHeld = true; x0 = e.clientX; y0 = e.clientY; gasCmd = 1; }); el.addEventListener('pointermove', e => { if (gasHeld) set(e); });
   for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, () => { gasHeld = false; gasCmd = 0; }); }
@@ -814,6 +818,9 @@ function duelStep(r, dt) {   /* la sua moto va dove dice il suo telefono: tra un
   const ex = t.s + t.v * Math.min(.6, (performance.now() - t.at) / 1000); r.v = t.v; r.s += r.v * dt; r.s += (ex - r.s) * Math.min(1, dt * 5); if (Math.abs(ex - r.s) > 25) r.s = ex;
   const pd = r.d; r.d += (t.d - r.d) * Math.min(1, dt * 6); r.dv = (r.d - pd) / Math.max(dt, 1e-3); r.lean += ((t.l || 0) - r.lean) * Math.min(1, dt * 8);
   if (DU.end && DU.end.w) { r.done = +DU.end.tm || time; r.s = Math.max(r.s, FIN() - 14); } }
+/* v174 · TRONCO IN ARRIVO: le prime volte (6 tronchi per telefono) quando un tronco è a 35–55 m compare la scritta e il tasto IMPENNA lampeggia */
+let trAvv = (() => { try { return +localStorage.getItem('edt-v2-tronchi') || 0; } catch { return 0; } })(); const trVisti = new Set();
+function tronchiAvviso() { if (state !== 'play' || trAvv >= 6 || SCHOOL || POT) return; for (const lg of tr.logs || []) { const d = lg.s - S.s; if (d > 35 && d < 55 && !trVisti.has(lg)) { trVisti.add(lg); if (lg.lane && laneSide(tr, lg.s, S.d) <= 0) continue; trAvv++; try { localStorage.setItem('edt-v2-tronchi', trAvv); } catch {} flash('TRONCO! TOCCA ⬆ IMPENNA', 1.5); $('whb').classList.add('hint'); setTimeout(() => $('whb').classList.remove('hint'), 2600); break; } } }
 function duelSend() { if (!DUEL || state !== 'play') return; const n = performance.now(); if (n - DU.last < 90) return; DU.last = n; parent.postMessage({ t: 'edt-duel-me', s: +S.s.toFixed(2), d: +S.d.toFixed(2), v: +S.v.toFixed(2), l: +S.lean.toFixed(2) }, location.origin); }
 function rivStep(dt) { if (!rivBuilt) return; for (const r of RIV) { if (r.remote) duelStep(r, dt); else if (state === 'play' && !r.done) { const i = Math.min(tr.n - 1, Math.round(r.s / DS)); let km = 0; for (let q = 0; q <= 14; q += 2) km = Math.max(km, Math.abs(tr.k[Math.min(tr.n - 1, i + q)]));
       const vt = Math.min(24 * (KSPD[tr.kind[i]] || 1), km > .004 ? Math.sqrt(KLAT / km) : 99) * r.skill * RK_SK * (RK && !FEST && r.s > S.s && (r.s - S.s > RK_LEAD || (RK < 3 && S.s > FIN() * (RK === 1 ? .8 : .9))) ? clamp(S.v * .88 / (22 * r.skill), .25, 1) : 1) * (RANCH && !FEST && !DES ? 1.16 : 1) * (forkAt(tr, r.s) && r.lane < 0 ? .6 : 1) * (r.yld ? .74 : 1); r.v += clamp(vt - r.v, -7 * dt, (ICE ? 6 : 4.2) * dt); r.s += r.v * dt;
@@ -1125,7 +1132,7 @@ function draw(dt) {
   if (POT) { angStep(); potFx(); } if (NOTT) nottStep(); if (CEFA) cefStep(); if (FEST) festStep(dt);
   if (P.cape) capeStep(P.cape, S.v, time, 0); if (FEST && rivBuilt) for (const r of RIV) if (r.cape) capeStep(r.cape, r.v, time, 1.7); if (P.rider) { const neck = P.rider.pose({ fwd: S.fwd, side: leanVis * .5, stand: S.standV, dab: S.dab, gas: S.gasOn, brake: S.brkAmt, vib: 0, hx: FIT.hx, hy: FIT.hy, hz: FIT.hz });
     if (P.helm) { pitchG.worldToLocal(neck); P.helm.position.set(neck.x, neck.y + .19, neck.z - .02); P.helm.rotation.set(S.fwd * .3, 0, leanVis * .35); } }
-  if (P.ears) P.ears.visible = (S.bunny || 0) > 0; { const tt = performance.now() / 1000; for (const b of tr.beers) if (!b.got) b.m.position.y = b.y + Math.sin(tt * 3 + b.s) * .12; } vociGara(); abbassa(speaking() ? .45 : 1); ghostDraw(dt); rivBuild(); rivStep(dt); duelSend();
+  if (P.ears) P.ears.visible = (S.bunny || 0) > 0; { const tt = performance.now() / 1000; for (const b of tr.beers) if (!b.got) b.m.position.y = b.y + Math.sin(tt * 3 + b.s) * .12; } vociGara(); abbassa(speaking() ? .45 : 1); ghostDraw(dt); rivBuild(); rivStep(dt); duelSend(); tronchiAvviso();
   rings(dt); WATER_N.offset.x += dt * .018; WATER_N.offset.y += dt * .03; lensDraw(dt); dust(dt); soundUpdate(dt, { thr: S.thr || 0, spin: S.spin || 0, wet: S.wet, mudW: S.inWater && S.mudW, surf: S.kd.tex, sp: S.v / VMAX * 2, gas: S.gasOn, brk: S.brk ? S.brkAmt : 0, slip: S.slip, air: S.air > 0, off: S.off, rough: S.rough, play: state === 'play' });
   blob.position.set(S.x, groundY(tr, S.s, S.d, true) + .05, S.z); blob.rotation.z = -S.psi; blob.visible = !renderer.shadowMap.enabled; blob.material.opacity = S.air > 0 ? .16 : .32;
   { const fx = Math.sin(S.psi), fz = -Math.cos(S.psi); sun.target.position.set(Math.round(S.x + fx * 16), S.y, Math.round(S.z + fz * 16)); sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 110); }
