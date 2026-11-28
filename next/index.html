@@ -116,6 +116,14 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #gasb { background: linear-gradient(to top, #ffd400d9 var(--g, 0%), #4a3e00a8 var(--g, 0%)); box-shadow: 0 3px 0 #0006; border: 2px solid #ffe36a66; }
 #again, #opts { top: calc(78px + env(safe-area-inset-top)); width: 42px; height: 38px; padding: 0; font-size: 22px; line-height: 1; background: #0007; border: 1px solid #ffffff33; color: #fff; overflow: hidden; white-space: nowrap; }
 #tag { max-width: calc(100% - 124px); }
+#rotHint{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:60;width:min(86vw,360px);padding:18px 16px 16px;border-radius:16px;background:rgba(10,10,10,.82);border:2px solid #ffd21a;color:#fff;text-align:center;font-family:Barlow,'Arial Narrow',sans-serif;font-weight:700;display:none;pointer-events:auto}
+#rotHint.on{display:block;animation:rhIn .3s ease-out}
+#rotHint b{display:block;font:28px/1.05 Anton,Impact,sans-serif;color:#ffd21a;letter-spacing:.5px;margin-top:6px}
+#rotHint span{display:block;font-size:17px;opacity:.9;margin-top:6px;line-height:1.2}
+#rotHint .rp{font-size:52px;display:inline-block;animation:rhRot 1.6s ease-in-out infinite}
+@keyframes rhRot{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+@keyframes rhIn{from{opacity:0;transform:translate(-50%,-40%)}to{opacity:1;transform:translate(-50%,-50%)}}
+@media (orientation: landscape){#rotHint{display:none!important}}
 </style>
 </head>
 <body>
@@ -135,6 +143,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 <button class="btn dark" id="opts" type="button" aria-label="Opzioni" title="Opzioni">☰</button>
 <div id="spfx"></div>
 <div id="song"></div>
+<div id="rotHint"><div class="rp">📱</div><b>GIRA IL TELEFONO IN ORIZZONTALE</b><span>si vede più pista e si guida meglio · se lo schermo non gira, attiva la rotazione automatica</span></div>
 <div id="panel">
  <div id="mn">
   <header id="mHead"><img src="../img/edt-shield.webp" alt=""><b>ENDURO DRINKING<br>TEAM</b><span id="mVer">PISTA VERA 3D · PROVA</span></header>
