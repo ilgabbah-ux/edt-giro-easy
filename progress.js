@@ -267,7 +267,12 @@ export const PARTS = [
     { id: 'factory', name: 'Factory EDT', price: 650, color: '#f2c230', factory: true, desc: 'I chiodi ufficiali della squadra, neri e oro: il massimo del grip e derapate da applausi. Un gradino sopra i BO-anal.', stats: { grip: .8, drift: .62 } } ] },
   // v106.6 · STILE: solo estetica, nessun vantaggio in gara
   { slot: 'casco', name: 'Casco', style: true, items: [
-    { id: 'livrea', name: 'Colore della livrea', price: 0 },
+    { id: 'livrea', name: 'Il colore del tuo pilota', price: 0 },
+    // v180 · colori base gratis: prima si poteva solo pagare (Alex era bloccato col verde)
+    { id: 'rosso', name: 'Rosso', price: 0, color: '#e3301c' }, { id: 'giallo', name: 'Giallo', price: 0, color: '#f2c230' }, { id: 'blu', name: 'Blu', price: 0, color: '#2f6fe0' },
+    { id: 'verde', name: 'Verde', price: 0, color: '#3ddc84' }, { id: 'arancio', name: 'Arancio', price: 0, color: '#ff7a1a' }, { id: 'bianco', name: 'Bianco', price: 0, color: '#f2efe6' },
+    { id: 'nero', name: 'Nero', price: 0, color: '#26262a' }, { id: 'viola', name: 'Viola', price: 0, color: '#8a4fe0' }, { id: 'rosa0', name: 'Rosa', price: 0, color: '#ff4f9a' },
+    { id: 'azzurro', name: 'Azzurro', price: 0, color: '#1fb5b0' },
     { id: 'opaco', name: 'Nero opaco', price: 150, color: '#1b1c1e' }, { id: 'perla', name: 'Bianco perla', price: 150, color: '#f3efe6' },
     { id: 'rosa', name: 'Rosa shocking', price: 200, color: '#ff3fa4' }, { id: 'acido', name: 'Verde acido', price: 200, color: '#9dff2f' },
     { id: 'carbonio', name: 'Carbonio', price: 260, color: '#33373d' }, { id: 'cromo', name: 'Cromo', price: 320, color: '#dfe6ea' } ] },
@@ -299,7 +304,7 @@ export function claimCollections() {
   if (out.length) save(); return out;
 }
 export function bestTitle() { data.colls ||= {}; const c = [...COLLECTIONS].reverse().find(x => data.colls[x.id]); return c ? c.icon + ' ' + c.name : ''; }
-export const ownsPart = (slot, id) => PARTS.find(p => p.slot === slot)?.items[0].id === id || !!data.owned[slot + ':' + id];
+export const ownsPart = (slot, id) => { const sl = PARTS.find(p => p.slot === slot); return sl?.items[0].id === id || sl?.items.find(i => i.id === id)?.price === 0 || !!data.owned[slot + ':' + id]; };   // v180 · quello che costa 0 è già tuo
 export function currentBike() { const b = BIKES.find(x => x.id === data.bike); return b && ownsBike(b.id) ? b : BIKES[0]; }
 export function currentParts() { const o = {}; for (const p of PARTS) { const id = data.parts[p.slot]; o[p.slot] = (ownsPart(p.slot, id) && p.items.find(i => i.id === id)) || p.items[0]; } return o; }
 // Tutte le caratteristiche in gara: moto + accessori (si sommano).

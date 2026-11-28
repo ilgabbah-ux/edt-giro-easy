@@ -1,7 +1,7 @@
 // EDT Giro Easy · v18 — logica di gioco, interfaccia e condivisione
 import { iceBend, ranchBend, trackShape, JUMP_DURATION, JUMP_HEIGHT, SUPER_JUMP, OBSTACLE_HEIGHT, GAME_LENGTH, SECTIONS, clearsObstacle, isPerfectJump, jumpHeight, routeAt, paceFor, makeRng, setLayout, randomLayout, layoutSegments, SECTION_NAMES } from './physics.js?v=b9c35116';
 import * as A from './audio.js?v=3afc3a91';
-import * as P from './progress.js?v=fde3bc2a';
+import * as P from './progress.js?v=f37f2e2b';
 import { createMud } from './mudfx.js?v=ae45cf9e';
 import { TRACK_INFO, DAILY_RULES } from './percorsi.js?v=3b677ca8';   // v89 · schede dei percorsi e regole del giorno in un file a parte
 import { icon, iconize, iconizeEl, hasEmoji } from './icons.js?v=fcc14503';
@@ -4466,7 +4466,8 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 179;   // v179 · Suzuki V-Stronz di Alex, in regalo per tutti
+const GAME_VERSION = 180;   // v180 · casco: il pilota creato corre col casco scelto anche sulla pista nuova; 10 colori di casco gratis nello Stile
+// prima:   // v179 · Suzuki V-Stronz di Alex, in regalo per tutti
 // prima:   // v178 · Desertone sabbia x4, stelle e luna in Notturna, spruzzi di acqua e fango, Fest coi supereroi col mantello
 // prima:   // v177 · Harley di John con Zena la bassotta; sfida 1 contro 1 dal vivo sulla pista nuova
 // prima:   // v176 · nuove moto in regalo: Domi di Angelo col bauletto, KTM 990 di Miti, XR 600R, Suzuki DR 350; musica della gara ferma fuori dall'app
@@ -5100,7 +5101,7 @@ function startNext() {
   $('overlay').classList.add('hidden'); setMenu(false); $('pops').innerHTML = ''; setDisabled(true);
   startMusic();
   const st = P.currentStats(), parts = P.currentParts(), upg = {}; for (const u of P.UPGRADES) upg[u.id] = Math.min(5, P.upgradeLevel(u.id));
-  const v2Primi = (() => { try { return Number(localStorage.getItem('edt-v2-primi')) || 0; } catch { return 0; } })(), q = new URLSearchParams({ rk: v2Primi < 3 && (P.profile.totals?.wins || 0) < 15 ? String(v2Primi + 1) : '0',   /* v171 · chi inizia: finche' non arriva primo 3 volte gli avversari lo aspettano */ embed: '1', camp: champRun ? '1' : '0', riv: champRun && P.champ() ? P.champ().rivals.join('|') : '', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', analk: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || '', fiamma: parts.fiamma?.color || '', v: 'v2-65', ...(duel?.racing ? { duel: '1', seed: String(duel.seed), dn: duel.opp.n, dm: duel.opp.m || 'enduro', dv: duel.opp.v || '', rk: '0', camp: '0', riv: '' } : {}) }).toString();
+  const v2Primi = (() => { try { return Number(localStorage.getItem('edt-v2-primi')) || 0; } catch { return 0; } })(), q = new URLSearchParams({ rk: v2Primi < 3 && (P.profile.totals?.wins || 0) < 15 ? String(v2Primi + 1) : '0',   /* v171 · chi inizia: finche' non arriva primo 3 volte gli avversari lo aspettano */ embed: '1', camp: champRun ? '1' : '0', riv: champRun && P.champ() ? P.champ().rivals.join('|') : '', ...(mode === 3 ? { meteo: V2_DAILY.r === 'rain' ? 'p' : V2_DAILY.r === 'fog' ? 'n' : 's', ora: V2_DAILY.r === 'night' ? 'n' : 'g' } : {}), pista: NEXT_PISTA[mode], moto: NEXT_BIKE[P.currentBike().id] || 'enduro', rider: profile.rider, num: String(profile.custom?.num || ''), mus: '0', shadow: '1', analk: '1', st: JSON.stringify(st), prof: JSON.stringify({ v2: 1, up: upg }), casco: parts.casco?.color || (isChamp() ? '#e3b021' : isCustom() ? (myAv() > 0 && !profile.custom?.photo ? AV[(myAv() - 1) % AV.length][0] : P.currentLivery().helmet) || '' : ''),   /* v180 · il pilota creato corre col casco che ha scelto (prima prendeva un colore a caso dal numero) */ fiamma: parts.fiamma?.color || '', v: 'v2-65', ...(duel?.racing ? { duel: '1', seed: String(duel.seed), dn: duel.opp.n, dm: duel.opp.m || 'enduro', dv: duel.opp.v || '', rk: '0', camp: '0', riv: '' } : {}) }).toString();
   const host = fsTarget || document.fullscreenElement || document.webkitFullscreenElement || document.body;   // dentro l'elemento che va a schermo intero, altrimenti resterebbe sotto
   if (nextFrame && nextCfg === q && nextFrame.isConnected) { if (nextFrame.parentNode !== host) host.appendChild(nextFrame); nextFrame.style.display = 'block'; nextFrame.contentWindow.postMessage({ t: 'edt-next-restart' }, location.origin); nextFrame.focus(); return; }
   nextFrame?.remove(); nextCfg = q;
