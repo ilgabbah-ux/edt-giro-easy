@@ -21,6 +21,7 @@ if (!P.ownsBike('purcello')) { P.profile.owned['bike:purcello'] = true; P.save()
   { id: 'xr600', name: 'XR 600R', price: 0, level: 1, icon: '3️⃣', top: true, desc: 'La Honda XR 600R col numero 3: bianca, rossa e nera, sella «600R Dall’Ara», scarico Arrow e paramani Acerbis. Mono 600 ad aria: tira come un mulo, impenna con niente e in salita non molla mai. In regalo per tutti.', ideal: 'Salita Infame, Gusta Ranch, Angelo Potter', stats: { speed: .1, climb: .45, turbo: .15, wheelie: 1.25, steer: -.04 }, look: { paint: { plastic: '#f2f2f2', accent: '#d42a1e', side: '#151515', frame: '#f2f2f2', seat: '#d42a1e', ink: '#d42a1e' }, scale: 1, big: true } },
   { id: 'dr350', name: 'Suzuki DR 350', price: 0, level: 1, icon: '💛', top: true, desc: 'La Suzuki DR 350 anni 90: bianca, sella gialla e grafiche viola. Leggera e facile, gira dove vuoi e nel single track è una bicicletta; sul veloce però la passano tutti. In regalo per tutti.', ideal: 'Giro Easy, Gusta Ranch, Notturna', stats: { speed: -.02, climb: .2, turbo: .05, wheelie: 1, steer: .1 }, look: { paint: { plastic: '#f2f2f2', accent: '#7a2fb0', side: '#f2f2f2', frame: '#151515', seat: '#f2c400', ink: '#7a2fb0' }, scale: 1, big: true } },
   { id: 'harleyjohn', name: 'Harley di John', price: 0, level: 1, icon: '🐕', top: true, desc: 'La Harley Sportster 1200 di John, blu scuro e nera col logo del centenario, cromata dappertutto, con le gomme a fascia bianca e la borsa laterale. Nella borsa sul serbatoio viaggia Zena, la bassotta, col muso in avanti a guardare la strada. Bicilindrico che rimbomba: sul dritto va, ma in enduro è un divano, gira poco e non impenna. In regalo per tutti.', ideal: 'Cef Adventure, Leventino, Desertone', stats: { speed: .12, climb: -.1, turbo: .2, wheelie: .5, steer: -.15 }, look: { paint: { plastic: '#1b2a4a', accent: '#d9dde2', side: '#151515', frame: '#151515', seat: '#151515', ink: '#d9dde2' }, scale: 1, big: true } },
+  { id: 'vstronz', name: 'Suzuki V-Stronz', price: 0, level: 1, icon: '💙', top: true, desc: 'La Suzuki V-Strom di Alex vestita da rally: azzurra con le grafiche GP Mucci, torre navigazione col cupolino trasparente, paramotore in alluminio e gomme tassellate. Bicilindrico che sul veloce tira come un treno; nello stretto pesa, ma Alex parte sempre a razzo. In regalo per tutti.', ideal: 'Desertone, Cef Adventure, Leventino', stats: { speed: .2, climb: .22, turbo: .22, wheelie: .85, steer: -.12 }, look: { paint: { plastic: '#1e8fe0', accent: '#f2f2f2', side: '#151515', frame: '#151515', seat: '#2aa8e8', ink: '#f2f2f2' }, scale: 1, big: true } },
 ]; for (const b of NB) { if (!P.BIKES.some(x => x.id === b.id)) P.BIKES.push(b); if (!P.ownsBike(b.id)) { P.profile.owned['bike:' + b.id] = true; P.save(); } } }
 if (!P.BIKES.some(b => b.id === 'analk')) P.BIKES.push({ id: 'analk', name: 'Anal K di Gusta', price: 0, level: 99, icon: '🦄', top: true, analk: true, desc: 'La KTM 450 di Gusta dopo lo scherzo dell’EDT: carta rosa, unicorno col corno d’oro sul faro, pompon sul parafango e la sella firmata. Quattro tempi che tira forte e sale dappertutto; l’unicorno davanti non aiuta a vedere dove vai. Si sblocca con una medaglia al Gusta Ranch.', ideal: 'Gusta Ranch, Mirco e Gabbah Fest', stats: { speed: .1, climb: .4, turbo: .15, wheelie: 1.2, steer: -.04 }, look: { paint: { plastic: '#fff4f8', accent: '#ff5fa8', side: '#fff4f8', frame: '#ff6a13', seat: '#151515', ink: '#ff3d94' }, scale: 1, big: true } });
 import * as D from './duel.js?v=db2f059d';
@@ -37,7 +38,7 @@ import('./piloti.js?v=8bcd4edd').then(m => {
 // v151 · il 3D si carica DOPO che la home è a schermo: chi apre il link vede subito il tasto per partire
 let worldP = null;
 function bootWorld() {
-  return worldP || (worldP = import('./scene3d.js?v=41ba5625').then(({ createWorld }) => {
+  return worldP || (worldP = import('./scene3d.js?v=1d4b4075').then(({ createWorld }) => {
     try { world = createWorld(canvas); window.__world = world; } catch (e) { worldError = e; console.error('3D non disponibile', e); return; }
     world.onAutoLite = () => setTimeout(() => toast('⚙ GRAFICA LEGGERA ACCESA DA SOLA PER ANDARE PIÙ FLUIDO · LA TOGLI DALLE IMPOSTAZIONI', 'green'), 0);
     try { preview = world.makePreview?.(document.getElementById('bikepreview')); } catch (e) { console.warn('anteprima moto non disponibile', e); }
@@ -3427,7 +3428,7 @@ function maybeNews() {
   }, 1400);
 }
 // v170 · MOTO SBLOCCATA: un riquadro vero, non una scritta che passa. Vale per le moto bonus (Shadow chiodata, Anal K di Gusta); se l'hai sbloccata e non l'hai visto, te lo dice alla prima apertura
-const UNLOCK_BIKES = { shadow: 'con la medaglia su Ice Scrofy', analk: 'con la medaglia al Gusta Ranch', purcello: 'in regalo per tutti', domiangelo: 'in regalo per tutti', ktmmiti: 'in regalo per tutti', xr600: 'in regalo per tutti', dr350: 'in regalo per tutti', harleyjohn: 'in regalo per tutti' };
+const UNLOCK_BIKES = { shadow: 'con la medaglia su Ice Scrofy', analk: 'con la medaglia al Gusta Ranch', purcello: 'in regalo per tutti', domiangelo: 'in regalo per tutti', ktmmiti: 'in regalo per tutti', xr600: 'in regalo per tutti', dr350: 'in regalo per tutti', harleyjohn: 'in regalo per tutti', vstronz: 'in regalo per tutti' };
 function maybeUnlock() {
   if ($('unlockpop') || $('newspop')) return;
   for (const id of Object.keys(UNLOCK_BIKES)) { let seen = '1'; try { seen = localStorage.getItem('edt-unlock-seen:' + id); } catch {} if (P.ownsBike(id) && !seen) { showUnlock(id); return; } }
@@ -4465,7 +4466,8 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 178;   // v178 · Desertone sabbia x4, stelle e luna in Notturna, spruzzi di acqua e fango, Fest coi supereroi col mantello
+const GAME_VERSION = 179;   // v179 · Suzuki V-Stronz di Alex, in regalo per tutti
+// prima:   // v178 · Desertone sabbia x4, stelle e luna in Notturna, spruzzi di acqua e fango, Fest coi supereroi col mantello
 // prima:   // v177 · Harley di John con Zena la bassotta; sfida 1 contro 1 dal vivo sulla pista nuova
 // prima:   // v176 · nuove moto in regalo: Domi di Angelo col bauletto, KTM 990 di Miti, XR 600R, Suzuki DR 350; musica della gara ferma fuori dall'app
 // prima:   // v175 · grafica: tasti di guida velati, cielo del Desertone, gocce, luna in Notturna, classifica a striscia
@@ -5085,7 +5087,7 @@ setTimeout(() => { const n = C.getNick(); if (n && cloudOkFor() !== n.toLowerCas
 const NEXT_PISTA = { 0: 'g', 1: 'i', 2: 'p', 3: V2_DAILY.p, 15: 'n', 9: 'x', 13: 'a', 14: 'r', 16: 'd', 17: 'c', 18: 'l', 20: 'f', 21: 'v', 22: 's', 4: 'e' }, NEXT_LIMIT = { 0: 150, 1: 158, 2: 135, 9: 150, 13: 185, 14: 140, 16: 155, 17: 138, 18: 165, 15: 136, 20: 124, 21: 198, 22: 900, 4: 200 }; NEXT_LIMIT[3] = P.MODES.find(x => x.id === 3).limit;
 function v2Photo(u) { const c = $('canvas'), g = $('game'); if (!c || !g) return; if (u) { c.style.visibility = 'hidden'; g.style.backgroundImage = 'url(' + u + ')'; g.style.backgroundSize = 'cover'; g.style.backgroundPosition = 'center'; } else { c.style.visibility = ''; g.style.backgroundImage = ''; } }
 function v2Order(c0, ord) { const free = c0.rivals.slice(), mp = {}; for (const n of ord) if (n !== '__me') { const k = free.findIndex(x => x.toUpperCase() === n); if (k >= 0) mp[n] = free.splice(k, 1)[0]; } for (const n of ord) if (n !== '__me' && !mp[n] && free.length) mp[n] = free.shift(); const out = ord.map(n => n === '__me' ? n : mp[n]).filter(Boolean); for (const n of free) out.push(n); if (!out.includes('__me')) out.push('__me'); return out; }   // v2 · campionato: l'ordine d'arrivo vero della pista 3D
-const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow', analk: 'analk', purcello: 'purcello', domiangelo: 'domiangelo', ktmmiti: 'ktmmiti', xr600: 'xr600', dr350: 'dr350', harleyjohn: 'harleyjohn' };
+const NEXT_BIKE = { edt250: 'enduro', gp125: 'hard300', trial: 'trial', ts300: 'hard300', mulo450: 'enduro', vintage: 'vintage', boanal: 'adventure', electric: 'electric', dakar: 'dakar', factory: 'dakar', pitbike: 'pitbike', bestia: 'bestia', fakedomi: 'fakedomi', hard300: 'hard300', shadow: 'shadow', analk: 'analk', purcello: 'purcello', domiangelo: 'domiangelo', ktmmiti: 'ktmmiti', xr600: 'xr600', dr350: 'dr350', harleyjohn: 'harleyjohn', vstronz: 'vstronz' };
 let nextRes = null, nextFrame = null, nextCfg = '';
 let v2Gap = null;   // v171 · quanto manca per battere chi ti e' arrivato davanti
 function startNext() {
