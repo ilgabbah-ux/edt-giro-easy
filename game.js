@@ -4467,7 +4467,8 @@ function confetti() {
 }
 
 // ---------- Pannello laterale: pilota, garage, classifica ----------
-const GAME_VERSION = 183;   // v183 · nuovo percorso: Addio al celibato di Sergione (con la Dani Fest all'arrivo e la voce di Sergione)
+const GAME_VERSION = 184;   // v184 · tolto il blocco dello schermo al via: si può girare il telefono come si vuole
+// prima:   // v183 · nuovo percorso: Addio al celibato di Sergione (con la Dani Fest all'arrivo e la voce di Sergione)
 // prima:   // v182 · sul GAS dito in su = impennata senza mollare il gas; tolto il tasto IMPENNA; scuola aggiornata (testi e voce)
 // prima:   // v181 · tasto IMPENNA e avviso dei tronchi sulla pista nuova; schermo bloccato in gara
 // prima:   // v180 · casco: il pilota creato corre col casco scelto anche sulla pista nuova; 10 colori di casco gratis nello Stile
@@ -5098,7 +5099,7 @@ let v2Gap = null;   // v171 · quanto manca per battere chi ti e' arrivato davan
 // v181 · SCHERMO BLOCCATO IN GARA: si guida inclinando il telefono, e con la rotazione automatica lo schermo girava da verticale a orizzontale.
 // Al via si blocca nella posizione in cui tieni il telefono e si sblocca all'arrivo. Funziona su Android (app e browser a schermo intero);
 // dove non si può (iPhone, browser normale) la prima volta un avviso spiega come bloccarla dal telefono
-function lockScreen() {
+function lockScreen() { return;   // v184 · tolto su richiesta del Gabbah: lo schermo resta libero di girare (verticale/orizzontale)
   const o = screen.orientation, touch = matchMedia('(pointer: coarse)').matches; if (!touch) return;
   const hint = () => { try { if (localStorage.getItem('edt-rot-hint')) return; localStorage.setItem('edt-rot-hint', '1'); } catch { return; } rotHint = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'SCHERMO CHE GIRA? Blocca la rotazione dal Centro di Controllo (il lucchetto)' : 'SCHERMO CHE GIRA? Gioca a schermo intero (⛶) o blocca la rotazione del telefono'; };   // l'avviso esce a fine gara: durante la gara la pista copre tutto
   try { if (o?.lock) o.lock(o.type).catch(hint); else hint(); } catch { hint(); }
